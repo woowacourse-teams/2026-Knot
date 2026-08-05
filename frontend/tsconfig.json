@@ -1,0 +1,16 @@
+{
+  "include": [
+    "./**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
+  ],
+  "compilerOptions": {
+    "target": "es6",
+    "module": "esnext",
+    "strict": true,
+    "skipLibCheck": false,
+    "moduleResolution": "bundler"
+  }
+}
