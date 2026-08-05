@@ -1,4 +1,5 @@
 const path = require("path");
+const HtmlWebpackPlugin = require("html-webpack-plugin");
 
 module.exports = {
   entry: "./src/index.tsx", // 모듈 진입점
@@ -41,4 +42,11 @@ module.exports = {
   resolve: {
     extensions: [".ts", ".tsx", ".js"],
   },
+  plugins: [
+    new HtmlWebpackPlugin({
+      template: "./index.html", // 이 파일을 기반으로 번들 스크립트가 주입된 HTML을 생성해요
+      filename: "index.html", // 출력될 HTML 파일 이름
+      inject: true, // <script> 태그 자동 삽입
+    }),
+  ],
 };
