@@ -13,7 +13,7 @@
     "strict": true,
     "skipLibCheck": false,
     "moduleResolution": "bundler",
-    "jsx": "react",
+    "jsx": "react-jsx",
     "esModuleInterop": true,
     "noEmit": true
   }
