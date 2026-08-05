@@ -11,6 +11,8 @@
     "module": "esnext",
     "strict": true,
     "skipLibCheck": false,
-    "moduleResolution": "bundler"
+    "moduleResolution": "bundler",
+    "jsx": "react",
+    "esModuleInterop": true
   }
 }

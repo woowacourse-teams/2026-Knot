@@ -1,7 +1,7 @@
 const path = require("path");
 
 module.exports = {
-  entry: "./src/index.ts", // 모듈 진입점
+  entry: "./src/index.tsx", // 모듈 진입점
   output: {
     filename: "bundle.js",
     path: path.resolve(__dirname, "dist"),
@@ -21,13 +21,24 @@ module.exports = {
   module: {
     rules: [
       {
-        test: /\.ts$/, // .ts 파일들은
-        use: "ts-loader", // ts-loader를 거쳐 처리돼요.
-        exclude: /node_modules/, // 외부 모듈은 제외해요.
+        test: /\.(ts|tsx)$/, // .ts와 .tsx 파일을 대상으로
+        use: [
+          {
+            loader: "babel-loader",
+            options: {
+              presets: [
+                "@babel/preset-env", // 최신 JS 문법을 변환해요
+                "@babel/preset-react", // JSX를 변환해요
+                "@babel/preset-typescript", // 타입스크립트를 변환해요
+              ],
+            },
+          },
+        ],
+        exclude: /node_modules/,
       },
     ],
   },
   resolve: {
-    extensions: [".ts", ".js"],
+    extensions: [".ts", ".tsx", ".js"],
   },
 };
