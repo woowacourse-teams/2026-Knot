@@ -2,7 +2,7 @@
   "name": "frontend",
   "scripts": {
     "dev": "webpack serve --mode development",
-    "build": "tsc && webpack",
+    "build": "pnpm tsc && webpack --mode production",
     "start": "webpack serve --mode production"
   },
   "devDependencies": {
