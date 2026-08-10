@@ -49,6 +49,7 @@ def normalize_payload(payload: dict[str, Any]) -> dict[str, Any]:
 
     return {
         "kind": kind,
+        "draft": item.get("draft", item.get("isDraft", False)),
         "title": item.get("title", ""),
         "body": item.get("body") or "",
         "labels": _names(item.get("labels") or [], "name"),
@@ -58,6 +59,11 @@ def normalize_payload(payload: dict[str, Any]) -> dict[str, Any]:
 
 def load_from_github(repo: str, kind: str, number: int) -> dict[str, Any]:
     resource = "pr" if kind == "pull_request" else "issue"
+    fields = (
+        "title,body,labels,assignees,isDraft"
+        if kind == "pull_request"
+        else "title,body,labels,assignees"
+    )
     command = [
         "gh",
         resource,
@@ -66,7 +72,7 @@ def load_from_github(repo: str, kind: str, number: int) -> dict[str, Any]:
         "--repo",
         repo,
         "--json",
-        "title,body,labels,assignees",
+        fields,
     ]
     completed = subprocess.run(command, check=False, capture_output=True, text=True)
     if completed.returncode != 0:
@@ -88,8 +94,19 @@ def _section_content(body: str, matches: list[re.Match[str]], index: int) -> str
     return content.strip()
 
 
-def validate(item: dict[str, Any], config: dict[str, Any]) -> list[str]:
+def validate(
+    item: dict[str, Any], config: dict[str, Any]
+) -> tuple[list[str], list[str]]:
     errors: list[str] = []
+    warnings: list[str] = []
+    if (
+        item["kind"] == "pull_request"
+        and item.get("draft", False)
+        and not config.get("validate_draft_pull_requests", True)
+    ):
+        warnings.append("Draft PR은 준비 중이므로 메타데이터 차단 검사를 보류했습니다.")
+        return errors, warnings
+
     title = item["title"]
     labels = set(item["labels"])
     assignees = set(item["assignees"])
@@ -117,7 +134,9 @@ def validate(item: dict[str, Any], config: dict[str, Any]) -> list[str]:
     for assignee in sorted(assignees):
         expected_worker = worker_by_assignee.get(assignee)
         if expected_worker is None:
-            errors.append(f"Assignee @{assignee}의 작업자 Label 매핑이 설정에 없습니다.")
+            warnings.append(
+                f"Assignee @{assignee}의 작업자 Label 매핑이 설정에 없어 대응 여부를 검사하지 않았습니다."
+            )
         elif expected_worker not in worker_labels:
             errors.append(f"Assignee @{assignee}에 대응하는 작업자 Label '{expected_worker}'가 없습니다.")
     for worker in sorted(worker_labels):
@@ -132,23 +151,25 @@ def validate(item: dict[str, Any], config: dict[str, Any]) -> list[str]:
         matches = _section_matches(body)
         headings = [match.group(1).strip() for match in matches]
         required = config["required_pr_sections"]
-        positions: list[int] = []
         for section in required:
             if section not in headings:
                 errors.append(f"PR 본문에 '## {section}' 섹션이 없습니다.")
+        for section in config.get("non_empty_pr_sections", []):
+            if section not in headings:
                 continue
             index = headings.index(section)
-            positions.append(index)
             if not _section_content(body, matches, index):
-                errors.append(f"PR 본문의 '## {section}' 섹션이 비어 있습니다.")
-        if len(positions) == len(required) and positions != sorted(positions):
-            errors.append("PR 본문의 필수 섹션 순서가 컨벤션과 다릅니다.")
-        if not re.search(
-            r"(?im)\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\s+#\d+\b", body
-        ):
-            errors.append("PR 본문에 'Closes #번호' 형식으로 Issue를 연결해야 합니다.")
+                errors.append(f"PR 본문의 '## {section}' 섹션에 작업 내용을 작성해야 합니다.")
+        issue_section = config["issue_reference_section"]
+        if issue_section in headings:
+            issue_section_index = headings.index(issue_section)
+            issue_section_content = _section_content(body, matches, issue_section_index)
+            if not re.search(config["issue_reference_pattern"], issue_section_content):
+                errors.append(
+                    f"PR 본문의 '## {issue_section}' 섹션에 '#번호' 형식으로 Issue를 연결해야 합니다."
+                )
 
-    return errors
+    return errors, warnings
 
 
 def parse_args() -> argparse.Namespace:
@@ -179,7 +200,9 @@ def main() -> int:
         print(f"::error::{error}")
         return 2
 
-    errors = validate(item, config)
+    errors, warnings = validate(item, config)
+    for warning in warnings:
+        print(f"::warning::{warning}")
     if errors:
         for error in errors:
             print(f"::error::{error}")

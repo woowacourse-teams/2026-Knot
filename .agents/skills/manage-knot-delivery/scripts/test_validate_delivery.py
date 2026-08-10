@@ -6,62 +6,117 @@ from validate_delivery import validate
 
 
 CONFIG = {
-    "title_pattern": r"^\[(BE|FE)\] .+",
+    "title_pattern": r"^\[(BE|FE)\] \S.*",
     "area_labels": ["BE", "FE"],
     "type_labels": ["Feature", "Docs"],
     "worker_labels": ["루덴스"],
     "worker_by_assignee": {"poketopa": "루덴스"},
-    "required_pr_sections": [
-        "관련 이슈",
-        "변경 이유",
-        "작업 내용",
-        "영향 범위",
-        "검증",
-        "ADR / 명세",
-        "리뷰 요청사항",
-    ],
+    "required_pr_sections": ["관련 이슈", "작업 내용"],
+    "non_empty_pr_sections": ["작업 내용"],
+    "issue_reference_section": "관련 이슈",
+    "issue_reference_pattern": r"#\d+\b",
+    "validate_draft_pull_requests": False,
 }
 
 
+def pull_request(
+    body: str,
+    *,
+    title: str = "[BE] 협업 규칙 자동 검증",
+    labels: list[str] | None = None,
+    assignees: list[str] | None = None,
+    draft: bool = False,
+) -> dict[str, object]:
+    return {
+        "kind": "pull_request",
+        "draft": draft,
+        "title": title,
+        "body": body,
+        "labels": labels if labels is not None else ["BE", "Docs", "루덴스"],
+        "assignees": assignees if assignees is not None else ["poketopa"],
+    }
+
+
 class ValidateDeliveryTest(unittest.TestCase):
-    def test_valid_pull_request(self) -> None:
-        body = "\n\n".join(
-            [
-                "## 관련 이슈\n\nCloses #4",
-                "## 변경 이유\n\n협업 규칙을 자동 검증합니다.",
-                "## 작업 내용\n\n검증기를 추가했습니다.",
-                "## 영향 범위\n\n문서와 GitHub Actions만 변경합니다.",
-                "## 검증\n\nunittest 통과",
-                "## ADR / 명세\n\n불필요: 협업 자동화입니다.",
-                "## 리뷰 요청사항\n\n설정과 문서의 일치 여부",
-            ]
+    def test_accepts_concise_pull_request(self) -> None:
+        item = pull_request(
+            "## 관련 이슈\n\n- #4\n\n"
+            "## 작업 내용\n\n검증기를 간결한 템플릿에 맞췄습니다.\n\n"
+            "### 참고 사항\n\n검증 결과는 리뷰 댓글을 참고합니다."
         )
-        item = {
-            "kind": "pull_request",
-            "title": "[BE] 협업 규칙 자동 검증",
-            "body": body,
-            "labels": ["BE", "Docs", "루덴스"],
-            "assignees": ["poketopa"],
-        }
 
-        self.assertEqual([], validate(item, CONFIG))
+        errors, warnings = validate(item, CONFIG)
 
-    def test_reports_metadata_and_body_errors(self) -> None:
-        item = {
-            "kind": "pull_request",
-            "title": "협업 규칙 자동 검증",
-            "body": "## 관련 이슈\n\n#4",
-            "labels": ["BE", "FE", "Docs", "루덴스"],
-            "assignees": [],
-        }
+        self.assertEqual([], errors)
+        self.assertEqual([], warnings)
 
-        errors = validate(item, CONFIG)
+    def test_accepts_closing_keyword_and_extra_sections(self) -> None:
+        item = pull_request(
+            "## 작업 내용\n\n검증기를 수정했습니다.\n\n"
+            "## 검증\n\n단위 테스트 통과\n\n"
+            "## 관련 이슈\n\nCloses #4"
+        )
+
+        errors, _ = validate(item, CONFIG)
+
+        self.assertEqual([], errors)
+
+    def test_reports_only_objective_metadata_and_minimum_body_errors(self) -> None:
+        item = pull_request(
+            "## 관련 이슈\n\n번호 미정\n\n## 작업 내용\n\n<!-- 작성 예정 -->",
+            title="[BE]  ",
+            labels=["BE", "FE", "Docs", "루덴스"],
+            assignees=[],
+        )
+
+        errors, _ = validate(item, CONFIG)
 
         self.assertTrue(any("제목" in error for error in errors))
         self.assertTrue(any("담당 영역 Label" in error for error in errors))
         self.assertTrue(any("Assignee" in error for error in errors))
-        self.assertTrue(any("Closes #번호" in error for error in errors))
-        self.assertTrue(any("변경 이유" in error for error in errors))
+        self.assertTrue(any("작업 내용을 작성" in error for error in errors))
+        self.assertTrue(any("관련 이슈" in error for error in errors))
+
+    def test_missing_optional_sections_does_not_fail(self) -> None:
+        item = pull_request("## 관련 이슈\n\n#4\n\n## 작업 내용\n\n문서 수정")
+
+        errors, _ = validate(item, CONFIG)
+
+        self.assertEqual([], errors)
+
+    def test_issue_number_outside_related_issue_section_does_not_pass(self) -> None:
+        item = pull_request(
+            "## 관련 이슈\n\n번호 미정\n\n## 작업 내용\n\nIssue #4와 관련된 문서 수정"
+        )
+
+        errors, _ = validate(item, CONFIG)
+
+        self.assertTrue(any("관련 이슈" in error for error in errors))
+
+    def test_unknown_assignee_is_warning_not_error(self) -> None:
+        item = pull_request(
+            "## 관련 이슈\n\n#4\n\n## 작업 내용\n\n문서 수정",
+            assignees=["poketopa", "new-member"],
+        )
+
+        errors, warnings = validate(item, CONFIG)
+
+        self.assertEqual([], errors)
+        self.assertTrue(any("new-member" in warning for warning in warnings))
+
+    def test_draft_pull_request_is_not_blocked(self) -> None:
+        item = pull_request(
+            "",
+            title="초안",
+            labels=[],
+            assignees=[],
+            draft=True,
+        )
+
+        errors, warnings = validate(item, CONFIG)
+
+        self.assertEqual([], errors)
+        self.assertTrue(any("Draft PR" in warning for warning in warnings))
 
 
 if __name__ == "__main__":

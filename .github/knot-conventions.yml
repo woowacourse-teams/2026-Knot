@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "title_pattern": "^\\[(BE|FE)\\] .+",
+  "title_pattern": "^\\[(BE|FE)\\] \\S.*",
   "area_labels": ["BE", "FE"],
   "type_labels": ["Feature", "BugFix", "Chore", "Docs", "Hotfix", "Refactor", "Release"],
   "worker_labels": ["유월", "도넛", "이스타", "흑곰", "루덴스"],
@@ -13,11 +13,10 @@
   },
   "required_pr_sections": [
     "관련 이슈",
-    "변경 이유",
-    "작업 내용",
-    "영향 범위",
-    "검증",
-    "ADR / 명세",
-    "리뷰 요청사항"
-  ]
+    "작업 내용"
+  ],
+  "non_empty_pr_sections": ["작업 내용"],
+  "issue_reference_section": "관련 이슈",
+  "issue_reference_pattern": "#\\d+\\b",
+  "validate_draft_pull_requests": false
 }

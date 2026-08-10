@@ -70,8 +70,8 @@ agent/gov-001-collaboration-guidelines
 3. 리뷰 가능한 상태가 되면 Draft를 해제하고 `In Review`로 변경합니다.
 4. 제목과 담당 영역·작업 유형·작업자 Label을 Issue와 일치시킵니다.
 5. 작업자 Label과 Assignee가 일치하는지 확인합니다.
-6. PR 본문에 `Closes #<issue-number>`를 작성합니다.
-7. PR 템플릿의 `변경 이유`, `작업 내용`, `영향 범위`, `검증`, `ADR / 명세`, `리뷰 요청사항`을 빠짐없이 작성합니다.
+6. PR 본문의 `관련 이슈`에 `#<issue-number>`를 작성합니다. 병합 시 Issue를 자동 종료하려면 `Closes #<issue-number>`를 사용합니다.
+7. PR 템플릿의 `관련 이슈`와 `작업 내용`을 작성하고, 검증 결과·영향 범위·관련 ADR처럼 리뷰에 필요한 맥락은 `작업 내용` 또는 `참고 사항`에 기록합니다.
 8. CI, 필수 리뷰, 미해결 대화 조건을 모두 충족한 뒤 병합합니다.
 
 직접 `main`에 push하거나 리뷰되지 않은 변경을 병합하지 않습니다.
@@ -99,5 +99,7 @@ agent/gov-001-collaboration-guidelines
 - 제목, Label, Assignee, PR 본문 규칙의 단일 설정은 [`.github/knot-conventions.yml`](.github/knot-conventions.yml)입니다.
 - 설정 파일은 별도 YAML 패키지 없이 검증할 수 있도록 JSON 문법과 호환되는 YAML로 유지합니다.
 - GitHub Actions의 `Governance` 검사는 Issue와 PR 메타데이터가 설정과 일치하는지 확인합니다.
+- 자동 검사는 제목 형식, Label 개수, 작업자 대응, PR의 최소 구조와 Issue 번호처럼 기계적으로 판정 가능한 규칙만 차단합니다. 설명의 충분성, 영향 범위, ADR 필요 여부는 리뷰와 Ready/Done 확인에서 판단합니다.
+- Draft PR은 준비 중인 상태이므로 차단 검사를 보류하고, Draft 해제 시점에 전체 규칙을 검사합니다. 연속된 본문·Label·Assignee 변경은 마지막 상태를 검사하도록 짧게 묶어 처리합니다.
 - 로컬 또는 Codex에서는 저장소 스킬 [`manage-knot-delivery`](.agents/skills/manage-knot-delivery/SKILL.md)를 사용해 생성 전 준비와 생성 후 검증을 자동화합니다.
 - 자동화 결과가 이 문서와 충돌하면 설정만 임의로 고치지 않고 같은 PR에서 문서와 설정을 함께 변경합니다.

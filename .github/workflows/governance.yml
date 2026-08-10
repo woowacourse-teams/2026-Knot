@@ -11,6 +11,10 @@ permissions:
   issues: read
   pull-requests: read
 
+concurrency:
+  group: governance-${{ github.event.pull_request.number || github.event.issue.number }}
+  cancel-in-progress: true
+
 jobs:
   validate-delivery-metadata:
     runs-on: ubuntu-latest
@@ -18,6 +22,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+
+      - name: Debounce metadata updates
+        run: sleep 8
 
       - name: Validate Issue or pull request
         run: >-
