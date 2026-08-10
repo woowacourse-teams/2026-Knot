@@ -1,0 +1,26 @@
+name: Governance
+
+on:
+  issues:
+    types: [opened, edited, labeled, unlabeled, assigned, unassigned, reopened]
+  pull_request:
+    types: [opened, edited, synchronize, labeled, unlabeled, assigned, unassigned, reopened, ready_for_review]
+
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+
+jobs:
+  validate-delivery-metadata:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Validate Issue or pull request
+        run: >-
+          python3 .agents/skills/manage-knot-delivery/scripts/validate_delivery.py
+          --config .github/knot-conventions.yml
+          --payload "$GITHUB_EVENT_PATH"

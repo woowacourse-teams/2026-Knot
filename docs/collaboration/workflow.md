@@ -53,12 +53,13 @@ Draft PR은 조기 공유 수단이며 `In Review`를 의미하지 않습니다.
 
 1. `Ready` Issue를 선택하고 담당자를 지정합니다.
 2. `main`을 기준으로 Issue 전용 브랜치를 생성합니다.
-3. 작은 커밋으로 변경하고 테스트를 반복합니다.
-4. 구현 맥락 공유가 필요하면 Draft PR을 일찍 생성합니다.
-5. 완료 조건과 자체 검증을 충족하면 Draft를 해제하고 리뷰를 요청합니다.
-6. CI, 필수 리뷰, 미해결 대화 조건을 모두 충족합니다.
-7. PR을 병합하고 Issue와 Project 상태가 `Done`인지 확인합니다.
-8. 다음 `Ready` Issue를 가져옵니다.
+3. 브랜치 또는 Draft PR이 생기면 Project 상태를 `In Progress`로 변경합니다.
+4. 작은 커밋으로 변경하고 테스트를 반복합니다.
+5. 구현 맥락 공유가 필요하면 Draft PR을 일찍 생성합니다.
+6. 완료 조건과 자체 검증을 충족하면 Draft를 해제하고 리뷰를 요청합니다.
+7. CI, 필수 리뷰, 미해결 대화 조건을 모두 충족합니다.
+8. PR을 병합하고 Issue와 Project 상태가 `Done`인지 확인합니다.
+9. 다음 `Ready` Issue를 가져옵니다.
 
 상세 기여 절차는 [`CONTRIBUTING.md`](../../CONTRIBUTING.md)를 따릅니다.
 
@@ -83,7 +84,13 @@ Scrumban은 고정 Sprint 대신 흐름을 유지합니다.
 - 기존 Accepted ADR과 다른 방향이 필요합니다.
 - 이후 팀원이 선택 이유를 다시 질문할 가능성이 큽니다.
 
-ADR 체계와 템플릿은 후속 ADR-as-Code 초기 세팅 Issue에서 추가합니다. 그전까지 결정이 필요하면 Issue에 `ADR 필요`를 명시하고 구현을 보류할 수 있습니다.
+ADR 체계와 템플릿은 후속 ADR-as-Code 초기 세팅 Issue에서 추가합니다. 그전까지 `ADR 필요` 또는 `검토 중`인 Issue는 `Ready`로 이동하거나 구현을 시작하지 않습니다. ADR 체계가 준비된 뒤에는 필요한 결정이 Accepted ADR로 연결되어야 `Ready`로 이동할 수 있습니다.
+
+## 자동화 경계
+
+- [`.github/knot-conventions.yml`](../../.github/knot-conventions.yml)은 제목, Label, 작업자 매핑, PR 필수 본문 항목의 단일 설정입니다.
+- `Governance` GitHub Actions는 규칙 위반을 차단하지만 우선순위, 마일스톤 범위, ADR 필요 여부 같은 팀 판단을 대신하지 않습니다.
+- 저장소 스킬 [`manage-knot-delivery`](../../.agents/skills/manage-knot-delivery/SKILL.md)는 Issue와 PR을 만들거나 수정할 때 같은 설정을 읽고 메타데이터를 준비·검증합니다.
 
 ## Notion Portal 원칙
 

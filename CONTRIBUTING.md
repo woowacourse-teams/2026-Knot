@@ -9,7 +9,6 @@
 3. 선행 Issue와 외부 의존성이 해결됐는지 확인합니다.
 4. 기술 결정이 필요하면 구현 전에 ADR 필요 여부를 Issue에 기록합니다.
 5. 담당 영역, 작업 유형, 작업자 Label과 Assignee를 지정합니다.
-6. Project 상태를 `In Progress`로 변경합니다.
 
 Ready 조건을 만족하지 않으면 구현을 시작하지 않고 부족한 결정이나 자료를 Issue에 기록합니다.
 
@@ -41,6 +40,7 @@ Issue와 PR에는 아래 세 종류의 Label을 모두 지정합니다.
 ## 3. 브랜치
 
 - `main`에서 최신 변경을 받은 뒤 작업 브랜치를 만듭니다.
+- 브랜치 또는 Draft PR을 만든 뒤 Project 상태를 `In Progress`로 변경합니다.
 - 하나의 브랜치는 하나의 Issue 결과만 다룹니다.
 - 사람이 만드는 브랜치는 `<area>/<type>/<issue-number>-<summary>` 형식을 권장합니다.
 - 자동화 도구가 만드는 브랜치는 `agent/<issue-key>-<summary>` 형식을 사용할 수 있습니다.
@@ -71,7 +71,7 @@ agent/gov-001-collaboration-guidelines
 4. 제목과 담당 영역·작업 유형·작업자 Label을 Issue와 일치시킵니다.
 5. 작업자 Label과 Assignee가 일치하는지 확인합니다.
 6. PR 본문에 `Closes #<issue-number>`를 작성합니다.
-7. 변경 이유, 검증 결과, API·DB 영향, 관련 ADR을 기록합니다.
+7. PR 템플릿의 `변경 이유`, `작업 내용`, `영향 범위`, `검증`, `ADR / 명세`, `리뷰 요청사항`을 빠짐없이 작성합니다.
 8. CI, 필수 리뷰, 미해결 대화 조건을 모두 충족한 뒤 병합합니다.
 
 직접 `main`에 push하거나 리뷰되지 않은 변경을 병합하지 않습니다.
@@ -93,3 +93,11 @@ agent/gov-001-collaboration-guidelines
 | 협업 절차 | 이 문서와 `docs/collaboration` |
 
 내용이 충돌하면 임의로 해석하지 말고 Issue에 충돌 지점과 필요한 결정을 기록합니다.
+
+## 자동 검증
+
+- 제목, Label, Assignee, PR 본문 규칙의 단일 설정은 [`.github/knot-conventions.yml`](.github/knot-conventions.yml)입니다.
+- 설정 파일은 별도 YAML 패키지 없이 검증할 수 있도록 JSON 문법과 호환되는 YAML로 유지합니다.
+- GitHub Actions의 `Governance` 검사는 Issue와 PR 메타데이터가 설정과 일치하는지 확인합니다.
+- 로컬 또는 Codex에서는 저장소 스킬 [`manage-knot-delivery`](.agents/skills/manage-knot-delivery/SKILL.md)를 사용해 생성 전 준비와 생성 후 검증을 자동화합니다.
+- 자동화 결과가 이 문서와 충돌하면 설정만 임의로 고치지 않고 같은 PR에서 문서와 설정을 함께 변경합니다.

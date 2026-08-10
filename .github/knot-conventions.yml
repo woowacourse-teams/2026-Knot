@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "title_pattern": "^\\[(BE|FE)\\] .+",
+  "area_labels": ["BE", "FE"],
+  "type_labels": ["Feature", "BugFix", "Chore", "Docs", "Hotfix", "Refactor", "Release"],
+  "worker_labels": ["유월", "도넛", "이스타", "흑곰", "루덴스"],
+  "worker_by_assignee": {
+    "geongyu09": "유월",
+    "vlmbuyd": "도넛",
+    "Eastar-DS": "이스타",
+    "jyt6640": "흑곰",
+    "poketopa": "루덴스"
+  },
+  "required_pr_sections": [
+    "관련 이슈",
+    "변경 이유",
+    "작업 내용",
+    "영향 범위",
+    "검증",
+    "ADR / 명세",
+    "리뷰 요청사항"
+  ]
+}

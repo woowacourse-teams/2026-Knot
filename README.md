@@ -10,6 +10,8 @@ Knot 프로젝트의 코드와 개발 협업 기록을 관리하는 저장소입
 - 작업 준비·완료 기준: [`docs/collaboration/definition-of-ready-done.md`](docs/collaboration/definition-of-ready-done.md)
 - 작업 인계 양식: [`docs/collaboration/context-handoff.md`](docs/collaboration/context-handoff.md)
 - 명세 관리 원칙: [`docs/specs/README.md`](docs/specs/README.md)
+- Issue·PR 관리 스킬: [`.agents/skills/manage-knot-delivery/`](.agents/skills/manage-knot-delivery/SKILL.md)
+- 협업 규칙 설정: [`.github/knot-conventions.yml`](.github/knot-conventions.yml)
 
 ## 협업 현황
 

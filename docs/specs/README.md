@@ -29,7 +29,7 @@ Issue에서 Notion 명세를 참조할 때 다음 정보를 남깁니다.
 ## 충돌 처리
 
 1. GitHub Issue와 Notion의 제품 동작이 다르면 제품 담당자에게 확인하고 Issue 완료 조건을 갱신합니다.
-2. 코드와 Swagger UI가 다르면 코드 또는 OpenAPI 정의를 수정해 같은 PR에서 일치시킵니다.
+2. 구현과 기존 OpenAPI 계약이 다르면 구현을 기존 계약에 맞춥니다. 계약을 의도적으로 변경해야 할 때만 Issue 완료 조건과 PR 설명에서 변경을 승인받고, 구현과 OpenAPI 정의를 같은 PR에서 함께 수정합니다.
 3. 구현 방향과 Accepted ADR이 다르면 기존 ADR을 몰래 수정하지 않고 새 ADR로 대체합니다.
 4. 정책이 확정되지 않았으면 임의로 선택하지 않고 Issue를 `Blocked` 또는 `Backlog`로 이동합니다.
 
