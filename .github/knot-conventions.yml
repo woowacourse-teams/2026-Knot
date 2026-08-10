@@ -3,14 +3,6 @@
   "title_pattern": "^\\[(BE|FE)\\] \\S.*",
   "area_labels": ["BE", "FE"],
   "type_labels": ["Feature", "BugFix", "Chore", "Docs", "Hotfix", "Refactor", "Release"],
-  "worker_labels": ["유월", "도넛", "이스타", "흑곰", "루덴스"],
-  "worker_by_assignee": {
-    "geongyu09": "유월",
-    "vlmbuyd": "도넛",
-    "Eastar-DS": "이스타",
-    "jyt6640": "흑곰",
-    "poketopa": "루덴스"
-  },
   "branch_pattern": "^(?P<area>be|fe)/(?P<type>feature|bugfix|chore|docs|hotfix|refactor|release)/#(?P<issue>\\d+)$",
   "branch_area_by_label": {
     "BE": "be",
@@ -31,6 +23,5 @@
   ],
   "non_empty_pr_sections": ["작업 내용"],
   "issue_reference_section": "관련 이슈",
-  "issue_reference_pattern": "#\\d+\\b",
-  "validate_draft_pull_requests": false
+  "issue_reference_pattern": "#\\d+\\b"
 }

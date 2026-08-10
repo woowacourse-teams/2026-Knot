@@ -8,7 +8,7 @@
 2. [Definition of Ready](docs/collaboration/definition-of-ready-done.md#definition-of-ready)를 만족하는지 확인합니다.
 3. 선행 Issue와 외부 의존성이 해결됐는지 확인합니다.
 4. 기술 결정이 필요하면 구현 전에 ADR 필요 여부를 Issue에 기록합니다.
-5. 담당 영역, 작업 유형, 작업자 Label과 Assignee를 지정합니다.
+5. 담당 영역과 작업 유형 Label, Assignee를 지정합니다.
 
 Ready 조건을 만족하지 않으면 구현을 시작하지 않고 부족한 결정이나 자료를 Issue에 기록합니다.
 
@@ -25,15 +25,12 @@ Issue와 PR 제목은 담당 영역만 접두사로 표시합니다.
 - `Feature`, `Chore` 같은 작업 유형이나 작업자 이름을 제목에 추가하지 않습니다.
 - Issue와 연결된 PR은 같은 담당 영역 접두사를 사용합니다.
 
-Issue와 PR에는 아래 세 종류의 Label을 모두 지정합니다.
+Issue와 PR에는 아래 두 종류의 Label을 모두 지정합니다.
 
 | 구분 | 선택 규칙 | 현재 Label |
 | --- | --- | --- |
 | 담당 영역 | 정확히 1개 | `BE`, `FE` |
 | 작업 유형 | 정확히 1개 | `Feature`, `BugFix`, `Chore`, `Docs`, `Hotfix`, `Refactor`, `Release` |
-| 작업자 | 참여자별 1개 이상 | `유월`, `도넛`, `이스타`, `흑곰`, `루덴스` |
-
-작업자 Label은 보드에서 담당자를 빠르게 구분하기 위한 팀 컨벤션입니다. GitHub Assignee에도 같은 작업자를 지정하며, 공동 작업이면 모든 참여자의 작업자 Label과 Assignee를 함께 추가합니다.
 
 현재 저장소의 기능 개발 Label 명칭은 `Feat`가 아니라 `Feature`입니다. Label 명칭을 변경하기 전까지 Issue와 PR에는 `Feature`를 사용합니다.
 
@@ -74,11 +71,10 @@ git switch -c 'be/chore/#2'
 1. 가능한 한 일찍 Draft PR을 열어 구현 맥락을 공유합니다.
 2. Draft 상태에서는 Project 상태를 `In Progress`로 유지합니다.
 3. 리뷰 가능한 상태가 되면 Draft를 해제하고 `In Review`로 변경합니다.
-4. 제목과 담당 영역·작업 유형·작업자 Label을 Issue와 일치시킵니다.
-5. 작업자 Label과 Assignee가 일치하는지 확인합니다.
-6. PR 본문의 `관련 이슈`에 `#<issue-number>`를 작성합니다. 병합 시 Issue를 자동 종료하려면 `Closes #<issue-number>`를 사용합니다.
-7. PR 템플릿의 `관련 이슈`와 `작업 내용`을 작성하고, 검증 결과·영향 범위·관련 ADR처럼 리뷰에 필요한 맥락은 `작업 내용` 또는 `참고 사항`에 기록합니다.
-8. CI, 필수 리뷰, 미해결 대화 조건을 모두 충족한 뒤 병합합니다.
+4. 제목과 담당 영역·작업 유형 Label, Assignee를 Issue와 일치시킵니다.
+5. PR 본문의 `관련 이슈`에 `#<issue-number>`를 작성합니다. 병합 시 Issue를 자동 종료하려면 `Closes #<issue-number>`를 사용합니다.
+6. PR 템플릿의 `관련 이슈`와 `작업 내용`을 작성하고, 검증 결과·영향 범위·관련 ADR처럼 리뷰에 필요한 맥락은 `작업 내용` 또는 `참고 사항`에 기록합니다.
+7. CI, 필수 리뷰, 미해결 대화 조건을 모두 충족한 뒤 병합합니다.
 
 직접 `main`에 push하거나 리뷰되지 않은 변경을 병합하지 않습니다.
 
@@ -102,10 +98,8 @@ git switch -c 'be/chore/#2'
 
 ## 자동 검증
 
-- 제목, Label, Assignee, PR 본문 규칙의 단일 설정은 [`.github/knot-conventions.yml`](.github/knot-conventions.yml)입니다.
+- 제목, Label, 브랜치, PR 본문 규칙의 단일 설정은 [`.github/knot-conventions.yml`](.github/knot-conventions.yml)입니다.
 - 설정 파일은 별도 YAML 패키지 없이 검증할 수 있도록 JSON 문법과 호환되는 YAML로 유지합니다.
-- GitHub Actions의 `Governance` 검사는 Issue와 PR 메타데이터가 설정과 일치하는지 확인합니다.
-- 자동 검사는 제목 형식, Label 개수, 작업자 대응, PR의 최소 구조와 Issue 번호처럼 기계적으로 판정 가능한 규칙만 차단합니다. 설명의 충분성, 영향 범위, ADR 필요 여부는 리뷰와 Ready/Done 확인에서 판단합니다.
-- Draft PR은 준비 중인 상태이므로 차단 검사를 보류하고, Draft 해제 시점에 전체 규칙을 검사합니다. 연속된 본문·Label·Assignee 변경은 마지막 상태를 검사하도록 짧게 묶어 처리합니다.
-- 로컬 또는 Codex에서는 저장소 스킬 [`manage-knot-delivery`](.agents/skills/manage-knot-delivery/SKILL.md)를 사용해 생성 전 준비와 생성 후 검증을 자동화합니다.
+- GitHub Actions의 `Governance` 검사는 PR 메타데이터가 설정과 일치하는지 확인합니다.
+- 자동 검사는 제목 형식, Label 개수, 브랜치, PR의 최소 구조와 Issue 번호처럼 기계적으로 판정 가능한 규칙만 차단합니다. 설명의 충분성, 영향 범위, ADR 필요 여부는 리뷰와 Ready/Done 확인에서 판단합니다.
 - 자동화 결과가 이 문서와 충돌하면 설정만 임의로 고치지 않고 같은 PR에서 문서와 설정을 함께 변경합니다.

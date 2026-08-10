@@ -1,19 +1,11 @@
 name: Governance
 
 on:
-  issues:
-    types: [opened, edited, labeled, unlabeled, assigned, unassigned, reopened]
   pull_request:
-    types: [opened, edited, synchronize, labeled, unlabeled, assigned, unassigned, reopened, ready_for_review]
+    types: [opened, edited, synchronize, labeled, unlabeled, reopened, ready_for_review]
 
 permissions:
   contents: read
-  issues: read
-  pull-requests: read
-
-concurrency:
-  group: governance-${{ github.event.pull_request.number || github.event.issue.number }}
-  cancel-in-progress: true
 
 jobs:
   validate-delivery-metadata:
@@ -23,11 +15,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Debounce metadata updates
-        run: sleep 8
-
-      - name: Validate Issue or pull request
+      - name: Validate pull request
         run: >-
-          python3 .agents/skills/manage-knot-delivery/scripts/validate_delivery.py
+          python3 .github/scripts/validate_governance.py
           --config .github/knot-conventions.yml
           --payload "$GITHUB_EVENT_PATH"

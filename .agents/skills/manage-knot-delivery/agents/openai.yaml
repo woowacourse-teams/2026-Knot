@@ -1,4 +1,0 @@
-interface:
-  display_name: "Knot Delivery 관리"
-  short_description: "Knot Issue와 PR 컨벤션을 생성하고 검증합니다"
-  default_prompt: "Use $manage-knot-delivery to prepare and validate a Knot Issue or pull request against the repository conventions."
