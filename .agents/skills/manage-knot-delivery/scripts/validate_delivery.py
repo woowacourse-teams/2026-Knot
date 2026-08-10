@@ -47,9 +47,17 @@ def normalize_payload(payload: dict[str, Any]) -> dict[str, Any]:
     else:
         raise ValueError("Issue 또는 pull_request payload가 아닙니다.")
 
+    head = item.get("head") or {}
+    head_ref = (
+        head.get("ref", "")
+        if isinstance(head, dict)
+        else ""
+    ) or item.get("headRefName", item.get("head_ref", ""))
+
     return {
         "kind": kind,
         "draft": item.get("draft", item.get("isDraft", False)),
+        "head_ref": head_ref,
         "title": item.get("title", ""),
         "body": item.get("body") or "",
         "labels": _names(item.get("labels") or [], "name"),
@@ -60,7 +68,7 @@ def normalize_payload(payload: dict[str, Any]) -> dict[str, Any]:
 def load_from_github(repo: str, kind: str, number: int) -> dict[str, Any]:
     resource = "pr" if kind == "pull_request" else "issue"
     fields = (
-        "title,body,labels,assignees,isDraft"
+        "title,body,labels,assignees,isDraft,headRefName"
         if kind == "pull_request"
         else "title,body,labels,assignees"
     )
@@ -161,6 +169,7 @@ def validate(
             if not _section_content(body, matches, index):
                 errors.append(f"PR 본문의 '## {section}' 섹션에 작업 내용을 작성해야 합니다.")
         issue_section = config["issue_reference_section"]
+        issue_section_content = ""
         if issue_section in headings:
             issue_section_index = headings.index(issue_section)
             issue_section_content = _section_content(body, matches, issue_section_index)
@@ -168,6 +177,29 @@ def validate(
                 errors.append(
                     f"PR 본문의 '## {issue_section}' 섹션에 '#번호' 형식으로 Issue를 연결해야 합니다."
                 )
+
+        head_ref = item.get("head_ref", "")
+        branch_match = re.fullmatch(config["branch_pattern"], head_ref)
+        if not branch_match:
+            errors.append(
+                "브랜치는 '<area>/<type>/#<issue-number>' 형식이어야 합니다."
+            )
+        else:
+            if len(area_labels) == 1:
+                area_label = next(iter(area_labels))
+                expected_area = config["branch_area_by_label"][area_label]
+                if branch_match.group("area") != expected_area:
+                    errors.append("브랜치의 area가 담당 영역 Label과 일치해야 합니다.")
+            if len(type_labels) == 1:
+                type_label = next(iter(type_labels))
+                expected_type = config["branch_type_by_label"][type_label]
+                if branch_match.group("type") != expected_type:
+                    errors.append("브랜치의 type이 작업 유형 Label과 일치해야 합니다.")
+            branch_issue = branch_match.group("issue")
+            if issue_section_content and not re.search(
+                rf"#{re.escape(branch_issue)}\b", issue_section_content
+            ):
+                errors.append("브랜치의 Issue 번호가 관련 이슈와 일치해야 합니다.")
 
     return errors, warnings
 

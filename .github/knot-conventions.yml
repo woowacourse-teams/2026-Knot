@@ -11,6 +11,20 @@
     "jyt6640": "흑곰",
     "poketopa": "루덴스"
   },
+  "branch_pattern": "^(?P<area>be|fe)/(?P<type>feature|bugfix|chore|docs|hotfix|refactor|release)/#(?P<issue>\\d+)$",
+  "branch_area_by_label": {
+    "BE": "be",
+    "FE": "fe"
+  },
+  "branch_type_by_label": {
+    "Feature": "feature",
+    "BugFix": "bugfix",
+    "Chore": "chore",
+    "Docs": "docs",
+    "Hotfix": "hotfix",
+    "Refactor": "refactor",
+    "Release": "release"
+  },
   "required_pr_sections": [
     "관련 이슈",
     "작업 내용"

@@ -11,6 +11,9 @@ CONFIG = {
     "type_labels": ["Feature", "Docs"],
     "worker_labels": ["루덴스"],
     "worker_by_assignee": {"poketopa": "루덴스"},
+    "branch_pattern": r"^(?P<area>be|fe)/(?P<type>feature|bugfix|chore|docs|hotfix|refactor|release)/#(?P<issue>\d+)$",
+    "branch_area_by_label": {"BE": "be", "FE": "fe"},
+    "branch_type_by_label": {"Feature": "feature", "Docs": "docs"},
     "required_pr_sections": ["관련 이슈", "작업 내용"],
     "non_empty_pr_sections": ["작업 내용"],
     "issue_reference_section": "관련 이슈",
@@ -26,10 +29,12 @@ def pull_request(
     labels: list[str] | None = None,
     assignees: list[str] | None = None,
     draft: bool = False,
+    head_ref: str = "be/docs/#4",
 ) -> dict[str, object]:
     return {
         "kind": "pull_request",
         "draft": draft,
+        "head_ref": head_ref,
         "title": title,
         "body": body,
         "labels": labels if labels is not None else ["BE", "Docs", "루덴스"],
@@ -103,6 +108,28 @@ class ValidateDeliveryTest(unittest.TestCase):
 
         self.assertEqual([], errors)
         self.assertTrue(any("new-member" in warning for warning in warnings))
+
+    def test_branch_segments_must_match_labels_and_related_issue(self) -> None:
+        item = pull_request(
+            "## 관련 이슈\n\n#4\n\n## 작업 내용\n\n문서 수정",
+            head_ref="fe/feature/#99",
+        )
+
+        errors, _ = validate(item, CONFIG)
+
+        self.assertTrue(any("area" in error for error in errors))
+        self.assertTrue(any("type" in error for error in errors))
+        self.assertTrue(any("Issue 번호" in error for error in errors))
+
+    def test_branch_format_is_required(self) -> None:
+        item = pull_request(
+            "## 관련 이슈\n\n#4\n\n## 작업 내용\n\n문서 수정",
+            head_ref="agent/gov-001-collaboration-guidelines",
+        )
+
+        errors, _ = validate(item, CONFIG)
+
+        self.assertTrue(any("<area>/<type>/#<issue-number>" in error for error in errors))
 
     def test_draft_pull_request_is_not_blocked(self) -> None:
         item = pull_request(

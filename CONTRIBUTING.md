@@ -42,16 +42,22 @@ Issue와 PR에는 아래 세 종류의 Label을 모두 지정합니다.
 - `main`에서 최신 변경을 받은 뒤 작업 브랜치를 만듭니다.
 - 브랜치 또는 Draft PR을 만든 뒤 Project 상태를 `In Progress`로 변경합니다.
 - 하나의 브랜치는 하나의 Issue 결과만 다룹니다.
-- 사람이 만드는 브랜치는 `<area>/<type>/<issue-number>-<summary>` 형식을 권장합니다.
-- 자동화 도구가 만드는 브랜치는 `agent/<issue-key>-<summary>` 형식을 사용할 수 있습니다.
+- 모든 작업 브랜치는 `<area>/<type>/#<issue-number>` 형식을 사용합니다.
+- `area`는 Issue와 PR의 담당 영역 Label에 따라 `be` 또는 `fe`를 사용합니다.
+- `type`은 작업 유형 Label을 소문자로 변환한 `feature`, `bugfix`, `chore`, `docs`, `hotfix`, `refactor`, `release` 중 하나를 사용합니다.
+- 마지막 구간은 연결된 Issue 번호 앞에 `#`을 붙이며 작업 요약을 추가하지 않습니다.
+- 셸에서 `#`이 주석으로 해석되지 않도록 브랜치 이름을 따옴표로 감싸 사용합니다.
 
 예시:
 
 ```text
-be/feature/42-import-notion-page
-be/refactor/57-block-parser
-docs/chore/4-collaboration-guidelines
-agent/gov-001-collaboration-guidelines
+be/chore/#2
+fe/feature/#15
+be/docs/#4
+```
+
+```bash
+git switch -c 'be/chore/#2'
 ```
 
 ## 4. 구현과 커밋
