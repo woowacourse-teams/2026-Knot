@@ -1,4 +1,4 @@
-package com.knot.backend;
+package com.knot.backend.testSupport;
 
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
