@@ -5,9 +5,7 @@
 ## 제목과 Label
 
 - Issue와 PR 제목은 백엔드 작업이면 `[BE]`, 프론트엔드 작업이면 `[FE]`로 시작합니다.
-- 담당 영역 Label은 `BE`, `FE` 중 정확히 하나를 지정합니다.
-- 작업 유형 Label은 `Feature`, `BugFix`, `Chore`, `Docs`, `Hotfix`, `Refactor`, `Release` 중 정확히 하나를 지정합니다.
-- Issue와 연결된 PR은 같은 담당 영역과 작업 유형을 사용합니다.
+- Label은 PR 생성 후 지정할 수 있으며 Governance 자동 검증 대상이 아닙니다.
 
 ## 브랜치
 
@@ -20,7 +18,7 @@ fe/chore/#15
 ```
 
 - `area`는 `be` 또는 `fe`입니다.
-- `type`은 작업 유형 Label을 소문자로 변환한 값입니다.
+- `type`은 `feature`, `bugfix`, `chore`, `docs`, `hotfix`, `refactor`, `release` 중 하나입니다.
 - 마지막 구간은 관련 Issue 번호입니다.
 - 셸에서 `#`이 주석으로 해석되지 않도록 브랜치 이름을 따옴표로 감쌉니다.
 
@@ -39,9 +37,8 @@ git switch -c 'be/feature/#42'
 
 GitHub Actions의 `Governance` 검사는 다음 항목을 자동으로 확인합니다.
 
-- 제목의 `[BE]` 또는 `[FE]` 형식과 담당 영역 Label 일치
-- 담당 영역과 작업 유형 Label이 각각 정확히 하나인지
-- 브랜치 형식과 Label·관련 Issue 번호 일치
+- 제목의 `[BE]` 또는 `[FE]` 형식
+- 브랜치 형식과 제목의 담당 영역·관련 Issue 번호 일치
 - PR의 `관련 이슈`, `작업 내용` 섹션과 최소 내용
 
 규칙의 단일 설정은 [`.github/knot-conventions.yml`](.github/knot-conventions.yml)입니다.

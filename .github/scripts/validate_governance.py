@@ -24,16 +24,6 @@ def load_config(path: Path) -> dict[str, Any]:
         raise ValueError(f"설정 파일이 JSON 호환 YAML 형식이 아닙니다: {error}") from error
 
 
-def _names(values: list[Any], key: str) -> list[str]:
-    result: list[str] = []
-    for value in values:
-        if isinstance(value, str):
-            result.append(value)
-        elif isinstance(value, dict) and isinstance(value.get(key), str):
-            result.append(value[key])
-    return result
-
-
 def normalize_payload(payload: dict[str, Any]) -> dict[str, Any]:
     if "pull_request" in payload:
         item = payload["pull_request"]
@@ -51,7 +41,6 @@ def normalize_payload(payload: dict[str, Any]) -> dict[str, Any]:
         "title": item.get("title", ""),
         "body": item.get("body") or "",
         "head_ref": head_ref,
-        "labels": _names(item.get("labels") or [], "name"),
     }
 
 
@@ -64,7 +53,7 @@ def load_from_github(repo: str, number: int) -> dict[str, Any]:
         "--repo",
         repo,
         "--json",
-        "title,body,labels,headRefName",
+        "title,body,headRefName",
     ]
     completed = subprocess.run(command, check=False, capture_output=True, text=True)
     if completed.returncode != 0:
@@ -89,21 +78,10 @@ def _section_content(body: str, matches: list[re.Match[str]], index: int) -> str
 def validate(item: dict[str, Any], config: dict[str, Any]) -> list[str]:
     errors: list[str] = []
     title = item["title"]
-    labels = set(item["labels"])
 
     title_match = re.fullmatch(config["title_pattern"], title)
     if not title_match:
         errors.append("제목은 [BE] 또는 [FE]로 시작하고 뒤에 작업명을 포함해야 합니다.")
-
-    area_labels = labels.intersection(config["area_labels"])
-    if len(area_labels) != 1:
-        errors.append("담당 영역 Label은 BE와 FE 중 정확히 하나여야 합니다.")
-    elif title_match and title_match.group(1) not in area_labels:
-        errors.append("제목의 담당 영역과 담당 영역 Label이 일치해야 합니다.")
-
-    type_labels = labels.intersection(config["type_labels"])
-    if len(type_labels) != 1:
-        errors.append("작업 유형 Label은 정확히 하나여야 합니다.")
 
     body = item["body"]
     matches = _section_matches(body)
@@ -134,16 +112,8 @@ def validate(item: dict[str, Any], config: dict[str, Any]) -> list[str]:
     if not branch_match:
         errors.append("브랜치는 '<area>/<type>/#<issue-number>' 형식이어야 합니다.")
     else:
-        if len(area_labels) == 1:
-            area_label = next(iter(area_labels))
-            expected_area = config["branch_area_by_label"][area_label]
-            if branch_match.group("area") != expected_area:
-                errors.append("브랜치의 area가 담당 영역 Label과 일치해야 합니다.")
-        if len(type_labels) == 1:
-            type_label = next(iter(type_labels))
-            expected_type = config["branch_type_by_label"][type_label]
-            if branch_match.group("type") != expected_type:
-                errors.append("브랜치의 type이 작업 유형 Label과 일치해야 합니다.")
+        if title_match and branch_match.group("area") != title_match.group(1).lower():
+            errors.append("브랜치의 area가 제목의 담당 영역과 일치해야 합니다.")
         branch_issue = branch_match.group("issue")
         if issue_section_content and not re.search(
             rf"#{re.escape(branch_issue)}\b", issue_section_content

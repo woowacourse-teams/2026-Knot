@@ -7,11 +7,7 @@ from validate_governance import validate
 
 CONFIG = {
     "title_pattern": r"^\[(BE|FE)\] \S.*",
-    "area_labels": ["BE", "FE"],
-    "type_labels": ["Feature", "Docs"],
     "branch_pattern": r"^(?P<area>be|fe)/(?P<type>feature|docs)/#(?P<issue>\d+)$",
-    "branch_area_by_label": {"BE": "be", "FE": "fe"},
-    "branch_type_by_label": {"Feature": "feature", "Docs": "docs"},
     "required_pr_sections": ["관련 이슈", "작업 내용"],
     "non_empty_pr_sections": ["작업 내용"],
     "issue_reference_section": "관련 이슈",
@@ -23,13 +19,11 @@ def pull_request(
     body: str,
     *,
     title: str = "[BE] 협업 규칙 자동 검증",
-    labels: list[str] | None = None,
     head_ref: str = "be/docs/#4",
 ) -> dict[str, object]:
     return {
         "title": title,
         "body": body,
-        "labels": labels if labels is not None else ["BE", "Docs"],
         "head_ref": head_ref,
     }
 
@@ -53,17 +47,15 @@ class ValidateGovernanceTest(unittest.TestCase):
 
         self.assertEqual([], validate(item, CONFIG))
 
-    def test_reports_objective_metadata_and_minimum_body_errors(self) -> None:
+    def test_reports_title_and_minimum_body_errors(self) -> None:
         item = pull_request(
             "## 관련 이슈\n\n번호 미정\n\n## 작업 내용\n\n<!-- 작성 예정 -->",
             title="[BE]  ",
-            labels=["BE", "FE", "Docs"],
         )
 
         errors = validate(item, CONFIG)
 
         self.assertTrue(any("제목" in error for error in errors))
-        self.assertTrue(any("담당 영역 Label" in error for error in errors))
         self.assertTrue(any("작업 내용을 작성" in error for error in errors))
         self.assertTrue(any("관련 이슈" in error for error in errors))
 
@@ -81,7 +73,7 @@ class ValidateGovernanceTest(unittest.TestCase):
 
         self.assertTrue(any("관련 이슈" in error for error in errors))
 
-    def test_branch_segments_must_match_labels_and_related_issue(self) -> None:
+    def test_branch_area_and_issue_must_match_title_and_related_issue(self) -> None:
         item = pull_request(
             "## 관련 이슈\n\n#4\n\n## 작업 내용\n\n문서 수정",
             head_ref="fe/feature/#99",
@@ -90,8 +82,13 @@ class ValidateGovernanceTest(unittest.TestCase):
         errors = validate(item, CONFIG)
 
         self.assertTrue(any("area" in error for error in errors))
-        self.assertTrue(any("type" in error for error in errors))
         self.assertTrue(any("Issue 번호" in error for error in errors))
+
+    def test_labels_are_not_required(self) -> None:
+        item = pull_request("## 관련 이슈\n\n#4\n\n## 작업 내용\n\n문서 수정")
+        item["labels"] = []
+
+        self.assertEqual([], validate(item, CONFIG))
 
     def test_branch_format_is_required(self) -> None:
         item = pull_request(
