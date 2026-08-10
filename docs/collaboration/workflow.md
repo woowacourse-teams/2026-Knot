@@ -19,6 +19,16 @@ Knot는 Scrumban으로 작업 흐름을 관리하고 GitHub Flow로 코드를 �
 3. 기술 선택은 최신 Accepted ADR을 확인합니다.
 4. 어느 기준으로도 해결되지 않으면 구현을 멈추고 결정이 필요한 내용을 Issue에 기록합니다.
 
+## Issue와 Pull Request 메타데이터
+
+- 제목은 담당 영역에 따라 `[BE]` 또는 `[FE]`로 시작합니다.
+- 담당 영역 Label은 `BE`와 `FE` 중 정확히 하나를 지정합니다.
+- 작업 유형 Label은 `Feature`, `BugFix`, `Chore`, `Docs`, `Hotfix`, `Refactor`, `Release` 중 정확히 하나를 지정합니다.
+- 작업자 닉네임 Label을 참여자별로 지정하고 같은 사람을 Assignee에도 추가합니다.
+- Issue와 연결된 PR은 담당 영역, 작업 유형, 작업자 Label을 동일하게 유지합니다.
+
+제목과 Label의 자세한 예시는 [`CONTRIBUTING.md`](../../CONTRIBUTING.md#2-issue와-pull-request-제목label)를 따릅니다.
+
 ## Scrumban 상태
 
 | 상태 | 의미 | 진입 조건 | 다음 상태 |
@@ -73,7 +83,7 @@ Scrumban은 고정 Sprint 대신 흐름을 유지합니다.
 - 기존 Accepted ADR과 다른 방향이 필요합니다.
 - 이후 팀원이 선택 이유를 다시 질문할 가능성이 큽니다.
 
-ADR 체계와 템플릿은 후속 `GOV-003`에서 추가합니다. 그전까지 결정이 필요하면 Issue에 `ADR 필요`를 명시하고 구현을 보류할 수 있습니다.
+ADR 체계와 템플릿은 후속 ADR-as-Code 초기 세팅 Issue에서 추가합니다. 그전까지 결정이 필요하면 Issue에 `ADR 필요`를 명시하고 구현을 보류할 수 있습니다.
 
 ## Notion Portal 원칙
 
@@ -82,4 +92,4 @@ ADR 체계와 템플릿은 후속 `GOV-003`에서 추가합니다. 그전까지 
 - 제품 명세에는 책임자, 상태, 마지막 확인일을 표시합니다.
 - 구현 Issue에는 사용한 Notion 원문 링크와 마지막 확인일을 기록합니다.
 
-Notion Portal의 실제 구성은 후속 `GOV-005`에서 진행합니다.
+Notion Portal의 실제 구성은 후속 Notion Portal 초기 세팅 Issue에서 진행합니다.

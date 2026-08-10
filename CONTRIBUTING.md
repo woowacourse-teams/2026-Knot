@@ -8,11 +8,37 @@
 2. [Definition of Ready](docs/collaboration/definition-of-ready-done.md#definition-of-ready)를 만족하는지 확인합니다.
 3. 선행 Issue와 외부 의존성이 해결됐는지 확인합니다.
 4. 기술 결정이 필요하면 구현 전에 ADR 필요 여부를 Issue에 기록합니다.
-5. 담당자를 지정하고 Project 상태를 `In Progress`로 변경합니다.
+5. 담당 영역, 작업 유형, 작업자 Label과 Assignee를 지정합니다.
+6. Project 상태를 `In Progress`로 변경합니다.
 
 Ready 조건을 만족하지 않으면 구현을 시작하지 않고 부족한 결정이나 자료를 Issue에 기록합니다.
 
-## 2. 브랜치
+## 2. Issue와 Pull Request 제목·Label
+
+Issue와 PR 제목은 담당 영역만 접두사로 표시합니다.
+
+```text
+[BE] Notion 페이지 조회 클라이언트 구현
+[FE] 워크스페이스 연결 화면 구현
+```
+
+- 백엔드 작업은 `[BE]`, 프론트엔드 작업은 `[FE]`로 시작합니다.
+- `Feature`, `Chore` 같은 작업 유형이나 작업자 이름을 제목에 추가하지 않습니다.
+- Issue와 연결된 PR은 같은 담당 영역 접두사를 사용합니다.
+
+Issue와 PR에는 아래 세 종류의 Label을 모두 지정합니다.
+
+| 구분 | 선택 규칙 | 현재 Label |
+| --- | --- | --- |
+| 담당 영역 | 정확히 1개 | `BE`, `FE` |
+| 작업 유형 | 정확히 1개 | `Feature`, `BugFix`, `Chore`, `Docs`, `Hotfix`, `Refactor`, `Release` |
+| 작업자 | 참여자별 1개 이상 | `유월`, `도넛`, `이스타`, `흑곰`, `루덴스` |
+
+작업자 Label은 보드에서 담당자를 빠르게 구분하기 위한 팀 컨벤션입니다. GitHub Assignee에도 같은 작업자를 지정하며, 공동 작업이면 모든 참여자의 작업자 Label과 Assignee를 함께 추가합니다.
+
+현재 저장소의 기능 개발 Label 명칭은 `Feat`가 아니라 `Feature`입니다. Label 명칭을 변경하기 전까지 Issue와 PR에는 `Feature`를 사용합니다.
+
+## 3. 브랜치
 
 - `main`에서 최신 변경을 받은 뒤 작업 브랜치를 만듭니다.
 - 하나의 브랜치는 하나의 Issue 결과만 다룹니다.
@@ -28,7 +54,7 @@ docs/chore/4-collaboration-guidelines
 agent/gov-001-collaboration-guidelines
 ```
 
-## 3. 구현과 커밋
+## 4. 구현과 커밋
 
 - Issue의 완료 조건을 기준으로 구현합니다.
 - 범위 밖 요구사항은 현재 변경에 섞지 않고 별도 Issue로 분리합니다.
@@ -37,18 +63,20 @@ agent/gov-001-collaboration-guidelines
 - API가 변경되면 Swagger UI에서 확인할 수 있는 OpenAPI 문서도 함께 갱신합니다.
 - 중요한 기술 선택이 확정되면 관련 ADR을 함께 추가하거나 갱신합니다.
 
-## 4. Pull Request
+## 5. Pull Request
 
 1. 가능한 한 일찍 Draft PR을 열어 구현 맥락을 공유합니다.
 2. Draft 상태에서는 Project 상태를 `In Progress`로 유지합니다.
 3. 리뷰 가능한 상태가 되면 Draft를 해제하고 `In Review`로 변경합니다.
-4. PR 본문에 `Closes #<issue-number>`를 작성합니다.
-5. 변경 이유, 검증 결과, API·DB 영향, 관련 ADR을 기록합니다.
-6. CI, 필수 리뷰, 미해결 대화 조건을 모두 충족한 뒤 병합합니다.
+4. 제목과 담당 영역·작업 유형·작업자 Label을 Issue와 일치시킵니다.
+5. 작업자 Label과 Assignee가 일치하는지 확인합니다.
+6. PR 본문에 `Closes #<issue-number>`를 작성합니다.
+7. 변경 이유, 검증 결과, API·DB 영향, 관련 ADR을 기록합니다.
+8. CI, 필수 리뷰, 미해결 대화 조건을 모두 충족한 뒤 병합합니다.
 
 직접 `main`에 push하거나 리뷰되지 않은 변경을 병합하지 않습니다.
 
-## 5. 완료와 인계
+## 6. 완료와 인계
 
 - 병합 전에 [Definition of Done](docs/collaboration/definition-of-ready-done.md#definition-of-done)을 확인합니다.
 - 병합 후 연결된 Issue와 Project 상태가 `Done`인지 확인합니다.
