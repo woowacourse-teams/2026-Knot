@@ -15,6 +15,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
+      - name: Test governance validator
+        run: python3 -m unittest discover .github/scripts -p 'test_*.py' -v
+
       - name: Validate pull request
         run: >-
           python3 .github/scripts/validate_governance.py
