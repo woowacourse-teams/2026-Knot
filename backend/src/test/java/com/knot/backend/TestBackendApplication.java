@@ -1,6 +1,6 @@
 package com.knot.backend;
 
-import com.knot.backend.testSupport.TestcontainersConfiguration;
+import com.knot.backend.testsupport.TestcontainersConfiguration;
 import org.springframework.boot.SpringApplication;
 
 public class TestBackendApplication {
