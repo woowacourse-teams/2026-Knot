@@ -12,5 +12,11 @@ import org.springframework.context.annotation.Import;
 class KnotApplicationTests {
 
     @Test
-    void contextLoads() {}
+    void contextLoads() {
+        // given
+
+        // when
+
+        // then
+    }
 }

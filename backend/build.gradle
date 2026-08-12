@@ -48,6 +48,22 @@ dependencies {
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
+sourceSets {
+	performanceTest {
+		java.setSrcDirs(['src/performanceTest/java'])
+		resources.setSrcDirs(['src/performanceTest/resources'])
+		compileClasspath += sourceSets.main.output + configurations.compileClasspath + configurations.testCompileClasspath
+		runtimeClasspath += output + compileClasspath + configurations.runtimeClasspath + configurations.testRuntimeClasspath
+	}
+}
+
+configurations {
+	performanceTestImplementation.extendsFrom implementation
+	performanceTestImplementation.extendsFrom testImplementation
+	performanceTestRuntimeOnly.extendsFrom runtimeOnly
+	performanceTestRuntimeOnly.extendsFrom testRuntimeOnly
+}
+
 spotless {
 	java {
 		googleJavaFormat().aosp()
@@ -89,6 +105,38 @@ tasks.register('acceptanceTest', Test) {
 	}
 
 	shouldRunAfter integrationTest
+}
+
+tasks.register('performanceTest', Test) {
+	group = 'verification'
+	description = 'Runs the isolated Notion storage performance experiment.'
+
+	testClassesDirs = sourceSets.performanceTest.output.classesDirs
+	classpath = sourceSets.performanceTest.runtimeClasspath
+
+	useJUnitPlatform {
+		includeTags 'performance'
+	}
+
+	outputs.upToDateWhen { false }
+
+	System.properties.findAll { key, ignored -> key.toString().startsWith('performance.') }
+			.each { key, value -> systemProperty key, value }
+
+	String performanceOutputDirectory = layout.buildDirectory
+			.dir('reports/performance/latest')
+			.get()
+			.asFile
+			.absolutePath
+	systemProperty 'performance.outputDir', performanceOutputDirectory
+	maxHeapSize = System.getProperty('performance.heap', '2g')
+	jvmArgs "-XX:StartFlightRecording=filename=${performanceOutputDirectory}/jvm.jfr,settings=profile,dumponexit=true"
+
+	doFirst {
+		mkdir performanceOutputDirectory
+	}
+
+	shouldRunAfter acceptanceTest
 }
 
 tasks.named('check') {
