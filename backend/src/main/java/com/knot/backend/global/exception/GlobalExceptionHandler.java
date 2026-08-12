@@ -26,24 +26,24 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ErrorResponse> handleValidationException(MethodArgumentNotValidException exception) {
+    public ResponseEntity<ErrorResponse> handleValidationException(
+            MethodArgumentNotValidException exception) {
         List<FieldErrorResponse> fieldErrors =
-                exception.getBindingResult()
-                        .getFieldErrors()
-                        .stream()
-                        .map(error -> new FieldErrorResponse(
-                                error.getField(),
-                                error.getDefaultMessage()))
+                exception.getBindingResult().getFieldErrors().stream()
+                        .map(
+                                error ->
+                                        new FieldErrorResponse(
+                                                error.getField(), error.getDefaultMessage()))
                         .toList();
 
         return respond(CommonErrorCode.VALIDATION_ERROR, fieldErrors);
     }
 
     @ExceptionHandler(ConstraintViolationException.class)
-    public ResponseEntity<ErrorResponse> handleConstraintViolationException(ConstraintViolationException exception) {
+    public ResponseEntity<ErrorResponse> handleConstraintViolationException(
+            ConstraintViolationException exception) {
         List<FieldErrorResponse> fieldErrors =
-                exception.getConstraintViolations()
-                        .stream()
+                exception.getConstraintViolations().stream()
                         .map(this::toFieldErrorResponse)
                         .toList();
 
@@ -51,22 +51,24 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
-    public ResponseEntity<ErrorResponse> handleUnreadableMessage(HttpMessageNotReadableException ignored) {
+    public ResponseEntity<ErrorResponse> handleUnreadableMessage(
+            HttpMessageNotReadableException ignored) {
         return respond(CommonErrorCode.INVALID_REQUEST_BODY);
     }
 
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
-    public ResponseEntity<ErrorResponse> handleTypeMismatch(MethodArgumentTypeMismatchException exception) {
+    public ResponseEntity<ErrorResponse> handleTypeMismatch(
+            MethodArgumentTypeMismatchException exception) {
         FieldErrorResponse fieldError =
                 new FieldErrorResponse(
-                        exception.getName(),
-                        CommonErrorCode.INVALID_PARAMETER.getMessage());
+                        exception.getName(), CommonErrorCode.INVALID_PARAMETER.getMessage());
 
         return respond(CommonErrorCode.INVALID_PARAMETER, List.of(fieldError));
     }
 
     @ExceptionHandler(MissingServletRequestParameterException.class)
-    public ResponseEntity<ErrorResponse> handleMissingParameter(MissingServletRequestParameterException exception) {
+    public ResponseEntity<ErrorResponse> handleMissingParameter(
+            MissingServletRequestParameterException exception) {
 
         FieldErrorResponse fieldError =
                 new FieldErrorResponse(
@@ -83,8 +85,7 @@ public class GlobalExceptionHandler {
 
     private FieldErrorResponse toFieldErrorResponse(ConstraintViolation<?> violation) {
         return new FieldErrorResponse(
-                extractFieldName(violation.getPropertyPath()),
-                violation.getMessage());
+                extractFieldName(violation.getPropertyPath()), violation.getMessage());
     }
 
     private String extractFieldName(Path path) {
@@ -108,7 +109,8 @@ public class GlobalExceptionHandler {
         return respond(errorCode, List.of());
     }
 
-    private ResponseEntity<ErrorResponse> respond(ErrorCode errorCode, List<FieldErrorResponse> fieldErrors) {
+    private ResponseEntity<ErrorResponse> respond(
+            ErrorCode errorCode, List<FieldErrorResponse> fieldErrors) {
         return ResponseEntity.status(toHttpStatus(errorCode.getCategory()))
                 .body(new ErrorResponse(errorCode, fieldErrors));
     }
