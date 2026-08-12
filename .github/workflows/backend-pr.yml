@@ -1,0 +1,88 @@
+name: Backend PR Notification
+
+on:
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - ready_for_review
+    paths:
+      - "backend/**"
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Notify Backend PR
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_BE_PR_WEBHOOK_URL}}
+          DISCORD_BE_ROLE_ID: ${{ secrets.DISCORD_BE_ROLE_ID }}
+
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+
+          HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
+          BASE_BRANCH: ${{ github.event.pull_request.base.ref }}
+
+        run: |
+          CONTENT="<@&$DISCORD_BE_ROLE_ID> Backend PR이 올라왔습니다."
+
+          PAYLOAD=$(jq -n \
+            --arg content "$CONTENT" \
+            --arg role_id "$DISCORD_BE_ROLE_ID" \
+            --arg pr_title "#$PR_NUMBER $PR_TITLE" \
+            --arg author "$PR_AUTHOR" \
+            --arg branch "$HEAD_BRANCH → $BASE_BRANCH" \
+            --arg pr_url "$PR_URL" \
+            '{
+              username: "Knot GitHub",
+              content: $content,
+
+              allowed_mentions: {
+                roles: [$role_id]
+              },
+
+              embeds: [
+                {
+                  title: "🔀 Backend Pull Request",
+                  description: ("**" + $pr_title + "**"),
+                  url: $pr_url,
+                  color: 5793266,
+
+                  fields: [
+                    {
+                      name: "👤 Author",
+                      value: ("`" + $author + "`"),
+                      inline: true
+                    },
+                    {
+                      name: "🏷️ Area",
+                      value: "`Backend`",
+                      inline: true
+                    },
+                    {
+                      name: "🌿 Branch",
+                      value: ("`" + $branch + "`"),
+                      inline: false
+                    },
+                    {
+                      name: "🔗 Pull Request",
+                      value: ("[PR 확인하기](" + $pr_url + ")"),
+                      inline: false
+                    }
+                  ]
+                }
+              ]
+            }')
+
+          curl --fail-with-body \
+            -H "Content-Type: application/json" \
+            -d "$PAYLOAD" \
+            "$DISCORD_WEBHOOK_URL"
