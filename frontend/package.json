@@ -1,0 +1,30 @@
+{
+  "name": "frontend",
+  "type": "module",
+  "scripts": {
+    "dev": "webpack serve --mode development",
+    "build": "pnpm tsc && webpack --mode production",
+    "start": "webpack serve --mode production"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "css-loader": "^7.1.4",
+    "html-webpack-plugin": "^5.6.8",
+    "style-loader": "^4.0.0",
+    "typescript": "^7.0.2",
+    "webpack": "^5.109.2",
+    "webpack-cli": "^7.2.2",
+    "webpack-dev-server": "^6.0.0"
+  },
+  "dependencies": {
+    "@babel/core": "^8.0.1",
+    "@babel/preset-env": "^8.0.2",
+    "@babel/preset-react": "^8.0.1",
+    "@babel/preset-typescript": "^8.0.1",
+    "babel-loader": "^10.1.1",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  },
+  "packageManager": "pnpm@11.20.0+sha512.9a6f330a95b66446ea088faf1521405a8a01f07fde7124cc9958dfed52d4bb436737e65b08f85f37b46fcba375092558ac51262b816844b22f63406ed166bfee"
+}
