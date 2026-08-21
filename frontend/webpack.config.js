@@ -12,6 +12,8 @@ export default (env, argv) => {
     output: {
       filename: "bundle.js",
       path: path.resolve(__dirname, "dist"),
+      publicPath: "/", // 하위 라우트에서도 번들을 절대 경로로 로드해요
+      clean: true, // 빌드 시 이전 산출물을 제거해요
     },
     devServer: {
       static: {
