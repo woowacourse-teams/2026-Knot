@@ -1,0 +1,24 @@
+{
+  "operation": "create",
+  "title": "[BE] OAuth 로그인 추가",
+  "purpose": "사용자가 OAuth로 로그인할 수 있게 한다.",
+  "scope": ["OAuth 인증 요청과 콜백"],
+  "acceptance_criteria": ["OAuth 사용자가 로그인한다."],
+  "verification": ["인수 테스트"],
+  "evidence": ["현재 인증 코드"],
+  "risk_signals": ["security", "external", "core-flow"],
+  "non_goals": ["다른 제공자 추가"],
+  "normal_flows": ["OAuth 인증 성공"],
+  "failure_flows": [],
+  "recovery_flows": ["다시 로그인할 수 있다."],
+  "impacts": ["인증 흐름"],
+  "dependencies": ["OAuth 제공자"],
+  "residual_risks": [],
+  "grill": {
+    "status": "hold",
+    "resolved_questions": []
+  },
+  "adr": {
+    "required": true
+  }
+}

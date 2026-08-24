@@ -1,0 +1,37 @@
+{
+  "operation": "create",
+  "title": "[BE] OAuth 계정 연결 정책 도입",
+  "purpose": "동일 이메일의 기존 계정과 OAuth 계정 관계를 일관되게 처리한다.",
+  "scope": ["동일 이메일 계정 연결 정책", "연결 실패 응답 계약"],
+  "acceptance_criteria": ["동일 이메일 계정은 명시적 확인 후 연결된다.", "연결 거부와 실패를 구분한다."],
+  "verification": ["계정 연결 단위 테스트", "OAuth 콜백 인수 테스트"],
+  "evidence": ["현재 회원 식별 정책", "OAuth 제공자 계약"],
+  "risk_signals": ["security", "external", "cross-boundary", "core-flow"],
+  "non_goals": ["여러 OAuth 제공자 동시 추가", "기존 계정 자동 병합"],
+  "normal_flows": ["사용자가 기존 계정 인증 후 OAuth 계정을 연결한다."],
+  "failure_flows": ["사용자가 연결을 거부한다.", "OAuth 제공자가 timeout을 반환한다."],
+  "recovery_flows": ["기존 계정 상태를 보존하고 다시 시도할 수 있다."],
+  "impacts": ["BE 인증 정책", "FE 연결 확인 화면", "오류 응답 계약"],
+  "dependencies": ["OAuth 제공자 가용성"],
+  "residual_risks": ["제공자 이메일 신뢰 수준은 구현 전 재확인한다."],
+  "grill": {
+    "status": "pass",
+    "resolved_questions": ["자동 병합을 금지하고 사용자 확인을 요구한다."]
+  },
+  "adr": {
+    "required": true,
+    "status": "proposed",
+    "decision": "동일 이메일 계정은 사용자 확인 후 연결한다.",
+    "context": "자동 병합은 계정 탈취 위험이 있고 별도 계정은 사용자 혼란을 만든다.",
+    "situation": "회의에서 동일 이메일 OAuth 사용자를 자동 병합할지, 별도 계정으로 둘지, 사용자 확인 후 연결할지 논의했다.",
+    "decision_drivers": ["계정 탈취 위험을 낮춘다.", "사용자가 계정 연결을 명시적으로 통제한다."],
+    "alternatives": ["자동 병합: 편하지만 계정 탈취 위험이 있다.", "항상 별도 계정: 안전하지만 중복 계정이 생긴다."],
+    "alternatives_confirmed": true,
+    "long_term_impact": true,
+    "future_reference": true,
+    "rationale": "기존 계정 인증을 요구해 보안과 사용자 통제권을 함께 지킨다.",
+    "consequences": ["연결 확인 UI와 API가 필요하다.", "자동 병합을 지원하지 않는다."],
+    "revisit_when": ["이메일을 보장하지 않는 OAuth 제공자를 추가할 때"],
+    "planned_path": "docs/adr/123-auth-account-linking.md"
+  }
+}
