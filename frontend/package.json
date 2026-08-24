@@ -23,6 +23,7 @@
     "@babel/preset-env": "^8.0.2",
     "@babel/preset-react": "^8.0.1",
     "@babel/preset-typescript": "^8.0.1",
+    "axios": "^1.19.0",
     "babel-loader": "^10.1.1",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"
