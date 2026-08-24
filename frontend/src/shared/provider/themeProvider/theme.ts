@@ -1,3 +1,66 @@
+import { css } from "@emotion/react";
+
+const text = {
+  title01: css`
+    font-size: 2.5rem; /* 40px */
+    font-weight: 500;
+    line-height: 1.3;
+    letter-spacing: -0.02em;
+  `,
+  title02: css`
+    font-size: 2.5rem; /* 40px */
+    font-weight: 700;
+    line-height: 1.3;
+    letter-spacing: -0.02em;
+  `,
+
+  heading01: css`
+    font-size: 1.5rem; /* 24px */
+    font-weight: 500;
+    line-height: 1.5;
+    letter-spacing: -0.02em;
+  `,
+  heading02: css`
+    font-size: 1.625rem; /* 26px */
+    font-weight: 600;
+    line-height: 1.5;
+    letter-spacing: -0.02em;
+  `,
+
+  body01: css`
+    font-size: 1rem; /* 16px */
+    font-weight: 400;
+    line-height: 1.5;
+    letter-spacing: 0;
+  `,
+  body02: css`
+    font-size: 1.125rem; /* 18px */
+    font-weight: 400;
+    line-height: 1.5;
+    letter-spacing: 0;
+  `,
+
+  label01: css`
+    font-size: 1rem; /* 16px */
+    font-weight: 600;
+    line-height: 1.5;
+    letter-spacing: 0;
+  `,
+
+  caption01: css`
+    font-size: 0.75rem; /* 12px */
+    font-weight: 400;
+    line-height: 1.5;
+    letter-spacing: 0;
+  `,
+  caption02: css`
+    font-size: 0.875rem; /* 14px */
+    font-weight: 400;
+    line-height: 1.5;
+    letter-spacing: 0;
+  `,
+} as const;
+
 export const theme = {
   primary: "#3C3B39",
 
@@ -27,6 +90,8 @@ export const theme = {
       800: "#8C2A1F",
     },
   },
+
+  text,
 } as const;
 
 export type AppTheme = typeof theme;

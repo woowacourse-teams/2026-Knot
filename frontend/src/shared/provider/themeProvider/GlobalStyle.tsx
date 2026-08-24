@@ -28,8 +28,10 @@ const GlobalStyle = () => {
           background-color: ${theme.neutral[0]};
           color: ${theme.neutral[900]};
           font-family:
-            "Pretendard", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-          line-height: 1.5;
+            "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont,
+            system-ui, Roboto, "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo",
+            "Noto Sans KR", "Malgun Gothic", sans-serif;
+          ${theme.text.body01};
           -webkit-font-smoothing: antialiased;
           -moz-osx-font-smoothing: grayscale;
         }
