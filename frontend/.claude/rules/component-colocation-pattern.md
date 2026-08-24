@@ -108,7 +108,7 @@ src/
 - 컴포넌트 관련 모든 파일은 반드시 해당 컴포넌트 폴더의 세그먼트(`ui` / `model` / `utils` / `types` / `constants` / `context`) 내에 위치. (예외: 테스트 파일(`test.ts`/`test.tsx`)과 타입 파일은 일반 파일 가능)
 - 컴포넌트 폴더 내에서만 사용되는 파일들은 외부에서 임포트되지 않도록 주의.
 - `ui/` 내부의 서브 컴포넌트도 **부모 컴포넌트의 추상화 레벨 규칙을 그대로 따름**.
-  - 예: `primitives` 컴포넌트의 서브 컴포넌트는 `composites`나 `modules` 컴포넌트 사용 불가.
+  - 예: `primitives` 컴포넌트의 서브 컴포넌트는 `composites`·`features`·`widgets`를 사용할 수 없음.
 - 컨텍스트로 강하게 결합된 하위 컴포넌트(예: TodoList 안의 TodoAccordion)는 밖에서 재사용될 수 없으므로 상위 컴포넌트의 `ui` 폴더 안에 코로케이션.
 - **훅의 위치는 사용 횟수("지금은 여기서만 쓴다")로 판단하지 않음.** 컴포넌트와 강결합된 훅(컴포넌트의 렌더 구조·Context·로컬 state에 구조적으로 묶인 훅)만 `model`에 코로케이션하고, 도메인 값만 주고받는 훅은 지금 한 곳에서만 쓰이더라도 `shared/hooks/domain/<도메인>`에 둠. 세부 기준은 `.claude/rules/segment-pattern.md` 참고.
   - 강결합된 로직이더라도 도메인과 무관한 UI 로직이면 `shared/components/composites/{Component}/model`에 둠. (예: `Tabs/model/useTabContext`)

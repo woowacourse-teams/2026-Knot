@@ -98,7 +98,7 @@ src/
 
 ### pages
 
-라우트에 대응하는 화면 단위. widgets를 import해서 조립하는 역할만 담당. UI 단위가 크지 않은 경우(예: 로그인 컴포넌트)에는 features 컴포넌트를 page에서 바로 import 가능.
+라우트에 대응하는 화면 단위. widgets를 import해 **배치하는 레이아웃 역할만** 담당하며, 도메인 로직·데이터 패칭은 갖지 않음. UI 단위가 크지 않은 경우(예: 로그인 컴포넌트)에는 features 컴포넌트를 page에서 바로 import 가능.
 
 ### modules/widgets
 

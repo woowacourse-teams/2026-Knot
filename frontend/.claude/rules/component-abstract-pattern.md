@@ -43,16 +43,22 @@ description: react 컴포넌트가 지켜야 하는 추상화 레벨을 정의�
 
 ### 참조 규칙
 
-- 각 컴포넌트 추상화는 `modules` > `composites` > `primitives` 순서의 레벨을 가지며, 하위 레벨만 사용 가능. 상위 레벨 컴포넌트는 사용 불가.
-  - 예: `composites`는 `primitives`를 조합해 구현 가능하지만, `primitives`는 `composites`를 사용할 수 없음.
-  - `modules`는 `composites`와 `primitives`를 조합해 구현 가능하지만 역은 성립하지 않음.
-- **widgets는 widgets를 호출할 수 없음.** `<section />` 안에 `<section />`이 호출되는 구조가 어색하기 때문.
-- **features가 features를 호출하면 도메인이 섞이므로 금지.**
+- 각 컴포넌트는 `pages` > `widgets` > `features` > `composites` > `primitives` 순서의 레벨을 가지며, 자신보다 하위 레벨만 사용 가능. 상위 레벨 컴포넌트는 사용 불가.
+  - `pages` : widgets를 배치·조립하는 레이아웃 역할만 담당. UI 단위가 크지 않은 경우(예: 로그인 컴포넌트)에는 features를 바로 사용 가능.
+  - `widgets` : features·composites·primitives를 조합 가능.
+  - `features` : composites·primitives만 조합 가능. **widgets는 사용 불가.**
+  - `composites` : primitives만 조합 가능.
+  - `primitives` : 상위 레벨을 사용할 수 없음.
+- **동일 레벨끼리의 조합은 `primitives`에서만 허용.**
+  - widgets는 widgets를 호출할 수 없음. `<section />` 안에 `<section />`이 호출되는 구조가 어색하기 때문.
+  - features가 features를 호출하면 도메인이 섞이므로 금지.
+  - composites끼리도 조합 불가. 공통 UI가 겹치면 primitives로 내려서 재사용.
+  - primitives끼리 조합한 결과는 primitives로 둠.
 - 도메인이 겹치는 상황에서는 컴포넌트 재사용 대신, 도메인 로직을 훅으로 만들어 `shared/hooks/domain`으로 내려서 재사용.
 
 ### 주의사항
 
-- 라우트에 대응하는 화면 단위는 `src/pages`에 두며, widgets를 import해서 조립하는 역할만 담당. UI 단위가 크지 않은 경우(예: 로그인 컴포넌트)에는 features 컴포넌트를 page에서 바로 import 가능.
+- 라우트에 대응하는 화면 단위는 `src/pages`에 두며, widgets를 import해 **배치하는 레이아웃 역할만** 담당. 도메인 로직·데이터 패칭은 갖지 않음. UI 단위가 크지 않은 경우(예: 로그인 컴포넌트)에는 features 컴포넌트를 page에서 바로 import 가능.
 - 하나의 페이지를 보여주는 컴포넌트는 `modules/`, `shared/components/`에 두지 않음. 해당 컴포넌트는 이 문서의 추상화 규칙을 따르지 않음.
 
 #### modules/widgets
