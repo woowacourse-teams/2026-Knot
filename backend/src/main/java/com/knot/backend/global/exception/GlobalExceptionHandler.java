@@ -27,55 +27,76 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleValidationException(
-            MethodArgumentNotValidException exception) {
-        List<FieldErrorResponse> fieldErrors =
-                exception.getBindingResult().getFieldErrors().stream()
-                        .map(
-                                error ->
-                                        new FieldErrorResponse(
-                                                error.getField(), error.getDefaultMessage()))
-                        .toList();
+            MethodArgumentNotValidException exception
+    ) {
+        List<FieldErrorResponse> fieldErrors = exception.getBindingResult()
+                .getFieldErrors()
+                .stream()
+                .map(
+                        error -> new FieldErrorResponse(
+                                error.getField(),
+                                error.getDefaultMessage()
+                        )
+                )
+                .toList();
 
-        return respond(CommonErrorCode.VALIDATION_ERROR, fieldErrors);
+        return respond(
+                CommonErrorCode.VALIDATION_ERROR,
+                fieldErrors
+        );
     }
 
     @ExceptionHandler(ConstraintViolationException.class)
     public ResponseEntity<ErrorResponse> handleConstraintViolationException(
-            ConstraintViolationException exception) {
-        List<FieldErrorResponse> fieldErrors =
-                exception.getConstraintViolations().stream()
-                        .map(this::toFieldErrorResponse)
-                        .toList();
+            ConstraintViolationException exception
+    ) {
+        List<FieldErrorResponse> fieldErrors = exception.getConstraintViolations()
+                .stream()
+                .map(this::toFieldErrorResponse)
+                .toList();
 
-        return respond(CommonErrorCode.VALIDATION_ERROR, fieldErrors);
+        return respond(
+                CommonErrorCode.VALIDATION_ERROR,
+                fieldErrors
+        );
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<ErrorResponse> handleUnreadableMessage(
-            HttpMessageNotReadableException ignored) {
+            HttpMessageNotReadableException ignored
+    ) {
         return respond(CommonErrorCode.INVALID_REQUEST_BODY);
     }
 
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     public ResponseEntity<ErrorResponse> handleTypeMismatch(
-            MethodArgumentTypeMismatchException exception) {
-        FieldErrorResponse fieldError =
-                new FieldErrorResponse(
-                        exception.getName(), CommonErrorCode.INVALID_PARAMETER.getMessage());
+            MethodArgumentTypeMismatchException exception
+    ) {
+        FieldErrorResponse fieldError = new FieldErrorResponse(
+                exception.getName(),
+                CommonErrorCode.INVALID_PARAMETER.getMessage()
+        );
 
-        return respond(CommonErrorCode.INVALID_PARAMETER, List.of(fieldError));
+        return respond(
+                CommonErrorCode.INVALID_PARAMETER,
+                List.of(fieldError)
+        );
     }
 
     @ExceptionHandler(MissingServletRequestParameterException.class)
     public ResponseEntity<ErrorResponse> handleMissingParameter(
-            MissingServletRequestParameterException exception) {
+            MissingServletRequestParameterException exception
+    ) {
 
-        FieldErrorResponse fieldError =
-                new FieldErrorResponse(
-                        exception.getParameterName(),
-                        CommonErrorCode.MISSING_PARAMETER.getMessage());
+        FieldErrorResponse fieldError = new FieldErrorResponse(
+                exception.getParameterName(),
+                CommonErrorCode.MISSING_PARAMETER.getMessage()
+        );
 
-        return respond(CommonErrorCode.MISSING_PARAMETER, List.of(fieldError));
+        return respond(
+                CommonErrorCode.MISSING_PARAMETER,
+                List.of(fieldError)
+        );
     }
 
     @ExceptionHandler(Exception.class)
@@ -85,15 +106,25 @@ public class GlobalExceptionHandler {
 
     private FieldErrorResponse toFieldErrorResponse(ConstraintViolation<?> violation) {
         return new FieldErrorResponse(
-                extractFieldName(violation.getPropertyPath()), violation.getMessage());
+                extractFieldName(violation.getPropertyPath()),
+                violation.getMessage()
+        );
     }
 
     private String extractFieldName(Path path) {
-        return StreamSupport.stream(path.spliterator(), false)
+        return StreamSupport.stream(
+                path.spliterator(),
+                false
+        )
                 .filter(this::isFieldNode)
                 .map(Path.Node::getName)
                 .filter(this::isUsableFieldName)
-                .reduce((first, second) -> second)
+                .reduce(
+                        (
+                                first,
+                                second
+                        ) -> second
+                )
                 .orElse("request");
     }
 
@@ -106,13 +137,23 @@ public class GlobalExceptionHandler {
     }
 
     private ResponseEntity<ErrorResponse> respond(ErrorCode errorCode) {
-        return respond(errorCode, List.of());
+        return respond(
+                errorCode,
+                List.of()
+        );
     }
 
     private ResponseEntity<ErrorResponse> respond(
-            ErrorCode errorCode, List<FieldErrorResponse> fieldErrors) {
+            ErrorCode errorCode,
+            List<FieldErrorResponse> fieldErrors
+    ) {
         return ResponseEntity.status(toHttpStatus(errorCode.getCategory()))
-                .body(new ErrorResponse(errorCode, fieldErrors));
+                .body(
+                        new ErrorResponse(
+                                errorCode,
+                                fieldErrors
+                        )
+                );
     }
 
     private HttpStatus toHttpStatus(ErrorCategory category) {

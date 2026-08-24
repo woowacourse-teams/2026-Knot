@@ -6,26 +6,44 @@ import java.util.List;
 import java.util.Objects;
 
 @JsonInclude(JsonInclude.Include.NON_EMPTY)
-public record ErrorResponse(String code, String message, List<FieldErrorResponse> fieldErrors) {
+public record ErrorResponse(
+        String code,
+        String message,
+        List<FieldErrorResponse> fieldErrors
+) {
 
-    public ErrorResponse(String code, String message, List<FieldErrorResponse> fieldErrors) {
+    public ErrorResponse(
+            String code,
+            String message,
+            List<FieldErrorResponse> fieldErrors
+    ) {
         this.code = code;
         this.message = message;
         this.fieldErrors = fieldErrors;
     }
 
     public ErrorResponse(ErrorCode errorCode) {
-        this(errorCode, List.of());
+        this(
+                errorCode,
+                List.of()
+        );
     }
 
-    public ErrorResponse(ErrorCode errorCode, List<FieldErrorResponse> fieldErrors) {
+    public ErrorResponse(
+            ErrorCode errorCode,
+            List<FieldErrorResponse> fieldErrors
+    ) {
         this(
                 requireErrorCode(errorCode).getCode(),
                 requireErrorCode(errorCode).getMessage(),
-                fieldErrors);
+                fieldErrors
+        );
     }
 
     private static ErrorCode requireErrorCode(ErrorCode errorCode) {
-        return Objects.requireNonNull(errorCode, "errorCode");
+        return Objects.requireNonNull(
+                errorCode,
+                "errorCode"
+        );
     }
 }

@@ -7,6 +7,9 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 public class KnotApplication {
 
     public static void main(String[] args) {
-        SpringApplication.run(KnotApplication.class, args);
+        SpringApplication.run(
+                KnotApplication.class,
+                args
+        );
     }
 }

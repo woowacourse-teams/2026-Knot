@@ -50,7 +50,7 @@ dependencies {
 
 spotless {
 	java {
-		googleJavaFormat().aosp()
+		eclipse('4.39').configFile('config/spotless/eclipse-formatter.xml')
 		removeUnusedImports()
 		trimTrailingWhitespace()
 		endWithNewline()
