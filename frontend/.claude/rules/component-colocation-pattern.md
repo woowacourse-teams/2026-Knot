@@ -114,7 +114,9 @@ src/
   - 강결합된 로직이더라도 도메인과 무관한 UI 로직이면 `shared/components/composites/{Component}/model`에 둠. (예: `Tabs/model/useTabContext`)
 - 특정 컴포넌트에서만 쓰이는 컨텍스트(컴파운드 패턴, 폼, prop drilling 제거용)는 `shared/provider`가 아니라 해당 컴포넌트 폴더의 `context`에 코로케이션하고, 통일성을 위해 파일이 아닌 폴더 형태로 둠. `createContext`, `useContext`, `Provider` 세 가지는 파편화를 막기 위해 한 파일 안에 함께 작성하며, Provider가 JSX를 반환하므로 `context/index.tsx`로 둠.
 - widgets, features 컴포넌트 세그먼트에서 사용되는 코드는 다른 도메인 컴포넌트에서 사용하지 않음.
-  - 중복적인 로직이 필요하다면 코드를 재사용하는 것이 아닌 동일한 코드를 각 도메인 컴포넌트에 코로케이션. 
+  - 중복적인 로직이 필요할 때는 먼저 `.claude/rules/segment-pattern.md`의 훅 위치 판단 기준(이름·인자·반환값·다른 화면 이식 테스트)으로 판단.
+    - 도메인 값만 주고받아 다른 화면에 이식 가능한 로직이면 훅으로 만들어 `shared/hooks/domain`으로 내려서 재사용.
+    - 컴포넌트의 렌더 구조·Context·로컬 state에 묶여 이식 불가한 코드면 재사용하지 않고 동일한 코드를 각 도메인 컴포넌트에 코로케이션.
 - 하나의 페이지를 렌더링하는 컴포넌트는 추상화 규칙의 대상은 아니지만, 폴더/`index.tsx` 콜로케이션 규칙은 동일하게 지킴.
 - 통합 테스트는 최종 책임 컴포넌트(대부분 섹션 단위의 widgets) 폴더 안에 `test.tsx`로 코로케이션, 단위 테스트는 유틸 폴더 안에 `index.ts`와 `test.ts`를 나란히 코로케이션. E2E 테스트는 전역 `__test__/`에 둠. 훅은 테스트하지 않음.
 
