@@ -16,7 +16,7 @@ API 관련 코드는 한곳에서 계층적으로 관리하므로, tanstack-quer
 
 - query 훅은 `src/shared/api/queries/` 디렉토리에 작성.
 - mutation 훅은 `src/shared/api/mutations/` 디렉토리에 작성.
-- suspenseQuery 훅은 `src/shared/api/suspense/` 디렉토리에 작성.// TODO:
+- suspenseQuery 훅은 `src/shared/api/suspense/` 디렉토리에 작성.
 - prefetchQuery 훅은 `src/shared/api/prefetch/` 디렉토리에 작성.
 - 쿼리 키는 `src/shared/api/queryKey/` 디렉토리의 도메인별 파일(`todo.ts`, `user.ts`)에서 query-key factory pattern으로 관리. 쿼리 키가 뮤테이션(무효화 등)에서도 쓰이므로 별도 폴더로 분리.
 
