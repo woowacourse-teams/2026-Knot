@@ -80,8 +80,8 @@ const { path, isLoading } = useGetCoursePath(courseId); // ✅
 
 API 관련 코드는 한곳에서 계층적으로 관리해야 하므로, 쿼리와 뮤테이션을 훅 폴더로 빼지 않고 `shared/api` 폴더 안에 모두 유지.
 
-- `axiosInstance/` — 액시오스 인스턴스.
-- `fetch/` — 순수 함수인 fetch를 엔드포인트별 폴더 구조(`fetch/api/v1/users/[id]`)로 관리.
+- `httpClient/` — HTTP 클라이언트(axios) 인스턴스. 인증 토큰 처리·공통 에러 정규화 같은 횡단 관심사는 인터셉터에서 처리.
+- `fetch/` — 순수 함수인 요청 함수를 엔드포인트별 폴더 구조(`fetch/api/v1/users/[id]`)로 관리. 폴더 이름의 `fetch`는 네이티브 fetch API가 아니라 **요청 함수**를 뜻함.
 - `queryKey/` — 쿼리 키가 뮤테이션에서도 쓰이므로 별도 폴더로 분리, `user.ts`처럼 도메인별 파일로 관리.
 - `queries/`, `mutations/`, `suspense/`, `prefetch/` — 쿼리 훅과 뮤테이션 훅을 각각 둠. // TODO: `suspense/`, `prefetch/`, `axiosInstance/`
 

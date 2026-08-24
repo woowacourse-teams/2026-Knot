@@ -10,9 +10,10 @@ paths:
 
 API 관련 코드는 한곳에서 계층적으로 관리해야 하므로 모두 `src/shared/api` 안에 둠. 쿼리·뮤테이션 훅도 별도 훅 폴더로 빼지 않고 api 폴더 안에 유지.
 
-- `axiosInstance/` — 액시오스 인스턴스.
+- `httpClient/` — HTTP 클라이언트(axios) 인스턴스. 인증 토큰 처리·공통 에러 정규화 같은 횡단 관심사는 인터셉터에서 처리.
 - `fetch/` — 순수 함수인 fetch를 엔드포인트별 폴더 구조로 관리. restful API 요청 엔드포인트와 `fetch/` 하위 디렉토리 위치가 일치해야 함.
   - e.g. `GET /api/v1/users/[id]` → `src/shared/api/fetch/api/v1/users/[id]/index.ts`
+  - 폴더 이름의 `fetch`는 네이티브 fetch API가 아니라 **요청 함수**를 뜻함. 실제 요청은 `httpClient/`의 인스턴스로 보냄.
 - `queryKey/` — 쿼리 키는 뮤테이션에서도 쓰이므로 별도 폴더로 분리, `user.ts`처럼 도메인별 파일로 관리.
 - `queries/`, `mutations/`, `suspense/`, `prefetch/` — 쿼리·뮤테이션·서스펜스·프리페치 훅을 각각 둠. 작성 규칙은 `.claude/rules/query-hooks.md` 참고.
 
@@ -22,7 +23,7 @@ API 요청 로직은 엔드포인트 폴더의 index.ts 내에 위치하며, 형
 
 ```typescript
 // src/shared/api/fetch/api/v1/facilities/index.ts
-import instance from "@/shared/api/axiosInstance";
+import instance from "@/shared/api/httpClient";
 import type { FacilityMarker } from "@/shared/types/map";
 
 /**

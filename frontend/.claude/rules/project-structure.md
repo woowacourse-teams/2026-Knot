@@ -50,7 +50,7 @@ src/
 │
 ├── shared/
 │   ├── api/
-│   │   ├── axiosInstance/
+│   │   ├── httpClient/
 │   │   ├── fetch/
 │   │   │   └── api/v1/users/
 │   │   │       ├── index.ts
