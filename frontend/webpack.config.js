@@ -46,9 +46,6 @@ export default (env, argv) => {
                   ],
                   "@babel/preset-typescript", // 타입스크립트를 변환해요
                 ],
-                plugins: [
-                  "@emotion/babel-plugin", // 소스맵, 컴포넌트 라벨 등 emotion 최적화를 적용해요
-                ],
               },
             },
           ],
