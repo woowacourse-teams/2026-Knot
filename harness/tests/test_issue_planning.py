@@ -464,6 +464,23 @@ class IssuePlanningTest(unittest.TestCase):
             )
             self.assertEqual([], list(Path(tmp).iterdir()))
 
+    def test_materializer_rejects_draft_planned_path_without_issue_number(self):
+        snapshot = fixture("high-risk-create.json")
+        snapshot["operation"] = "draft"
+        snapshot["adr"]["planned_path"] = "docs/adr/123-auth-account-linking.md"
+
+        with tempfile.TemporaryDirectory() as tmp:
+            result = materialize_adr.materialize(
+                snapshot, Path(tmp), implementation=True
+            )
+
+            self.assertEqual("hold", result["status"])
+            self.assertEqual("require_final_adr_path", result["action"])
+            self.assertIn(
+                "missing: issue_number for ADR materialization", result["errors"]
+            )
+            self.assertEqual([], list(Path(tmp).iterdir()))
+
     def test_materializer_holds_non_object_snapshot_without_crashing(self):
         with tempfile.TemporaryDirectory() as tmp:
             result = materialize_adr.materialize(

@@ -197,6 +197,8 @@ def resolve_adr_path(
         issue_number_errors = adr_contract.validate_issue_number(issue_number)
         errors.extend(issue_number_errors)
         issue_number_valid = not issue_number_errors
+    elif require_final:
+        errors.append("missing: issue_number for ADR materialization")
 
     planned_path = adr.get("planned_path")
     resolved_path: str | None = None
@@ -219,8 +221,6 @@ def resolve_adr_path(
                     )
     elif issue_number_valid and not adr_contract.validate_slug(adr.get("slug")):
         resolved_path = adr_contract.build_planned_path(issue_number, adr["slug"])
-    elif require_final:
-        errors.append("missing: issue_number for ADR materialization")
 
     return resolved_path, sorted(set(errors))
 
