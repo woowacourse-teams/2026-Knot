@@ -14,13 +14,15 @@ ADR이 필요하면 Issue의 `구현 기능 설명`에 구체적인 문제 상�
 적는다. `메모`에는 결정 한 줄과 예정 경로만 남긴다. ADR 전문과 인터뷰 원문은 Issue에
 넣지 않는다.
 
-Issue 단계에서는 파일을 만들지 않는다. 구현을 시작한 작업 브랜치에서 AI가
-`docs/adr/<Issue 번호>-<slug>.md`를 `Proposed`로 만들고 코드와 같은 PR에 포함한다.
-리뷰에서 팀이 승인한 뒤에만 상태를 `Accepted`로 바꾼다. AI는 merge하지 않는다.
+Issue 단계에서는 파일을 만들지 않는다. 새 Issue의 번호가 정해지기 전에는 `메모`에
+`docs/adr/{ISSUE_NUMBER}-<slug>.md`를 표시한다. Issue 생성 뒤 실제 번호를 확인하고,
+구현을 시작한 작업 브랜치에서 AI가 `docs/adr/<Issue 번호>-<slug>.md`를 `Proposed`로
+만들어 코드와 같은 PR에 포함한다. 리뷰에서 팀이 승인한 뒤에만 상태를 `Accepted`로
+바꾼다. AI는 merge하지 않는다.
 
-Issue 번호는 실제 GitHub 번호를 사용하며 선행 0이나 `{ISSUE_NUMBER}` 같은 placeholder를
-파일명에 남기지 않는다. 기획 snapshot을 복구할 수 없으면 실제 대안과 선택 이유를 다시
-확인하고, 확인되지 않은 내용을 채워 파일을 만들지 않는다.
+실제 파일명에는 GitHub Issue 번호를 선행 0 없이 사용하며 `{ISSUE_NUMBER}` placeholder를
+남기지 않는다. 기획 snapshot을 복구할 수 없으면 실제 대안과 선택 이유를 다시 확인하고,
+확인되지 않은 내용을 채워 파일을 만들지 않는다.
 
 이미 merge된 결정을 대체하면 기존 ADR을 수정하거나 삭제하지 않는다. 새 ADR에서 기존
 ADR을 `Superseded`로 연결한다.

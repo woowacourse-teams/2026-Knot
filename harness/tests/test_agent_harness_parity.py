@@ -13,6 +13,7 @@ class AgentHarnessParityTest(unittest.TestCase):
         self.assertIn("@AGENTS.md", claude_md)
         self.assertIn("harness/issue_planning.py", claude_md)
         self.assertIn("harness/materialize_adr.py", claude_md)
+        self.assertIn("--issue-number", claude_md)
 
     def test_claude_skills_point_to_canonical_agent_skills(self):
         for name in SKILL_NAMES:

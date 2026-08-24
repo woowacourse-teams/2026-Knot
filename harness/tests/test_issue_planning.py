@@ -17,7 +17,9 @@ assert SPEC.loader is not None
 SPEC.loader.exec_module(issue_planning)
 
 MATERIALIZER_PATH = ROOT / "harness" / "materialize_adr.py"
-MATERIALIZER_SPEC = importlib.util.spec_from_file_location("materialize_adr", MATERIALIZER_PATH)
+MATERIALIZER_SPEC = importlib.util.spec_from_file_location(
+    "materialize_adr", MATERIALIZER_PATH
+)
 materialize_adr = importlib.util.module_from_spec(MATERIALIZER_SPEC)
 assert MATERIALIZER_SPEC.loader is not None
 MATERIALIZER_SPEC.loader.exec_module(materialize_adr)
@@ -26,6 +28,12 @@ MATERIALIZER_SPEC.loader.exec_module(materialize_adr)
 def fixture(name: str) -> dict:
     path = ROOT / "harness" / "tests" / "fixtures" / name
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def materializable_snapshot() -> dict:
+    snapshot = fixture("high-risk-create.json")
+    snapshot["issue_number"] = 123
+    return snapshot
 
 
 class IssuePlanningTest(unittest.TestCase):
@@ -39,7 +47,10 @@ class IssuePlanningTest(unittest.TestCase):
         self.assertFalse(result["remote_write_authorized"])
         self.assertTrue(result["publish_ready"])
         self.assertEqual("none", result["next_on_implementation"])
-        self.assertEqual(["## 구현 기능 설명", "## TODO", "## 메모"], h2_headings(result["issue_body"]))
+        self.assertEqual(
+            ["## 구현 기능 설명", "## TODO", "## 메모"],
+            h2_headings(result["issue_body"]),
+        )
         self.assertNotIn("상황", result["issue_body"])
 
     def test_incomplete_high_risk_contract_is_held(self):
@@ -54,7 +65,9 @@ class IssuePlanningTest(unittest.TestCase):
         self.assertIn("missing: failure_flows", result["errors"])
         self.assertIn("grill.status must be pass", result["errors"])
 
-    def test_complete_high_risk_contract_keeps_issue_short_and_points_to_proposed_adr(self):
+    def test_complete_high_risk_contract_keeps_issue_short_and_points_to_proposed_adr(
+        self,
+    ):
         result = issue_planning.plan(fixture("high-risk-create.json"))
 
         self.assertEqual("pass", result["status"])
@@ -63,13 +76,20 @@ class IssuePlanningTest(unittest.TestCase):
         self.assertEqual("publish_issue", result["requested_action"])
         self.assertFalse(result["remote_write_authorized"])
         self.assertEqual("materialize_proposed_adr", result["next_on_implementation"])
-        self.assertEqual(["## 구현 기능 설명", "## TODO", "## 메모"], h2_headings(result["issue_body"]))
+        self.assertEqual("pending_issue_number", result["adr_path_status"])
+        self.assertEqual("finalize_adr_path", result["next_after_issue_created"])
+        self.assertEqual(
+            ["## 구현 기능 설명", "## TODO", "## 메모"],
+            h2_headings(result["issue_body"]),
+        )
         self.assertIn("회의에서 동일 이메일 OAuth 사용자를", result["issue_body"])
         self.assertIn(
             "ADR: 동일 이메일 계정은 사용자 확인 후 연결한다. — 예정 경로:",
             result["issue_body"],
         )
-        self.assertIn("docs/adr/123-auth-account-linking.md", result["issue_body"])
+        self.assertIn(
+            "docs/adr/{ISSUE_NUMBER}-auth-account-linking.md", result["issue_body"]
+        )
         self.assertNotIn("## ADR 결정", result["issue_body"])
         self.assertNotIn("### 검토한 대안", result["issue_body"])
         self.assertNotIn("자동 병합: 편하지만", result["issue_body"])
@@ -85,6 +105,15 @@ class IssuePlanningTest(unittest.TestCase):
         self.assertEqual("render_draft", result["requested_action"])
         self.assertFalse(result["remote_write_authorized"])
         self.assertFalse(result["publish_ready"])
+
+    def test_issue_number_finalizes_adr_path(self):
+        result = issue_planning.plan(materializable_snapshot())
+
+        self.assertEqual("pass", result["status"])
+        self.assertEqual("finalized", result["adr_path_status"])
+        self.assertEqual("none", result["next_after_issue_created"])
+        self.assertIn("docs/adr/123-auth-account-linking.md", result["issue_body"])
+        self.assertNotIn("{ISSUE_NUMBER}", result["issue_body"])
 
     def test_wrong_scalar_type_is_held_without_crashing(self):
         cases = (
@@ -135,13 +164,20 @@ class IssuePlanningTest(unittest.TestCase):
 
                 self.assertEqual("hold", result["status"])
                 self.assertTrue(
-                    any("must not contain Markdown level-2 headings" in error for error in result["errors"])
+                    any(
+                        "must not contain Markdown level-2 headings" in error
+                        for error in result["errors"]
+                    )
                 )
                 self.assertNotIn("issue_body", result)
 
     def test_hold_cli_exits_nonzero(self):
         completed = subprocess.run(
-            [sys.executable, str(MODULE_PATH), str(ROOT / "harness/tests/fixtures/high-risk-hold.json")],
+            [
+                sys.executable,
+                str(MODULE_PATH),
+                str(ROOT / "harness/tests/fixtures/high-risk-hold.json"),
+            ],
             cwd=ROOT,
             check=False,
             capture_output=True,
@@ -155,7 +191,11 @@ class IssuePlanningTest(unittest.TestCase):
 
     def test_pass_cli_exits_zero_without_authorizing_remote_write(self):
         completed = subprocess.run(
-            [sys.executable, str(MODULE_PATH), str(ROOT / "harness/tests/fixtures/low-risk-create.json")],
+            [
+                sys.executable,
+                str(MODULE_PATH),
+                str(ROOT / "harness/tests/fixtures/low-risk-create.json"),
+            ],
             cwd=ROOT,
             check=False,
             capture_output=True,
@@ -171,17 +211,47 @@ class IssuePlanningTest(unittest.TestCase):
 
     def test_high_risk_without_adr_uses_plain_issue_template(self):
         snapshot = fixture("high-risk-create.json")
-        snapshot["adr"] = {"required": False, "reason": "실제로 논의한 대안이 하나뿐이다."}
+        snapshot["adr"] = {
+            "required": False,
+            "reason": "실제로 논의한 대안이 하나뿐이다.",
+        }
 
         result = issue_planning.plan(snapshot)
 
         self.assertEqual("pass", result["status"])
-        self.assertEqual(["## 구현 기능 설명", "## TODO", "## 메모"], h2_headings(result["issue_body"]))
+        self.assertEqual(
+            ["## 구현 기능 설명", "## TODO", "## 메모"],
+            h2_headings(result["issue_body"]),
+        )
         self.assertNotIn(snapshot["adr"]["reason"], result["issue_body"])
         self.assertNotIn("ADR", result["issue_body"])
         self.assertNotIn("회의에서 동일 이메일 OAuth 사용자를", result["issue_body"])
         self.assertIn("## 메모\n\n- 없음", result["issue_body"])
         self.assertNotIn("- - 없음", result["issue_body"])
+
+    def test_low_risk_contract_cannot_require_adr(self):
+        complete = fixture("high-risk-create.json")
+        complete["risk_signals"] = []
+        incomplete = fixture("low-risk-create.json")
+        incomplete["adr"] = {"required": True}
+
+        for name, snapshot in (("complete", complete), ("incomplete", incomplete)):
+            with self.subTest(snapshot=name):
+                with tempfile.TemporaryDirectory() as tmp:
+                    result = issue_planning.plan(snapshot)
+                    materialized = materialize_adr.materialize(
+                        snapshot,
+                        Path(tmp),
+                        implementation=True,
+                    )
+
+                    self.assertEqual("hold", result["status"])
+                    self.assertIn(
+                        "adr.required=true requires a high-risk contract",
+                        result["errors"],
+                    )
+                    self.assertEqual("hold", materialized["status"])
+                    self.assertEqual([], list(Path(tmp).iterdir()))
 
     def test_contract_id_is_stable_for_same_contract(self):
         snapshot = fixture("high-risk-create.json")
@@ -236,7 +306,10 @@ class IssuePlanningTest(unittest.TestCase):
         result = issue_planning.plan(snapshot)
 
         self.assertEqual("hold", result["status"])
-        self.assertIn("adr.alternatives must include at least 2 confirmed real alternatives", result["errors"])
+        self.assertIn(
+            "adr.alternatives must include at least 2 confirmed real alternatives",
+            result["errors"],
+        )
 
     def test_unsafe_adr_path_is_held(self):
         snapshot = fixture("high-risk-create.json")
@@ -254,7 +327,46 @@ class IssuePlanningTest(unittest.TestCase):
         result = issue_planning.plan(snapshot)
 
         self.assertEqual("hold", result["status"])
-        self.assertIn("adr.planned_path must match docs/adr/<issue-number>-<slug>.md", result["errors"])
+        self.assertIn(
+            "adr.planned_path must match docs/adr/<issue-number>-<slug>.md",
+            result["errors"],
+        )
+
+    def test_adr_path_must_match_issue_number_and_slug(self):
+        cases = (
+            (
+                "issue-number",
+                "docs/adr/124-auth-account-linking.md",
+                "adr.planned_path issue number must match issue_number",
+            ),
+            (
+                "slug",
+                "docs/adr/123-different-slug.md",
+                "adr.planned_path slug must match adr.slug",
+            ),
+        )
+
+        for name, planned_path, expected_error in cases:
+            with self.subTest(case=name):
+                snapshot = materializable_snapshot()
+                snapshot["adr"]["planned_path"] = planned_path
+
+                result = issue_planning.plan(snapshot)
+
+                self.assertEqual("hold", result["status"])
+                self.assertIn(expected_error, result["errors"])
+
+    def test_create_contract_cannot_finalize_adr_path_without_issue_number(self):
+        snapshot = fixture("high-risk-create.json")
+        snapshot["adr"]["planned_path"] = "docs/adr/123-auth-account-linking.md"
+
+        result = issue_planning.plan(snapshot)
+
+        self.assertEqual("hold", result["status"])
+        self.assertIn(
+            "issue_number is required to finalize an ADR path after Issue creation",
+            result["errors"],
+        )
 
     def test_invalid_title_prefix_is_held(self):
         snapshot = fixture("low-risk-create.json")
@@ -266,10 +378,12 @@ class IssuePlanningTest(unittest.TestCase):
         self.assertIn("title must start with [BE] or [FE]", result["errors"])
 
     def test_materializer_creates_proposed_adr_file(self):
-        snapshot = fixture("high-risk-create.json")
+        snapshot = materializable_snapshot()
 
         with tempfile.TemporaryDirectory() as tmp:
-            result = materialize_adr.materialize(snapshot, Path(tmp), implementation=True)
+            result = materialize_adr.materialize(
+                snapshot, Path(tmp), implementation=True
+            )
             target = Path(result["path"])
 
             self.assertEqual("pass", result["status"])
@@ -282,41 +396,118 @@ class IssuePlanningTest(unittest.TestCase):
             self.assertIn("## 확인", body)
             self.assertIn("- 결정 주체: Knot 팀", body)
 
+    def test_materializer_cli_finalizes_actual_issue_number(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    str(MATERIALIZER_PATH),
+                    str(ROOT / "harness/tests/fixtures/high-risk-create.json"),
+                    "--repo-root",
+                    tmp,
+                    "--issue-number",
+                    "123",
+                    "--implementation",
+                ],
+                cwd=ROOT,
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+
+            result = json.loads(completed.stdout)
+            self.assertEqual(0, completed.returncode)
+            self.assertEqual("created", result["action"])
+            self.assertTrue(
+                (Path(tmp) / "docs/adr/123-auth-account-linking.md").is_file()
+            )
+
+    def test_materializer_rejects_conflicting_issue_number(self):
+        snapshot = materializable_snapshot()
+
+        with tempfile.TemporaryDirectory() as tmp:
+            result = materialize_adr.materialize(
+                snapshot,
+                Path(tmp),
+                implementation=True,
+                issue_number=124,
+            )
+
+            self.assertEqual("hold", result["status"])
+            self.assertIn(
+                "CLI issue number must match snapshot issue_number", result["errors"]
+            )
+            self.assertEqual([], list(Path(tmp).iterdir()))
+
     def test_materializer_requires_implementation_context(self):
         snapshot = fixture("high-risk-create.json")
 
         with tempfile.TemporaryDirectory() as tmp:
             result = materialize_adr.materialize(snapshot, Path(tmp))
-            target = Path(tmp) / snapshot["adr"]["planned_path"]
 
             self.assertEqual("hold", result["status"])
             self.assertEqual("require_implementation_context", result["action"])
-            self.assertFalse(target.exists())
+            self.assertEqual([], list(Path(tmp).iterdir()))
 
-    def test_materializer_is_idempotent_for_identical_file(self):
+    def test_materializer_requires_issue_number(self):
         snapshot = fixture("high-risk-create.json")
 
         with tempfile.TemporaryDirectory() as tmp:
-            first = materialize_adr.materialize(snapshot, Path(tmp), implementation=True)
-            second = materialize_adr.materialize(snapshot, Path(tmp), implementation=True)
+            result = materialize_adr.materialize(
+                snapshot, Path(tmp), implementation=True
+            )
+
+            self.assertEqual("hold", result["status"])
+            self.assertEqual("require_final_adr_path", result["action"])
+            self.assertIn(
+                "missing: issue_number for ADR materialization", result["errors"]
+            )
+            self.assertEqual([], list(Path(tmp).iterdir()))
+
+    def test_materializer_holds_non_object_snapshot_without_crashing(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            result = materialize_adr.materialize(
+                ["not", "an", "object"],
+                Path(tmp),
+                implementation=True,
+            )
+
+            self.assertEqual("hold", result["status"])
+            self.assertIn("snapshot must be an object", result["errors"])
+            self.assertEqual([], list(Path(tmp).iterdir()))
+
+    def test_materializer_is_idempotent_for_identical_file(self):
+        snapshot = materializable_snapshot()
+
+        with tempfile.TemporaryDirectory() as tmp:
+            first = materialize_adr.materialize(
+                snapshot, Path(tmp), implementation=True
+            )
+            second = materialize_adr.materialize(
+                snapshot, Path(tmp), implementation=True
+            )
 
             self.assertEqual("created", first["action"])
             self.assertEqual("pass", second["status"])
             self.assertEqual("unchanged", second["action"])
 
     def test_materializer_refuses_divergent_overwrite(self):
-        snapshot = fixture("high-risk-create.json")
+        snapshot = materializable_snapshot()
 
         with tempfile.TemporaryDirectory() as tmp:
-            target = Path(tmp) / snapshot["adr"]["planned_path"]
+            target = Path(tmp) / "docs/adr/123-auth-account-linking.md"
             target.parent.mkdir(parents=True)
             target.write_text("# existing\n", encoding="utf-8")
 
-            result = materialize_adr.materialize(snapshot, Path(tmp), implementation=True)
+            result = materialize_adr.materialize(
+                snapshot, Path(tmp), implementation=True
+            )
 
             self.assertEqual("hold", result["status"])
             self.assertEqual("refuse_overwrite", result["action"])
-            self.assertIn("target ADR already exists with different content", result["errors"])
+            self.assertIn(
+                "target ADR already exists with different content", result["errors"]
+            )
 
 
 def h2_headings(markdown: str) -> list[str]:

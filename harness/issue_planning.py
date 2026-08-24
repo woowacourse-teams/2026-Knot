@@ -60,7 +60,7 @@ ADR_REQUIRED = (
     "rationale",
     "consequences",
     "revisit_when",
-    "planned_path",
+    "slug",
 )
 
 LIST_FIELDS = (
@@ -84,7 +84,6 @@ ADR_STRING_FIELDS = (
     "context",
     "situation",
     "rationale",
-    "planned_path",
 )
 
 ADR_LIST_FIELDS = (
@@ -179,6 +178,53 @@ def classify_risk(snapshot: dict[str, Any]) -> tuple[str, list[str]]:
     return ("high" if signals else "low"), []
 
 
+def resolve_adr_path(
+    snapshot: Any,
+    *,
+    require_final: bool = False,
+) -> tuple[str | None, list[str]]:
+    if not isinstance(snapshot, dict):
+        return None, ["snapshot must be an object"]
+
+    adr = snapshot.get("adr")
+    if not isinstance(adr, dict):
+        return None, ["adr must be an object"]
+
+    errors = adr_contract.validate_slug(adr.get("slug"))
+    issue_number = snapshot.get("issue_number")
+    issue_number_valid = False
+    if issue_number is not None:
+        issue_number_errors = adr_contract.validate_issue_number(issue_number)
+        errors.extend(issue_number_errors)
+        issue_number_valid = not issue_number_errors
+
+    planned_path = adr.get("planned_path")
+    resolved_path: str | None = None
+    if "planned_path" in adr:
+        path_errors = validate_adr_path(planned_path)
+        errors.extend(path_errors)
+        if snapshot.get("operation") == "create" and issue_number is None:
+            errors.append(
+                "issue_number is required to finalize an ADR path after Issue creation"
+            )
+        if not path_errors:
+            resolved_path = planned_path
+            if not adr_contract.validate_slug(adr.get("slug")):
+                if adr_contract.planned_slug(planned_path) != adr["slug"]:
+                    errors.append("adr.planned_path slug must match adr.slug")
+            if issue_number_valid:
+                if adr_contract.planned_issue_number(planned_path) != str(issue_number):
+                    errors.append(
+                        "adr.planned_path issue number must match issue_number"
+                    )
+    elif issue_number_valid and not adr_contract.validate_slug(adr.get("slug")):
+        resolved_path = adr_contract.build_planned_path(issue_number, adr["slug"])
+    elif require_final:
+        errors.append("missing: issue_number for ADR materialization")
+
+    return resolved_path, sorted(set(errors))
+
+
 def validate(snapshot: Any) -> tuple[str, list[str]]:
     if not isinstance(snapshot, dict):
         return "unknown", ["snapshot must be an object"]
@@ -191,12 +237,19 @@ def validate(snapshot: Any) -> tuple[str, list[str]]:
     title = snapshot.get("title")
     if title is not None and not isinstance(title, str):
         errors.append("title must be a string")
-    elif isinstance(title, str) and title.strip() and not re.match(r"^\[(BE|FE)\] \S", title):
+    elif (
+        isinstance(title, str)
+        and title.strip()
+        and not re.match(r"^\[(BE|FE)\] \S", title)
+    ):
         errors.append("title must start with [BE] or [FE]")
 
     purpose = snapshot.get("purpose")
     if purpose is not None and not isinstance(purpose, str):
         errors.append("purpose must be a string")
+
+    if "issue_number" in snapshot:
+        errors.extend(adr_contract.validate_issue_number(snapshot["issue_number"]))
 
     for field in LIST_FIELDS:
         if field in snapshot and field != "risk_signals":
@@ -204,14 +257,22 @@ def validate(snapshot: Any) -> tuple[str, list[str]]:
 
     risk_level, risk_errors = classify_risk(snapshot)
     errors.extend(risk_errors)
-    errors.extend(f"missing: {field}" for field in _missing_fields(snapshot, LIGHTWEIGHT_REQUIRED))
+    errors.extend(
+        f"missing: {field}" for field in _missing_fields(snapshot, LIGHTWEIGHT_REQUIRED)
+    )
     errors.extend(_markdown_h2_errors(snapshot))
 
     if risk_level == "high":
         for field in _missing_keys(snapshot, HARNESSED_REQUIRED):
             errors.append(f"missing: {field}")
 
-        for field in ("non_goals", "normal_flows", "failure_flows", "recovery_flows", "impacts"):
+        for field in (
+            "non_goals",
+            "normal_flows",
+            "failure_flows",
+            "recovery_flows",
+            "impacts",
+        ):
             if field in snapshot and not _has_value(snapshot[field]):
                 errors.append(f"missing: {field}")
 
@@ -231,44 +292,56 @@ def validate(snapshot: Any) -> tuple[str, list[str]]:
                     _string_list_errors("grill.resolved_questions", resolved_questions)
                 )
 
-        adr = snapshot.get("adr")
-        if adr is not None and not isinstance(adr, dict):
-            errors.append("adr must be an object")
-        elif isinstance(adr, dict):
-            required = adr.get("required")
-            if required is True:
-                for field in _missing_fields(adr, ADR_REQUIRED):
-                    errors.append(f"missing: adr.{field}")
-                for field in ADR_STRING_FIELDS:
-                    if field in adr and not isinstance(adr[field], str):
-                        errors.append(f"adr.{field} must be a string")
-                for field in ADR_LIST_FIELDS:
-                    if field in adr:
-                        errors.extend(_string_list_errors(f"adr.{field}", adr[field]))
-                if isinstance(adr.get("alternatives"), list) and len(adr["alternatives"]) < 2:
-                    errors.append("adr.alternatives must include at least 2 confirmed real alternatives")
-                for field in ADR_TRUE_FIELDS:
-                    if field in adr and adr.get(field) is not True:
-                        errors.append(f"adr.{field} must be true")
-                if "status" in adr and adr.get("status") != "proposed":
-                    errors.append("adr.status must be proposed")
-                if "decision_makers" in adr and not _is_nonblank_string(adr["decision_makers"]):
-                    errors.append("adr.decision_makers must be a non-empty string")
-                errors.extend(validate_adr_path(adr.get("planned_path")))
-            elif required is False:
-                reason = adr.get("reason")
-                if not _has_value(reason):
-                    errors.append("missing: adr.reason")
-                elif not isinstance(reason, str):
-                    errors.append("adr.reason must be a string")
-            else:
-                errors.append("adr.required must be true or false")
+    adr = snapshot.get("adr")
+    if adr is not None and not isinstance(adr, dict):
+        errors.append("adr must be an object")
+    elif isinstance(adr, dict):
+        required = adr.get("required")
+        if required is True:
+            if risk_level != "high":
+                errors.append("adr.required=true requires a high-risk contract")
+            for field in _missing_fields(adr, ADR_REQUIRED):
+                errors.append(f"missing: adr.{field}")
+            for field in ADR_STRING_FIELDS:
+                if field in adr and not isinstance(adr[field], str):
+                    errors.append(f"adr.{field} must be a string")
+            for field in ADR_LIST_FIELDS:
+                if field in adr:
+                    errors.extend(_string_list_errors(f"adr.{field}", adr[field]))
+            if (
+                isinstance(adr.get("alternatives"), list)
+                and len(adr["alternatives"]) < 2
+            ):
+                errors.append(
+                    "adr.alternatives must include at least 2 confirmed real alternatives"
+                )
+            for field in ADR_TRUE_FIELDS:
+                if field in adr and adr.get(field) is not True:
+                    errors.append(f"adr.{field} must be true")
+            if "status" in adr and adr.get("status") != "proposed":
+                errors.append("adr.status must be proposed")
+            if "decision_makers" in adr and not _is_nonblank_string(
+                adr["decision_makers"]
+            ):
+                errors.append("adr.decision_makers must be a non-empty string")
+            _, path_errors = resolve_adr_path(snapshot)
+            errors.extend(path_errors)
+        elif required is False:
+            reason = adr.get("reason")
+            if not _has_value(reason):
+                errors.append("missing: adr.reason")
+            elif not isinstance(reason, str):
+                errors.append("adr.reason must be a string")
+        else:
+            errors.append("adr.required must be true or false")
 
     return risk_level, sorted(set(errors))
 
 
 def contract_id(snapshot: Any) -> str:
-    canonical = json.dumps(snapshot, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    canonical = json.dumps(
+        snapshot, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+    )
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()[:16]
 
 
@@ -284,18 +357,26 @@ def validate_adr_path(planned_path: Any) -> list[str]:
     return adr_contract.validate_planned_path(planned_path)
 
 
-def render_issue_body(snapshot: dict[str, Any], identifier: str, risk_level: str) -> str:
+def render_issue_body(
+    snapshot: dict[str, Any], identifier: str, risk_level: str
+) -> str:
     adr = snapshot.get("adr")
-    adr_required = risk_level == "high" and isinstance(adr, dict) and adr.get("required") is True
+    adr_required = (
+        risk_level == "high" and isinstance(adr, dict) and adr.get("required") is True
+    )
     description = snapshot["purpose"]
     if adr_required:
         description = "\n\n".join([adr["situation"], snapshot["purpose"]])
 
-    todo_items = list(snapshot["scope"]) + [f"검증: {check}" for check in snapshot["verification"]]
+    todo_items = list(snapshot["scope"]) + [
+        f"검증: {check}" for check in snapshot["verification"]
+    ]
     memo_items = ["없음"]
     if adr_required:
+        planned_path, _ = resolve_adr_path(snapshot)
+        displayed_path = planned_path or f"docs/adr/{{ISSUE_NUMBER}}-{adr['slug']}.md"
         memo_items = [
-            f"ADR: {adr['decision']} — 예정 경로: `{adr['planned_path']}` (Proposed)",
+            f"ADR: {adr['decision']} — 예정 경로: `{displayed_path}` (Proposed)",
         ]
 
     sections = [
@@ -329,6 +410,12 @@ def plan(snapshot: Any) -> dict[str, Any]:
 
     operation = snapshot["operation"]
     adr = snapshot.get("adr", {})
+    adr_required = (
+        risk_level == "high" and isinstance(adr, dict) and adr.get("required") is True
+    )
+    resolved_adr_path = None
+    if adr_required:
+        resolved_adr_path, _ = resolve_adr_path(snapshot)
     issue_body = render_issue_body(snapshot, identifier, risk_level)
     if _issue_h2_headings(issue_body) != ISSUE_H2_HEADINGS:
         return {
@@ -339,9 +426,11 @@ def plan(snapshot: Any) -> dict[str, Any]:
             "remote_write_authorized": False,
             "publish_ready": False,
             "contract_id": identifier,
-            "errors": ["rendered Issue must contain exactly the three allowed level-2 headings"],
+            "errors": [
+                "rendered Issue must contain exactly the three allowed level-2 headings"
+            ],
         }
-    return {
+    result = {
         "status": "pass",
         "action": "render_draft",
         "requested_action": requested_action,
@@ -350,16 +439,26 @@ def plan(snapshot: Any) -> dict[str, Any]:
         "publish_ready": operation == "create",
         "contract_id": identifier,
         "next_on_implementation": (
-            "materialize_proposed_adr" if isinstance(adr, dict) and adr.get("required") is True else "none"
+            "materialize_proposed_adr" if adr_required else "none"
         ),
         "issue_body": issue_body,
     }
+    if adr_required:
+        result["adr_path_status"] = (
+            "finalized" if resolved_adr_path else "pending_issue_number"
+        )
+        result["next_after_issue_created"] = (
+            "none" if resolved_adr_path else "finalize_adr_path"
+        )
+    return result
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("snapshot", type=Path, help="Issue contract JSON snapshot")
-    parser.add_argument("--pretty", action="store_true", help="Pretty-print JSON output")
+    parser.add_argument(
+        "--pretty", action="store_true", help="Pretty-print JSON output"
+    )
     return parser.parse_args()
 
 
@@ -379,7 +478,14 @@ def main() -> int:
             "contract_id": contract_id({"invalid_snapshot": str(error)}),
             "errors": [f"snapshot could not be read as JSON: {error}"],
         }
-    print(json.dumps(result, ensure_ascii=False, indent=2 if args.pretty else None, sort_keys=True))
+    print(
+        json.dumps(
+            result,
+            ensure_ascii=False,
+            indent=2 if args.pretty else None,
+            sort_keys=True,
+        )
+    )
     return 0 if result["status"] == "pass" else 1
 
 

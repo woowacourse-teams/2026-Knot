@@ -58,7 +58,9 @@ python3 harness/issue_planning.py \
 
 예상 결과는 `status=pass`, `action=render_draft`,
 `requested_action=publish_issue`다. 출력된 `issue_body`의 `메모`에는 ADR 결정 한 줄과 예정
-경로가 포함된다. `remote_write_authorized=false`이며 저장소에 ADR 파일은 생성되지 않는다.
+경로 `docs/adr/{ISSUE_NUMBER}-auth-account-linking.md`가 포함된다.
+`adr_path_status=pending_issue_number`, `next_after_issue_created=finalize_adr_path`이며
+`remote_write_authorized=false`다. 저장소에 ADR 파일은 생성되지 않는다.
 
 ## 3. ADR materializer 격리 테스트
 
@@ -68,12 +70,13 @@ python3 harness/issue_planning.py \
 work_dir="$(mktemp -d)"
 python3 harness/materialize_adr.py \
   harness/tests/fixtures/high-risk-create.json \
-  --repo-root "$work_dir" --implementation --pretty
+  --repo-root "$work_dir" --issue-number 123 --implementation --pretty
 ```
 
-`$work_dir/docs/adr/123-auth-account-linking.md`가 `Proposed`로 생성돼야 한다. 같은 명령을
-다시 실행하면 파일을 덮어쓰지 않고 `unchanged`를 반환해야 한다. 작업이 끝나면 생성한
-임시 디렉터리만 삭제한다.
+`$work_dir/docs/adr/123-auth-account-linking.md`가 `Proposed`로 생성돼야 한다. 실제 Issue
+번호 없이 `--implementation`만 실행하면 `require_final_adr_path`로 Hold해야 한다. 같은
+명령을 다시 실행하면 파일을 덮어쓰지 않고 `unchanged`를 반환해야 한다. 작업이 끝나면
+생성한 임시 디렉터리만 삭제한다.
 
 실제 Issue 계약을 시험할 때도 snapshot은 저장소가 아닌 OS 임시 파일에 쓰고 권한을
 현재 사용자로 제한한다. 명령의 성공 여부와 관계없이 snapshot을 삭제하며 대화 원문과

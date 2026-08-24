@@ -48,7 +48,8 @@ Harnessed 경로에서는 `$knot-deep-interview`로 제품 판단을 한 질문�
 ADR 필요 여부를 판정한다.
 
 - 필요하면 결정 전문을 내부 계약에 유지하고 Issue `메모`에는 결정 한 줄과 예정 경로만
-  넣는다.
+  넣는다. 새 Issue의 번호가 정해지기 전에는 실제 파일 경로 대신
+  `docs/adr/{ISSUE_NUMBER}-<slug>.md`를 표시한다.
 - 실제로 논의한 대안이 없으면 AI가 대안을 만들지 않고 ADR이 필요 없다고 판정한다.
 - 미확인 법·보안·개인정보 사실에 의존하면 추측하지 않고 `Hold`로 판정한다.
 - Issue 단계에서는 ADR 파일을 만들지 않는다.
@@ -72,15 +73,18 @@ ADR 필요 여부를 판정한다.
    `requested_action=publish_issue`와 `publish_ready=true`가 표시되지만 이는 요청 의도와
    계약 통과 여부일 뿐 원격 쓰기 권한이 아니다.
 7. `remote_write_authorized=false`를 확인하고 실제 게시 없이 종료한다.
-8. 성공·실패와 관계없이 임시 snapshot을 삭제한다.
+8. ADR이 필요하고 `adr_path_status=pending_issue_number`면 Issue 생성 뒤 실제 번호로
+   경로를 확정해야 한다고 보고한다.
+9. 성공·실패와 관계없이 임시 snapshot을 삭제한다.
 
 ## 7. 구현 시작 시 ADR 자산화
 
 ADR이 필요한 확정 Issue의 구현을 시작했고 예정 파일이 없다면 같은 작업 브랜치에서
-검증된 snapshot을 사용해 다음 명령을 실행한다.
+실제 Issue 번호와 검증된 snapshot을 사용해 다음 명령을 실행한다.
 
 ```bash
-python3 harness/materialize_adr.py <snapshot.json> --implementation --pretty
+python3 harness/materialize_adr.py <snapshot.json> \
+  --issue-number <actual-issue-number> --implementation --pretty
 ```
 
 생성한 ADR은 `Proposed` 상태로 코드와 같은 PR에 포함한다. 팀 리뷰가 승인한 뒤에만
@@ -93,6 +97,7 @@ python3 harness/materialize_adr.py <snapshot.json> --implementation --pretty
 - 위험 분류 근거가 있다.
 - 계약 판정기의 `status`, `action`, `requested_action`, `remote_write_authorized`,
   `contract_id`를 보고했다.
+- ADR 경로가 번호 확정 전인지 실제 Issue 번호로 확정됐는지 보고했다.
 - `hold`의 누락 항목 또는 `pass`의 Issue 본문을 사용자가 확인할 수 있다.
 - Issue 기획에서는 GitHub, branch, commit과 ADR 파일을 변경하지 않았다.
 - 구현 요청에서는 필요한 ADR 파일이 `Proposed`로 현재 작업 브랜치에 있고 코드와 같은

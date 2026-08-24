@@ -123,7 +123,8 @@ Issue #10과 `docs/adr`은 변경하지 않는다.
 
 이 가상 답변을 팀이 실제 논의 내용이라고 확인했고 장기 영향과 반복 참조 조건까지
 충족했다고 가정하면, Issue `메모`에 결정 한 줄과 예정 경로를 추가한다. 구현을 시작할 때
-AI는 [GitHub OAuth 신원과 Member 지연 생성 ADR 형식 예시](examples/10-github-oauth-member-delayed-creation.md)와
+AI는 실제 Issue 번호 `10`을 materializer에 전달한다.
+[GitHub OAuth 신원과 Member 지연 생성 ADR 형식 예시](examples/10-github-oauth-member-delayed-creation.md)와
 같은 `Proposed` 파일을 작업 브랜치에 만들고 코드와 같은 PR에 포함한다.
 
 ## 핵심 구분

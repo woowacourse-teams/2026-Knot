@@ -25,12 +25,13 @@ Knot의 GitHub Issue 생성·초안·검토 요청에는 `$knot-issue-planning`�
 ## Issue 구현
 
 확정 Issue 구현을 시작할 때 Issue 본문을 먼저 읽는다. `메모`에 ADR 결정과 예정 경로가
-있고 파일이 없다면 검증된 결정 snapshot으로
-`python3 harness/materialize_adr.py <snapshot.json> --implementation --pretty`를 실행한다.
-ADR은 구현 브랜치에 `Proposed`로 만들고 코드와 같은 PR에 포함한다. 원래 snapshot을
-복구할 수 없으면 현재 상황, 실제로 논의한 대안과 선택 이유만 다시 확인하며 대안을
-추측하지 않는다. 팀 리뷰가 승인한 뒤에만 `Accepted`로 바꾸며 commit, push와 merge는
-사용자가 명시적으로 요청한 범위에서만 수행한다.
+있고 파일이 없다면 실제 Issue 번호를 확인한 뒤 검증된 결정 snapshot으로
+`python3 harness/materialize_adr.py <snapshot.json> --issue-number <번호> --implementation --pretty`를
+실행한다. Issue 기획 결과의 `{ISSUE_NUMBER}`는 번호 확정 전 표시일 뿐 실제 파일명이
+아니다. ADR은 구현 브랜치에 `Proposed`로 만들고 코드와 같은 PR에 포함한다. 원래
+snapshot을 복구할 수 없으면 현재 상황, 실제로 논의한 대안과 선택 이유만 다시 확인하며
+대안을 추측하지 않는다. 팀 리뷰가 승인한 뒤에만 `Accepted`로 바꾸며 commit, push와
+merge는 사용자가 명시적으로 요청한 범위에서만 수행한다.
 
 Issue에는 기존 템플릿의 `구현 기능 설명`, `TODO`, `메모`만 사용한다. 전체 내부 계약,
 ADR 전문과 인터뷰 원문은 Issue에 넣지 않는다.

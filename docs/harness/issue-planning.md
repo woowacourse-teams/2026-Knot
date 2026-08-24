@@ -27,6 +27,7 @@
 테스트 버전에서는 두 요청 모두 원격 변경 없이 `action=render_draft`로 결과만 보여준다.
 생성 요청은 `requested_action=publish_issue`, `publish_ready=true`로 의도를 구분한다.
 `remote_write_authorized`는 항상 `false`이며 다른 필드는 쓰기 권한이 아니다.
+`publish_ready`는 Issue 후보 계약만 통과했다는 뜻이며 ADR 실제 경로 확정을 뜻하지 않는다.
 
 ## 동작
 
@@ -74,15 +75,19 @@ AI는 대안이 없었다면 없다고 답하도록 안내한다. 한 번 더 �
 여부를 확인한 뒤에도 대안이 없으면 ADR을 만들지 않으며, 새 대안을 지어내지 않는다.
 
 Issue 단계에서는 ADR 파일을 만들지 않는다. 실제 구현을 시작한 작업 브랜치에서 다음
-명령으로 `Proposed` 파일을 만든다.
+명령으로 실제 Issue 번호를 확정해 `Proposed` 파일을 만든다.
 
 ```bash
-python3 harness/materialize_adr.py <snapshot.json> --implementation --pretty
+python3 harness/materialize_adr.py <snapshot.json> \
+  --issue-number <actual-issue-number> --implementation --pretty
 ```
 
 `--implementation`은 Issue 기획 단계의 실수로 파일이 생기는 것을 막는 실행 단계
-표시다. 파일은 코드와 같은 PR에 포함하고 팀 리뷰 후에만 `Accepted`로 바꾼다. 두 Python
-스크립트는 commit, push, Issue 게시와 PR merge를 실행하지 않는다.
+표시다. 새 Issue 번호가 정해지기 전에는 본문에
+`docs/adr/{ISSUE_NUMBER}-<slug>.md`만 표시하고 실제 파일을 만들지 않는다. 번호가 정해진
+뒤 materializer가 `docs/adr/<Issue 번호>-<slug>.md`를 만든다. 파일은 코드와 같은 PR에
+포함하고 팀 리뷰 후에만 `Accepted`로 바꾼다. 두 Python 스크립트는 commit, push, Issue
+게시와 PR merge를 실행하지 않는다.
 
 ## 팀 공통 적용과 프론트엔드 하네스
 

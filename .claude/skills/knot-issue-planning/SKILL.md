@@ -12,8 +12,8 @@ description: Knot 저장소의 BE·FE GitHub Issue를 만들거나 초안·검�
 - 정본의 `$knot-grill-me`는 `/knot-grill-me`로 호출한다.
 - 판정과 렌더링은 `python3 harness/issue_planning.py <snapshot.json> --pretty` 결과를 따른다.
 - 구현 시작 시 필요한 ADR은
-  `python3 harness/materialize_adr.py <snapshot.json> --implementation --pretty`로 현재 작업 브랜치에
-  `Proposed`로 만든다.
+  `python3 harness/materialize_adr.py <snapshot.json> --issue-number <번호> --implementation --pretty`로
+  실제 Issue 번호를 확정한 뒤 현재 작업 브랜치에 `Proposed`로 만든다.
 - `requested_action=publish_issue`는 요청 의도일 뿐이며 `remote_write_authorized=false`인 동안
   GitHub 원격을 변경하지 않는다.
 - 이 파일에 공통 정책을 복사하거나 Claude 전용 기준을 추가하지 않는다.

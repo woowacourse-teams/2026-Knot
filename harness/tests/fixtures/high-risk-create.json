@@ -32,6 +32,6 @@
     "rationale": "기존 계정 인증을 요구해 보안과 사용자 통제권을 함께 지킨다.",
     "consequences": ["연결 확인 UI와 API가 필요하다.", "자동 병합을 지원하지 않는다."],
     "revisit_when": ["이메일을 보장하지 않는 OAuth 제공자를 추가할 때"],
-    "planned_path": "docs/adr/123-auth-account-linking.md"
+    "slug": "auth-account-linking"
   }
 }
