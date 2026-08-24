@@ -1,11 +1,11 @@
 ---
 name: knot-grill-me
-description: Knot 저장소의 BE·FE 고위험 Issue 계약을 구현 전에 반대 관점에서 압박 검증하고 누락된 실패·복구·보안·데이터·FE-BE 계약과 검증 불가능한 성공 기준을 찾아 Pass 또는 Hold로 판정한다. knot-issue-planning의 고위험 인터뷰가 끝났거나 사용자가 Knot 기획을 Grill Me로 검증해 달라고 요청할 때 사용한다. 저위험 작업과 코드 리뷰에는 사용하지 않는다.
+description: Knot 저장소의 BE·FE 고위험 Issue 계약을 구현 전에 반대 관점에서 압박 검증하고 누락된 실패·복구·보안·데이터·FE-BE 계약과 검증 불가능한 성공 기준을 찾아 Pass 또는 Hold로 판정한다. knot-issue-planning의 고위험 인터뷰가 완료 또는 근거 충분으로 생략됐거나 사용자가 Knot 기획을 Grill Me로 검증해 달라고 요청할 때 사용한다. 저위험 작업과 코드 리뷰에는 사용하지 않는다.
 ---
 
 # Knot Grill Me
 
-인터뷰 결과를 반복 요약하지 말고 실패할 이유를 찾는다.
+인터뷰 근거 계약을 반복 요약하지 말고 실패할 이유를 찾는다.
 
 ## 진행
 

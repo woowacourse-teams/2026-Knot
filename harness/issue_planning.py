@@ -43,8 +43,18 @@ HARNESSED_REQUIRED = (
     "impacts",
     "dependencies",
     "residual_risks",
+    "interview",
     "grill",
     "adr",
+)
+
+INTERVIEW_EVIDENCE_FIELDS = (
+    "context",
+    "situation",
+    "need",
+    "alternatives",
+    "decision",
+    "rationale",
 )
 
 ADR_REQUIRED = (
@@ -146,6 +156,63 @@ def _markdown_h2_errors(value: Any, field: str = "snapshot") -> list[str]:
             errors.extend(_markdown_h2_errors(item, f"{field}.{key}"))
         return errors
     return []
+
+
+def _interview_errors(interview: Any) -> list[str]:
+    if not isinstance(interview, dict):
+        return ["interview must be an object"]
+
+    errors: list[str] = []
+    status = interview.get("status")
+    if status not in {"completed", "skipped"}:
+        errors.append("interview.status must be completed or skipped")
+
+    evidence = interview.get("evidence")
+    if not isinstance(evidence, dict):
+        errors.append("interview.evidence must be an object")
+    else:
+        for field in INTERVIEW_EVIDENCE_FIELDS:
+            item = evidence.get(field)
+            prefix = f"interview.evidence.{field}"
+            if not isinstance(item, dict):
+                errors.append(f"missing: {prefix}")
+                continue
+            if not _is_nonblank_string(item.get("summary")):
+                errors.append(f"missing: {prefix}.summary")
+            sources = item.get("sources")
+            if not isinstance(sources, list):
+                errors.append(f"{prefix}.sources must be a list")
+            elif not sources:
+                errors.append(f"missing: {prefix}.sources")
+            else:
+                errors.extend(_string_list_errors(f"{prefix}.sources", sources))
+
+    conflicts = interview.get("conflicts")
+    if not isinstance(conflicts, list):
+        errors.append("interview.conflicts must be a list")
+    else:
+        errors.extend(_string_list_errors("interview.conflicts", conflicts))
+        if conflicts:
+            errors.append("interview.conflicts must be empty before pass")
+
+    if interview.get("current_validity") != "confirmed":
+        errors.append("interview.current_validity must be confirmed")
+
+    resolved_questions = interview.get("resolved_questions")
+    if not isinstance(resolved_questions, list):
+        errors.append("interview.resolved_questions must be a list")
+    else:
+        errors.extend(
+            _string_list_errors("interview.resolved_questions", resolved_questions)
+        )
+        if status == "completed" and not resolved_questions:
+            errors.append("missing: interview.resolved_questions")
+        if status == "skipped" and resolved_questions:
+            errors.append(
+                "interview.resolved_questions must be empty when interview is skipped"
+            )
+
+    return errors
 
 
 def _requested_action(snapshot: Any) -> str:
@@ -275,6 +342,9 @@ def validate(snapshot: Any) -> tuple[str, list[str]]:
         ):
             if field in snapshot and not _has_value(snapshot[field]):
                 errors.append(f"missing: {field}")
+
+        if "interview" in snapshot:
+            errors.extend(_interview_errors(snapshot["interview"]))
 
         grill = snapshot.get("grill")
         if grill is not None and not isinstance(grill, dict):
@@ -443,6 +513,14 @@ def plan(snapshot: Any) -> dict[str, Any]:
         ),
         "issue_body": issue_body,
     }
+    if risk_level == "high":
+        interview_status = snapshot["interview"]["status"]
+        result["interview_status"] = interview_status
+        result["interview_notice"] = (
+            "자료 충분으로 인터뷰 생략"
+            if interview_status == "skipped"
+            else "사용자 확인으로 인터뷰 완료"
+        )
     if adr_required:
         result["adr_path_status"] = (
             "finalized" if resolved_adr_path else "pending_issue_number"

@@ -36,13 +36,22 @@
 → 저장소·문서·코드 조사
 → 위험 분류
 → 저위험: 최소 계약
-→ 고위험: Deep Interview → Grill Me → Pass/Hold → ADR 판단
+→ 고위험: 여섯 결정 근거 판정
+  → 근거 충분: 인터뷰 생략
+  → 근거 누락·충돌·현재 유효성 불명확: Deep Interview
+→ Grill Me → Pass/Hold → ADR 판단
 → 결정적 검증기
 → 세 섹션 dry-run Issue 본문
 ```
 
 `Hold`이면 Issue 후보를 만들지 않고 누락 항목과 재개 조건을 보여준다. `Pass`이면
 계약 식별자와 Issue 본문을 보여준다.
+
+고위험 작업은 현재 맥락, 구체적인 문제 상황, 선택 필요성, 실제 대안, 최종 선택과 선택
+이유마다 내용과 출처를 확인한다. 여섯 항목이 모두 명시돼 있고 자료가 서로 충돌하지
+않으며 현재도 유효하면 인터뷰를 생략한다. 결과에는 `interview_status=skipped`와
+`자료 충분으로 인터뷰 생략`을 표시한다. 하나라도 부족하면 해당 판단을 사용자에게 한
+질문씩 확인하고 `interview_status=completed`가 된 뒤에만 진행한다.
 
 Issue 본문은 다음 형태만 사용한다.
 
@@ -109,7 +118,7 @@ Issue #165의 프론트엔드 공통 하네스는 `frontend/` 코드 구현·테
 
 - Issue 생성 전 계약 검증
 - 저위험·고위험 routing
-- Deep Interview와 Grill Me
+- 근거 기반 Deep Interview 생략·수행 판정과 Grill Me
 - ADR 필요 여부와 채택안
 - 원격 쓰기 권한 판정
 - 중복 방지용 안정적인 계약 식별자 생성

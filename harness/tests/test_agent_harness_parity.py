@@ -74,6 +74,21 @@ class AgentHarnessParityTest(unittest.TestCase):
                 self.assertIn("OS 임시", text)
                 self.assertIn("삭제", text)
 
+    def test_codex_and_claude_share_conditional_interview_contract(self):
+        canonical = (
+            ROOT / ".agents" / "skills" / "knot-issue-planning" / "SKILL.md"
+        ).read_text(encoding="utf-8")
+        claude_adapter = (
+            ROOT / ".claude" / "skills" / "knot-issue-planning" / "SKILL.md"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("자료 충분으로 인터뷰 생략", canonical)
+        self.assertIn("interview_status", canonical)
+        self.assertIn(
+            "../../../.agents/skills/knot-issue-planning/SKILL.md", claude_adapter
+        )
+        self.assertIn("interview_notice", claude_adapter)
+
 
 if __name__ == "__main__":
     unittest.main()

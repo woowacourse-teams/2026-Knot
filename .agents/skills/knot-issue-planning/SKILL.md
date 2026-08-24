@@ -1,6 +1,6 @@
 ---
 name: knot-issue-planning
-description: Knot 저장소의 BE·FE GitHub Issue를 만들거나 초안·검토·정리할 때 저장소 근거를 조사하고 위험도를 분류한 뒤, 고위험 작업에는 요구사항 인터뷰와 Grill Me 및 ADR 판단을 적용해 실행 가능한 공통 Issue 계약을 만든다. “Issue 만들어줘”, “Issue로 등록해줘”, “Issue 초안 잡아줘”, “요구사항을 Issue 형식으로 검토해줘” 요청에 사용한다. 확정 Issue의 코드 구현, PR 작성, 일반적인 GitHub 조회에는 사용하지 않는다.
+description: Knot 저장소의 BE·FE GitHub Issue를 만들거나 초안·검토·정리할 때 저장소 근거를 조사하고 위험도를 분류한 뒤, 고위험 작업의 결정 근거가 누락·충돌했거나 현재 유효성이 불명확하면 요구사항 인터뷰를 수행하고 Grill Me와 ADR 판단을 적용해 실행 가능한 공통 Issue 계약을 만든다. “Issue 만들어줘”, “Issue로 등록해줘”, “Issue 초안 잡아줘”, “요구사항을 Issue 형식으로 검토해줘” 요청에 사용한다. 확정 Issue의 코드 구현, PR 작성, 일반적인 GitHub 조회에는 사용하지 않는다.
 ---
 
 # Knot Issue Planning
@@ -25,6 +25,8 @@ Issue 생성 요청을 저장소 전역의 실행 가능한 작업 계약으로 
 2. 요청과 관련된 제품 문서, ADR, 코드, 테스트와 기존 Issue를 읽는다.
 3. 저장소에서 확인한 사실과 사용자가 결정해야 하는 제품 판단을 분리한다.
 4. 확인 가능한 사실을 사용자에게 질문하지 않는다.
+5. 현재 맥락, 구체적인 문제 상황, 선택 필요성, 실제 대안, 최종 선택과 선택 이유마다
+   확인 내용과 출처를 기록한다.
 
 ## 3. 위험 분류
 
@@ -38,9 +40,19 @@ Issue 생성 요청을 저장소 전역의 실행 가능한 작업 계약으로 
 
 Lightweight 경로에서는 목적, 간결한 TODO, 완료 조건, 검증 방법과 근거를 작성한다.
 
-Harnessed 경로에서는 `$knot-deep-interview`로 제품 판단을 한 질문씩 명료화한다. 계약이
-채워지면 `$knot-grill-me`로 실패 흐름과 숨은 가정을 압박 검증한다. 치명적인 미결정이
-남으면 `Hold`로 판정한다.
+Harnessed 경로에서는 먼저 여섯 가지 결정 정보의 근거를 판정한다.
+
+1. 모든 정보가 출처에 명시돼 있고 자료 간 충돌이 없으며 현재도 유효하면 인터뷰를
+   `skipped`로 기록한다. 항목별 확인 내용과 출처를 snapshot에 남긴다.
+2. 하나라도 누락됐거나 자료가 충돌하거나 현재 유효성이 불명확하면
+   `$knot-deep-interview`로 해당 판단을 한 질문씩 확인한다. 해소한 질문을 요약해
+   인터뷰를 `completed`로 기록한다.
+3. AI의 추론으로 빈 판단을 채우거나 출처 없는 생략을 선언하지 않는다.
+4. 사용자에게 `자료 충분으로 인터뷰 생략` 또는 `사용자 확인으로 인터뷰 완료`를
+   명시한다.
+
+인터뷰 계약이 완성되면 `$knot-grill-me`로 실패 흐름과 숨은 가정을 압박 검증한다.
+치명적인 미결정이 남으면 `Hold`로 판정한다.
 
 ## 5. ADR 판단
 
@@ -67,15 +79,16 @@ ADR 필요 여부를 판정한다.
 3. 종료 코드가 0이 아니거나 결과가 `hold`면 누락 필드와 재개 조건을 보고하고 Issue
    생성을 제안하지 않는다.
 4. 결과가 `pass`면 `issue_body`와 `contract_id`를 보여준다.
-5. Issue 본문은 기존 템플릿의 `구현 기능 설명`, `TODO`, `메모` 세 섹션만 사용한다.
+5. 고위험 결과의 `interview_status`와 `interview_notice`를 그대로 보여준다.
+6. Issue 본문은 기존 템플릿의 `구현 기능 설명`, `TODO`, `메모` 세 섹션만 사용한다.
    내부 계약의 전문을 Issue에 복사하지 않는다.
-6. 현재 버전의 실제 `action`은 항상 `render_draft`다. `operation=create`의 결과에는
+7. 현재 버전의 실제 `action`은 항상 `render_draft`다. `operation=create`의 결과에는
    `requested_action=publish_issue`와 `publish_ready=true`가 표시되지만 이는 요청 의도와
    계약 통과 여부일 뿐 원격 쓰기 권한이 아니다.
-7. `remote_write_authorized=false`를 확인하고 실제 게시 없이 종료한다.
-8. ADR이 필요하고 `adr_path_status=pending_issue_number`면 Issue 생성 뒤 실제 번호로
+8. `remote_write_authorized=false`를 확인하고 실제 게시 없이 종료한다.
+9. ADR이 필요하고 `adr_path_status=pending_issue_number`면 Issue 생성 뒤 실제 번호로
    경로를 확정해야 한다고 보고한다.
-9. 성공·실패와 관계없이 임시 snapshot을 삭제한다.
+10. 성공·실패와 관계없이 임시 snapshot을 삭제한다.
 
 ## 7. 구현 시작 시 ADR 자산화
 
@@ -95,6 +108,8 @@ python3 harness/materialize_adr.py <snapshot.json> \
 ## 완료 기준
 
 - 위험 분류 근거가 있다.
+- 고위험 계약은 인터뷰 완료 또는 항목별 근거가 있는 생략 상태다.
+- 인터뷰 생략·완료 상태를 사용자에게 알렸다.
 - 계약 판정기의 `status`, `action`, `requested_action`, `remote_write_authorized`,
   `contract_id`를 보고했다.
 - ADR 경로가 번호 확정 전인지 실제 Issue 번호로 확정됐는지 보고했다.

@@ -63,7 +63,91 @@ class IssuePlanningTest(unittest.TestCase):
         self.assertFalse(result["remote_write_authorized"])
         self.assertFalse(result["publish_ready"])
         self.assertIn("missing: failure_flows", result["errors"])
+        self.assertIn("missing: interview", result["errors"])
         self.assertIn("grill.status must be pass", result["errors"])
+
+    def test_high_risk_contract_without_interview_is_held(self):
+        snapshot = fixture("high-risk-create.json")
+        del snapshot["interview"]
+
+        result = issue_planning.plan(snapshot)
+
+        self.assertEqual("hold", result["status"])
+        self.assertIn("missing: interview", result["errors"])
+
+    def test_skipped_interview_requires_all_evidence_with_sources(self):
+        cases = (
+            (
+                "missing-evidence",
+                lambda interview: interview["evidence"].pop("rationale"),
+                "missing: interview.evidence.rationale",
+            ),
+            (
+                "missing-source",
+                lambda interview: interview["evidence"]["decision"].update(
+                    {"sources": []}
+                ),
+                "missing: interview.evidence.decision.sources",
+            ),
+        )
+
+        for name, mutate, expected_error in cases:
+            with self.subTest(case=name):
+                snapshot = fixture("high-risk-create.json")
+                mutate(snapshot["interview"])
+
+                result = issue_planning.plan(snapshot)
+
+                self.assertEqual("hold", result["status"])
+                self.assertIn(expected_error, result["errors"])
+
+    def test_skipped_interview_holds_conflicts_or_unconfirmed_validity(self):
+        cases = (
+            (
+                "conflict",
+                lambda interview: interview["conflicts"].append(
+                    "회의록과 현재 요청의 선택이 다르다."
+                ),
+                "interview.conflicts must be empty before pass",
+            ),
+            (
+                "stale",
+                lambda interview: interview.update({"current_validity": "unknown"}),
+                "interview.current_validity must be confirmed",
+            ),
+        )
+
+        for name, mutate, expected_error in cases:
+            with self.subTest(case=name):
+                snapshot = fixture("high-risk-create.json")
+                mutate(snapshot["interview"])
+
+                result = issue_planning.plan(snapshot)
+
+                self.assertEqual("hold", result["status"])
+                self.assertIn(expected_error, result["errors"])
+
+    def test_completed_interview_requires_resolved_user_question(self):
+        snapshot = fixture("high-risk-create.json")
+        snapshot["interview"]["status"] = "completed"
+
+        result = issue_planning.plan(snapshot)
+
+        self.assertEqual("hold", result["status"])
+        self.assertIn("missing: interview.resolved_questions", result["errors"])
+
+    def test_completed_interview_passes_with_resolved_user_question(self):
+        snapshot = fixture("high-risk-create.json")
+        snapshot["interview"]["status"] = "completed"
+        snapshot["interview"]["resolved_questions"] = [
+            "사용자에게 자동 병합 여부를 확인해 명시적 확인 후 연결로 확정했다."
+        ]
+
+        result = issue_planning.plan(snapshot)
+
+        self.assertEqual("pass", result["status"])
+        self.assertEqual("completed", result["interview_status"])
+        self.assertEqual("사용자 확인으로 인터뷰 완료", result["interview_notice"])
 
     def test_complete_high_risk_contract_keeps_issue_short_and_points_to_proposed_adr(
         self,
@@ -75,6 +159,8 @@ class IssuePlanningTest(unittest.TestCase):
         self.assertEqual("render_draft", result["action"])
         self.assertEqual("publish_issue", result["requested_action"])
         self.assertFalse(result["remote_write_authorized"])
+        self.assertEqual("skipped", result["interview_status"])
+        self.assertEqual("자료 충분으로 인터뷰 생략", result["interview_notice"])
         self.assertEqual("materialize_proposed_adr", result["next_on_implementation"])
         self.assertEqual("pending_issue_number", result["adr_path_status"])
         self.assertEqual("finalize_adr_path", result["next_after_issue_created"])
@@ -281,12 +367,14 @@ class IssuePlanningTest(unittest.TestCase):
 
     def test_malformed_high_risk_sections_are_held(self):
         snapshot = fixture("high-risk-create.json")
+        snapshot["interview"] = "skipped"
         snapshot["grill"] = "pass"
         snapshot["adr"] = "accepted"
 
         result = issue_planning.plan(snapshot)
 
         self.assertEqual("hold", result["status"])
+        self.assertIn("interview must be an object", result["errors"])
         self.assertIn("grill must be an object", result["errors"])
         self.assertIn("adr must be an object", result["errors"])
 

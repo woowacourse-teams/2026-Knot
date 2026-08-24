@@ -55,6 +55,24 @@ class DocumentationContractTest(unittest.TestCase):
         self.assertIn("## 상태\n\nProposed", adr)
         self.assertIn("- #167 [BE] 팀 공통 Issue / ADR 기획 하네스 도입", adr)
 
+    def test_high_risk_interview_can_only_skip_with_complete_evidence(self):
+        guide = (ROOT / "docs" / "harness" / "issue-planning.md").read_text(
+            encoding="utf-8"
+        )
+        contract = (
+            ROOT
+            / ".agents"
+            / "skills"
+            / "knot-issue-planning"
+            / "references"
+            / "issue-contract.md"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("현재 맥락", guide)
+        self.assertIn("자료 충분으로 인터뷰 생략", guide)
+        self.assertIn('"status": "skipped"', contract)
+        self.assertIn('"current_validity": "confirmed"', contract)
+
 
 if __name__ == "__main__":
     unittest.main()

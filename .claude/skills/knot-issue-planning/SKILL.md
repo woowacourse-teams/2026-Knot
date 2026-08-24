@@ -11,6 +11,7 @@ description: Knot 저장소의 BE·FE GitHub Issue를 만들거나 초안·검�
 - 정본의 `$knot-deep-interview`는 `/knot-deep-interview`로 호출한다.
 - 정본의 `$knot-grill-me`는 `/knot-grill-me`로 호출한다.
 - 판정과 렌더링은 `python3 harness/issue_planning.py <snapshot.json> --pretty` 결과를 따른다.
+- 고위험 결과의 `interview_status`와 `interview_notice`를 사용자에게 그대로 보여준다.
 - 구현 시작 시 필요한 ADR은
   `python3 harness/materialize_adr.py <snapshot.json> --issue-number <번호> --implementation --pretty`로
   실제 Issue 번호를 확정한 뒤 현재 작업 브랜치에 `Proposed`로 만든다.

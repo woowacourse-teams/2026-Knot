@@ -15,6 +15,8 @@ python3 -m unittest discover harness/tests -p 'test_*.py' -v
 실행한다. 테스트는 다음을 확인한다.
 
 - 저위험 작업은 Interview·Grill·ADR 없이 Pass한다.
+- 고위험 작업은 완료된 인터뷰 또는 여섯 항목의 생략 근거가 있어야 Pass한다.
+- 생략 근거가 누락·충돌했거나 현재 유효성이 불명확하면 Hold한다.
 - 고위험 작업의 필수 계약이 비면 Hold한다.
 - 완성된 고위험 계약은 ADR 예정 경로와 함께 Pass한다.
 - Issue 본문은 기존 템플릿의 세 섹션만 포함한다.
@@ -60,6 +62,7 @@ python3 harness/issue_planning.py \
 `requested_action=publish_issue`다. 출력된 `issue_body`의 `메모`에는 ADR 결정 한 줄과 예정
 경로 `docs/adr/{ISSUE_NUMBER}-auth-account-linking.md`가 포함된다.
 `adr_path_status=pending_issue_number`, `next_after_issue_created=finalize_adr_path`이며
+`interview_status=skipped`, `interview_notice=자료 충분으로 인터뷰 생략`,
 `remote_write_authorized=false`다. 저장소에 ADR 파일은 생성되지 않는다.
 
 ## 3. ADR materializer 격리 테스트
@@ -89,12 +92,14 @@ Codex에서 `2026-Knot` 폴더를 프로젝트로 연 뒤 다음 순서로 확�
 1. `오탈자 수정 Issue 초안 잡아줘`라고 요청한다.
 2. `$knot-issue-planning`이 선택되고 질문 없이 Lightweight 초안을 만드는지 확인한다.
 3. `로그인·회원가입 GitHub Issue 만들어줘. 실제 GitHub에는 올리지 마`라고 요청한다.
-4. 고위험으로 분류하고 한 번에 하나씩 질문하는지 확인한다.
-5. 중요한 정책이 비어 있을 때 `Hold`하는지 확인한다.
-6. 대안이 없다고 답했을 때 한 번만 확인하고 ADR을 만들지 않는지 확인한다.
-7. 실제 대안이 둘 이상이면 Grill 결과, ADR 판단과 세 섹션 dry-run 본문을 보여주는지
+4. 여섯 결정 정보의 출처를 먼저 확인하고, 부족한 항목만 한 번에 하나씩 질문하는지
    확인한다.
-8. 모든 결과에서 `remote_write_authorized=false`인지 확인한다.
+5. 여섯 항목의 근거가 모두 있으면 질문 없이 생략 사실과 근거를 보여주는지 확인한다.
+6. 중요한 정책이 비어 있을 때 `Hold`하는지 확인한다.
+7. 대안이 없다고 답했을 때 한 번만 확인하고 ADR을 만들지 않는지 확인한다.
+8. 실제 대안이 둘 이상이면 Grill 결과, ADR 판단과 세 섹션 dry-run 본문을 보여주는지
+   확인한다.
+9. 모든 결과에서 `remote_write_authorized=false`인지 확인한다.
 
 ## 5. Claude Code 자연어 테스트
 

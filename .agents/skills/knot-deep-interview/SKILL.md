@@ -1,6 +1,6 @@
 ---
 name: knot-deep-interview
-description: Knot 저장소의 BE·FE Issue 기획에서 인증·데이터·외부 API·FE-BE 계약·핵심 사용자 흐름처럼 변경 비용이 큰 요구사항을 한 질문씩 명료화한다. knot-issue-planning이 고위험 작업으로 분류했거나 사용자가 Knot 기획의 Deep Interview를 명시적으로 요청했을 때 사용한다. 저위험 작업과 확정 Issue 구현에는 사용하지 않는다.
+description: Knot 저장소의 BE·FE Issue 기획에서 인증·데이터·외부 API·FE-BE 계약·핵심 사용자 흐름처럼 변경 비용이 큰 요구사항의 근거가 누락·충돌했거나 현재 유효성이 불명확할 때 제품 판단을 한 질문씩 명료화한다. knot-issue-planning의 고위험 근거 판정에 미결정이 남았거나 사용자가 Knot 기획의 Deep Interview를 명시적으로 요청했을 때 사용한다. 저위험 작업과 확정 Issue 구현에는 사용하지 않는다.
 ---
 
 # Knot Deep Interview
@@ -8,10 +8,20 @@ description: Knot 저장소의 BE·FE Issue 기획에서 인증·데이터·외�
 저장소에서 확인할 수 없는 제품 판단을 한 번에 하나씩 질문해 Harnessed Issue 계약을
 채운다.
 
+## 시작 조건
+
+- 사용자가 인터뷰를 명시적으로 요청하면 시작한다.
+- 그 밖에는 `$knot-issue-planning`이 현재 맥락, 구체적인 문제 상황, 선택 필요성, 실제
+  대안, 최종 선택과 선택 이유 중 누락·충돌·현재 유효성 불명확 항목을 전달했을 때
+  시작한다.
+- 사용자가 인터뷰를 명시적으로 요청하지 않았고 여섯 항목의 명시적 출처가 모두 있으며
+  서로 충돌하지 않고 현재 유효하면 이 스킬을 호출하지 않고
+  `interview.status=skipped`로 처리한다.
+
 ## 진행
 
 1. `references/question-contract.md`를 읽는다.
-2. 저장소 문서, 관련 코드, 테스트와 기존 ADR에서 사실을 먼저 확인한다.
+2. 전달된 근거와 저장소 문서, 관련 코드, 테스트와 기존 ADR에서 사실을 먼저 확인한다.
 3. 맥락, 실제 문제 상황, 결정 필요성, 실제로 논의한 대안, 선택과 이유를 먼저
    명료화한다. 사용자가 대안이 없었다고 답할 수 있게 안내한다.
 4. 매 라운드에서 실행 결과를 가장 크게 바꿀 질문 하나만 한다.
@@ -35,4 +45,5 @@ description: Knot 저장소의 BE·FE Issue 기획에서 인증·데이터·외�
 - 이전 답변 하나 이상을 가정 또는 트레이드오프로 압박 검증했다.
 
 완료 결과는 요약된 계약으로 `$knot-issue-planning`에 반환한다. 인터뷰 원문을 Issue나
-ADR에 복사하지 않는다.
+ADR에 복사하지 않는다. 해소한 질문은 `interview.resolved_questions`에 요약하고 여섯
+항목의 최종 내용과 출처를 `interview.evidence`에 반환한다.

@@ -14,6 +14,38 @@
   "impacts": ["BE 인증 정책", "FE 연결 확인 화면", "오류 응답 계약"],
   "dependencies": ["OAuth 제공자 가용성"],
   "residual_risks": ["제공자 이메일 신뢰 수준은 구현 전 재확인한다."],
+  "interview": {
+    "status": "skipped",
+    "evidence": {
+      "context": {
+        "summary": "기존 계정과 OAuth 계정의 관계 정책이 필요하다.",
+        "sources": ["현재 회원 식별 정책"]
+      },
+      "situation": {
+        "summary": "동일 이메일 OAuth 사용자의 계정을 어떻게 연결할지 회의에서 논의했다.",
+        "sources": ["계정 연결 정책 회의 기록"]
+      },
+      "need": {
+        "summary": "자동 병합의 탈취 위험과 중복 계정 혼란 사이에서 정책 선택이 필요하다.",
+        "sources": ["계정 연결 정책 회의 기록"]
+      },
+      "alternatives": {
+        "summary": "자동 병합, 별도 계정, 사용자 확인 후 연결을 검토했다.",
+        "sources": ["계정 연결 정책 회의 기록"]
+      },
+      "decision": {
+        "summary": "사용자 확인 후 기존 계정과 OAuth 계정을 연결한다.",
+        "sources": ["계정 연결 정책 회의 기록"]
+      },
+      "rationale": {
+        "summary": "기존 계정 인증으로 보안과 사용자 통제권을 함께 지킨다.",
+        "sources": ["계정 연결 정책 회의 기록"]
+      }
+    },
+    "conflicts": [],
+    "current_validity": "confirmed",
+    "resolved_questions": []
+  },
   "grill": {
     "status": "pass",
     "resolved_questions": ["자동 병합을 금지하고 사용자 확인을 요구한다."]

@@ -2,8 +2,9 @@
 
 # Claude Code
 
-Knot 저장소의 BE·FE Issue 기획에는 `/knot-issue-planning`을 사용한다. 고위험 인터뷰와
-압박 검증은 각각 `/knot-deep-interview`, `/knot-grill-me`를 사용한다. `frontend/` 구현
+Knot 저장소의 BE·FE Issue 기획에는 `/knot-issue-planning`을 사용한다. 자료가 부족한
+고위험 작업의 인터뷰에는 `/knot-deep-interview`를 사용하고, 모든 고위험 계약의 압박
+검증에는 `/knot-grill-me`를 사용한다. `frontend/` 구현
 작업에서는 Issue #165의 `frontend/CLAUDE.md`가 현재 브랜치에 존재할 때 함께 따른다.
 
 `.claude/skills`는 Claude Code용 진입점이다. 판단 규칙의 정본은 `.agents/skills`와

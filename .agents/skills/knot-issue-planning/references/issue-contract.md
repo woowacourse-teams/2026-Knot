@@ -21,6 +21,20 @@ Issue의 세 섹션을 깨뜨리는 Markdown H2(`## `)를 넣지 않는다.
   "impacts": ["FE·BE·데이터·외부 영향"],
   "dependencies": [],
   "residual_risks": [],
+  "interview": {
+    "status": "skipped",
+    "evidence": {
+      "context": {"summary": "현재 맥락", "sources": ["문서 또는 대화 출처"]},
+      "situation": {"summary": "구체적인 문제 상황", "sources": ["문서 또는 대화 출처"]},
+      "need": {"summary": "선택 필요성", "sources": ["문서 또는 대화 출처"]},
+      "alternatives": {"summary": "실제 대안", "sources": ["문서 또는 대화 출처"]},
+      "decision": {"summary": "최종 선택", "sources": ["문서 또는 대화 출처"]},
+      "rationale": {"summary": "선택 이유", "sources": ["문서 또는 대화 출처"]}
+    },
+    "conflicts": [],
+    "current_validity": "confirmed",
+    "resolved_questions": []
+  },
   "grill": {
     "status": "pass",
     "resolved_questions": ["해결한 차단 질문"]
@@ -44,6 +58,15 @@ Issue의 세 섹션을 깨뜨리는 Markdown H2(`## `)를 넣지 않는다.
   }
 }
 ```
+
+고위험 계약은 `interview.status`가 `completed` 또는 `skipped`여야 한다. `skipped`는 여섯
+evidence의 요약과 출처가 모두 있고, `conflicts`가 비어 있으며,
+`current_validity=confirmed`일 때만 사용한다. 결과의 `interview_notice`를 사용자에게
+그대로 보여준다.
+
+자료가 누락·충돌했거나 현재 유효성이 불명확해 사용자에게 질문했다면 `completed`를
+사용하고 `resolved_questions`에 해소한 질문과 결론을 요약한다. 인터뷰 여부와 관계없이
+최종 evidence는 모두 채운다. Lightweight 계약에는 `interview`가 필요 없다.
 
 ADR이 필요하지 않으면 다음 구조를 사용한다.
 
@@ -77,5 +100,7 @@ snapshot은 저장소에 저장하지 않는다. OS 임시 파일을 현재 사�
 - `publish_ready`: 생성 의도로 들어온 Issue 후보 계약이 통과했는지 나타낸다. ADR 실제
   경로가 확정됐다는 뜻은 아니다.
 - `remote_write_authorized`: 항상 `false`다. 다른 필드를 원격 쓰기 권한으로 해석하지 않는다.
+- `interview_status`: 고위험 계약의 인터뷰가 `completed` 또는 `skipped`인지 나타낸다.
+- `interview_notice`: 사용자에게 그대로 보여줄 인터뷰 완료 또는 생략 안내다.
 - `adr_path_status`: 실제 Issue 번호 전이면 `pending_issue_number`, 확정 뒤에는 `finalized`다.
 - `next_after_issue_created`: 번호 확정이 필요하면 `finalize_adr_path`다.
