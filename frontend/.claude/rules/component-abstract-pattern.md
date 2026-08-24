@@ -12,7 +12,7 @@ description: react 컴포넌트가 지켜야 하는 추상화 레벨을 정의�
 이 문서는 **컴포넌트를 어느 위치에 둘 것인가**만 다룸. 위치가 정해진 이후는 아래 문서 참고.
 
 - `.claude/rules/component-colocation-pattern.md` : 컴포넌트 폴더를 어떻게 구성할 것인가
-- `.claude/rules/segment-pattern.md` : 컴포넌트 폴더 내부 세그먼트(`api` / `ui` / `model` / `utils` / `types` / `constants` / `context`)를 어떻게 나누고 어디에 둘 것인가
+- `.claude/rules/segment-pattern.md` : 컴포넌트 폴더 내부 세그먼트(`ui` / `model` / `utils` / `types` / `constants` / `context`)를 어떻게 나누고 어디에 둘 것인가
 
 ## 핵심 원칙
 

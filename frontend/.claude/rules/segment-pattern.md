@@ -24,7 +24,7 @@ description: 컴포넌트 폴더(widgets·features·composites) 내부 세그먼
 
 ## 세그먼트 정의
 
-features, widgets, composites 레이어의 세그먼트는 `ui`, `model`, `utils`, `types`, `constants`로 통일하며, 필요 시 `context`를 선택적으로 추가.
+features, widgets, composites 레이어의 세그먼트는 `ui`, `model`, `utils`, `types`, `constants`로 통일하며, 필요 시 `context`를 선택적으로 추가. `api`는 세그먼트가 아니며, API 관련 코드는 컴포넌트 폴더가 아니라 `shared/api`에서 관리.
 
 - `ui` : 서브 컴포넌트(LoadingFallback, ErrorFallback 등). 기존 `components` 세그먼트를 대체.
 - `model` : 해당 컴포넌트에 강결합된 훅·상태 로직. 기존 `hooks` 세그먼트를 대체. (`hooks` 폴더는 `shared` 전용)

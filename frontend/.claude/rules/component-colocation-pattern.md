@@ -22,8 +22,9 @@ index.tsx 파일에서 컴포넌트의 메인 구현을 익스포트하며, 다�
 
 ### 세그먼트
 
-컴포넌트 폴더 내부는 `api` / `ui` / `model` / `utils` / `types` / `constants` 세그먼트로 나누며, 필요 시 `context`를 선택적으로 추가.
+컴포넌트 폴더 내부는 `ui` / `model` / `utils` / `types` / `constants` 세그먼트로 나누며, 필요 시 `context`를 선택적으로 추가.
 (기존 `components` 세그먼트는 `ui`로, `hooks`는 `model`로, `lib`은 `utils`로 이름 변경.)
+`api`는 세그먼트가 아니므로 컴포넌트 폴더에 두지 않음.
 
 세그먼트는 컴포넌트 폴더 내부를 역할별로 나누는 구획이며, `shared` 최상위 폴더 구성(`components`, `hooks`, `provider`, `routes` 등)과는 별개 개념. **각 세그먼트의 정의와 판단 기준·의존 규칙은 `.claude/rules/segment-pattern.md` 참고.**
 `hooks` 폴더는 `shared` 전용이므로 컴포넌트 폴더 내부에는 만들지 않고, 해당 컴포넌트에 강결합된 훅은 `model`에 둠.
@@ -130,5 +131,4 @@ src/
 세그먼트 자체의 정의는 `.claude/rules/segment-pattern.md`를 따르며, 컴포넌트 폴더에서는 아래가 추가로 적용됨.
 
 - 모든 세그먼트의 내용물은 **해당 컴포넌트 내부에서만 사용**. 외부에 공개하는 것은 `index.tsx`뿐.
-- `primitives`, `composites` 컴포넌트에는 `api` 세그먼트가 존재할 수 없음. (도메인/서버 의존이 없어야 하므로)
-- 쿼리·뮤테이션 훅은 컴포넌트 폴더에 두지 않고 `shared/api`의 `queries`/`mutations`에서 계층적으로 관리.
+- 컴포넌트 폴더에는 `api` 세그먼트를 두지 않음. fetch 함수와 쿼리·뮤테이션 훅은 컴포넌트 폴더가 아니라 `shared/api`의 `fetch`/`queries`/`mutations`에서 계층적으로 관리.
