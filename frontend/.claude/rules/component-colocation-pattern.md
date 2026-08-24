@@ -42,7 +42,7 @@ index.tsx 파일에서 컴포넌트의 메인 구현을 익스포트하며, 다�
 ### 폴더 구조 예시
 
 아래는 각 추상화 레벨의 대표 컴포넌트 예시.
-동일한 폴더 구성 규칙이 `modules/widgets`, `modules/features`, `shared/components/composites`, `shared/components/primitives`에 그대로 적용됨.
+동일한 폴더 구성 규칙이 `modules/widgets`, `modules/features`, `shared/components/composites`에 그대로 적용됨. `primitives`와 페이지 컴포넌트는 세그먼트를 강제하지 않되, 필요해지면 동일한 규칙을 그대로 적용.
 
 > `primitives` 하위의 `ui` / `layout` / `animation`은 `.claude/rules/component-abstract-pattern.md`가 정의한 **컴포넌트 분류**이며, 컴포넌트 폴더 내부의 **세그먼트**와는 다른 개념.
 

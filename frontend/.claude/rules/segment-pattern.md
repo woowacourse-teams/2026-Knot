@@ -26,6 +26,8 @@ description: 컴포넌트 폴더(widgets·features·composites) 내부 세그먼
 
 features, widgets, composites 레이어의 세그먼트는 `ui`, `model`, `utils`, `types`, `constants`로 통일하며, 필요 시 `context`를 선택적으로 추가. `api`는 세그먼트가 아니며, API 관련 코드는 컴포넌트 폴더가 아니라 `shared/api`에서 관리.
 
+`primitives`와 `pages`는 세그먼트를 강제하지 않음. 다만 필요해지면 동일한 세그먼트 규칙을 그대로 적용.
+
 - `ui` : 서브 컴포넌트(LoadingFallback, ErrorFallback 등). 기존 `components` 세그먼트를 대체.
 - `model` : 해당 컴포넌트에 강결합된 훅·상태 로직. 기존 `hooks` 세그먼트를 대체. (`hooks` 폴더는 `shared` 전용)
 - `utils` : 유틸 함수. `lib`이라는 이름은 외부 코드 느낌이라 애매해서 `utils`로 확정. 유틸 폴더 안에 `index.ts`와 `test.ts`(단위 테스트)를 나란히 코로케이션.
