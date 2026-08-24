@@ -63,7 +63,7 @@ src/
 │   │           │       └── index.ts            # 이 섹션에 강결합된 훅
 │   │           ├── context/
 │   │           │   └── index.ts                # (선택) 이 섹션 전용 컨텍스트
-│   │           ├── types/
+│   │           ├── types.ts
 │   │           └── test.ts                     # 통합 테스트 (패칭부터 UI까지 유저 플로우 전체)
 │   └── features/
 │       └── auth/
@@ -94,8 +94,7 @@ src/
                 │   ├── ui/
                 │   │   └── ButtonIcon/
                 │   │       └── index.tsx       # Button 컴포넌트의 서브 컴포넌트
-                │   ├── types/
-                │   │   └── index.ts            # 폴더 내부에서 공유되는 타입
+                │   ├── types.ts                # 폴더 내부에서 공유되는 타입 (2개 이상이면 types/ 폴더)
                 │   └── constants/
                 │       └── index.ts            # Button 상수
                 └── Card/

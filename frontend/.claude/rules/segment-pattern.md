@@ -29,7 +29,7 @@ features, widgets, composites 레이어의 세그먼트는 `ui`, `model`, `utils
 - `ui` : 서브 컴포넌트(LoadingFallback, ErrorFallback 등). 기존 `components` 세그먼트를 대체.
 - `model` : 해당 컴포넌트에 강결합된 훅·상태 로직. 기존 `hooks` 세그먼트를 대체. (`hooks` 폴더는 `shared` 전용)
 - `utils` : 유틸 함수. `lib`이라는 이름은 외부 코드 느낌이라 애매해서 `utils`로 확정. 유틸 폴더 안에 `index.ts`와 `test.ts`(단위 테스트)를 나란히 코로케이션.
-- `types` : 타입. 코로케이션 필요성이 거의 없어 `user.ts`처럼 일반 파일로 작성.
+- `types` : 타입. 세그먼트이지만 코로케이션 필요성이 거의 없어 `index.ts`를 두지 않고 `user.ts`처럼 일반 파일로 작성. 타입 파일이 1개면 `types.ts` 단일 파일, 2개 이상이면 `types/` 폴더로 나눔.
 - `constants` : 상수.
 - `context` (선택) : 특정 컴포넌트 전용 컨텍스트. 통일성을 위해 파일이 아닌 폴더 형태로 둠.
 
