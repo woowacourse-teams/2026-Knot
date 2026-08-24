@@ -23,7 +23,6 @@ index.tsx 파일에서 컴포넌트의 메인 구현을 익스포트하며, 다�
 ### 세그먼트
 
 컴포넌트 폴더 내부는 `ui` / `model` / `utils` / `types` / `constants` 세그먼트로 나누며, 필요 시 `context`를 선택적으로 추가.
-(기존 `components` 세그먼트는 `ui`로, `hooks`는 `model`로, `lib`은 `utils`로 이름 변경.)
 `api`는 세그먼트가 아니므로 컴포넌트 폴더에 두지 않음.
 
 세그먼트는 컴포넌트 폴더 내부를 역할별로 나누는 구획이며, `shared` 최상위 폴더 구성(`components`, `hooks`, `provider`, `routes` 등)과는 별개 개념. **각 세그먼트의 정의와 판단 기준·의존 규칙은 `.claude/rules/segment-pattern.md` 참고.**
