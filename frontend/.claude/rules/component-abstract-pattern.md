@@ -25,7 +25,7 @@ description: react 컴포넌트가 지켜야 하는 추상화 레벨을 정의�
 
 ### 컴포넌트 종류
 
-- `modules/widgets` : `<section />`으로 분류할 수 있을 만큼 규모가 큰, 문서의 독립적인 구획을 담당하는 컴포넌트. 도메인 로직을 포함하며, 페이지에서 import되어 사용되고 **여러 page에서 재사용 가능**. 데이터 패칭부터 UI까지 하나의 End to End 플로우를 책임짐.
+- `modules/widgets` : `<section />`으로 분류할 수 있을 만큼 규모가 큰, 문서의 독립적인 구획을 담당하는 컴포넌트. 도메인 로직을 포함하며, 페이지에서 import되어 사용되고 **여러 page에서 재사용 가능**. 섹션 단위의 유저 플로우 전체를 책임짐.
 - `modules/features` : widgets 내부에서 독립적으로 존재할 수 있는, 섹션이 되지 못하는 작은 단위의 도메인 컴포넌트. 여러 widgets·pages에서 재사용될 수 있으며, 할당받은 완결된 작업을 스스로 수행.
 - `shared/components/composites` : 공통 ui와 내부(ui) 로직을 다룸. 도메인 로직은 다루지 않음.
 - `shared/components/primitives` : 공통 ui만 다룸.
@@ -60,13 +60,15 @@ description: react 컴포넌트가 지켜야 하는 추상화 레벨을 정의�
 - 도메인 로직을 다루는 컴포넌트
 - section 단위의 큰 컴포넌트로, 여러 page에서 재사용 가능
 - 데이터 패칭 같은 로직을 수행하면서 하위 요소에 책임을 할당하는 지휘자 역할
-- 패칭과 데이터, 액션 핸들러는 widgets가 책임지되, 책임이 너무 많아지면 `useXxx` 훅으로 책임별로 묶어 widgets 폴더에 코로케이션 // TODO feature도 페칭 가능
+- 패칭과 데이터, 액션 핸들러는 해당 컴포넌트가 직접 책임지되, 책임이 너무 많아지면 `useXxx` 훅으로 책임별로 묶어 컴포넌트 폴더의 `model`에 코로케이션
 - 하위에 도메인별 디렉토리로 작성
   - e.g. `myPage/CustomerCenterSection`, `mountain/CourseDetailBottomSheetSection`
 
 #### modules/features
 
 - 도메인 로직(query, mutation, hooks/domain/...)을 다루는 컴포넌트
+- widgets와 마찬가지로 자신에게 필요한 데이터를 **직접 패칭**. 패칭·핸들러 책임이 많아지면 `useXxx` 훅으로 묶어 `model`에 코로케이션
+  - 같은 데이터를 widgets와 features가 함께 쓰는 경우에도 props로 내리지 않고, **동일한 queryKey를 사용해 캐시를 공유**
 - 섹션이 되지 못하는 작은 단위로, 여러 widgets·pages에서 재사용 가능한 단위로 작성
   - e.g. TravelCalendar, ActiveMemberTab, DivisionSelector
 - 하위에 도메인별 디렉토리로 작성
