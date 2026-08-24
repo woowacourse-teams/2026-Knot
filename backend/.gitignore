@@ -35,3 +35,11 @@ out/
 
 ### VS Code ###
 .vscode/
+
+### Harness ###
+node_modules
+.opencode
+.persona
+package-lock.json
+package.json
+AGENTS.md
