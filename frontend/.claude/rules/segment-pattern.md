@@ -1,15 +1,8 @@
 ---
 paths:
-  - "src/**/api/**"
-  - "src/**/ui/**"
-  - "src/**/model/**"
-  - "src/**/utils/**"
-  - "src/**/types/**"
-  - "src/**/constants/**"
-  - "src/**/context/**"
+  - "src/modules/**"
+  - "src/shared/components/**"
   - "src/shared/hooks/**"
-  - "src/shared/provider/**"
-  - "src/shared/routes/**"
 description: 컴포넌트 폴더(widgets·features·composites) 내부 세그먼트(ui / model / utils / types / constants / context)의 정의와 배치·의존 규칙 가이드라인. 세그먼트 코드 생성·배치·이동 전 필독.
 ---
 
@@ -78,23 +71,15 @@ const { path, isLoading } = useGetCoursePath(courseId); // ✅
 
 컴포넌트의 렌더 구조·Context·로컬 state에 구조적으로 묶여 있으면 `model`, 도메인 값만 주고받으면 `shared`로 분류. "지금은 여기서만 쓴다"는 판단 근거로 삼지 않음.
 
-## shared/api 내부 구조
+## api 코드의 위치
 
-API 관련 코드는 한곳에서 계층적으로 관리해야 하므로, 쿼리와 뮤테이션을 훅 폴더로 빼지 않고 `shared/api` 폴더 안에 모두 유지.
+`api`는 세그먼트가 아니므로 컴포넌트 폴더에 두지 않음. 요청 함수·쿼리 키·쿼리/뮤테이션 훅은 모두 `shared/api`에서 계층적으로 관리하며, 내부 구조와 작성 규칙은 `.claude/rules/api-guide.md`, `.claude/rules/query-hooks.md` 참고.
 
-- `httpClient/` — HTTP 클라이언트(axios) 인스턴스. 인증 토큰 처리·공통 에러 정규화 같은 횡단 관심사는 인터셉터에서 처리.
-- `fetch/` — 순수 함수인 요청 함수를 엔드포인트별 폴더 구조(`fetch/api/v1/users/[id]`)로 관리. 폴더 이름의 `fetch`는 네이티브 fetch API가 아니라 **요청 함수**를 뜻함.
-- `queryKey/` — 쿼리 키가 뮤테이션에서도 쓰이므로 별도 폴더로 분리, `user.ts`처럼 도메인별 파일로 관리.
-- `queries/`, `mutations/`, `suspense/`, `prefetch/` — 쿼리·뮤테이션·서스펜스·프리페치 훅을 각각 둠.
+## context 세그먼트
 
-세부 작성 규칙은 `.claude/rules/api-guide.md`, `.claude/rules/query-hooks.md` 참고.
-
-## Context / Provider / Routes
-
-- `createContext`, `useContext`, `Provider` 세 가지는 파편화를 막기 위해 한 파일 안에 함께 작성.
-- 전역으로 쓰이는 QueryClient, ThemeProvider(이모션 디자인 토큰 설정 포함), 전역 컨텍스트는 `shared/provider`에서 관리.
-- 특정 컴포넌트에서만 쓰이는 컨텍스트(컴파운드 패턴, 폼, prop drilling 제거용)는 shared가 아니라 해당 컴포넌트 폴더에 코로케이션, 통일성을 위해 context도 파일이 아닌 폴더 형태로 둠. Provider가 JSX를 반환하므로 확장자는 `.tsx`.
-- 라우트는 별도의 `shared/routes` 폴더에서 라우트 정의·path 상수·가드·리다이렉트 로직까지 함께 관리.
+- `createContext`, `useContext`, `Provider` 세 가지는 파편화를 막기 위해 한 파일 안에 함께 작성. Provider가 JSX를 반환하므로 `context/index.tsx`.
+- 특정 컴포넌트에서만 쓰이는 컨텍스트(컴파운드 패턴, 폼, prop drilling 제거용)는 shared가 아니라 해당 컴포넌트 폴더의 `context`에 코로케이션, 통일성을 위해 파일이 아닌 폴더 형태로 둠.
+- 전역 컨텍스트·QueryClient·ThemeProvider는 세그먼트가 아니라 `shared/provider`에서 관리. 라우트는 `shared/routes`에서 관리. (`.claude/rules/project-structure.md` 참고)
 
 ## 테스트 위치
 
