@@ -92,6 +92,11 @@ export const theme = {
   },
 
   text,
+
+  shadow02:
+    "0 6px 16px -4px rgba(31, 30, 28, 0.08), 0 1px 2px 0 rgba(31, 30, 28, 0.04)",
+  shadow03:
+    "0 8px 24px 0 rgba(31, 30, 28, 0.07), 0 2px 4px 0 rgba(31, 30, 28, 0.04)",
 } as const;
 
 export type AppTheme = typeof theme;
