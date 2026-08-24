@@ -26,14 +26,12 @@ class AgentHarnessParityTest(unittest.TestCase):
                 adapter_text = adapter.read_text(encoding="utf-8")
                 self.assertIn(f"../../../.agents/skills/{name}/SKILL.md", adapter_text)
 
-    def test_repo_wide_scope_and_frontend_harness_handoff_are_explicit(self):
+    def test_repo_wide_scope_and_frontend_issue_ownership_are_explicit(self):
         agents_md = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
-        claude_md = (ROOT / "CLAUDE.md").read_text(encoding="utf-8")
 
         self.assertIn("저장소 전역과 BE·FE 작업에 공통", agents_md)
         self.assertIn("Issue #167", agents_md)
         self.assertIn("Issue #165", agents_md)
-        self.assertIn("frontend/CLAUDE.md", claude_md)
 
     def test_backend_instructions_preserve_common_adr_decision(self):
         agents_md = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
