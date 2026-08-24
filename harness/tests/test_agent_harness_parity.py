@@ -35,6 +35,14 @@ class AgentHarnessParityTest(unittest.TestCase):
         self.assertIn("Issue #165", agents_md)
         self.assertIn("frontend/CLAUDE.md", claude_md)
 
+    def test_backend_instructions_preserve_common_adr_decision(self):
+        agents_md = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
+
+        self.assertIn("백엔드 구현 지침", agents_md)
+        self.assertIn("ADR 필요 여부는 이 공통 계약의 판정", agents_md)
+        self.assertIn("adr.required=true", agents_md)
+        self.assertIn("ADR 자산화 절차", agents_md)
+
     def test_test_mode_never_grants_remote_write_authority(self):
         agents_md = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
         canonical = (
