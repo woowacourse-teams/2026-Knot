@@ -26,7 +26,11 @@ public class MemberService {
         memberRepository.insertIfAbsent(member);
         Member loggedInMember = memberRepository.findByGithubId(member.getGithubId())
                 .orElseThrow(() -> new MemberException(MemberErrorCode.MEMBER_LOGIN_FAILED));
-        loggedInMember.updateProfile(oauthUser);
+        loggedInMember.updateProfile(
+                oauthUser.getExternalId(),
+                oauthUser.getNickname(),
+                oauthUser.getProfileImageUrl()
+        );
         return memberRepository.save(loggedInMember);
     }
 
@@ -59,7 +63,11 @@ public class MemberService {
             throw new MemberException(MemberErrorCode.INVALID_MEMBER_DATA);
         }
         validateOAuthUser(oauthUser);
-        member.updateProfile(oauthUser);
+        member.updateProfile(
+                oauthUser.getExternalId(),
+                oauthUser.getNickname(),
+                oauthUser.getProfileImageUrl()
+        );
         return memberRepository.save(member);
     }
 

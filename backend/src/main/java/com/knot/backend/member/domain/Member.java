@@ -1,6 +1,5 @@
 package com.knot.backend.member.domain;
 
-import com.knot.backend.auth.domain.OAuthUser;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -62,15 +61,21 @@ public class Member {
         );
     }
 
-    public void updateProfile(OAuthUser oauthUser) {
-        if (oauthUser == null) {
-            throw new MemberException(MemberErrorCode.INVALID_MEMBER_DATA);
-        }
-        if (githubId != oauthUser.getExternalId()) {
+    public void updateProfile(
+            long githubId,
+            String nickname,
+            String profileImageUrl
+    ) {
+        if (this.githubId != githubId) {
             throw new MemberException(MemberErrorCode.GITHUB_ID_CANNOT_BE_CHANGED);
         }
-        this.nickname = oauthUser.getNickname();
-        this.profileImageUrl = oauthUser.getProfileImageUrl();
+        validate(
+                githubId,
+                nickname,
+                profileImageUrl
+        );
+        this.nickname = nickname;
+        this.profileImageUrl = profileImageUrl;
     }
 
     private static void validate(

@@ -3,7 +3,6 @@ package com.knot.backend.member.domain;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.knot.backend.auth.domain.OAuthUser;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -37,11 +36,9 @@ class MemberTest {
         // when & then
         assertThatThrownBy(
                 () -> member.updateProfile(
-                        OAuthUser.of(
-                                43L,
-                                "other",
-                                null
-                        )
+                        43L,
+                        "other",
+                        null
                 )
         ).isInstanceOf(MemberException.class)
                 .extracting(exception -> ((MemberException) exception).getErrorCode())
@@ -65,8 +62,8 @@ class MemberTest {
     }
 
     @Test
-    @DisplayName("OAuth 사용자 없이 member 프로필을 수정하면 커스텀 예외를 발생시킨다")
-    void updateProfile_failure_nullOAuthUser() {
+    @DisplayName("member 프로필 nickname이 비어 있으면 커스텀 예외를 발생시킨다")
+    void updateProfile_failure_blankNickname() {
         // given
         Member member = Member.create(
                 42L,
@@ -75,7 +72,15 @@ class MemberTest {
         );
 
         // when & then
-        assertThatThrownBy(() -> member.updateProfile(null)).isInstanceOf(MemberException.class);
+        assertThatThrownBy(
+                () -> member.updateProfile(
+                        42L,
+                        " ",
+                        null
+                )
+        ).isInstanceOf(MemberException.class)
+                .extracting(exception -> ((MemberException) exception).getErrorCode())
+                .isEqualTo(MemberErrorCode.INVALID_MEMBER_DATA);
     }
 
     @Test
@@ -90,11 +95,9 @@ class MemberTest {
 
         // when
         member.updateProfile(
-                OAuthUser.of(
-                        42L,
-                        "new-name",
-                        "https://example.com/avatar"
-                )
+                42L,
+                "new-name",
+                "https://example.com/avatar"
         );
 
         // then
