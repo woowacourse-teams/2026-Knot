@@ -83,6 +83,20 @@ export default (env, argv) => {
     },
     resolve: {
       extensions: [".ts", ".tsx", ".js"],
+      alias: {
+        "@": path.resolve(__dirname, "src"),
+        "@pages": path.resolve(__dirname, "src/pages"),
+        "@widgets": path.resolve(__dirname, "src/modules/widgets"),
+        "@features": path.resolve(__dirname, "src/modules/features"),
+        "@routes": path.resolve(__dirname, "src/shared/routes"),
+        "@api": path.resolve(__dirname, "src/shared/api"),
+        "@composites": path.resolve(__dirname, "src/shared/components/composites"),
+        "@primitives": path.resolve(__dirname, "src/shared/components/primitives"),
+        "@constants": path.resolve(__dirname, "src/shared/constants"),
+        "@provider": path.resolve(__dirname, "src/shared/provider"),
+        "@hooks": path.resolve(__dirname, "src/shared/hooks"),
+        "@utils": path.resolve(__dirname, "src/shared/utils"),
+      },
     },
     plugins: [
       new HtmlWebpackPlugin({
