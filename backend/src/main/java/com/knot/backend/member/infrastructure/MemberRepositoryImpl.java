@@ -18,8 +18,8 @@ public class MemberRepositoryImpl implements MemberRepository {
     }
 
     @Override
-    public void saveLoginProfile(Member member) {
-        memberJpaRepository.saveLoginProfile(
+    public void insertIfAbsent(Member member) {
+        memberJpaRepository.insertIfAbsent(
                 member.getGithubId(),
                 member.getNickname(),
                 member.getProfileImageUrl()

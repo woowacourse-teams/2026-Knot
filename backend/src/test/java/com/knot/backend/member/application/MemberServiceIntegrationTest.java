@@ -43,7 +43,7 @@ class MemberServiceIntegrationTest {
 
     @BeforeEach
     void clearMembers() {
-        jdbcTemplate.update("TRUNCATE TABLE member RESTART IDENTITY");
+        jdbcTemplate.update("TRUNCATE TABLE members RESTART IDENTITY");
     }
 
     @Test
@@ -90,12 +90,44 @@ class MemberServiceIntegrationTest {
             assertThat(secondMember.getGithubId()).isEqualTo(42L);
             assertThat(
                     jdbcTemplate.queryForObject(
-                            "SELECT COUNT(*) FROM member",
+                            "SELECT COUNT(*) FROM members",
                             Integer.class
                     )
             ).isEqualTo(1);
         } finally {
             executor.shutdownNow();
         }
+    }
+
+    @Test
+    @DisplayName("기존 GitHub 사용자가 로그인하면 도메인 프로필 변경을 거쳐 최신 정보를 저장한다")
+    void login_existingMember_updatesProfile_success() {
+        // given
+        memberService.login(
+                OAuthUser.of(
+                        42L,
+                        "old-name",
+                        "https://example.com/old"
+                )
+        );
+        OAuthUser updatedUser = OAuthUser.of(
+                42L,
+                "new-name",
+                "https://example.com/new"
+        );
+
+        // when
+        Member result = memberService.login(updatedUser);
+
+        // then
+        assertThat(result.getNickname()).isEqualTo("new-name");
+        assertThat(result.getProfileImageUrl()).isEqualTo("https://example.com/new");
+        assertThat(
+                jdbcTemplate.queryForObject(
+                        "SELECT nickname FROM members WHERE github_id = ?",
+                        String.class,
+                        42L
+                )
+        ).isEqualTo("new-name");
     }
 }

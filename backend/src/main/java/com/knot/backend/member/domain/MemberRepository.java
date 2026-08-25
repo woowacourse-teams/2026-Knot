@@ -6,7 +6,7 @@ public interface MemberRepository {
 
     Optional<Member> findByGithubId(long githubId);
 
-    void saveLoginProfile(Member member);
+    void insertIfAbsent(Member member);
 
     Member save(Member member);
 }

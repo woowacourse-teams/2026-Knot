@@ -112,6 +112,7 @@ class MemberServiceTest {
                 oauthUser.getProfileImageUrl()
         );
         when(repository.findByGithubId(42L)).thenReturn(Optional.of(savedMember));
+        when(repository.save(savedMember)).thenReturn(savedMember);
 
         // when
         Member result = service.login(oauthUser);
@@ -119,7 +120,8 @@ class MemberServiceTest {
         // then
         assertThat(result).isSameAs(savedMember);
         assertThat(result.getGithubId()).isEqualTo(42L);
-        verify(repository).saveLoginProfile(any(Member.class));
+        verify(repository).insertIfAbsent(any(Member.class));
+        verify(repository).save(savedMember);
     }
 
     @Test
@@ -134,11 +136,12 @@ class MemberServiceTest {
                 "https://example.com/new"
         );
         Member updatedMember = Member.create(
-                updatedUser.getExternalId(),
-                updatedUser.getNickname(),
-                updatedUser.getProfileImageUrl()
+                42L,
+                "old-name",
+                "https://example.com/old"
         );
         when(repository.findByGithubId(42L)).thenReturn(Optional.of(updatedMember));
+        when(repository.save(updatedMember)).thenReturn(updatedMember);
 
         // when
         Member result = service.login(updatedUser);
@@ -147,7 +150,8 @@ class MemberServiceTest {
         assertThat(result).isSameAs(updatedMember);
         assertThat(result.getNickname()).isEqualTo("new-name");
         assertThat(result.getProfileImageUrl()).isEqualTo("https://example.com/new");
-        verify(repository).saveLoginProfile(any(Member.class));
+        verify(repository).insertIfAbsent(any(Member.class));
+        verify(repository).save(updatedMember);
     }
 
     @Test
@@ -164,7 +168,7 @@ class MemberServiceTest {
         verify(
                 repository,
                 never()
-        ).saveLoginProfile(any(Member.class));
+        ).insertIfAbsent(any(Member.class));
     }
 
     @Test
@@ -186,5 +190,10 @@ class MemberServiceTest {
                 exception -> assertThat(exception.getErrorCode())
                         .isEqualTo(MemberErrorCode.MEMBER_LOGIN_FAILED)
         );
+        verify(repository).insertIfAbsent(any(Member.class));
+        verify(
+                repository,
+                never()
+        ).save(any(Member.class));
     }
 }

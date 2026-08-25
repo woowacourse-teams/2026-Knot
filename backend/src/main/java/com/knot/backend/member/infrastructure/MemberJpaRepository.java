@@ -13,13 +13,12 @@ public interface MemberJpaRepository extends JpaRepository<Member, Long> {
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query(value = """
-            INSERT INTO member (github_id, nickname, profile_image_url)
+            INSERT INTO members (github_id, nickname, profile_image_url)
             VALUES (:githubId, :nickname, :profileImageUrl)
             ON CONFLICT (github_id)
-            DO UPDATE SET nickname = EXCLUDED.nickname,
-                          profile_image_url = EXCLUDED.profile_image_url
+            DO NOTHING
             """, nativeQuery = true)
-    int saveLoginProfile(
+    int insertIfAbsent(
             @Param("githubId") long githubId,
             @Param("nickname") String nickname,
             @Param("profileImageUrl") String profileImageUrl

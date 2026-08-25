@@ -24,9 +24,11 @@ public class MemberService {
                 oauthUser.getNickname(),
                 oauthUser.getProfileImageUrl()
         );
-        memberRepository.saveLoginProfile(member);
-        return memberRepository.findByGithubId(member.getGithubId())
+        memberRepository.insertIfAbsent(member);
+        Member loggedInMember = memberRepository.findByGithubId(member.getGithubId())
                 .orElseThrow(() -> new MemberException(MemberErrorCode.MEMBER_LOGIN_FAILED));
+        loggedInMember.updateProfile(oauthUser);
+        return memberRepository.save(loggedInMember);
     }
 
     @Transactional(readOnly = true)

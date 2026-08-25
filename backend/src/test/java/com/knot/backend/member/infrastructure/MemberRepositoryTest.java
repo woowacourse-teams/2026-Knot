@@ -50,7 +50,7 @@ class MemberRepositoryTest {
 
     @Test
     @DisplayName("로그인 프로필을 저장하고 GitHub ID로 조회한다")
-    void saveLoginProfile_success() {
+    void insertIfAbsent_success() {
         // given
         Member member = Member.create(
                 42L,
@@ -59,7 +59,7 @@ class MemberRepositoryTest {
         );
 
         // when
-        memberRepository.saveLoginProfile(member);
+        memberRepository.insertIfAbsent(member);
 
         // then
         assertThat(memberRepository.findByGithubId(42L)).get()
@@ -72,10 +72,10 @@ class MemberRepositoryTest {
     }
 
     @Test
-    @DisplayName("같은 GitHub ID의 로그인 프로필은 최신 정보로 갱신한다")
-    void saveLoginProfile_updatesExistingMember() {
+    @DisplayName("같은 GitHub ID의 로그인 프로필은 기존 정보를 덮어쓰지 않는다")
+    void insertIfAbsent_doesNotOverwriteExistingMember() {
         // given
-        memberRepository.saveLoginProfile(
+        memberRepository.insertIfAbsent(
                 Member.create(
                         42L,
                         "old-name",
@@ -84,7 +84,7 @@ class MemberRepositoryTest {
         );
 
         // when
-        memberRepository.saveLoginProfile(
+        memberRepository.insertIfAbsent(
                 Member.create(
                         42L,
                         "new-name",
@@ -95,10 +95,10 @@ class MemberRepositoryTest {
         // then
         assertThat(memberRepository.findByGithubId(42L)).get()
                 .extracting("nickname")
-                .isEqualTo("new-name");
+                .isEqualTo("old-name");
         assertThat(memberRepository.findByGithubId(42L)).get()
                 .extracting("profileImageUrl")
-                .isEqualTo("https://example.com/new");
+                .isEqualTo("https://example.com/old");
     }
 
     @Test
@@ -107,7 +107,7 @@ class MemberRepositoryTest {
         // when & then
         assertThatThrownBy(
                 () -> jdbcTemplate.update(
-                        "INSERT INTO member (github_id, nickname) VALUES (?, ?)",
+                        "INSERT INTO members (github_id, nickname) VALUES (?, ?)",
                         0L,
                         "octocat"
                 )
@@ -120,7 +120,7 @@ class MemberRepositoryTest {
         // when & then
         assertThatThrownBy(
                 () -> jdbcTemplate.update(
-                        "INSERT INTO member (github_id, nickname) VALUES (?, ?)",
+                        "INSERT INTO members (github_id, nickname) VALUES (?, ?)",
                         43L,
                         "   "
                 )
