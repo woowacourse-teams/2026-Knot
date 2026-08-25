@@ -21,15 +21,21 @@ public class JwtLogoutHandler implements LogoutHandler {
     public void logout(
             HttpServletRequest request,
             HttpServletResponse response,
-            Authentication authentication) {
-        ResponseCookie cookie =
-                ResponseCookie.from(jwtProperties.getCookieName(), "")
-                        .httpOnly(true)
-                        .secure(jwtProperties.isSecure())
-                        .sameSite("Lax")
-                        .path("/")
-                        .maxAge(Duration.ZERO)
-                        .build();
-        response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+            Authentication authentication
+    ) {
+        ResponseCookie cookie = ResponseCookie.from(
+                jwtProperties.getCookieName(),
+                ""
+        )
+                .httpOnly(true)
+                .secure(jwtProperties.isSecure())
+                .sameSite("Lax")
+                .path("/")
+                .maxAge(Duration.ZERO)
+                .build();
+        response.addHeader(
+                HttpHeaders.SET_COOKIE,
+                cookie.toString()
+        );
     }
 }

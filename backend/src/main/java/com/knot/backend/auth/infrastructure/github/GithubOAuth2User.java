@@ -15,15 +15,24 @@ public final class GithubOAuth2User implements OAuth2User {
     private final Collection<? extends GrantedAuthority> authorities;
     private final Map<String, Object> attributes;
 
-    private GithubOAuth2User(OAuthUser oauthUser, OAuth2User delegate) {
+    private GithubOAuth2User(
+            OAuthUser oauthUser,
+            OAuth2User delegate
+    ) {
         this.oauthUser = oauthUser;
         this.authorities = List.copyOf(delegate.getAuthorities());
-        this.attributes =
-                Collections.unmodifiableMap(new LinkedHashMap<>(delegate.getAttributes()));
+        this.attributes = Collections
+                .unmodifiableMap(new LinkedHashMap<>(delegate.getAttributes()));
     }
 
-    public static GithubOAuth2User of(OAuthUser oauthUser, OAuth2User delegate) {
-        return new GithubOAuth2User(oauthUser, delegate);
+    public static GithubOAuth2User of(
+            OAuthUser oauthUser,
+            OAuth2User delegate
+    ) {
+        return new GithubOAuth2User(
+                oauthUser,
+                delegate
+        );
     }
 
     public OAuthUser getOAuthUser() {

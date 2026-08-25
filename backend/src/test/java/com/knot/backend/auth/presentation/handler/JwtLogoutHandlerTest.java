@@ -23,11 +23,14 @@ class JwtLogoutHandlerTest {
         MockHttpServletResponse response = new MockHttpServletResponse();
 
         // when
-        handler.logout(new MockHttpServletRequest(), response, null);
+        handler.logout(
+                new MockHttpServletRequest(),
+                response,
+                null
+        );
 
         // then
-        assertThat(response.getHeader("Set-Cookie"))
-                .contains("KNOT_ACCESS_TOKEN=")
+        assertThat(response.getHeader("Set-Cookie")).contains("KNOT_ACCESS_TOKEN=")
                 .contains("Max-Age=0")
                 .contains("Path=/")
                 .contains("HttpOnly")

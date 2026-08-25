@@ -33,7 +33,10 @@ class MemberServiceIntegrationTest {
 
     private final MemberRepository memberRepository;
 
-    MemberServiceIntegrationTest(MemberService memberService, MemberRepository memberRepository) {
+    MemberServiceIntegrationTest(
+            MemberService memberService,
+            MemberRepository memberRepository
+    ) {
         this.memberService = memberService;
         this.memberRepository = memberRepository;
     }
@@ -47,26 +50,40 @@ class MemberServiceIntegrationTest {
     @DisplayName("동시에 같은 GitHub 사용자가 로그인해도 member 하나만 유지한다")
     void login_concurrentFirstRequests_success() throws Exception {
         // given
-        OAuthUser oauthUser = OAuthUser.of(42L, "octocat", "https://example.com/avatar");
+        OAuthUser oauthUser = OAuthUser.of(
+                42L,
+                "octocat",
+                "https://example.com/avatar"
+        );
         CountDownLatch ready = new CountDownLatch(2);
         CountDownLatch start = new CountDownLatch(1);
         ExecutorService executor = Executors.newFixedThreadPool(2);
-        Callable<Member> loginTask =
-                () -> {
-                    ready.countDown();
-                    start.await();
-                    return memberService.login(oauthUser);
-                };
+        Callable<Member> loginTask = () -> {
+            ready.countDown();
+            start.await();
+            return memberService.login(oauthUser);
+        };
 
         try {
             Future<Member> first = executor.submit(loginTask);
             Future<Member> second = executor.submit(loginTask);
-            assertThat(ready.await(5, TimeUnit.SECONDS)).isTrue();
+            assertThat(
+                    ready.await(
+                            5,
+                            TimeUnit.SECONDS
+                    )
+            ).isTrue();
 
             // when
             start.countDown();
-            Member firstMember = first.get(10, TimeUnit.SECONDS);
-            Member secondMember = second.get(10, TimeUnit.SECONDS);
+            Member firstMember = first.get(
+                    10,
+                    TimeUnit.SECONDS
+            );
+            Member secondMember = second.get(
+                    10,
+                    TimeUnit.SECONDS
+            );
 
             // then
             assertThat(firstMember.getGithubId()).isEqualTo(42L);

@@ -24,8 +24,15 @@ class AuthServiceTest {
         // given
         MemberService memberService = mock(MemberService.class);
         JwtProvider jwtProvider = mock(JwtProvider.class);
-        AuthService service = new AuthService(memberService, jwtProvider);
-        OAuthUser oauthUser = OAuthUser.of(42L, "octocat", null);
+        AuthService service = new AuthService(
+                memberService,
+                jwtProvider
+        );
+        OAuthUser oauthUser = OAuthUser.of(
+                42L,
+                "octocat",
+                null
+        );
         Member member = Member.create(oauthUser);
         when(memberService.login(oauthUser)).thenReturn(member);
         when(jwtProvider.issue(member)).thenReturn("jwt-token");
@@ -41,15 +48,17 @@ class AuthServiceTest {
     @DisplayName("OAuth 사용자가 없으면 인증 사용자 오류를 발생시킨다")
     void login_failure_nullOAuthUser() {
         // given
-        AuthService service = new AuthService(mock(MemberService.class), mock(JwtProvider.class));
+        AuthService service = new AuthService(
+                mock(MemberService.class),
+                mock(JwtProvider.class)
+        );
 
         // when & then
-        assertThatThrownBy(() -> service.login(null))
-                .isInstanceOfSatisfying(
-                        AuthException.class,
-                        exception ->
-                                assertThat(exception.getErrorCode())
-                                        .isEqualTo(AuthErrorCode.INVALID_OAUTH_USER));
+        assertThatThrownBy(() -> service.login(null)).isInstanceOfSatisfying(
+                AuthException.class,
+                exception -> assertThat(exception.getErrorCode())
+                        .isEqualTo(AuthErrorCode.INVALID_OAUTH_USER)
+        );
     }
 
     @Test
@@ -58,17 +67,23 @@ class AuthServiceTest {
         // given
         MemberService memberService = mock(MemberService.class);
         JwtProvider jwtProvider = mock(JwtProvider.class);
-        AuthService service = new AuthService(memberService, jwtProvider);
-        OAuthUser oauthUser = OAuthUser.of(42L, "octocat", null);
+        AuthService service = new AuthService(
+                memberService,
+                jwtProvider
+        );
+        OAuthUser oauthUser = OAuthUser.of(
+                42L,
+                "octocat",
+                null
+        );
         when(memberService.login(oauthUser))
                 .thenThrow(new MemberException(MemberErrorCode.MEMBER_LOGIN_FAILED));
 
         // when & then
-        assertThatThrownBy(() -> service.login(oauthUser))
-                .isInstanceOfSatisfying(
-                        AuthException.class,
-                        exception ->
-                                assertThat(exception.getErrorCode())
-                                        .isEqualTo(AuthErrorCode.OAUTH_AUTHENTICATION_FAILED));
+        assertThatThrownBy(() -> service.login(oauthUser)).isInstanceOfSatisfying(
+                AuthException.class,
+                exception -> assertThat(exception.getErrorCode())
+                        .isEqualTo(AuthErrorCode.OAUTH_AUTHENTICATION_FAILED)
+        );
     }
 }

@@ -12,18 +12,16 @@ public interface MemberRepository extends JpaRepository<Member, Long> {
     Optional<Member> findByGithubId(long githubId);
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)
-    @Query(
-            value =
-                    """
-                    INSERT INTO member (github_id, nickname, profile_image_url)
-                    VALUES (:githubId, :nickname, :profileImageUrl)
-                    ON CONFLICT (github_id)
-                    DO UPDATE SET nickname = EXCLUDED.nickname,
-                                  profile_image_url = EXCLUDED.profile_image_url
-                    """,
-            nativeQuery = true)
+    @Query(value = """
+            INSERT INTO member (github_id, nickname, profile_image_url)
+            VALUES (:githubId, :nickname, :profileImageUrl)
+            ON CONFLICT (github_id)
+            DO UPDATE SET nickname = EXCLUDED.nickname,
+                          profile_image_url = EXCLUDED.profile_image_url
+            """, nativeQuery = true)
     int saveLoginProfile(
             @Param("githubId") long githubId,
             @Param("nickname") String nickname,
-            @Param("profileImageUrl") String profileImageUrl);
+            @Param("profileImageUrl") String profileImageUrl
+    );
 }

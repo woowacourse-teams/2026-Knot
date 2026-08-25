@@ -32,30 +32,35 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http.authorizeHttpRequests(
-                        auth ->
-                                auth.requestMatchers(
-                                                "/oauth2/**",
-                                                "/login/**",
-                                                "/actuator/health",
-                                                "/error")
-                                        .permitAll()
-                                        .anyRequest()
-                                        .authenticated())
+                auth -> auth.requestMatchers(
+                        "/oauth2/**",
+                        "/login/**",
+                        "/actuator/health",
+                        "/error"
+                )
+                        .permitAll()
+                        .anyRequest()
+                        .authenticated()
+        )
                 .exceptionHandling(
-                        exception -> exception.authenticationEntryPoint(authenticationEntryPoint))
+                        exception -> exception.authenticationEntryPoint(authenticationEntryPoint)
+                )
                 .sessionManagement(
-                        session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
+                        session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
+                )
                 .oauth2Login(
-                        oauth2 ->
-                                oauth2.userInfoEndpoint(
-                                                userInfo ->
-                                                        userInfo.userService(
-                                                                githubOAuth2UserService))
-                                        .successHandler(successHandler)
-                                        .failureHandler(failureHandler))
+                        oauth2 -> oauth2
+                                .userInfoEndpoint(
+                                        userInfo -> userInfo.userService(githubOAuth2UserService)
+                                )
+                                .successHandler(successHandler)
+                                .failureHandler(failureHandler)
+                )
                 .logout(logout -> logout.addLogoutHandler(jwtLogoutHandler))
                 .addFilterBefore(
-                        jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+                        jwtAuthenticationFilter,
+                        UsernamePasswordAuthenticationFilter.class
+                );
 
         return http.build();
     }

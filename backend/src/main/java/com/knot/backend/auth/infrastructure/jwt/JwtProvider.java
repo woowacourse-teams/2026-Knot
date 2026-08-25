@@ -39,14 +39,23 @@ public class JwtProvider {
     private final JwtDecoder decoder;
     private final Clock clock;
 
-    public JwtProvider(JwtProperties properties, Clock clock) {
-        validateProperties(properties, clock);
+    public JwtProvider(
+            JwtProperties properties,
+            Clock clock
+    ) {
+        validateProperties(
+                properties,
+                clock
+        );
         this.properties = properties;
         this.clock = clock;
         SecretKey secretKey = createSecretKey(properties.getSecret());
-        this.encoder = NimbusJwtEncoder.withSecretKey(secretKey).algorithm(MAC_ALGORITHM).build();
-        NimbusJwtDecoder jwtDecoder =
-                NimbusJwtDecoder.withSecretKey(secretKey).macAlgorithm(MAC_ALGORITHM).build();
+        this.encoder = NimbusJwtEncoder.withSecretKey(secretKey)
+                .algorithm(MAC_ALGORITHM)
+                .build();
+        NimbusJwtDecoder jwtDecoder = NimbusJwtDecoder.withSecretKey(secretKey)
+                .macAlgorithm(MAC_ALGORITHM)
+                .build();
         JwtTimestampValidator timestampValidator = new JwtTimestampValidator(Duration.ZERO);
         timestampValidator.setClock(clock);
         timestampValidator.setAllowEmptyExpiryClaim(false);
@@ -64,7 +73,9 @@ public class JwtProvider {
                         member.getId(),
                         member.getGithubId(),
                         member.getNickname(),
-                        member.getProfileImageUrl()));
+                        member.getProfileImageUrl()
+                )
+        );
     }
 
     public String issue(AuthenticatedMember member) {
@@ -73,9 +84,15 @@ public class JwtProvider {
         }
 
         Instant issuedAt = Instant.now(clock);
-        JwtClaimsSet.Builder claimsBuilder = baseClaims(member, issuedAt);
+        JwtClaimsSet.Builder claimsBuilder = baseClaims(
+                member,
+                issuedAt
+        );
         if (member.getProfileImageUrl() != null) {
-            claimsBuilder.claim("profile_image_url", member.getProfileImageUrl());
+            claimsBuilder.claim(
+                    "profile_image_url",
+                    member.getProfileImageUrl()
+            );
         }
         return encode(claimsBuilder.build());
     }
@@ -92,16 +109,26 @@ public class JwtProvider {
                     positiveLong(jwt.getSubject()),
                     positiveLong(jwt.getClaimAsString("github_id")),
                     requiredClaim(jwt.getClaimAsString("nickname")),
-                    jwt.getClaimAsString("profile_image_url"));
+                    jwt.getClaimAsString("profile_image_url")
+            );
         } catch (JwtException exception) {
-            throw new AuthException(AuthErrorCode.INVALID_JWT, exception);
+            throw new AuthException(
+                    AuthErrorCode.INVALID_JWT,
+                    exception
+            );
         } catch (AuthException exception) {
             if (exception.getErrorCode() == AuthErrorCode.INVALID_AUTHENTICATED_MEMBER) {
-                throw new AuthException(AuthErrorCode.INVALID_JWT, exception);
+                throw new AuthException(
+                        AuthErrorCode.INVALID_JWT,
+                        exception
+                );
             }
             throw exception;
         } catch (RuntimeException exception) {
-            throw new AuthException(AuthErrorCode.INVALID_JWT, exception);
+            throw new AuthException(
+                    AuthErrorCode.INVALID_JWT,
+                    exception
+            );
         }
     }
 
@@ -113,22 +140,30 @@ public class JwtProvider {
         if (secretBytes.length < MINIMUM_SECRET_BYTES) {
             throw new AuthException(AuthErrorCode.JWT_CONFIGURATION_INVALID);
         }
-        return new SecretKeySpec(secretBytes, HMAC_ALGORITHM);
+        return new SecretKeySpec(
+                secretBytes,
+                HMAC_ALGORITHM
+        );
     }
 
-    private void validateProperties(JwtProperties properties, Clock clock) {
+    private void validateProperties(
+            JwtProperties properties,
+            Clock clock
+    ) {
         if (properties == null || clock == null) {
             throw new AuthException(AuthErrorCode.JWT_CONFIGURATION_INVALID);
         }
-        if (properties.getExpiration() == null
-                || properties.getExpiration().isZero()
-                || properties.getExpiration().isNegative()) {
+        if (properties.getExpiration() == null || properties.getExpiration()
+                .isZero() || properties.getExpiration()
+                        .isNegative()) {
             throw new AuthException(AuthErrorCode.JWT_CONFIGURATION_INVALID);
         }
-        if (properties.getCookieName() == null || properties.getCookieName().isBlank()) {
+        if (properties.getCookieName() == null || properties.getCookieName()
+                .isBlank()) {
             throw new AuthException(AuthErrorCode.JWT_CONFIGURATION_INVALID);
         }
-        if (properties.getCookieName().startsWith("__Host-") && !properties.isSecure()) {
+        if (properties.getCookieName()
+                .startsWith("__Host-") && !properties.isSecure()) {
             throw new AuthException(AuthErrorCode.JWT_CONFIGURATION_INVALID);
         }
     }
@@ -145,7 +180,10 @@ public class JwtProvider {
             }
             return parsed;
         } catch (NumberFormatException exception) {
-            throw new AuthException(AuthErrorCode.INVALID_JWT, exception);
+            throw new AuthException(
+                    AuthErrorCode.INVALID_JWT,
+                    exception
+            );
         }
     }
 
@@ -156,21 +194,29 @@ public class JwtProvider {
         return value;
     }
 
-    private JwtClaimsSet.Builder baseClaims(AuthenticatedMember member, Instant issuedAt) {
+    private JwtClaimsSet.Builder baseClaims(
+            AuthenticatedMember member,
+            Instant issuedAt
+    ) {
         return JwtClaimsSet.builder()
                 .subject(String.valueOf(member.getMemberId()))
                 .issuer(ISSUER)
                 .audience(List.of(AUDIENCE))
                 .issuedAt(issuedAt)
                 .expiresAt(issuedAt.plus(properties.getExpiration()))
-                .claim("github_id", String.valueOf(member.getGithubId()))
-                .claim("nickname", member.getNickname());
+                .claim(
+                        "github_id",
+                        String.valueOf(member.getGithubId())
+                )
+                .claim(
+                        "nickname",
+                        member.getNickname()
+                );
     }
 
     private void validateTokenClaims(Jwt jwt) {
         List<String> audience = jwt.getAudience();
-        if (!ISSUER.equals(jwt.getClaimAsString("iss"))
-                || audience == null
+        if (!ISSUER.equals(jwt.getClaimAsString("iss")) || audience == null
                 || !audience.contains(AUDIENCE)) {
             throw new AuthException(AuthErrorCode.INVALID_JWT);
         }
@@ -178,7 +224,12 @@ public class JwtProvider {
 
     private String encode(JwtClaimsSet claims) {
         return encoder.encode(
-                        JwtEncoderParameters.from(JwsHeader.with(MAC_ALGORITHM).build(), claims))
+                JwtEncoderParameters.from(
+                        JwsHeader.with(MAC_ALGORITHM)
+                                .build(),
+                        claims
+                )
+        )
                 .getTokenValue();
     }
 }

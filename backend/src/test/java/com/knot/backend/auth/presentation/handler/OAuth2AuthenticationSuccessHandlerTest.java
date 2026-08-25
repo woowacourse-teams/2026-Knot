@@ -38,16 +38,33 @@ class OAuth2AuthenticationSuccessHandlerTest {
         JwtProperties jwtProperties = jwtProperties();
         OAuth2LoginProperties loginProperties = new OAuth2LoginProperties();
         loginProperties.setSuccessRedirectUri("/auth/me");
-        OAuth2AuthenticationFailureHandler failureHandler =
-                new OAuth2AuthenticationFailureHandler(loginProperties);
-        OAuth2AuthenticationSuccessHandler handler =
-                new OAuth2AuthenticationSuccessHandler(
-                        authService, jwtProperties, loginProperties, failureHandler);
-        OAuthUser oauthUser = OAuthUser.of(42L, "octocat", null);
+        OAuth2AuthenticationFailureHandler failureHandler = new OAuth2AuthenticationFailureHandler(
+                loginProperties
+        );
+        OAuth2AuthenticationSuccessHandler handler = new OAuth2AuthenticationSuccessHandler(
+                authService,
+                jwtProperties,
+                loginProperties,
+                failureHandler
+        );
+        OAuthUser oauthUser = OAuthUser.of(
+                42L,
+                "octocat",
+                null
+        );
         OAuth2User delegate = mock(OAuth2User.class);
-        doReturn(List.of(new SimpleGrantedAuthority("ROLE_USER"))).when(delegate).getAuthorities();
-        when(delegate.getAttributes()).thenReturn(Map.of("id", 42L));
-        GithubOAuth2User githubUser = GithubOAuth2User.of(oauthUser, delegate);
+        doReturn(List.of(new SimpleGrantedAuthority("ROLE_USER"))).when(delegate)
+                .getAuthorities();
+        when(delegate.getAttributes()).thenReturn(
+                Map.of(
+                        "id",
+                        42L
+                )
+        );
+        GithubOAuth2User githubUser = GithubOAuth2User.of(
+                oauthUser,
+                delegate
+        );
         Authentication authentication = mock(Authentication.class);
         when(authentication.getPrincipal()).thenReturn(githubUser);
         when(authService.login(oauthUser)).thenReturn("jwt-token");
@@ -55,7 +72,11 @@ class OAuth2AuthenticationSuccessHandlerTest {
         MockHttpServletResponse response = new MockHttpServletResponse();
 
         // when
-        handler.onAuthenticationSuccess(request, response, authentication);
+        handler.onAuthenticationSuccess(
+                request,
+                response,
+                authentication
+        );
 
         // then
         assertThat(response.getRedirectedUrl()).isEqualTo("/auth/me");
@@ -76,21 +97,32 @@ class OAuth2AuthenticationSuccessHandlerTest {
         AuthService authService = mock(AuthService.class);
         JwtProperties jwtProperties = jwtProperties();
         OAuth2LoginProperties loginProperties = new OAuth2LoginProperties();
-        OAuth2AuthenticationFailureHandler failureHandler =
-                new OAuth2AuthenticationFailureHandler(loginProperties);
-        OAuth2AuthenticationSuccessHandler handler =
-                new OAuth2AuthenticationSuccessHandler(
-                        authService, jwtProperties, loginProperties, failureHandler);
+        OAuth2AuthenticationFailureHandler failureHandler = new OAuth2AuthenticationFailureHandler(
+                loginProperties
+        );
+        OAuth2AuthenticationSuccessHandler handler = new OAuth2AuthenticationSuccessHandler(
+                authService,
+                jwtProperties,
+                loginProperties,
+                failureHandler
+        );
         Authentication authentication = mock(Authentication.class);
         when(authentication.getPrincipal()).thenReturn("invalid-principal");
         MockHttpServletResponse response = new MockHttpServletResponse();
 
         // when
-        handler.onAuthenticationSuccess(new MockHttpServletRequest(), response, authentication);
+        handler.onAuthenticationSuccess(
+                new MockHttpServletRequest(),
+                response,
+                authentication
+        );
 
         // then
         assertThat(response.getRedirectedUrl()).isEqualTo("/login?error=oauth2");
-        verify(authService, never()).login(any());
+        verify(
+                authService,
+                never()
+        ).login(any());
     }
 
     @Test
@@ -100,16 +132,33 @@ class OAuth2AuthenticationSuccessHandlerTest {
         AuthService authService = mock(AuthService.class);
         JwtProperties jwtProperties = jwtProperties();
         OAuth2LoginProperties loginProperties = new OAuth2LoginProperties();
-        OAuth2AuthenticationFailureHandler failureHandler =
-                new OAuth2AuthenticationFailureHandler(loginProperties);
-        OAuth2AuthenticationSuccessHandler handler =
-                new OAuth2AuthenticationSuccessHandler(
-                        authService, jwtProperties, loginProperties, failureHandler);
-        OAuthUser oauthUser = OAuthUser.of(42L, "octocat", null);
+        OAuth2AuthenticationFailureHandler failureHandler = new OAuth2AuthenticationFailureHandler(
+                loginProperties
+        );
+        OAuth2AuthenticationSuccessHandler handler = new OAuth2AuthenticationSuccessHandler(
+                authService,
+                jwtProperties,
+                loginProperties,
+                failureHandler
+        );
+        OAuthUser oauthUser = OAuthUser.of(
+                42L,
+                "octocat",
+                null
+        );
         OAuth2User delegate = mock(OAuth2User.class);
-        doReturn(List.of(new SimpleGrantedAuthority("ROLE_USER"))).when(delegate).getAuthorities();
-        when(delegate.getAttributes()).thenReturn(Map.of("id", 42L));
-        GithubOAuth2User githubUser = GithubOAuth2User.of(oauthUser, delegate);
+        doReturn(List.of(new SimpleGrantedAuthority("ROLE_USER"))).when(delegate)
+                .getAuthorities();
+        when(delegate.getAttributes()).thenReturn(
+                Map.of(
+                        "id",
+                        42L
+                )
+        );
+        GithubOAuth2User githubUser = GithubOAuth2User.of(
+                oauthUser,
+                delegate
+        );
         Authentication authentication = mock(Authentication.class);
         when(authentication.getPrincipal()).thenReturn(githubUser);
         when(authService.login(oauthUser))
@@ -117,7 +166,11 @@ class OAuth2AuthenticationSuccessHandlerTest {
         MockHttpServletResponse response = new MockHttpServletResponse();
 
         // when
-        handler.onAuthenticationSuccess(new MockHttpServletRequest(), response, authentication);
+        handler.onAuthenticationSuccess(
+                new MockHttpServletRequest(),
+                response,
+                authentication
+        );
 
         // then
         assertThat(response.getRedirectedUrl()).isEqualTo("/login?error=oauth2");
@@ -131,22 +184,23 @@ class OAuth2AuthenticationSuccessHandlerTest {
         JwtProperties jwtProperties = jwtProperties();
         OAuth2LoginProperties loginProperties = new OAuth2LoginProperties();
         loginProperties.setSuccessRedirectUri(" ");
-        OAuth2AuthenticationFailureHandler failureHandler =
-                new OAuth2AuthenticationFailureHandler(loginProperties);
+        OAuth2AuthenticationFailureHandler failureHandler = new OAuth2AuthenticationFailureHandler(
+                loginProperties
+        );
 
         // when & then
         assertThatThrownBy(
-                        () ->
-                                new OAuth2AuthenticationSuccessHandler(
-                                        authService,
-                                        jwtProperties,
-                                        loginProperties,
-                                        failureHandler))
-                .isInstanceOfSatisfying(
-                        AuthException.class,
-                        exception ->
-                                assertThat(exception.getErrorCode())
-                                        .isEqualTo(AuthErrorCode.OAUTH_CONFIGURATION_INVALID));
+                () -> new OAuth2AuthenticationSuccessHandler(
+                        authService,
+                        jwtProperties,
+                        loginProperties,
+                        failureHandler
+                )
+        ).isInstanceOfSatisfying(
+                AuthException.class,
+                exception -> assertThat(exception.getErrorCode())
+                        .isEqualTo(AuthErrorCode.OAUTH_CONFIGURATION_INVALID)
+        );
     }
 
     private JwtProperties jwtProperties() {

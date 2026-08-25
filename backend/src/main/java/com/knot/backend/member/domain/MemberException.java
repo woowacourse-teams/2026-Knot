@@ -8,7 +8,13 @@ public class MemberException extends ProjectException {
         super(errorCode);
     }
 
-    public MemberException(MemberErrorCode errorCode, Throwable cause) {
-        super(errorCode, cause);
+    public MemberException(
+            MemberErrorCode errorCode,
+            Throwable cause
+    ) {
+        super(
+                errorCode,
+                cause
+        );
     }
 }

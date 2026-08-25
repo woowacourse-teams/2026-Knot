@@ -28,8 +28,14 @@ class JwtAuthenticationFilterTest {
         properties.setSecret("test-jwt-secret-012345678901234567890123456789");
         properties.setExpiration(Duration.ofHours(1));
         properties.setCookieName("KNOT_ACCESS_TOKEN");
-        jwtProvider = new JwtProvider(properties, Clock.systemUTC());
-        filter = new JwtAuthenticationFilter(jwtProvider, properties);
+        jwtProvider = new JwtProvider(
+                properties,
+                Clock.systemUTC()
+        );
+        filter = new JwtAuthenticationFilter(
+                jwtProvider,
+                properties
+        );
     }
 
     @AfterEach
@@ -41,24 +47,38 @@ class JwtAuthenticationFilterTest {
     @DisplayName("JWT 쿠키가 있으면 인증 주체를 SecurityContext에 저장한다")
     void doFilter_success() throws Exception {
         // given
-        AuthenticatedMember expected =
-                AuthenticatedMember.of(1L, 42L, "octocat", "https://example.com/avatar");
+        AuthenticatedMember expected = AuthenticatedMember.of(
+                1L,
+                42L,
+                "octocat",
+                "https://example.com/avatar"
+        );
         String token = jwtProvider.issue(expected);
         MockHttpServletRequest request = new MockHttpServletRequest();
-        request.setCookies(new Cookie("KNOT_ACCESS_TOKEN", token));
+        request.setCookies(
+                new Cookie(
+                        "KNOT_ACCESS_TOKEN",
+                        token
+                )
+        );
 
         // when
-        filter.doFilter(request, new MockHttpServletResponse(), new MockFilterChain());
+        filter.doFilter(
+                request,
+                new MockHttpServletResponse(),
+                new MockFilterChain()
+        );
 
         // then
-        assertThat(SecurityContextHolder.getContext().getAuthentication())
-                .satisfies(
-                        authentication -> {
-                            assertThat(authentication.getPrincipal()).isEqualTo(expected);
-                            assertThat(authentication.getAuthorities())
-                                    .extracting(authority -> authority.getAuthority())
-                                    .containsExactly("ROLE_USER");
-                        });
+        assertThat(
+                SecurityContextHolder.getContext()
+                        .getAuthentication()
+        ).satisfies(authentication -> {
+            assertThat(authentication.getPrincipal()).isEqualTo(expected);
+            assertThat(authentication.getAuthorities())
+                    .extracting(authority -> authority.getAuthority())
+                    .containsExactly("ROLE_USER");
+        });
     }
 
     @Test
@@ -66,13 +86,25 @@ class JwtAuthenticationFilterTest {
     void doFilter_failure_invalidToken() throws Exception {
         // given
         MockHttpServletRequest request = new MockHttpServletRequest();
-        request.setCookies(new Cookie("KNOT_ACCESS_TOKEN", "invalid-token"));
+        request.setCookies(
+                new Cookie(
+                        "KNOT_ACCESS_TOKEN",
+                        "invalid-token"
+                )
+        );
 
         // when
-        filter.doFilter(request, new MockHttpServletResponse(), new MockFilterChain());
+        filter.doFilter(
+                request,
+                new MockHttpServletResponse(),
+                new MockFilterChain()
+        );
 
         // then
-        assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
+        assertThat(
+                SecurityContextHolder.getContext()
+                        .getAuthentication()
+        ).isNull();
     }
 
     @Test
@@ -80,14 +112,26 @@ class JwtAuthenticationFilterTest {
     void doFilter_failure_noTokenClearsExistingAuthentication() throws Exception {
         // given
         SecurityContextHolder.getContext()
-                .setAuthentication(new UsernamePasswordAuthenticationToken("session", null));
+                .setAuthentication(
+                        new UsernamePasswordAuthenticationToken(
+                                "session",
+                                null
+                        )
+                );
         MockHttpServletRequest request = new MockHttpServletRequest();
 
         // when
-        filter.doFilter(request, new MockHttpServletResponse(), new MockFilterChain());
+        filter.doFilter(
+                request,
+                new MockHttpServletResponse(),
+                new MockFilterChain()
+        );
 
         // then
-        assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
+        assertThat(
+                SecurityContextHolder.getContext()
+                        .getAuthentication()
+        ).isNull();
     }
 
     @Test
@@ -96,13 +140,27 @@ class JwtAuthenticationFilterTest {
         // given
         MockHttpServletRequest request = new MockHttpServletRequest();
         request.setCookies(
-                new Cookie("KNOT_ACCESS_TOKEN", "first-token"),
-                new Cookie("KNOT_ACCESS_TOKEN", "second-token"));
+                new Cookie(
+                        "KNOT_ACCESS_TOKEN",
+                        "first-token"
+                ),
+                new Cookie(
+                        "KNOT_ACCESS_TOKEN",
+                        "second-token"
+                )
+        );
 
         // when
-        filter.doFilter(request, new MockHttpServletResponse(), new MockFilterChain());
+        filter.doFilter(
+                request,
+                new MockHttpServletResponse(),
+                new MockFilterChain()
+        );
 
         // then
-        assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
+        assertThat(
+                SecurityContextHolder.getContext()
+                        .getAuthentication()
+        ).isNull();
     }
 }

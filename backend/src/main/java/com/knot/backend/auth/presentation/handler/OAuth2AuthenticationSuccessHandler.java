@@ -28,10 +28,11 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
             AuthService authService,
             JwtProperties jwtProperties,
             OAuth2LoginProperties loginProperties,
-            OAuth2AuthenticationFailureHandler failureHandler) {
-        if (loginProperties == null
-                || loginProperties.getSuccessRedirectUri() == null
-                || loginProperties.getSuccessRedirectUri().isBlank()) {
+            OAuth2AuthenticationFailureHandler failureHandler
+    ) {
+        if (loginProperties == null || loginProperties.getSuccessRedirectUri() == null
+                || loginProperties.getSuccessRedirectUri()
+                        .isBlank()) {
             throw new AuthException(AuthErrorCode.OAUTH_CONFIGURATION_INVALID);
         }
         this.authService = authService;
@@ -42,26 +43,39 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
 
     @Override
     public void onAuthenticationSuccess(
-            HttpServletRequest request, HttpServletResponse response, Authentication authentication)
-            throws IOException, ServletException {
+            HttpServletRequest request,
+            HttpServletResponse response,
+            Authentication authentication
+    ) throws IOException, ServletException {
         try {
             GithubOAuth2User githubUser = getGithubUser(authentication);
             String token = authService.login(githubUser.getOAuthUser());
-            ResponseCookie cookie =
-                    ResponseCookie.from(jwtProperties.getCookieName(), token)
-                            .httpOnly(true)
-                            .secure(jwtProperties.isSecure())
-                            .sameSite("Lax")
-                            .path("/")
-                            .maxAge(jwtProperties.getExpiration())
-                            .build();
-            response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+            ResponseCookie cookie = ResponseCookie.from(
+                    jwtProperties.getCookieName(),
+                    token
+            )
+                    .httpOnly(true)
+                    .secure(jwtProperties.isSecure())
+                    .sameSite("Lax")
+                    .path("/")
+                    .maxAge(jwtProperties.getExpiration())
+                    .build();
+            response.addHeader(
+                    HttpHeaders.SET_COOKIE,
+                    cookie.toString()
+            );
             failureHandler.clearAuthentication(request);
             response.sendRedirect(loginProperties.getSuccessRedirectUri());
         } catch (AuthException exception) {
-            failureHandler.handleFailure(request, response);
+            failureHandler.handleFailure(
+                    request,
+                    response
+            );
         } catch (RuntimeException exception) {
-            failureHandler.handleFailure(request, response);
+            failureHandler.handleFailure(
+                    request,
+                    response
+            );
         }
     }
 
@@ -71,14 +85,17 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
         }
 
         try {
-            GithubOAuth2User githubUser =
-                    GithubOAuth2User.class.cast(authentication.getPrincipal());
+            GithubOAuth2User githubUser = GithubOAuth2User.class
+                    .cast(authentication.getPrincipal());
             if (githubUser == null) {
                 throw new AuthException(AuthErrorCode.OAUTH_AUTHENTICATION_FAILED);
             }
             return githubUser;
         } catch (ClassCastException exception) {
-            throw new AuthException(AuthErrorCode.OAUTH_AUTHENTICATION_FAILED, exception);
+            throw new AuthException(
+                    AuthErrorCode.OAUTH_AUTHENTICATION_FAILED,
+                    exception
+            );
         }
     }
 }

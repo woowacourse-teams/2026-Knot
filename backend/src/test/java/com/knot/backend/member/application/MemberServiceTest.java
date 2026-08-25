@@ -25,7 +25,13 @@ class MemberServiceTest {
         // given
         MemberRepository repository = mock(MemberRepository.class);
         MemberService service = new MemberService(repository);
-        Member member = Member.create(OAuthUser.of(42L, "octocat", null));
+        Member member = Member.create(
+                OAuthUser.of(
+                        42L,
+                        "octocat",
+                        null
+                )
+        );
         when(repository.findByGithubId(42L)).thenReturn(Optional.of(member));
 
         // when
@@ -42,7 +48,11 @@ class MemberServiceTest {
         // given
         MemberRepository repository = mock(MemberRepository.class);
         MemberService service = new MemberService(repository);
-        OAuthUser oauthUser = OAuthUser.of(42L, "octocat", null);
+        OAuthUser oauthUser = OAuthUser.of(
+                42L,
+                "octocat",
+                null
+        );
         Member savedMember = Member.create(oauthUser);
         when(repository.save(any(Member.class))).thenReturn(savedMember);
 
@@ -60,12 +70,25 @@ class MemberServiceTest {
         // given
         MemberRepository repository = mock(MemberRepository.class);
         MemberService service = new MemberService(repository);
-        Member member = Member.create(OAuthUser.of(42L, "old-name", null));
-        OAuthUser updatedUser = OAuthUser.of(42L, "new-name", null);
+        Member member = Member.create(
+                OAuthUser.of(
+                        42L,
+                        "old-name",
+                        null
+                )
+        );
+        OAuthUser updatedUser = OAuthUser.of(
+                42L,
+                "new-name",
+                null
+        );
         when(repository.save(member)).thenReturn(member);
 
         // when
-        Member result = service.updateProfile(member, updatedUser);
+        Member result = service.updateProfile(
+                member,
+                updatedUser
+        );
 
         // then
         assertThat(result.getNickname()).isEqualTo("new-name");
@@ -78,10 +101,19 @@ class MemberServiceTest {
         // given
         MemberRepository repository = mock(MemberRepository.class);
         MemberService service = new MemberService(repository);
-        OAuthUser oauthUser = OAuthUser.of(42L, "octocat", "https://example.com/avatar");
+        OAuthUser oauthUser = OAuthUser.of(
+                42L,
+                "octocat",
+                "https://example.com/avatar"
+        );
         Member savedMember = Member.create(oauthUser);
-        when(repository.saveLoginProfile(42L, "octocat", "https://example.com/avatar"))
-                .thenReturn(1);
+        when(
+                repository.saveLoginProfile(
+                        42L,
+                        "octocat",
+                        "https://example.com/avatar"
+                )
+        ).thenReturn(1);
         when(repository.findByGithubId(42L)).thenReturn(Optional.of(savedMember));
 
         // when
@@ -90,7 +122,11 @@ class MemberServiceTest {
         // then
         assertThat(result).isSameAs(savedMember);
         assertThat(result.getGithubId()).isEqualTo(42L);
-        verify(repository).saveLoginProfile(42L, "octocat", "https://example.com/avatar");
+        verify(repository).saveLoginProfile(
+                42L,
+                "octocat",
+                "https://example.com/avatar"
+        );
     }
 
     @Test
@@ -99,9 +135,19 @@ class MemberServiceTest {
         // given
         MemberRepository repository = mock(MemberRepository.class);
         MemberService service = new MemberService(repository);
-        OAuthUser updatedUser = OAuthUser.of(42L, "new-name", "https://example.com/new");
+        OAuthUser updatedUser = OAuthUser.of(
+                42L,
+                "new-name",
+                "https://example.com/new"
+        );
         Member updatedMember = Member.create(updatedUser);
-        when(repository.saveLoginProfile(42L, "new-name", "https://example.com/new")).thenReturn(1);
+        when(
+                repository.saveLoginProfile(
+                        42L,
+                        "new-name",
+                        "https://example.com/new"
+                )
+        ).thenReturn(1);
         when(repository.findByGithubId(42L)).thenReturn(Optional.of(updatedMember));
 
         // when
@@ -111,7 +157,11 @@ class MemberServiceTest {
         assertThat(result).isSameAs(updatedMember);
         assertThat(result.getNickname()).isEqualTo("new-name");
         assertThat(result.getProfileImageUrl()).isEqualTo("https://example.com/new");
-        verify(repository).saveLoginProfile(42L, "new-name", "https://example.com/new");
+        verify(repository).saveLoginProfile(
+                42L,
+                "new-name",
+                "https://example.com/new"
+        );
     }
 
     @Test
@@ -122,11 +172,17 @@ class MemberServiceTest {
         MemberService service = new MemberService(repository);
 
         // when & then
-        assertThatThrownBy(() -> service.login(null))
-                .isInstanceOf(MemberException.class)
+        assertThatThrownBy(() -> service.login(null)).isInstanceOf(MemberException.class)
                 .extracting(exception -> ((MemberException) exception).getErrorCode())
                 .isEqualTo(MemberErrorCode.INVALID_MEMBER_DATA);
-        verify(repository, never()).saveLoginProfile(any(Long.class), any(String.class), any());
+        verify(
+                repository,
+                never()
+        ).saveLoginProfile(
+                any(Long.class),
+                any(String.class),
+                any()
+        );
     }
 
     @Test
@@ -135,16 +191,25 @@ class MemberServiceTest {
         // given
         MemberRepository repository = mock(MemberRepository.class);
         MemberService service = new MemberService(repository);
-        OAuthUser oauthUser = OAuthUser.of(42L, "octocat", null);
-        when(repository.saveLoginProfile(42L, "octocat", null)).thenReturn(1);
+        OAuthUser oauthUser = OAuthUser.of(
+                42L,
+                "octocat",
+                null
+        );
+        when(
+                repository.saveLoginProfile(
+                        42L,
+                        "octocat",
+                        null
+                )
+        ).thenReturn(1);
         when(repository.findByGithubId(42L)).thenReturn(Optional.empty());
 
         // when & then
-        assertThatThrownBy(() -> service.login(oauthUser))
-                .isInstanceOfSatisfying(
-                        MemberException.class,
-                        exception ->
-                                assertThat(exception.getErrorCode())
-                                        .isEqualTo(MemberErrorCode.MEMBER_LOGIN_FAILED));
+        assertThatThrownBy(() -> service.login(oauthUser)).isInstanceOfSatisfying(
+                MemberException.class,
+                exception -> assertThat(exception.getErrorCode())
+                        .isEqualTo(MemberErrorCode.MEMBER_LOGIN_FAILED)
+        );
     }
 }

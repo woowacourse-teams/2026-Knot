@@ -20,9 +20,11 @@ public class MemberService {
     public Member login(OAuthUser oauthUser) {
         validateOAuthUser(oauthUser);
         memberRepository.saveLoginProfile(
-                oauthUser.getExternalId(), oauthUser.getNickname(), oauthUser.getProfileImageUrl());
-        return memberRepository
-                .findByGithubId(oauthUser.getExternalId())
+                oauthUser.getExternalId(),
+                oauthUser.getNickname(),
+                oauthUser.getProfileImageUrl()
+        );
+        return memberRepository.findByGithubId(oauthUser.getExternalId())
                 .orElseThrow(() -> new MemberException(MemberErrorCode.MEMBER_LOGIN_FAILED));
     }
 
@@ -41,7 +43,10 @@ public class MemberService {
     }
 
     @Transactional
-    public Member updateProfile(Member member, OAuthUser oauthUser) {
+    public Member updateProfile(
+            Member member,
+            OAuthUser oauthUser
+    ) {
         if (member == null) {
             throw new MemberException(MemberErrorCode.INVALID_MEMBER_DATA);
         }

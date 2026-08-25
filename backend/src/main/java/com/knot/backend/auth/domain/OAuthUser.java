@@ -16,7 +16,11 @@ public final class OAuthUser {
     private final String nickname;
     private final String profileImageUrl;
 
-    private OAuthUser(long externalId, String nickname, String profileImageUrl) {
+    private OAuthUser(
+            long externalId,
+            String nickname,
+            String profileImageUrl
+    ) {
         if (externalId <= 0) {
             throw new AuthException(AuthErrorCode.INVALID_OAUTH_USER);
         }
@@ -26,9 +30,8 @@ public final class OAuthUser {
         if (nickname.length() > MAX_NICKNAME_LENGTH) {
             throw new AuthException(AuthErrorCode.INVALID_OAUTH_USER);
         }
-        if (profileImageUrl != null
-                && (profileImageUrl.isBlank()
-                        || profileImageUrl.length() > MAX_PROFILE_IMAGE_URL_LENGTH)) {
+        if (profileImageUrl != null && (profileImageUrl.isBlank()
+                || profileImageUrl.length() > MAX_PROFILE_IMAGE_URL_LENGTH)) {
             throw new AuthException(AuthErrorCode.INVALID_OAUTH_USER);
         }
         this.externalId = externalId;
@@ -36,7 +39,15 @@ public final class OAuthUser {
         this.profileImageUrl = profileImageUrl;
     }
 
-    public static OAuthUser of(long externalId, String nickname, String profileImageUrl) {
-        return new OAuthUser(externalId, nickname, profileImageUrl);
+    public static OAuthUser of(
+            long externalId,
+            String nickname,
+            String profileImageUrl
+    ) {
+        return new OAuthUser(
+                externalId,
+                nickname,
+                profileImageUrl
+        );
     }
 }

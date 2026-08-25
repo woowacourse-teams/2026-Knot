@@ -27,22 +27,30 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     @Override
     protected void doFilterInternal(
-            HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
-            throws ServletException, IOException {
+            HttpServletRequest request,
+            HttpServletResponse response,
+            FilterChain filterChain
+    ) throws ServletException, IOException {
         SecurityContextHolder.clearContext();
         try {
             String token = findToken(request);
             if (token != null) {
                 AuthenticatedMember principal = jwtProvider.authenticate(token);
-                UsernamePasswordAuthenticationToken authentication =
-                        new UsernamePasswordAuthenticationToken(
-                                principal, null, List.of(new SimpleGrantedAuthority("ROLE_USER")));
-                SecurityContextHolder.getContext().setAuthentication(authentication);
+                UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+                        principal,
+                        null,
+                        List.of(new SimpleGrantedAuthority("ROLE_USER"))
+                );
+                SecurityContextHolder.getContext()
+                        .setAuthentication(authentication);
             }
         } catch (AuthException ignored) {
         }
 
-        filterChain.doFilter(request, response);
+        filterChain.doFilter(
+                request,
+                response
+        );
     }
 
     private String findToken(HttpServletRequest request) {
@@ -52,7 +60,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
         String token = null;
         for (Cookie cookie : cookies) {
-            if (jwtProperties.getCookieName().equals(cookie.getName())) {
+            if (jwtProperties.getCookieName()
+                    .equals(cookie.getName())) {
                 if (token != null) {
                     throw new AuthException(AuthErrorCode.INVALID_JWT);
                 }

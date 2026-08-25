@@ -29,13 +29,18 @@ class GithubOAuth2UserServiceTest {
         GithubOAuth2UserService service = new GithubOAuth2UserService(delegate);
         OAuth2UserRequest request = request("github");
         OAuth2User user = mock(OAuth2User.class);
-        when(user.getAttributes())
-                .thenReturn(
-                        Map.of(
-                                "id", 42L,
-                                "login", "octocat",
-                                "avatar_url", "https://example.com/avatar"));
-        doReturn(List.of(new SimpleGrantedAuthority("ROLE_USER"))).when(user).getAuthorities();
+        when(user.getAttributes()).thenReturn(
+                Map.of(
+                        "id",
+                        42L,
+                        "login",
+                        "octocat",
+                        "avatar_url",
+                        "https://example.com/avatar"
+                )
+        );
+        doReturn(List.of(new SimpleGrantedAuthority("ROLE_USER"))).when(user)
+                .getAuthorities();
         when(delegate.loadUser(request)).thenReturn(user);
 
         // when
@@ -44,8 +49,14 @@ class GithubOAuth2UserServiceTest {
         // then
         assertThat(result).isExactlyInstanceOf(GithubOAuth2User.class);
         GithubOAuth2User githubUser = GithubOAuth2User.class.cast(result);
-        assertThat(githubUser.getOAuthUser().getExternalId()).isEqualTo(42L);
-        assertThat(githubUser.getOAuthUser().getNickname()).isEqualTo("octocat");
+        assertThat(
+                githubUser.getOAuthUser()
+                        .getExternalId()
+        ).isEqualTo(42L);
+        assertThat(
+                githubUser.getOAuthUser()
+                        .getNickname()
+        ).isEqualTo("octocat");
     }
 
     @Test
@@ -68,15 +79,21 @@ class GithubOAuth2UserServiceTest {
         GithubOAuth2UserService service = new GithubOAuth2UserService(delegate);
         OAuth2User user = mock(OAuth2User.class);
         OAuth2UserRequest request = request("github");
-        when(user.getAttributes()).thenReturn(Map.of("id", "not-a-number", "login", "octocat"));
+        when(user.getAttributes()).thenReturn(
+                Map.of(
+                        "id",
+                        "not-a-number",
+                        "login",
+                        "octocat"
+                )
+        );
         when(delegate.loadUser(request)).thenReturn(user);
 
         // when & then
-        assertThatThrownBy(() -> service.loadUser(request))
-                .isInstanceOfSatisfying(
-                        OAuth2AuthenticationException.class,
-                        exception ->
-                                assertThat(exception.getCause()).isInstanceOf(AuthException.class));
+        assertThatThrownBy(() -> service.loadUser(request)).isInstanceOfSatisfying(
+                OAuth2AuthenticationException.class,
+                exception -> assertThat(exception.getCause()).isInstanceOf(AuthException.class)
+        );
     }
 
     private OAuth2UserRequest request(String registrationId) {

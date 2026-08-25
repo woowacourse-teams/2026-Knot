@@ -13,7 +13,8 @@ public class AuthController {
 
     @GetMapping("/me")
     public AuthenticatedMemberResponse me(
-            @AuthenticationPrincipal AuthenticatedMember authenticatedMember) {
+            @AuthenticationPrincipal AuthenticatedMember authenticatedMember
+    ) {
         return AuthenticatedMemberResponse.from(authenticatedMember);
     }
 }

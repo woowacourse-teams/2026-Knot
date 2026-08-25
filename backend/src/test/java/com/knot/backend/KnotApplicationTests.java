@@ -39,7 +39,10 @@ class KnotApplicationTests {
 
     private final JwtProvider jwtProvider;
 
-    KnotApplicationTests(MockMvc mockMvc, JwtProvider jwtProvider) {
+    KnotApplicationTests(
+            MockMvc mockMvc,
+            JwtProvider jwtProvider
+    ) {
         this.mockMvc = mockMvc;
         this.jwtProvider = jwtProvider;
     }
@@ -58,21 +61,33 @@ class KnotApplicationTests {
         result.andExpect(status().isFound())
                 .andExpect(
                         header().string(
-                                        "Location",
-                                        startsWith("https://github.com/login/oauth/authorize")));
+                                "Location",
+                                startsWith("https://github.com/login/oauth/authorize")
+                        )
+                );
     }
 
     @Test
     @DisplayName("JWT 쿠키가 있으면 인증된 member 정보를 조회한다")
     void authMe_success() throws Exception {
         // given
-        AuthenticatedMember member =
-                AuthenticatedMember.of(1L, 42L, "octocat", "https://example.com/avatar");
+        AuthenticatedMember member = AuthenticatedMember.of(
+                1L,
+                42L,
+                "octocat",
+                "https://example.com/avatar"
+        );
         String token = jwtProvider.issue(member);
 
         // when
-        ResultActions result =
-                mockMvc.perform(get("/auth/me").cookie(new Cookie(JWT_COOKIE_NAME, token)));
+        ResultActions result = mockMvc.perform(
+                get("/auth/me").cookie(
+                        new Cookie(
+                                JWT_COOKIE_NAME,
+                                token
+                        )
+                )
+        );
 
         // then
         result.andExpect(status().isOk())
@@ -98,9 +113,14 @@ class KnotApplicationTests {
     @DisplayName("잘못된 JWT 쿠키가 있으면 구조화된 401 응답을 반환한다")
     void authMe_failure_invalidToken() throws Exception {
         // when
-        ResultActions result =
-                mockMvc.perform(
-                        get("/auth/me").cookie(new Cookie(JWT_COOKIE_NAME, "invalid-token")));
+        ResultActions result = mockMvc.perform(
+                get("/auth/me").cookie(
+                        new Cookie(
+                                JWT_COOKIE_NAME,
+                                "invalid-token"
+                        )
+                )
+        );
 
         // then
         result.andExpect(status().isUnauthorized())
@@ -111,17 +131,38 @@ class KnotApplicationTests {
     @DisplayName("로그아웃하면 JWT 쿠키를 만료시킨다")
     void logout_success() throws Exception {
         // given
-        AuthenticatedMember member = AuthenticatedMember.of(1L, 42L, "octocat", null);
+        AuthenticatedMember member = AuthenticatedMember.of(
+                1L,
+                42L,
+                "octocat",
+                null
+        );
         String token = jwtProvider.issue(member);
 
         // when
-        ResultActions result =
-                mockMvc.perform(
-                        post("/logout").with(csrf()).cookie(new Cookie(JWT_COOKIE_NAME, token)));
+        ResultActions result = mockMvc.perform(
+                post("/logout").with(csrf())
+                        .cookie(
+                                new Cookie(
+                                        JWT_COOKIE_NAME,
+                                        token
+                                )
+                        )
+        );
 
         // then
         result.andExpect(status().isFound())
-                .andExpect(header().string("Set-Cookie", containsString("Max-Age=0")))
-                .andExpect(header().string("Set-Cookie", containsString(JWT_COOKIE_NAME + "=")));
+                .andExpect(
+                        header().string(
+                                "Set-Cookie",
+                                containsString("Max-Age=0")
+                        )
+                )
+                .andExpect(
+                        header().string(
+                                "Set-Cookie",
+                                containsString(JWT_COOKIE_NAME + "=")
+                        )
+                );
     }
 }

@@ -24,12 +24,14 @@ public class AuthAuthenticationEntryPoint implements AuthenticationEntryPoint {
     public void commence(
             HttpServletRequest request,
             HttpServletResponse response,
-            AuthenticationException exception)
-            throws IOException, ServletException {
+            AuthenticationException exception
+    ) throws IOException, ServletException {
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
         response.setCharacterEncoding(StandardCharsets.UTF_8.name());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         objectMapper.writeValue(
-                response.getWriter(), new ErrorResponse(AuthErrorCode.UNAUTHENTICATED));
+                response.getWriter(),
+                new ErrorResponse(AuthErrorCode.UNAUTHENTICATED)
+        );
     }
 }

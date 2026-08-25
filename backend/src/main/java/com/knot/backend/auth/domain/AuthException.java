@@ -8,7 +8,13 @@ public class AuthException extends ProjectException {
         super(errorCode);
     }
 
-    public AuthException(AuthErrorCode errorCode, Throwable cause) {
-        super(errorCode, cause);
+    public AuthException(
+            AuthErrorCode errorCode,
+            Throwable cause
+    ) {
+        super(
+                errorCode,
+                cause
+        );
     }
 }

@@ -25,7 +25,10 @@ public class AuthService {
         } catch (AuthException exception) {
             throw exception;
         } catch (RuntimeException exception) {
-            throw new AuthException(AuthErrorCode.OAUTH_AUTHENTICATION_FAILED, exception);
+            throw new AuthException(
+                    AuthErrorCode.OAUTH_AUTHENTICATION_FAILED,
+                    exception
+            );
         }
     }
 }

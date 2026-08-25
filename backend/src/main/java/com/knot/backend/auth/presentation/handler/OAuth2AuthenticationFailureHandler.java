@@ -19,9 +19,9 @@ public class OAuth2AuthenticationFailureHandler implements AuthenticationFailure
     private final OAuth2LoginProperties loginProperties;
 
     public OAuth2AuthenticationFailureHandler(OAuth2LoginProperties loginProperties) {
-        if (loginProperties == null
-                || loginProperties.getFailureRedirectUri() == null
-                || loginProperties.getFailureRedirectUri().isBlank()) {
+        if (loginProperties == null || loginProperties.getFailureRedirectUri() == null
+                || loginProperties.getFailureRedirectUri()
+                        .isBlank()) {
             throw new AuthException(AuthErrorCode.OAUTH_CONFIGURATION_INVALID);
         }
         this.loginProperties = loginProperties;
@@ -31,13 +31,18 @@ public class OAuth2AuthenticationFailureHandler implements AuthenticationFailure
     public void onAuthenticationFailure(
             HttpServletRequest request,
             HttpServletResponse response,
-            AuthenticationException exception)
-            throws IOException, ServletException {
-        handleFailure(request, response);
+            AuthenticationException exception
+    ) throws IOException, ServletException {
+        handleFailure(
+                request,
+                response
+        );
     }
 
-    public void handleFailure(HttpServletRequest request, HttpServletResponse response)
-            throws IOException {
+    public void handleFailure(
+            HttpServletRequest request,
+            HttpServletResponse response
+    ) throws IOException {
         clearAuthentication(request);
         response.sendRedirect(loginProperties.getFailureRedirectUri());
     }

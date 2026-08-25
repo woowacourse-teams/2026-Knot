@@ -14,8 +14,12 @@ class AuthControllerTest {
     void me_success() {
         // given
         AuthController controller = new AuthController();
-        AuthenticatedMember member =
-                AuthenticatedMember.of(1L, 42L, "octocat", "https://example.com/avatar");
+        AuthenticatedMember member = AuthenticatedMember.of(
+                1L,
+                42L,
+                "octocat",
+                "https://example.com/avatar"
+        );
 
         // when
         AuthenticatedMemberResponse result = controller.me(member);

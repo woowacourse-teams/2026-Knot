@@ -21,16 +21,22 @@ class OAuth2AuthenticationFailureHandlerTest {
         // given
         OAuth2LoginProperties loginProperties = new OAuth2LoginProperties();
         loginProperties.setFailureRedirectUri("/login?error=oauth2");
-        OAuth2AuthenticationFailureHandler handler =
-                new OAuth2AuthenticationFailureHandler(loginProperties);
+        OAuth2AuthenticationFailureHandler handler = new OAuth2AuthenticationFailureHandler(
+                loginProperties
+        );
         MockHttpServletRequest request = new MockHttpServletRequest();
         request.getSession();
         MockHttpServletResponse response = new MockHttpServletResponse();
-        OAuth2AuthenticationException exception =
-                new OAuth2AuthenticationException(new OAuth2Error("oauth_error"));
+        OAuth2AuthenticationException exception = new OAuth2AuthenticationException(
+                new OAuth2Error("oauth_error")
+        );
 
         // when
-        handler.onAuthenticationFailure(request, response, exception);
+        handler.onAuthenticationFailure(
+                request,
+                response,
+                exception
+        );
 
         // then
         assertThat(response.getRedirectedUrl()).isEqualTo("/login?error=oauth2");
@@ -48,8 +54,8 @@ class OAuth2AuthenticationFailureHandlerTest {
         assertThatThrownBy(() -> new OAuth2AuthenticationFailureHandler(loginProperties))
                 .isInstanceOfSatisfying(
                         AuthException.class,
-                        exception ->
-                                assertThat(exception.getErrorCode())
-                                        .isEqualTo(AuthErrorCode.OAUTH_CONFIGURATION_INVALID));
+                        exception -> assertThat(exception.getErrorCode())
+                                .isEqualTo(AuthErrorCode.OAUTH_CONFIGURATION_INVALID)
+                );
     }
 }
