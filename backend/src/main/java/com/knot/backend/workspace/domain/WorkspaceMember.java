@@ -14,12 +14,21 @@ import java.time.Instant;
 @Table(name = "workspace_members")
 public class WorkspaceMember {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY) private Long id;
-    @Column(name = "workspace_id", nullable = false) private Long workspaceId;
-    @Column(name = "member_id", nullable = false) private Long memberId;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(name = "workspace_id", nullable = false)
+    private Long workspaceId;
+
+    @Column(name = "member_id", nullable = false)
+    private Long memberId;
+
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20) private WorkspaceMemberRole role;
-    @Column(name = "joined_at", nullable = false, updatable = false) private Instant joinedAt;
+    @Column(nullable = false, length = 20)
+    private WorkspaceMemberRole role;
+
+    @Column(name = "joined_at", nullable = false, updatable = false)
+    private Instant joinedAt;
 
     protected WorkspaceMember() {}
 

@@ -14,10 +14,16 @@ import java.util.regex.Pattern;
 public class Workspace {
     public static final int MAX_NAME_LENGTH = 20;
     private static final Pattern NAME_PATTERN = Pattern.compile("^[가-힣A-Za-z ]+$");
+
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY) private Long id;
-    @Column(nullable = false, length = MAX_NAME_LENGTH) private String name;
-    @Column(name = "created_at", nullable = false, updatable = false) private Instant createdAt;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(nullable = false, length = MAX_NAME_LENGTH)
+    private String name;
+
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private Instant createdAt;
 
     protected Workspace() {}
 

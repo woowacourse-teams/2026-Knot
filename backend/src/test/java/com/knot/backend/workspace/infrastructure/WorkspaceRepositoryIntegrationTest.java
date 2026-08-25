@@ -35,9 +35,13 @@ import org.springframework.transaction.annotation.Transactional;
 class WorkspaceRepositoryIntegrationTest {
     private static final Instant CREATED_AT = Instant.parse("2026-08-24T00:00:00Z");
     private static final Instant JOINED_AT = Instant.parse("2026-08-24T00:01:00Z");
-    @Autowired private WorkspaceRepository workspaceRepository;
-    @Autowired private WorkspaceMemberRepository workspaceMemberRepository;
-    @Autowired private EntityManager entityManager;
+
+    @Autowired
+    private WorkspaceRepository workspaceRepository;
+    @Autowired
+    private WorkspaceMemberRepository workspaceMemberRepository;
+    @Autowired
+    private EntityManager entityManager;
 
     @DisplayName("워크스페이스와 멤버십을 저장하고 조회한다")
     @Test
