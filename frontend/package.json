@@ -7,6 +7,7 @@
     "start": "webpack serve --mode production"
   },
   "devDependencies": {
+    "@emotion/babel-plugin": "^11.13.5",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
     "css-loader": "^7.1.4",
@@ -23,6 +24,8 @@
     "@babel/preset-env": "^8.0.2",
     "@babel/preset-react": "^8.0.1",
     "@babel/preset-typescript": "^8.0.1",
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
     "babel-loader": "^10.1.1",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"
