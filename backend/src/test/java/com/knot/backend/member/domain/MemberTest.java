@@ -10,10 +10,16 @@ import org.junit.jupiter.api.Test;
 class MemberTest {
 
     @Test
-    @DisplayName("OAuth 사용자 없이 member를 생성하면 커스텀 예외를 발생시킨다")
-    void create_failure_nullOAuthUser() {
+    @DisplayName("GitHub ID 없이 member를 생성하면 커스텀 예외를 발생시킨다")
+    void create_failure_nullGithubId() {
         // when & then
-        assertThatThrownBy(() -> Member.create(null)).isInstanceOf(MemberException.class)
+        assertThatThrownBy(
+                () -> Member.create(
+                        null,
+                        "octocat",
+                        null
+                )
+        ).isInstanceOf(MemberException.class)
                 .extracting(exception -> ((MemberException) exception).getErrorCode())
                 .isEqualTo(MemberErrorCode.INVALID_MEMBER_DATA);
     }
@@ -23,11 +29,9 @@ class MemberTest {
     void updateProfile_failure_githubIdChange() {
         // given
         Member member = Member.create(
-                OAuthUser.of(
-                        42L,
-                        "octocat",
-                        null
-                )
+                42L,
+                "octocat",
+                null
         );
 
         // when & then
@@ -45,15 +49,13 @@ class MemberTest {
     }
 
     @Test
-    @DisplayName("유효한 OAuth 사용자로 member를 생성한다")
+    @DisplayName("유효한 member 정보로 member를 생성한다")
     void create_success() {
         // when
         Member member = Member.create(
-                OAuthUser.of(
-                        42L,
-                        "octocat",
-                        "https://example.com/avatar"
-                )
+                42L,
+                "octocat",
+                "https://example.com/avatar"
         );
 
         // then
@@ -67,11 +69,9 @@ class MemberTest {
     void updateProfile_failure_nullOAuthUser() {
         // given
         Member member = Member.create(
-                OAuthUser.of(
-                        42L,
-                        "octocat",
-                        null
-                )
+                42L,
+                "octocat",
+                null
         );
 
         // when & then
@@ -83,11 +83,9 @@ class MemberTest {
     void updateProfile_success() {
         // given
         Member member = Member.create(
-                OAuthUser.of(
-                        42L,
-                        "old-name",
-                        null
-                )
+                42L,
+                "old-name",
+                null
         );
 
         // when

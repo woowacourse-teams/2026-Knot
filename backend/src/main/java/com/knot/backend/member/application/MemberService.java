@@ -4,7 +4,7 @@ import com.knot.backend.auth.domain.OAuthUser;
 import com.knot.backend.member.domain.Member;
 import com.knot.backend.member.domain.MemberErrorCode;
 import com.knot.backend.member.domain.MemberException;
-import com.knot.backend.member.infrastructure.MemberRepository;
+import com.knot.backend.member.domain.MemberRepository;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -19,12 +19,13 @@ public class MemberService {
     @Transactional
     public Member login(OAuthUser oauthUser) {
         validateOAuthUser(oauthUser);
-        memberRepository.saveLoginProfile(
+        Member member = Member.create(
                 oauthUser.getExternalId(),
                 oauthUser.getNickname(),
                 oauthUser.getProfileImageUrl()
         );
-        return memberRepository.findByGithubId(oauthUser.getExternalId())
+        memberRepository.saveLoginProfile(member);
+        return memberRepository.findByGithubId(member.getGithubId())
                 .orElseThrow(() -> new MemberException(MemberErrorCode.MEMBER_LOGIN_FAILED));
     }
 
@@ -39,7 +40,13 @@ public class MemberService {
     @Transactional
     public Member create(OAuthUser oauthUser) {
         validateOAuthUser(oauthUser);
-        return memberRepository.save(Member.create(oauthUser));
+        return memberRepository.save(
+                Member.create(
+                        oauthUser.getExternalId(),
+                        oauthUser.getNickname(),
+                        oauthUser.getProfileImageUrl()
+                )
+        );
     }
 
     @Transactional

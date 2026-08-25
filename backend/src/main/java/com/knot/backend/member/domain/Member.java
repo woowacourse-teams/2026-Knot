@@ -44,14 +44,18 @@ public class Member {
         this.profileImageUrl = profileImageUrl;
     }
 
-    public static Member create(OAuthUser oauthUser) {
-        if (oauthUser == null) {
+    public static Member create(
+            Long githubId,
+            String nickname,
+            String profileImageUrl
+    ) {
+        if (githubId == null) {
             throw new MemberException(MemberErrorCode.INVALID_MEMBER_DATA);
         }
         return new Member(
-                oauthUser.getExternalId(),
-                oauthUser.getNickname(),
-                oauthUser.getProfileImageUrl()
+                githubId,
+                nickname,
+                profileImageUrl
         );
     }
 

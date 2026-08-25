@@ -33,7 +33,11 @@ class AuthServiceTest {
                 "octocat",
                 null
         );
-        Member member = Member.create(oauthUser);
+        Member member = Member.create(
+                oauthUser.getExternalId(),
+                oauthUser.getNickname(),
+                oauthUser.getProfileImageUrl()
+        );
         when(memberService.login(oauthUser)).thenReturn(member);
         when(authTokenProvider.issue(member)).thenReturn("jwt-token");
 

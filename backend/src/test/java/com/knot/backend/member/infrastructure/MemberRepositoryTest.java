@@ -3,6 +3,8 @@ package com.knot.backend.member.infrastructure;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.knot.backend.member.domain.Member;
+import com.knot.backend.member.domain.MemberRepository;
 import com.knot.backend.testsupport.TestApplicationProperties;
 import com.knot.backend.testsupport.TestcontainersConfiguration;
 import org.junit.jupiter.api.BeforeEach;
@@ -29,35 +31,43 @@ class MemberRepositoryTest {
 
     private final MemberRepository memberRepository;
 
+    private final MemberJpaRepository memberJpaRepository;
+
     MemberRepositoryTest(
             JdbcTemplate jdbcTemplate,
-            MemberRepository memberRepository
+            MemberRepository memberRepository,
+            MemberJpaRepository memberJpaRepository
     ) {
         this.jdbcTemplate = jdbcTemplate;
         this.memberRepository = memberRepository;
+        this.memberJpaRepository = memberJpaRepository;
     }
 
     @BeforeEach
     void clearMembers() {
-        memberRepository.deleteAll();
+        memberJpaRepository.deleteAll();
     }
 
     @Test
     @DisplayName("로그인 프로필을 저장하고 GitHub ID로 조회한다")
     void saveLoginProfile_success() {
-        // when
-        memberRepository.saveLoginProfile(
+        // given
+        Member member = Member.create(
                 42L,
                 "octocat",
                 "https://example.com/avatar"
         );
 
+        // when
+        memberRepository.saveLoginProfile(member);
+
         // then
         assertThat(memberRepository.findByGithubId(42L)).get()
-                .satisfies(member -> {
-                    assertThat(member.getGithubId()).isEqualTo(42L);
-                    assertThat(member.getNickname()).isEqualTo("octocat");
-                    assertThat(member.getProfileImageUrl()).isEqualTo("https://example.com/avatar");
+                .satisfies(savedMember -> {
+                    assertThat(savedMember.getGithubId()).isEqualTo(42L);
+                    assertThat(savedMember.getNickname()).isEqualTo("octocat");
+                    assertThat(savedMember.getProfileImageUrl())
+                            .isEqualTo("https://example.com/avatar");
                 });
     }
 
@@ -66,16 +76,20 @@ class MemberRepositoryTest {
     void saveLoginProfile_updatesExistingMember() {
         // given
         memberRepository.saveLoginProfile(
-                42L,
-                "old-name",
-                "https://example.com/old"
+                Member.create(
+                        42L,
+                        "old-name",
+                        "https://example.com/old"
+                )
         );
 
         // when
         memberRepository.saveLoginProfile(
-                42L,
-                "new-name",
-                "https://example.com/new"
+                Member.create(
+                        42L,
+                        "new-name",
+                        "https://example.com/new"
+                )
         );
 
         // then

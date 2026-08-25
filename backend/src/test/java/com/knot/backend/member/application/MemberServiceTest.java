@@ -12,7 +12,7 @@ import com.knot.backend.auth.domain.OAuthUser;
 import com.knot.backend.member.domain.Member;
 import com.knot.backend.member.domain.MemberErrorCode;
 import com.knot.backend.member.domain.MemberException;
-import com.knot.backend.member.infrastructure.MemberRepository;
+import com.knot.backend.member.domain.MemberRepository;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -26,11 +26,9 @@ class MemberServiceTest {
         MemberRepository repository = mock(MemberRepository.class);
         MemberService service = new MemberService(repository);
         Member member = Member.create(
-                OAuthUser.of(
-                        42L,
-                        "octocat",
-                        null
-                )
+                42L,
+                "octocat",
+                null
         );
         when(repository.findByGithubId(42L)).thenReturn(Optional.of(member));
 
@@ -53,7 +51,11 @@ class MemberServiceTest {
                 "octocat",
                 null
         );
-        Member savedMember = Member.create(oauthUser);
+        Member savedMember = Member.create(
+                oauthUser.getExternalId(),
+                oauthUser.getNickname(),
+                oauthUser.getProfileImageUrl()
+        );
         when(repository.save(any(Member.class))).thenReturn(savedMember);
 
         // when
@@ -71,11 +73,9 @@ class MemberServiceTest {
         MemberRepository repository = mock(MemberRepository.class);
         MemberService service = new MemberService(repository);
         Member member = Member.create(
-                OAuthUser.of(
-                        42L,
-                        "old-name",
-                        null
-                )
+                42L,
+                "old-name",
+                null
         );
         OAuthUser updatedUser = OAuthUser.of(
                 42L,
@@ -106,14 +106,11 @@ class MemberServiceTest {
                 "octocat",
                 "https://example.com/avatar"
         );
-        Member savedMember = Member.create(oauthUser);
-        when(
-                repository.saveLoginProfile(
-                        42L,
-                        "octocat",
-                        "https://example.com/avatar"
-                )
-        ).thenReturn(1);
+        Member savedMember = Member.create(
+                oauthUser.getExternalId(),
+                oauthUser.getNickname(),
+                oauthUser.getProfileImageUrl()
+        );
         when(repository.findByGithubId(42L)).thenReturn(Optional.of(savedMember));
 
         // when
@@ -122,11 +119,7 @@ class MemberServiceTest {
         // then
         assertThat(result).isSameAs(savedMember);
         assertThat(result.getGithubId()).isEqualTo(42L);
-        verify(repository).saveLoginProfile(
-                42L,
-                "octocat",
-                "https://example.com/avatar"
-        );
+        verify(repository).saveLoginProfile(any(Member.class));
     }
 
     @Test
@@ -140,14 +133,11 @@ class MemberServiceTest {
                 "new-name",
                 "https://example.com/new"
         );
-        Member updatedMember = Member.create(updatedUser);
-        when(
-                repository.saveLoginProfile(
-                        42L,
-                        "new-name",
-                        "https://example.com/new"
-                )
-        ).thenReturn(1);
+        Member updatedMember = Member.create(
+                updatedUser.getExternalId(),
+                updatedUser.getNickname(),
+                updatedUser.getProfileImageUrl()
+        );
         when(repository.findByGithubId(42L)).thenReturn(Optional.of(updatedMember));
 
         // when
@@ -157,11 +147,7 @@ class MemberServiceTest {
         assertThat(result).isSameAs(updatedMember);
         assertThat(result.getNickname()).isEqualTo("new-name");
         assertThat(result.getProfileImageUrl()).isEqualTo("https://example.com/new");
-        verify(repository).saveLoginProfile(
-                42L,
-                "new-name",
-                "https://example.com/new"
-        );
+        verify(repository).saveLoginProfile(any(Member.class));
     }
 
     @Test
@@ -178,11 +164,7 @@ class MemberServiceTest {
         verify(
                 repository,
                 never()
-        ).saveLoginProfile(
-                any(Long.class),
-                any(String.class),
-                any()
-        );
+        ).saveLoginProfile(any(Member.class));
     }
 
     @Test
@@ -196,13 +178,6 @@ class MemberServiceTest {
                 "octocat",
                 null
         );
-        when(
-                repository.saveLoginProfile(
-                        42L,
-                        "octocat",
-                        null
-                )
-        ).thenReturn(1);
         when(repository.findByGithubId(42L)).thenReturn(Optional.empty());
 
         // when & then

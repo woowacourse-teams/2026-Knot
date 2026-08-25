@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.knot.backend.auth.domain.OAuthUser;
 import com.knot.backend.member.domain.Member;
-import com.knot.backend.member.infrastructure.MemberRepository;
 import com.knot.backend.testsupport.TestApplicationProperties;
 import com.knot.backend.testsupport.TestcontainersConfiguration;
 import java.util.concurrent.Callable;
@@ -19,6 +18,7 @@ import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.TestConstructor;
 import org.springframework.test.context.TestConstructor.AutowireMode;
 
@@ -31,19 +31,19 @@ class MemberServiceIntegrationTest {
 
     private final MemberService memberService;
 
-    private final MemberRepository memberRepository;
+    private final JdbcTemplate jdbcTemplate;
 
     MemberServiceIntegrationTest(
             MemberService memberService,
-            MemberRepository memberRepository
+            JdbcTemplate jdbcTemplate
     ) {
         this.memberService = memberService;
-        this.memberRepository = memberRepository;
+        this.jdbcTemplate = jdbcTemplate;
     }
 
     @BeforeEach
     void clearMembers() {
-        memberRepository.deleteAll();
+        jdbcTemplate.update("TRUNCATE TABLE member RESTART IDENTITY");
     }
 
     @Test
@@ -88,7 +88,12 @@ class MemberServiceIntegrationTest {
             // then
             assertThat(firstMember.getGithubId()).isEqualTo(42L);
             assertThat(secondMember.getGithubId()).isEqualTo(42L);
-            assertThat(memberRepository.findAll()).hasSize(1);
+            assertThat(
+                    jdbcTemplate.queryForObject(
+                            "SELECT COUNT(*) FROM member",
+                            Integer.class
+                    )
+            ).isEqualTo(1);
         } finally {
             executor.shutdownNow();
         }
