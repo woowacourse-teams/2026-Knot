@@ -107,8 +107,10 @@ class AuthServiceTest {
         // when & then
         assertThatThrownBy(() -> service.login(oauthUser)).isInstanceOfSatisfying(
                 AuthException.class,
-                exception -> assertThat(exception.getErrorCode().getCode())
-                        .isEqualTo("AUTHENTICATION_INTERNAL_ERROR")
+                exception -> assertThat(
+                        exception.getErrorCode()
+                                .getCode()
+                ).isEqualTo("AUTHENTICATION_INTERNAL_ERROR")
         );
     }
 }

@@ -108,8 +108,10 @@ class GithubOAuth2UserServiceTest {
         // when & then
         assertThatThrownBy(() -> service.loadUser(request)).isInstanceOfSatisfying(
                 OAuth2AuthenticationException.class,
-                exception -> assertThat(exception.getError().getErrorCode())
-                        .isEqualTo("github_user_info_unavailable")
+                exception -> assertThat(
+                        exception.getError()
+                                .getErrorCode()
+                ).isEqualTo("github_user_info_unavailable")
         );
     }
 

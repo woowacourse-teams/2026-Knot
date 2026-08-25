@@ -36,12 +36,22 @@ public class GithubOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
             );
         }
 
-        OAuth2User user = delegate.loadUser(userRequest);
-        OAuthUser oauthUser = toOAuthUser(user.getAttributes());
-        return GithubOAuth2User.of(
-                oauthUser,
-                user
-        );
+        try {
+            OAuth2User user = delegate.loadUser(userRequest);
+            OAuthUser oauthUser = toOAuthUser(user.getAttributes());
+            return GithubOAuth2User.of(
+                    oauthUser,
+                    user
+            );
+        } catch (OAuth2AuthenticationException exception) {
+            throw exception;
+        } catch (RuntimeException exception) {
+            throw new OAuth2AuthenticationException(
+                    new OAuth2Error("github_user_info_unavailable"),
+                    "GitHub 사용자 정보를 조회하지 못했습니다",
+                    exception
+            );
+        }
     }
 
     private OAuthUser toOAuthUser(Map<String, ?> attributes) {

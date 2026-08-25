@@ -46,6 +46,12 @@ public enum AuthErrorCode implements ErrorCode {
             ErrorCategory.INTERNAL_SERVER_ERROR,
             "OAUTH_CONFIGURATION_INVALID",
             "OAuth 설정이 올바르지 않습니다"
+    ),
+
+    AUTHENTICATION_INTERNAL_ERROR(
+            ErrorCategory.INTERNAL_SERVER_ERROR,
+            "AUTHENTICATION_INTERNAL_ERROR",
+            "인증 처리 중 오류가 발생했습니다"
     );
 
     private final ErrorCategory category;

@@ -5,6 +5,7 @@ import com.knot.backend.auth.domain.AuthException;
 import com.knot.backend.auth.domain.OAuthUser;
 import com.knot.backend.auth.infrastructure.jwt.JwtProvider;
 import com.knot.backend.member.application.MemberService;
+import com.knot.backend.member.domain.MemberException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -22,11 +23,16 @@ public class AuthService {
 
         try {
             return jwtProvider.issue(memberService.login(oauthUser));
+        } catch (MemberException exception) {
+            throw new AuthException(
+                    AuthErrorCode.OAUTH_AUTHENTICATION_FAILED,
+                    exception
+            );
         } catch (AuthException exception) {
             throw exception;
         } catch (RuntimeException exception) {
             throw new AuthException(
-                    AuthErrorCode.OAUTH_AUTHENTICATION_FAILED,
+                    AuthErrorCode.AUTHENTICATION_INTERNAL_ERROR,
                     exception
             );
         }
