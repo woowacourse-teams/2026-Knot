@@ -1,6 +1,9 @@
 {
   "name": "frontend",
   "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "dev": "webpack serve --mode development",
     "build": "pnpm tsc && webpack --mode production",
