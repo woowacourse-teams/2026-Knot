@@ -96,6 +96,23 @@ class GithubOAuth2UserServiceTest {
         );
     }
 
+    @Test
+    @DisplayName("GitHub 사용자 정보 조회가 실패하면 OAuth 인증 예외로 변환한다")
+    void loadUser_failure_externalService() {
+        // given
+        OAuth2UserService<OAuth2UserRequest, OAuth2User> delegate = mock(OAuth2UserService.class);
+        GithubOAuth2UserService service = new GithubOAuth2UserService(delegate);
+        OAuth2UserRequest request = request("github");
+        when(delegate.loadUser(request)).thenThrow(new IllegalStateException());
+
+        // when & then
+        assertThatThrownBy(() -> service.loadUser(request)).isInstanceOfSatisfying(
+                OAuth2AuthenticationException.class,
+                exception -> assertThat(exception.getError().getErrorCode())
+                        .isEqualTo("github_user_info_unavailable")
+        );
+    }
+
     private OAuth2UserRequest request(String registrationId) {
         ClientRegistration registration = mock(ClientRegistration.class);
         when(registration.getRegistrationId()).thenReturn(registrationId);

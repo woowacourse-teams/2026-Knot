@@ -86,4 +86,29 @@ class AuthServiceTest {
                         .isEqualTo(AuthErrorCode.OAUTH_AUTHENTICATION_FAILED)
         );
     }
+
+    @Test
+    @DisplayName("인증 처리 중 예기치 못한 오류는 내부 인증 오류로 분류한다")
+    void login_failure_unexpectedError() {
+        // given
+        MemberService memberService = mock(MemberService.class);
+        JwtProvider jwtProvider = mock(JwtProvider.class);
+        AuthService service = new AuthService(
+                memberService,
+                jwtProvider
+        );
+        OAuthUser oauthUser = OAuthUser.of(
+                42L,
+                "octocat",
+                null
+        );
+        when(memberService.login(oauthUser)).thenThrow(new IllegalStateException());
+
+        // when & then
+        assertThatThrownBy(() -> service.login(oauthUser)).isInstanceOfSatisfying(
+                AuthException.class,
+                exception -> assertThat(exception.getErrorCode().getCode())
+                        .isEqualTo("AUTHENTICATION_INTERNAL_ERROR")
+        );
+    }
 }
