@@ -13,7 +13,6 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class GithubOAuth2UserService implements OAuth2UserService<OAuth2UserRequest, OAuth2User> {
-
     private final OAuth2UserService<OAuth2UserRequest, OAuth2User> delegate;
 
     public GithubOAuth2UserService() {

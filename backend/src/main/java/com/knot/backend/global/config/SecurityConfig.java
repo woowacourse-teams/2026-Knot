@@ -21,7 +21,6 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @EnableConfigurationProperties({JwtProperties.class, OAuth2LoginProperties.class})
 @RequiredArgsConstructor
 public class SecurityConfig {
-
     private final GithubOAuth2UserService githubOAuth2UserService;
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final OAuth2AuthenticationSuccessHandler successHandler;

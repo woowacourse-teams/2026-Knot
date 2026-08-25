@@ -26,11 +26,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @TestConstructor(autowireMode = AutowireMode.ALL)
 class MemberRepositoryTest {
-
     private final JdbcTemplate jdbcTemplate;
-
     private final MemberRepository memberRepository;
-
     private final MemberJpaRepository memberJpaRepository;
 
     MemberRepositoryTest(

@@ -14,18 +14,21 @@ import lombok.Getter;
 @Entity
 @Table(name = "members", uniqueConstraints = @UniqueConstraint(name = "uk_member_github_id", columnNames = "github_id"))
 public class Member {
-
     private static final int MAX_NICKNAME_LENGTH = 20;
     private static final int MAX_PROFILE_IMAGE_URL_LENGTH = 500;
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY) private Long id;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
-    @Column(name = "github_id", nullable = false, unique = true) private long githubId;
+    @Column(name = "github_id", nullable = false, unique = true)
+    private long githubId;
 
-    @Column(name = "nickname", nullable = false, length = 20) private String nickname;
+    @Column(name = "nickname", nullable = false, length = 20)
+    private String nickname;
 
-    @Column(name = "profile_image_url", length = 500) private String profileImageUrl;
+    @Column(name = "profile_image_url", length = 500)
+    private String profileImageUrl;
 
     protected Member() {}
 

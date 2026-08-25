@@ -14,7 +14,6 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 public class JwtLogoutHandler implements LogoutHandler {
-
     private final JwtProperties jwtProperties;
 
     @Override

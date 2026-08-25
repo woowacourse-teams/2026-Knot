@@ -15,7 +15,6 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class OAuth2AuthenticationFailureHandler implements AuthenticationFailureHandler {
-
     private final OAuth2LoginProperties loginProperties;
 
     public OAuth2AuthenticationFailureHandler(OAuth2LoginProperties loginProperties) {

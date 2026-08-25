@@ -12,7 +12,6 @@ import org.springframework.stereotype.Service;
 @Service
 @RequiredArgsConstructor
 public class AuthService {
-
     private final MemberService memberService;
     private final AuthTokenProvider authTokenProvider;
 

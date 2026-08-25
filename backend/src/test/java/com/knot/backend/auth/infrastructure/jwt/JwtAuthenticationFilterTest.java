@@ -18,7 +18,6 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.context.SecurityContextHolder;
 
 class JwtAuthenticationFilterTest {
-
     private JwtProvider jwtProvider;
     private JwtAuthenticationFilter filter;
 

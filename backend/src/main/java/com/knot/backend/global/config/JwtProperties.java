@@ -9,7 +9,6 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @Setter
 @ConfigurationProperties(prefix = "auth.jwt")
 public class JwtProperties {
-
     private String secret;
     private Duration expiration = Duration.ofHours(1);
     private String cookieName = "__Host-KNOT_ACCESS_TOKEN";

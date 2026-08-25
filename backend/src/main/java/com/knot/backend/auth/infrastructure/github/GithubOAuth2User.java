@@ -10,7 +10,6 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 
 public final class GithubOAuth2User implements OAuth2User {
-
     private final OAuthUser oauthUser;
     private final Collection<? extends GrantedAuthority> authorities;
     private final Map<String, Object> attributes;

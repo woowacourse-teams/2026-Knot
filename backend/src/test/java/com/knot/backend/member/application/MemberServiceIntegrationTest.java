@@ -28,9 +28,7 @@ import org.springframework.test.context.TestConstructor.AutowireMode;
 @SpringBootTest
 @TestConstructor(autowireMode = AutowireMode.ALL)
 class MemberServiceIntegrationTest {
-
     private final MemberService memberService;
-
     private final JdbcTemplate jdbcTemplate;
 
     MemberServiceIntegrationTest(

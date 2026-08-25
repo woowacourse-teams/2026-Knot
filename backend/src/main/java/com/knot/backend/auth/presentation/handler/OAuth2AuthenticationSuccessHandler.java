@@ -18,7 +18,6 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccessHandler {
-
     private final AuthService authService;
     private final JwtProperties jwtProperties;
     private final OAuth2LoginProperties loginProperties;

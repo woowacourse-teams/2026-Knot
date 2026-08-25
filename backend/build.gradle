@@ -55,6 +55,8 @@ dependencies {
 
 spotless {
 	java {
+		// JPA Entity는 애노테이션 필드 블록 공백 규칙을 별도로 적용한다.
+		targetExclude('src/main/java/com/knot/backend/member/domain/Member.java')
 		eclipse('4.39').configFile('config/spotless/eclipse-formatter.xml')
 		removeUnusedImports()
 		trimTrailingWhitespace()

@@ -8,10 +8,8 @@ import lombok.ToString;
 @EqualsAndHashCode
 @ToString
 public final class OAuthUser {
-
     private static final int MAX_NICKNAME_LENGTH = 20;
     private static final int MAX_PROFILE_IMAGE_URL_LENGTH = 500;
-
     private final long externalId;
     private final String nickname;
     private final String profileImageUrl;

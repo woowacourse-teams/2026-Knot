@@ -28,13 +28,11 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class JwtProvider implements AuthTokenProvider {
-
     private static final MacAlgorithm MAC_ALGORITHM = MacAlgorithm.HS256;
     private static final String HMAC_ALGORITHM = "HmacSHA256";
     private static final int MINIMUM_SECRET_BYTES = 32;
     private static final String ISSUER = "https://knot.local";
     private static final String AUDIENCE = "knot-api";
-
     private final JwtProperties properties;
     private final JwtEncoder encoder;
     private final JwtDecoder decoder;

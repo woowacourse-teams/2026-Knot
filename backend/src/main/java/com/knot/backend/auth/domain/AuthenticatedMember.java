@@ -8,10 +8,8 @@ import lombok.ToString;
 @EqualsAndHashCode
 @ToString
 public final class AuthenticatedMember {
-
     private static final int MAX_NICKNAME_LENGTH = 39;
     private static final int MAX_PROFILE_IMAGE_URL_LENGTH = 500;
-
     private final long memberId;
     private final long githubId;
     private final String nickname;

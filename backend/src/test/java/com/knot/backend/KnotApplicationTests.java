@@ -32,11 +32,8 @@ import org.springframework.test.web.servlet.ResultActions;
 @AutoConfigureMockMvc
 @TestConstructor(autowireMode = AutowireMode.ALL)
 class KnotApplicationTests {
-
     private static final String JWT_COOKIE_NAME = "KNOT_ACCESS_TOKEN";
-
     private final MockMvc mockMvc;
-
     private final AuthTokenProvider authTokenProvider;
 
     KnotApplicationTests(
