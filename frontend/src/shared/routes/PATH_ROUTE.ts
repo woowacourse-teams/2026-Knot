@@ -31,20 +31,20 @@ type RouteParams<K extends RouteKey> = {
 type GetRouterPathParams<K extends RouteKey> = [
   PathParam<(typeof PATH_ROUTE)[K]>,
 ] extends [never]
-  ? { routeConstants: K; params?: never }
-  : { routeConstants: K; params: RouteParams<K> };
+  ? { routeKey: K; params?: never }
+  : { routeKey: K; params: RouteParams<K> };
 
 /**
  * path가 필요한 곳에서 사용할 수 있는 유틸입니다.
  * @example
- * getRouterPath({ routeConstants: "WORKSPACE_HOME", params: { workspaceId: "123" } })
+ * getRouterPath({ routeKey: "WORKSPACE_HOME", params: { workspaceId: "123" } })
  * // returns "/workspace/123"
  */
 export const getRouterPath = <K extends RouteKey>({
-  routeConstants,
+  routeKey,
   params,
 }: GetRouterPathParams<K>) => {
-  const path: string = PATH_ROUTE[routeConstants];
+  const path: string = PATH_ROUTE[routeKey];
 
   return generatePath(path, params);
 };
