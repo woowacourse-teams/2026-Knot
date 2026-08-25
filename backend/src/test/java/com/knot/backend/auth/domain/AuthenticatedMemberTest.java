@@ -48,7 +48,7 @@ class AuthenticatedMemberTest {
                 () -> AuthenticatedMember.of(
                         1L,
                         42L,
-                        "a".repeat(21),
+                        "a".repeat(40),
                         null
                 )
         ).isInstanceOf(AuthException.class);
