@@ -14,8 +14,8 @@ export const PATH_ROUTE = {
   WORKSPACE_NOTION_CONNECTION: "/workspace/:workspaceId/notion-connection",
   WORKSPACE_JOIN: "/workspace/:workspaceId/join",
 
-  WORKSPACE_CHAT: "/workspace/:workspaceId/chat",
-  WORKSPACE_CHAT_SESSION: "/workspace/:workspaceId/chat/:sessionId",
+  CHAT: "/workspace/:workspaceId/chat",
+  CHAT_SESSION: "/workspace/:workspaceId/chat/:sessionId",
 
   JOIN_ERROR: "/join-error",
 } as const;
