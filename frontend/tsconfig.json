@@ -16,6 +16,44 @@
     "jsx": "react-jsx",
     "jsxImportSource": "@emotion/react",
     "esModuleInterop": true,
-    "noEmit": true
+    "noEmit": true,
+    "paths": {
+      "@/*": [
+        "./src/*"
+      ],
+      "@pages/*": [
+        "./src/pages/*"
+      ],
+      "@widgets/*": [
+        "./src/modules/widgets/*"
+      ],
+      "@features/*": [
+        "./src/modules/features/*"
+      ],
+      "@routes/*": [
+        "./src/shared/routes/*"
+      ],
+      "@api/*": [
+        "./src/shared/api/*"
+      ],
+      "@composites/*": [
+        "./src/shared/components/composites/*"
+      ],
+      "@primitives/*": [
+        "./src/shared/components/primitives/*"
+      ],
+      "@constants/*": [
+        "./src/shared/constants/*"
+      ],
+      "@provider/*": [
+        "./src/shared/provider/*"
+      ],
+      "@hooks/*": [
+        "./src/shared/hooks/*"
+      ],
+      "@utils/*": [
+        "./src/shared/utils/*"
+      ],
+    }
   }
 }
