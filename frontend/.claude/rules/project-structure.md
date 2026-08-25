@@ -27,26 +27,23 @@ src/
 │   ├── widgets/{domain}/AComponent/
 │   │   ├── index.tsx
 │   │   ├── ui/
-│   │   │   ├── LoadingFallback/
-│   │   │   │   └── index.tsx
-│   │   │   └── ErrorFallback/
-│   │   │       └── index.tsx
+│   │   │   ├── LoadingFallback.tsx
+│   │   │   └── ErrorFallback.tsx
 │   │   ├── model/
-│   │   │   └── use{Domain}/
-│   │   │       └── index.ts
+│   │   │   └── use{Domain}.ts
 │   │   ├── context/
-│   │   │   └── index.tsx
-│   │   ├── types.ts
+│   │   │   └── {domain}Context.tsx
+│   │   ├── types/
+│   │   │   └── {domain}.ts
 │   │   └── test.tsx                 # 통합 테스트
 │   │
 │   └── features/{domain}/BComponent/
 │       ├── index.tsx
 │       ├── model/
-│       │   └── use{Domain}/
+│       │   └── use{Domain}.ts
 │       └── utils/
-│           └── formatDate/
-│               ├── index.ts
-│               └── test.ts          # 단위 테스트
+│           ├── formatDate.ts
+│           └── formatDate.test.ts   # 단위 테스트
 │
 ├── shared/
 │   ├── api/
@@ -116,13 +113,14 @@ widgets 내부에서 독립적으로 존재할 수 있는, 섹션이 되지 못�
 
 - `createContext`, `useContext`, `Provider` 세 가지는 파편화를 막기 위해 한 파일 안에 함께 작성.
 - 전역으로 쓰이는 QueryClient, ThemeProvider(이모션 디자인 토큰 설정 포함), 전역 컨텍스트는 `shared/provider`에서 관리.
-- 특정 컴포넌트에서만 쓰이는 컨텍스트(컴파운드 패턴, 폼, prop drilling 제거용)는 shared가 아니라 해당 컴포넌트 폴더에 코로케이션, 통일성을 위해 context도 파일이 아닌 폴더 형태로 둠.
+- 특정 컴포넌트에서만 쓰이는 컨텍스트(컴파운드 패턴, 폼, prop drilling 제거용)는 shared가 아니라 해당 컴포넌트 폴더의 `context` 세그먼트에 코로케이션. (`context/{이름}Context.tsx`)
 - 라우트는 프로바이더나 config에 넣기 애매하므로 별도의 `shared/routes` 폴더에서 라우트 정의·path 상수·가드·리다이렉트 로직까지 함께 관리.
 
 ## 네이밍 규칙
 
 - 폴더명은 구현체 이름으로 짓고, 구현체 파일은 `index.ts(x)`로 통일. (예: `Button/index.tsx`) 코로케이션과 함께 변경에 유연함을 열어두기 위한 선택.
 - 케밥 케이스와 카멜 케이스가 섞여 헷갈리는 문제가 있어, 네이밍은 카멜(파스칼 포함)로 통일. 케밥 케이스는 사용하지 않음.
-- 인덱스 파일과 어색하게 섞이지 않도록, 인덱스를 제외한 나머지는 폴더로 둠. 테스트 파일(`test.ts`, 컴포넌트 통합 테스트는 `test.tsx`)과 타입 파일은 예외.
-- 타입 파일은 코로케이션 필요성이 거의 없어 `user.ts`처럼 일반 파일로 작성. 타입 파일이 1개면 `types.ts` 단일 파일, 2개 이상이면 `types/` 폴더로 나눔.
-- `context`는 Provider(JSX)를 함께 작성하므로 `index.tsx`로 둠.
+- 인덱스 파일과 어색하게 섞이지 않도록, 인덱스를 제외한 나머지는 폴더로 둠. 테스트 파일(`test.ts`, 컴포넌트 통합 테스트는 `test.tsx`)은 예외.
+- **컴포넌트 폴더의 세그먼트(`ui`/`model`/`utils`/`types`/`constants`/`context`) 내부는 예외**: 폴더 + `index.ts`를 다시 쓰지 않고 구현체 이름의 플랫 파일로 둠. (예: `ui/LoadingFallback.tsx`, `model/useCalendar.ts`, `utils/formatDate.ts` + `utils/formatDate.test.ts`) `shared` 레이어는 기존대로 폴더 + `index.ts`.
+- 타입 파일은 `index.ts`를 두지 않고 항상 `types/` 폴더 안에 `user.ts`처럼 내용을 나타내는 이름으로 작성. (`types.ts` 단일 파일은 쓰지 않음)
+- 컴포넌트 세그먼트의 `context`는 Provider(JSX)를 함께 작성하므로 `context/{이름}Context.tsx`처럼 `.tsx`로 둠. (`shared/provider/context`는 기존대로 폴더 + `index.tsx`)

@@ -21,12 +21,14 @@ features, widgets, composites 레이어의 세그먼트는 `ui`, `model`, `utils
 
 `primitives`와 `pages`는 세그먼트를 강제하지 않음. 다만 필요해지면 동일한 세그먼트 규칙을 그대로 적용.
 
-- `ui` : 서브 컴포넌트(LoadingFallback, ErrorFallback 등).
-- `model` : 해당 컴포넌트에 강결합된 훅·상태 로직. (`hooks` 폴더는 `shared` 전용이므로 컴포넌트 폴더에는 만들지 않음)
-- `utils` : 유틸 함수. 유틸 폴더 안에 `index.ts`와 `test.ts`(단위 테스트)를 나란히 코로케이션.
-- `types` : 타입. 세그먼트이지만 코로케이션 필요성이 거의 없어 `index.ts`를 두지 않고 `user.ts`처럼 일반 파일로 작성. 타입 파일이 1개면 `types.ts` 단일 파일, 2개 이상이면 `types/` 폴더로 나눔.
-- `constants` : 상수.
-- `context` (선택) : 특정 컴포넌트 전용 컨텍스트. 통일성을 위해 파일이 아닌 폴더 형태로 두며, Provider(JSX)를 함께 작성하므로 `context/index.tsx`로 둠.
+세그먼트는 항상 폴더로 두되, **세그먼트 내부에서는 폴더 + `index.ts` 코로케이션을 다시 쓰지 않고 구현체 이름의 플랫 파일로 둠**. (예: `utils/formatDate.ts` ✅ / `utils/formatDate/index.ts` ❌)
+
+- `ui` : 서브 컴포넌트. `ui/LoadingFallback.tsx`처럼 플랫 파일로 둠.
+- `model` : 해당 컴포넌트에 강결합된 훅·상태 로직. `model/useCustomerCenter.ts`처럼 플랫 파일로 둠. (`hooks` 폴더는 `shared` 전용이므로 컴포넌트 폴더에는 만들지 않음)
+- `utils` : 유틸 함수. `utils/formatDate.ts`와 `utils/formatDate.test.ts`(단위 테스트)를 나란히 코로케이션.
+- `types` : 타입. 항상 `types/` 폴더로 두고, `types/user.ts`처럼 내용을 나타내는 이름의 파일로 나눔. (`types.ts` 단일 파일·`types/index.ts`는 쓰지 않음)
+- `constants` : 상수. `constants/errorMessages.ts`처럼 플랫 파일로 둠.
+- `context` (선택) : 특정 컴포넌트 전용 컨텍스트. Provider(JSX)를 함께 작성하므로 `context/todoContext.tsx`처럼 `.tsx` 플랫 파일로 둠.
 
 ## 훅 위치 판단 기준 (`modules/**/model` vs `shared/hooks`)
 
@@ -77,8 +79,8 @@ const { path, isLoading } = useGetCoursePath(courseId); // ✅
 
 ## context 세그먼트
 
-- `createContext`, `useContext`, `Provider` 세 가지는 파편화를 막기 위해 한 파일 안에 함께 작성. Provider가 JSX를 반환하므로 `context/index.tsx`.
-- 특정 컴포넌트에서만 쓰이는 컨텍스트(컴파운드 패턴, 폼, prop drilling 제거용)는 shared가 아니라 해당 컴포넌트 폴더의 `context`에 코로케이션, 통일성을 위해 파일이 아닌 폴더 형태로 둠.
+- `createContext`, `useContext`, `Provider` 세 가지는 파편화를 막기 위해 한 파일 안에 함께 작성. Provider가 JSX를 반환하므로 `context/todoContext.tsx`처럼 `.tsx` 파일로 둠.
+- 특정 컴포넌트에서만 쓰이는 컨텍스트(컴파운드 패턴, 폼, prop drilling 제거용)는 shared가 아니라 해당 컴포넌트 폴더의 `context` 세그먼트에 코로케이션.
 - 전역 컨텍스트·QueryClient·ThemeProvider는 세그먼트가 아니라 `shared/provider`에서 관리. 라우트는 `shared/routes`에서 관리. (`.claude/rules/project-structure.md` 참고)
 
 ## 테스트 위치
@@ -87,7 +89,7 @@ UI 테스트와 스토리북은 일단 보류, 단위·통합·E2E 세 가지만
 
 | 종류        | 위치                                                                | 대상                                    |
 | ----------- | ------------------------------------------------------------------- | --------------------------------------- |
-| 단위 테스트 | 유틸 폴더 안에 `index.ts`와 `test.ts`를 나란히 코로케이션           | 유틸 함수 (훅은 테스트하지 않음)        |
+| 단위 테스트 | `utils` 세그먼트 안에 구현 파일과 `*.test.ts`를 나란히 코로케이션 (예: `utils/formatDate.ts` + `utils/formatDate.test.ts`) | 유틸 함수 (훅은 테스트하지 않음)        |
 | 통합 테스트 | 최종 책임 컴포넌트(대부분 섹션 단위의 widgets) 폴더 안의 `test.tsx` | 패칭부터 UI까지 하나의 유저 플로우 전체 |
 | E2E 테스트  | 전역 `__test__/`에 페이지 이름을 붙인 파일(`dashboardPage.test.ts`) | 페이지 단위 수행 권장                   |
 

@@ -10,15 +10,12 @@ description: 코드 작성 시 지켜야 하는 전역 규칙(네이밍, 타입,
 - 파일명:
   - 컴포넌트 파일: `PascalCase` + `.tsx`(`.jsx`)
   - 컴포넌트 외 파일: `camelCase` + `.ts`(`.js`)
-  - 세그먼트 파일: `types.ts` (타입 파일은 코로케이션 필요성이 거의 없어 인덱스 없는 일반 파일로 두는 예외)
-- 인덱스(`index.ts(x)`)를 제외한 나머지는 폴더 + `index.ts` 형태로 두되, 테스트 파일(`test.ts`, 컴포넌트 통합 테스트는 `test.tsx`)과 타입 파일은 예외로 일반 파일로 둠 (e.g. 상수는 `constants/index.ts`)
-- 타입 파일이 **1개**면 단일 파일, **2개 이상**이면 폴더로 분리:
+- 인덱스(`index.ts(x)`)를 제외한 나머지는 폴더 + `index.ts` 형태로 두되, 테스트 파일(`test.ts`, 컴포넌트 통합 테스트는 `test.tsx`)은 예외로 일반 파일로 둠
+- **컴포넌트 폴더의 세그먼트(`ui`/`model`/`utils`/`types`/`constants`/`context`) 내부는 예외**: 폴더 + `index.ts`를 다시 쓰지 않고 구현체 이름의 플랫 파일로 둠 (e.g. `ui/LoadingFallback.tsx`, `model/useCalendar.ts`, `constants/errorMessages.ts`). 단위 테스트는 `utils/formatDate.test.ts`처럼 구현 파일 옆에 둠. `shared` 레이어는 기존대로 폴더 + `index.ts`
+- 타입 파일은 항상 `types/` 폴더로 감싸고, `index.ts` 없이 내용을 나타내는 이름으로 분리:
 
   ```
-  src/modules/features/user/UserProfile/
-  ├── types.ts          # 타입이 1개(하나의 파일로 충분)일 때
-
-  src/modules/features/user/UserProfile/types/   # 타입 파일이 여러 개일 때
+  src/modules/features/user/UserProfile/types/
   ├── user.ts
   ├── address.ts
   ```

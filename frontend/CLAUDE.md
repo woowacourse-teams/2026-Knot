@@ -10,7 +10,7 @@
 
 - 모든 컴포넌트는 도메인 로직 포함 여부에 따라 `modules/`(widgets · features) 또는 `shared/components/`(composites · primitives)에 둡니다.
 - 추상화 레벨은 `modules` > `composites` > `primitives` 순이며, 자신보다 상위 레벨의 컴포넌트는 임포트할 수 없습니다.
-- 모든 컴포넌트는 자신의 폴더를 가지며 `index.tsx`로만 외부에 공개합니다(콜로케이션).
+- 모든 컴포넌트는 자신의 폴더를 가지며 `index.tsx`로만 외부에 공개합니다(콜로케이션). 단, 세그먼트 내부에서는 폴더 + `index.ts`를 다시 쓰지 않고 구현체 이름의 플랫 파일로 둡니다.
 - 동일 레벨 참조는 금지합니다. widgets는 widgets를, features는 features를 임포트할 수 없습니다. 도메인이 겹치면 컴포넌트 재사용 대신 도메인 훅을 `shared/hooks/domain`으로 내려 재사용합니다.
 
 ### 작업 전에 반드시 읽을 문서
