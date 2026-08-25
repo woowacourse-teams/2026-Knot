@@ -1,4 +1,4 @@
-CREATE TABLE member (
+CREATE TABLE members (
     id BIGINT GENERATED ALWAYS AS IDENTITY,
     github_id BIGINT NOT NULL,
     nickname VARCHAR(20) NOT NULL,

@@ -12,7 +12,7 @@ import lombok.Getter;
 
 @Getter
 @Entity
-@Table(name = "member", uniqueConstraints = @UniqueConstraint(name = "uk_member_github_id", columnNames = "github_id"))
+@Table(name = "members", uniqueConstraints = @UniqueConstraint(name = "uk_member_github_id", columnNames = "github_id"))
 public class Member {
 
     private static final int MAX_NICKNAME_LENGTH = 20;
