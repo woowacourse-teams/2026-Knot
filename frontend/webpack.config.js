@@ -1,3 +1,5 @@
+import fs from "fs";
+import webpack from "webpack";
 import path from "path";
 import HtmlWebpackPlugin from "html-webpack-plugin";
 
@@ -5,6 +7,14 @@ const __dirname = import.meta.dirname;
 
 export default (env, argv) => {
   const isDev = argv.mode === "development";
+
+  const envFile = path.resolve(
+    __dirname,
+    isDev ? ".env.development" : ".env.production",
+  );
+  if (fs.existsSync(envFile)) {
+    process.loadEnvFile(envFile);
+  }
 
   return {
     entry: "./src/index.tsx", // 모듈 진입점
@@ -79,6 +89,9 @@ export default (env, argv) => {
         template: "./index.html", // 이 파일을 기반으로 번들 스크립트가 주입된 HTML을 생성해요
         filename: "index.html", // 출력될 HTML 파일 이름
         inject: true, // <script> 태그 자동 삽입
+      }),
+      new webpack.DefinePlugin({
+        "process.env.API_BASE_URL": JSON.stringify(process.env.API_BASE_URL),
       }),
     ],
   };
