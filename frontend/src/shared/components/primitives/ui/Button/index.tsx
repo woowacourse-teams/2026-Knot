@@ -48,9 +48,9 @@ const Wrapper = styled.button<{
   justify-content: center;
   white-space: nowrap;
   transition:
-    background-color 0.15s ease,
-    color 0.15s ease,
-    box-shadow 0.15s ease;
+    background-color 0.3s ease-in,
+    color 0.3s ease-in,
+    box-shadow 0.3s ease-in;
 
   ${({ theme }) => theme.text.label01};
 
