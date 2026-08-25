@@ -50,7 +50,7 @@ src/
 ├── modules/
 │   ├── widgets/
 │   │   └── myPage/
-│   │       └── CustomerCenterSection/
+│   │       └── CustomerCenter/
 │   │           ├── index.tsx                   # 페이지에서 조립되는 section 컴포넌트
 │   │           ├── ui/
 │   │           │   ├── LoadingFallback/
