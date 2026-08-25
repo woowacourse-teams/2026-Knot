@@ -68,7 +68,7 @@ description: react 컴포넌트가 지켜야 하는 추상화 레벨을 정의�
 - 데이터 패칭 같은 로직을 수행하면서 하위 요소에 책임을 할당하는 지휘자 역할
 - 패칭과 데이터, 액션 핸들러는 해당 컴포넌트가 직접 책임지되, 책임이 너무 많아지면 `useXxx` 훅으로 책임별로 묶어 컴포넌트 폴더의 `model`에 코로케이션
 - 하위에 도메인별 디렉토리로 작성
-  - e.g. `myPage/CustomerCenterSection`, `mountain/CourseDetailBottomSheetSection`
+  - e.g. `myPage/CustomerCenterSection`, `mountain/CourseDetailBottomSheet` (`Section` 접미사 여부는 자율)
 
 #### modules/features
 
