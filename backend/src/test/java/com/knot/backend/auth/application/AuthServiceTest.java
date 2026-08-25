@@ -7,8 +7,8 @@ import static org.mockito.Mockito.when;
 
 import com.knot.backend.auth.domain.AuthErrorCode;
 import com.knot.backend.auth.domain.AuthException;
+import com.knot.backend.auth.domain.AuthTokenProvider;
 import com.knot.backend.auth.domain.OAuthUser;
-import com.knot.backend.auth.infrastructure.jwt.JwtProvider;
 import com.knot.backend.member.application.MemberService;
 import com.knot.backend.member.domain.Member;
 import com.knot.backend.member.domain.MemberErrorCode;
@@ -23,10 +23,10 @@ class AuthServiceTest {
     void login_success() {
         // given
         MemberService memberService = mock(MemberService.class);
-        JwtProvider jwtProvider = mock(JwtProvider.class);
+        AuthTokenProvider authTokenProvider = mock(AuthTokenProvider.class);
         AuthService service = new AuthService(
                 memberService,
-                jwtProvider
+                authTokenProvider
         );
         OAuthUser oauthUser = OAuthUser.of(
                 42L,
@@ -35,7 +35,7 @@ class AuthServiceTest {
         );
         Member member = Member.create(oauthUser);
         when(memberService.login(oauthUser)).thenReturn(member);
-        when(jwtProvider.issue(member)).thenReturn("jwt-token");
+        when(authTokenProvider.issue(member)).thenReturn("jwt-token");
 
         // when
         String result = service.login(oauthUser);
@@ -50,7 +50,7 @@ class AuthServiceTest {
         // given
         AuthService service = new AuthService(
                 mock(MemberService.class),
-                mock(JwtProvider.class)
+                mock(AuthTokenProvider.class)
         );
 
         // when & then
@@ -66,10 +66,10 @@ class AuthServiceTest {
     void login_failure_memberError() {
         // given
         MemberService memberService = mock(MemberService.class);
-        JwtProvider jwtProvider = mock(JwtProvider.class);
+        AuthTokenProvider authTokenProvider = mock(AuthTokenProvider.class);
         AuthService service = new AuthService(
                 memberService,
-                jwtProvider
+                authTokenProvider
         );
         OAuthUser oauthUser = OAuthUser.of(
                 42L,
@@ -92,10 +92,10 @@ class AuthServiceTest {
     void login_failure_unexpectedError() {
         // given
         MemberService memberService = mock(MemberService.class);
-        JwtProvider jwtProvider = mock(JwtProvider.class);
+        AuthTokenProvider authTokenProvider = mock(AuthTokenProvider.class);
         AuthService service = new AuthService(
                 memberService,
-                jwtProvider
+                authTokenProvider
         );
         OAuthUser oauthUser = OAuthUser.of(
                 42L,

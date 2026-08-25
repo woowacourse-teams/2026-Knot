@@ -2,6 +2,7 @@ package com.knot.backend.auth.infrastructure.jwt;
 
 import com.knot.backend.auth.domain.AuthErrorCode;
 import com.knot.backend.auth.domain.AuthException;
+import com.knot.backend.auth.domain.AuthTokenProvider;
 import com.knot.backend.auth.domain.AuthenticatedMember;
 import com.knot.backend.global.config.JwtProperties;
 import jakarta.servlet.FilterChain;
@@ -22,7 +23,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
-    private final JwtProvider jwtProvider;
+    private final AuthTokenProvider authTokenProvider;
     private final JwtProperties jwtProperties;
 
     @Override
@@ -35,7 +36,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         try {
             String token = findToken(request);
             if (token != null) {
-                AuthenticatedMember principal = jwtProvider.authenticate(token);
+                AuthenticatedMember principal = authTokenProvider.authenticate(token);
                 UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
                         principal,
                         null,

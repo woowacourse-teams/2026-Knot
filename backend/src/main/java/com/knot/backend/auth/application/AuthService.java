@@ -2,8 +2,8 @@ package com.knot.backend.auth.application;
 
 import com.knot.backend.auth.domain.AuthErrorCode;
 import com.knot.backend.auth.domain.AuthException;
+import com.knot.backend.auth.domain.AuthTokenProvider;
 import com.knot.backend.auth.domain.OAuthUser;
-import com.knot.backend.auth.infrastructure.jwt.JwtProvider;
 import com.knot.backend.member.application.MemberService;
 import com.knot.backend.member.domain.MemberException;
 import lombok.RequiredArgsConstructor;
@@ -14,7 +14,7 @@ import org.springframework.stereotype.Service;
 public class AuthService {
 
     private final MemberService memberService;
-    private final JwtProvider jwtProvider;
+    private final AuthTokenProvider authTokenProvider;
 
     public String login(OAuthUser oauthUser) {
         if (oauthUser == null) {
@@ -22,7 +22,7 @@ public class AuthService {
         }
 
         try {
-            return jwtProvider.issue(memberService.login(oauthUser));
+            return authTokenProvider.issue(memberService.login(oauthUser));
         } catch (MemberException exception) {
             throw new AuthException(
                     AuthErrorCode.OAUTH_AUTHENTICATION_FAILED,

@@ -2,6 +2,7 @@ package com.knot.backend.auth.infrastructure.jwt;
 
 import com.knot.backend.auth.domain.AuthErrorCode;
 import com.knot.backend.auth.domain.AuthException;
+import com.knot.backend.auth.domain.AuthTokenProvider;
 import com.knot.backend.auth.domain.AuthenticatedMember;
 import com.knot.backend.global.config.JwtProperties;
 import com.knot.backend.member.domain.Member;
@@ -26,7 +27,7 @@ import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 import org.springframework.stereotype.Component;
 
 @Component
-public class JwtProvider {
+public class JwtProvider implements AuthTokenProvider {
 
     private static final MacAlgorithm MAC_ALGORITHM = MacAlgorithm.HS256;
     private static final String HMAC_ALGORITHM = "HmacSHA256";
@@ -63,6 +64,7 @@ public class JwtProvider {
         this.decoder = jwtDecoder;
     }
 
+    @Override
     public String issue(Member member) {
         if (member == null || member.getId() == null) {
             throw new AuthException(AuthErrorCode.INVALID_AUTHENTICATED_MEMBER);
@@ -78,6 +80,7 @@ public class JwtProvider {
         );
     }
 
+    @Override
     public String issue(AuthenticatedMember member) {
         if (member == null) {
             throw new AuthException(AuthErrorCode.INVALID_AUTHENTICATED_MEMBER);
@@ -97,6 +100,7 @@ public class JwtProvider {
         return encode(claimsBuilder.build());
     }
 
+    @Override
     public AuthenticatedMember authenticate(String token) {
         if (token == null || token.isBlank()) {
             throw new AuthException(AuthErrorCode.INVALID_JWT);

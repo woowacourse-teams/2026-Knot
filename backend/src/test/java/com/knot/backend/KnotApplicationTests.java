@@ -9,8 +9,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.knot.backend.auth.domain.AuthTokenProvider;
 import com.knot.backend.auth.domain.AuthenticatedMember;
-import com.knot.backend.auth.infrastructure.jwt.JwtProvider;
 import com.knot.backend.testsupport.TestApplicationProperties;
 import com.knot.backend.testsupport.TestcontainersConfiguration;
 import jakarta.servlet.http.Cookie;
@@ -37,14 +37,14 @@ class KnotApplicationTests {
 
     private final MockMvc mockMvc;
 
-    private final JwtProvider jwtProvider;
+    private final AuthTokenProvider authTokenProvider;
 
     KnotApplicationTests(
             MockMvc mockMvc,
-            JwtProvider jwtProvider
+            AuthTokenProvider authTokenProvider
     ) {
         this.mockMvc = mockMvc;
-        this.jwtProvider = jwtProvider;
+        this.authTokenProvider = authTokenProvider;
     }
 
     @Test
@@ -77,7 +77,7 @@ class KnotApplicationTests {
                 "octocat",
                 "https://example.com/avatar"
         );
-        String token = jwtProvider.issue(member);
+        String token = authTokenProvider.issue(member);
 
         // when
         ResultActions result = mockMvc.perform(
@@ -137,7 +137,7 @@ class KnotApplicationTests {
                 "octocat",
                 null
         );
-        String token = jwtProvider.issue(member);
+        String token = authTokenProvider.issue(member);
 
         // when
         ResultActions result = mockMvc.perform(
