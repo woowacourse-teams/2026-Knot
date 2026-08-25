@@ -18,3 +18,9 @@ node_modules
 .pnp.*
 
 dist/
+
+.env
+.env.development
+.env.production
+.env.local
+.env.*.local
