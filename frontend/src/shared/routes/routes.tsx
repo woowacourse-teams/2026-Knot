@@ -13,14 +13,14 @@ import WorkspaceJoinPage from "@pages/workspace/[workspaceId]/join";
 import WorkspaceNotionConnectionPage from "@pages/workspace/[workspaceId]/notion-connection";
 import WorkspaceCodePage from "@pages/workspace/code";
 import WorkspaceCreatePage from "@pages/workspace/create";
-import { createBrowserRouter } from "react-router";
+import { createBrowserRouter, replace } from "react-router";
 
 import { PATH_ROUTE } from "./PATH_ROUTE";
 
 export const router = createBrowserRouter([
   {
     path: PATH_ROUTE.HOME,
-    element: <div>Hello World</div>,
+    loader: () => replace(PATH_ROUTE.LOGIN),
   },
   {
     path: PATH_ROUTE.LOGIN,
