@@ -44,3 +44,6 @@ package-lock.json
 package.json
 AGENTS.md
 .omo
+
+### Local configuration ###
+src/main/resources/application-local.properties
