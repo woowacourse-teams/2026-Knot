@@ -12,6 +12,8 @@ public class JwtProperties {
     private String secret;
     private Duration expiration = Duration.ofHours(1);
     private Duration nicknameTokenExpiration = Duration.ofMinutes(10);
+    private String issuer = "https://knoted.kr";
+    private String audience = "knot-api";
     private String cookieName = "__Host-KNOT_ACCESS_TOKEN";
     private String nicknameCookieName = "KNOT_NICKNAME_TOKEN";
     private boolean secure = true;
