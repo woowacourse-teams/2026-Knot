@@ -67,6 +67,8 @@ const StyledInput = styled.input<{ status: InputStatus }>`
   border: 1px solid;
   border-radius: 0.875rem;
   color: ${({ theme }) => theme.neutral[900]};
+  /* 피그마 가이드: 상태 변환(입력 전 → 입력 후 등) 시 transition: all 0.3s ease-in */
+  transition: all 0.3s ease-in;
   ${({ theme }) => theme.text.body01};
 
   &::placeholder {
