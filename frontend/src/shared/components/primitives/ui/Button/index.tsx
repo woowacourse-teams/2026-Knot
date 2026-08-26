@@ -2,6 +2,8 @@ import { css, type SerializedStyles, type Theme } from "@emotion/react";
 import styled from "@emotion/styled";
 import type { ButtonHTMLAttributes } from "react";
 
+import Spinner from "@/shared/components/primitives/ui/Spinner";
+
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   size?: ButtonSize;
   variant?: ButtonVariant;
@@ -93,27 +95,36 @@ export default function Button({
       : "active";
 
   return (
-    <Wrapper
+    <Root
       type={type}
       disabled={disabled || isLoading}
       aria-busy={isLoading}
       $size={size}
-      $isFullWidth={isFullWidth}
       $variant={variant}
       $status={status}
+      $isFullWidth={isFullWidth}
       {...props}
     >
-      {children}
-    </Wrapper>
+      <Content $isHidden={isLoading} $size={size}>
+        {children}
+      </Content>
+
+      {isLoading && (
+        <SpinnerWrapper>
+          <Spinner size={BUTTON_SIZE[size].spinnerSize} />
+        </SpinnerWrapper>
+      )}
+    </Root>
   );
 }
 
-const Wrapper = styled.button<{
+const Root = styled.button<{
   $size: ButtonSize;
   $variant: ButtonVariant;
   $status: ButtonStatus;
   $isFullWidth: boolean;
 }>`
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -128,17 +139,10 @@ const Wrapper = styled.button<{
   width: ${({ $isFullWidth }) => ($isFullWidth ? "100%" : "auto")};
   padding: ${({ $size }) =>
     `${BUTTON_SIZE[$size].paddingY} ${BUTTON_SIZE[$size].paddingX}`};
-  gap: ${({ $size }) => BUTTON_SIZE[$size].gap};
   border-radius: ${({ $size }) => BUTTON_SIZE[$size].borderRadius};
 
   ${({ theme, $variant, $status }) =>
     buttonAppearance(theme)[$variant][$status]};
-
-  & > svg {
-    flex-shrink: 0;
-    width: ${({ $size }) => BUTTON_SIZE[$size].iconSize};
-    height: ${({ $size }) => BUTTON_SIZE[$size].iconSize};
-  }
 
   &[aria-busy="true"] {
     cursor: progress;
@@ -149,4 +153,25 @@ const Wrapper = styled.button<{
     outline: 2px solid ${({ theme }) => theme.sub.accent[500]};
     outline-offset: 2px;
   }
+`;
+
+const Content = styled.span<{ $isHidden: boolean; $size: ButtonSize }>`
+  display: inline-flex;
+  align-items: center;
+  gap: ${({ $size }) => BUTTON_SIZE[$size].gap};
+  opacity: ${({ $isHidden }) => ($isHidden ? 0 : 1)};
+
+  & > svg {
+    flex-shrink: 0;
+    width: ${({ $size }) => BUTTON_SIZE[$size].iconSize};
+    height: ${({ $size }) => BUTTON_SIZE[$size].iconSize};
+  }
+`;
+
+const SpinnerWrapper = styled.span`
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 `;

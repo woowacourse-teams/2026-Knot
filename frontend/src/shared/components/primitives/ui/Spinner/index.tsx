@@ -9,7 +9,7 @@ interface SpinnerProps extends HTMLAttributes<HTMLSpanElement> {
 }
 
 export default function Spinner({ size = "1.5rem", ...props }: SpinnerProps) {
-  return <Wrapper $size={size} aria-hidden {...props} />;
+  return <Root $size={size} aria-hidden {...props} />;
 }
 
 const spin = keyframes`
@@ -18,7 +18,7 @@ const spin = keyframes`
     }
 `;
 
-const Wrapper = styled.span<{ $size: string }>`
+const Root = styled.span<{ $size: string }>`
   display: block;
   flex-shrink: 0;
   width: ${({ $size }) => $size};
