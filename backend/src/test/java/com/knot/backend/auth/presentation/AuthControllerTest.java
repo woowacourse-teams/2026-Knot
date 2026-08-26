@@ -24,7 +24,7 @@ class AuthControllerTest {
         // given
         AuthController controller = new AuthController(
                 mock(AuthService.class),
-                new JwtProperties()
+                new AuthCookieManager(new JwtProperties())
         );
         AuthenticatedMember member = AuthenticatedMember.of(
                 1L,
@@ -52,7 +52,7 @@ class AuthControllerTest {
         jwtProperties.setSecure(false);
         AuthController controller = new AuthController(
                 authService,
-                jwtProperties
+                new AuthCookieManager(jwtProperties)
         );
         when(
                 authService.completeNickname(

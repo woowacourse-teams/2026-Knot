@@ -16,6 +16,7 @@ import com.knot.backend.auth.domain.AuthException;
 import com.knot.backend.auth.domain.OAuthProvider;
 import com.knot.backend.auth.domain.OAuthUser;
 import com.knot.backend.auth.infrastructure.github.GithubOAuth2User;
+import com.knot.backend.auth.presentation.AuthCookieManager;
 import com.knot.backend.global.config.JwtProperties;
 import com.knot.backend.global.config.OAuth2LoginProperties;
 import jakarta.servlet.http.Cookie;
@@ -49,8 +50,8 @@ class OAuth2AuthenticationSuccessHandlerTest {
         loginProperties.setSuccessRedirectUri("/auth/me");
         OAuth2AuthenticationSuccessHandler handler = new OAuth2AuthenticationSuccessHandler(
                 authService,
-                jwtProperties,
-                loginProperties
+                loginProperties,
+                new AuthCookieManager(jwtProperties)
         );
         OAuthUser oauthUser = OAuthUser.of(
                 OAuthProvider.GITHUB,
@@ -113,8 +114,8 @@ class OAuth2AuthenticationSuccessHandlerTest {
         loginProperties.setNicknameRedirectUri("/nickname");
         OAuth2AuthenticationSuccessHandler handler = new OAuth2AuthenticationSuccessHandler(
                 authService,
-                jwtProperties,
-                loginProperties
+                loginProperties,
+                new AuthCookieManager(jwtProperties)
         );
         OAuthUser oauthUser = OAuthUser.of(
                 OAuthProvider.GITHUB,
@@ -163,8 +164,8 @@ class OAuth2AuthenticationSuccessHandlerTest {
         OAuth2LoginProperties loginProperties = new OAuth2LoginProperties();
         OAuth2AuthenticationSuccessHandler handler = new OAuth2AuthenticationSuccessHandler(
                 authService,
-                jwtProperties,
-                loginProperties
+                loginProperties,
+                new AuthCookieManager(jwtProperties)
         );
         Authentication authentication = mock(Authentication.class);
         when(authentication.getPrincipal()).thenReturn("invalid-principal");
@@ -194,8 +195,8 @@ class OAuth2AuthenticationSuccessHandlerTest {
         OAuth2LoginProperties loginProperties = new OAuth2LoginProperties();
         OAuth2AuthenticationSuccessHandler handler = new OAuth2AuthenticationSuccessHandler(
                 authService,
-                jwtProperties,
-                loginProperties
+                loginProperties,
+                new AuthCookieManager(jwtProperties)
         );
         OAuthUser oauthUser = OAuthUser.of(
                 OAuthProvider.GITHUB,
@@ -245,8 +246,8 @@ class OAuth2AuthenticationSuccessHandlerTest {
         assertThatThrownBy(
                 () -> new OAuth2AuthenticationSuccessHandler(
                         authService,
-                        jwtProperties,
-                        loginProperties
+                        loginProperties,
+                        new AuthCookieManager(jwtProperties)
                 )
         ).isInstanceOfSatisfying(
                 AuthException.class,
@@ -268,8 +269,8 @@ class OAuth2AuthenticationSuccessHandlerTest {
         assertThatThrownBy(
                 () -> new OAuth2AuthenticationSuccessHandler(
                         authService,
-                        jwtProperties,
-                        loginProperties
+                        loginProperties,
+                        new AuthCookieManager(jwtProperties)
                 )
         ).isInstanceOfSatisfying(
                 AuthException.class,

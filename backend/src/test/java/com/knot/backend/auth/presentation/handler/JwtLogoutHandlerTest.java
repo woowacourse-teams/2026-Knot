@@ -2,6 +2,7 @@ package com.knot.backend.auth.presentation.handler;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.knot.backend.auth.presentation.AuthCookieManager;
 import com.knot.backend.global.config.JwtProperties;
 import java.time.Duration;
 import java.util.List;
@@ -20,7 +21,7 @@ class JwtLogoutHandlerTest {
         properties.setCookieName("KNOT_ACCESS_TOKEN");
         properties.setExpiration(Duration.ofHours(1));
         properties.setSecure(false);
-        JwtLogoutHandler handler = new JwtLogoutHandler(properties);
+        JwtLogoutHandler handler = new JwtLogoutHandler(new AuthCookieManager(properties));
         MockHttpServletResponse response = new MockHttpServletResponse();
 
         // when
