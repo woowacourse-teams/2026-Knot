@@ -32,7 +32,7 @@ public class JwtProvider implements AuthTokenProvider {
     private static final String HMAC_ALGORITHM = "HmacSHA256";
     private static final int MINIMUM_SECRET_BYTES = 32;
     private static final String ACCESS_TOKEN_TYPE = "ACCESS";
-    private static final String NICKNAME_TOKEN_TYPE = "NICKNAME";
+    private static final String ONBOARDING_TOKEN_TYPE = "ONBOARDING";
     private final JwtProperties properties;
     private final JwtEncoder encoder;
     private final JwtDecoder decoder;
@@ -97,7 +97,7 @@ public class JwtProvider implements AuthTokenProvider {
                 .expiresAt(issuedAt.plus(properties.getNicknameTokenExpiration()))
                 .claim(
                         "token_type",
-                        NICKNAME_TOKEN_TYPE
+                        ONBOARDING_TOKEN_TYPE
                 )
                 .claim(
                         "provider",
@@ -145,7 +145,7 @@ public class JwtProvider implements AuthTokenProvider {
             Jwt jwt = decodeAndValidate(token);
             validateTokenType(
                     jwt,
-                    NICKNAME_TOKEN_TYPE
+                    ONBOARDING_TOKEN_TYPE
             );
 
             OAuthProvider provider = OAuthProvider
