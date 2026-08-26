@@ -10,6 +10,7 @@ import static org.mockito.Mockito.when;
 import com.knot.backend.auth.domain.AuthErrorCode;
 import com.knot.backend.auth.domain.AuthException;
 import com.knot.backend.auth.domain.AuthTokenProvider;
+import com.knot.backend.auth.domain.AuthenticatedMember;
 import com.knot.backend.auth.domain.OAuthIdentity;
 import com.knot.backend.auth.domain.OAuthProvider;
 import com.knot.backend.auth.domain.OAuthUser;
@@ -51,7 +52,12 @@ class AuthServiceTest {
                 )
         ).thenReturn(Optional.of(identity));
         when(memberService.findById(1L)).thenReturn(Optional.of(member));
-        when(authTokenProvider.issue(member)).thenReturn("access-token");
+        AuthenticatedMember authenticatedMember = AuthenticatedMember.of(
+                1L,
+                "octocat",
+                null
+        );
+        when(authTokenProvider.issue(authenticatedMember)).thenReturn("access-token");
 
         // when
         AuthLoginResult result = service.login(oauthUser);
@@ -59,6 +65,7 @@ class AuthServiceTest {
         // then
         assertThat(result.getToken()).isEqualTo("access-token");
         assertThat(result.requiresNickname()).isFalse();
+        verify(authTokenProvider).issue(authenticatedMember);
         verify(
                 authTokenProvider,
                 never()
@@ -176,7 +183,12 @@ class AuthServiceTest {
                         "octocat"
                 )
         ).thenReturn(member);
-        when(authTokenProvider.issue(member)).thenReturn("access-token");
+        AuthenticatedMember authenticatedMember = AuthenticatedMember.of(
+                1L,
+                "octocat",
+                null
+        );
+        when(authTokenProvider.issue(authenticatedMember)).thenReturn("access-token");
 
         // when
         String result = service.completeNickname(
@@ -186,6 +198,11 @@ class AuthServiceTest {
 
         // then
         assertThat(result).isEqualTo("access-token");
+        verify(authTokenProvider).issue(authenticatedMember);
+        verify(
+                authTokenProvider,
+                never()
+        ).issue(member);
     }
 
     private OAuthUser oauthUser() {
