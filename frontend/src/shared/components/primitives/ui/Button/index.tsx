@@ -11,13 +11,42 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   isFullWidth?: boolean;
 }
 
+/** 버튼 크기. 피그마 Button/CTA의 L·M·S에 대응해요. */
 export type ButtonSize = "lg" | "md" | "sm";
+type ButtonSizeToken =
+  | "paddingX"
+  | "paddingY"
+  | "borderRadius"
+  | "gap"
+  | "iconSize"
+  | "spinnerSize";
+
+/**
+ * 버튼의 겉모양.
+ *
+ * - `filled` : 배경이 채워진 기본 버튼
+ * - `outline` : 흰 배경에 테두리만 있는 버튼
+ */
 export type ButtonVariant = "filled" | "outline";
+
+/**
+ * 버튼이 그려야 할 상태. prop이 아니라 `isLoading`·`disabled`로 계산해요.
+ *
+ * - `active` : 누를 수 있음
+ * - `loading` : 처리 중. 스피너가 뜨고 누를 수 없음
+ * - `inactive` : 비활성
+ *
+ * 둘 다 참이면 `loading`이 이깁니다.
+ * 처리 중인 버튼을 회색으로 그리면 아무 일도 일어나지 않는 것처럼 보이기 때문이에요.
+ */
 type ButtonStatus = "active" | "loading" | "inactive";
 
-type ButtonSizeToken =
-  "paddingX" | "paddingY" | "borderRadius" | "gap" | "iconSize" | "spinnerSize";
-
+/**
+ * 사이즈별 치수. 주석의 px이 피그마 원본 값이에요.
+ *
+ * height를 지정하지 않고 paddingY로 높이를 만듭니다.
+ * 사용자가 글꼴 크기를 키워도 버튼이 함께 커져서 글자가 잘리지 않아요.
+ */
 const BUTTON_SIZE = {
   lg: {
     paddingX: "1.25rem" /* 20px */,
@@ -45,6 +74,11 @@ const BUTTON_SIZE = {
   },
 } as const satisfies Record<ButtonSize, Record<ButtonSizeToken, string>>;
 
+/**
+ * variant × status 조합별 색상.
+ *
+ * `loading`은 `active`와 같은 색입니다.
+ */
 const buttonAppearance = (theme: Theme) => {
   return {
     filled: {
@@ -81,6 +115,19 @@ const buttonAppearance = (theme: Theme) => {
   } satisfies Record<ButtonVariant, Record<ButtonStatus, SerializedStyles>>;
 };
 
+/**
+ * 액션을 실행하는 버튼.
+ *
+ * 로딩 중에도 라벨이 자리를 지켜 너비가 변하지 않아요.
+ * 라벨은 `opacity: 0`으로 감추므로 스크린리더는 계속 버튼 이름을 읽습니다.
+ *
+ * `isLoading`이면 `disabled`도 함께 걸리고, 두 값을 모두 넘기면 로딩이 우선합니다.
+ *
+ * 크기는 height가 아니라 padding으로 정의해요. 글꼴이 커져도 잘리지 않습니다.
+ * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=422-440 Button/CTA/L}
+ * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=511-284 Button/CTA/M}
+ * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=484-4907 Button/CTA/S}
+ */
 export default function Button({
   size = "md",
   variant = "filled",
