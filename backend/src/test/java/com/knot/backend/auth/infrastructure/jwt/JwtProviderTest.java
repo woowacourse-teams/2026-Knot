@@ -217,6 +217,46 @@ class JwtProviderTest {
     }
 
     @Test
+    @DisplayName("JWT issuer가 비어 있으면 커스텀 설정 예외를 발생시킨다")
+    void create_failure_blankIssuer() {
+        // given
+        JwtProperties properties = properties(Duration.ofHours(1));
+        properties.setIssuer(" ");
+
+        // when & then
+        assertThatThrownBy(
+                () -> new JwtProvider(
+                        properties,
+                        Clock.systemUTC()
+                )
+        ).isInstanceOfSatisfying(
+                AuthException.class,
+                exception -> assertThat(exception.getErrorCode())
+                        .isEqualTo(AuthErrorCode.JWT_CONFIGURATION_INVALID)
+        );
+    }
+
+    @Test
+    @DisplayName("JWT audience가 비어 있으면 커스텀 설정 예외를 발생시킨다")
+    void create_failure_blankAudience() {
+        // given
+        JwtProperties properties = properties(Duration.ofHours(1));
+        properties.setAudience(" ");
+
+        // when & then
+        assertThatThrownBy(
+                () -> new JwtProvider(
+                        properties,
+                        Clock.systemUTC()
+                )
+        ).isInstanceOfSatisfying(
+                AuthException.class,
+                exception -> assertThat(exception.getErrorCode())
+                        .isEqualTo(AuthErrorCode.JWT_CONFIGURATION_INVALID)
+        );
+    }
+
+    @Test
     @DisplayName("Secure가 꺼진 Host 전용 cookie 이름이면 커스텀 설정 예외를 발생시킨다")
     void create_failure_insecureHostCookie() {
         // given
@@ -248,6 +288,36 @@ class JwtProviderTest {
         otherProperties.setSecret("another-jwt-secret-012345678901234567890123456789");
         JwtProvider verifier = new JwtProvider(
                 otherProperties,
+                Clock.systemUTC()
+        );
+        AuthenticatedMember member = AuthenticatedMember.of(
+                1L,
+                "octocat",
+                null
+        );
+        String token = issuer.issue(member);
+
+        // when & then
+        assertThatThrownBy(() -> verifier.authenticate(token)).isInstanceOfSatisfying(
+                AuthException.class,
+                exception -> assertThat(exception.getErrorCode())
+                        .isEqualTo(AuthErrorCode.INVALID_JWT)
+        );
+    }
+
+    @Test
+    @DisplayName("issuer와 audience가 다른 JWT는 인증하지 않는다")
+    void authenticate_failure_differentTokenBoundary() {
+        // given
+        JwtProperties issuerProperties = properties(Duration.ofHours(1));
+        issuerProperties.setIssuer("https://issuer.example");
+        issuerProperties.setAudience("issuer-api");
+        JwtProvider issuer = new JwtProvider(
+                issuerProperties,
+                Clock.systemUTC()
+        );
+        JwtProvider verifier = new JwtProvider(
+                properties(Duration.ofHours(1)),
                 Clock.systemUTC()
         );
         AuthenticatedMember member = AuthenticatedMember.of(
