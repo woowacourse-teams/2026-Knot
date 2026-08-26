@@ -47,14 +47,10 @@ class OAuth2AuthenticationSuccessHandlerTest {
         JwtProperties jwtProperties = jwtProperties();
         OAuth2LoginProperties loginProperties = new OAuth2LoginProperties();
         loginProperties.setSuccessRedirectUri("/auth/me");
-        OAuth2AuthenticationFailureHandler failureHandler = new OAuth2AuthenticationFailureHandler(
-                loginProperties
-        );
         OAuth2AuthenticationSuccessHandler handler = new OAuth2AuthenticationSuccessHandler(
                 authService,
                 jwtProperties,
-                loginProperties,
-                failureHandler
+                loginProperties
         );
         OAuthUser oauthUser = OAuthUser.of(
                 OAuthProvider.GITHUB,
@@ -115,14 +111,10 @@ class OAuth2AuthenticationSuccessHandlerTest {
         JwtProperties jwtProperties = jwtProperties();
         OAuth2LoginProperties loginProperties = new OAuth2LoginProperties();
         loginProperties.setNicknameRedirectUri("/nickname");
-        OAuth2AuthenticationFailureHandler failureHandler = new OAuth2AuthenticationFailureHandler(
-                loginProperties
-        );
         OAuth2AuthenticationSuccessHandler handler = new OAuth2AuthenticationSuccessHandler(
                 authService,
                 jwtProperties,
-                loginProperties,
-                failureHandler
+                loginProperties
         );
         OAuthUser oauthUser = OAuthUser.of(
                 OAuthProvider.GITHUB,
@@ -169,14 +161,10 @@ class OAuth2AuthenticationSuccessHandlerTest {
         AuthService authService = mock(AuthService.class);
         JwtProperties jwtProperties = jwtProperties();
         OAuth2LoginProperties loginProperties = new OAuth2LoginProperties();
-        OAuth2AuthenticationFailureHandler failureHandler = new OAuth2AuthenticationFailureHandler(
-                loginProperties
-        );
         OAuth2AuthenticationSuccessHandler handler = new OAuth2AuthenticationSuccessHandler(
                 authService,
                 jwtProperties,
-                loginProperties,
-                failureHandler
+                loginProperties
         );
         Authentication authentication = mock(Authentication.class);
         when(authentication.getPrincipal()).thenReturn("invalid-principal");
@@ -204,14 +192,10 @@ class OAuth2AuthenticationSuccessHandlerTest {
         AuthService authService = mock(AuthService.class);
         JwtProperties jwtProperties = jwtProperties();
         OAuth2LoginProperties loginProperties = new OAuth2LoginProperties();
-        OAuth2AuthenticationFailureHandler failureHandler = new OAuth2AuthenticationFailureHandler(
-                loginProperties
-        );
         OAuth2AuthenticationSuccessHandler handler = new OAuth2AuthenticationSuccessHandler(
                 authService,
                 jwtProperties,
-                loginProperties,
-                failureHandler
+                loginProperties
         );
         OAuthUser oauthUser = OAuthUser.of(
                 OAuthProvider.GITHUB,
@@ -256,17 +240,36 @@ class OAuth2AuthenticationSuccessHandlerTest {
         JwtProperties jwtProperties = jwtProperties();
         OAuth2LoginProperties loginProperties = new OAuth2LoginProperties();
         loginProperties.setSuccessRedirectUri(" ");
-        OAuth2AuthenticationFailureHandler failureHandler = new OAuth2AuthenticationFailureHandler(
-                loginProperties
-        );
 
         // when & then
         assertThatThrownBy(
                 () -> new OAuth2AuthenticationSuccessHandler(
                         authService,
                         jwtProperties,
-                        loginProperties,
-                        failureHandler
+                        loginProperties
+                )
+        ).isInstanceOfSatisfying(
+                AuthException.class,
+                exception -> assertThat(exception.getErrorCode())
+                        .isEqualTo(AuthErrorCode.OAUTH_CONFIGURATION_INVALID)
+        );
+    }
+
+    @Test
+    @DisplayName("OAuth 실패 redirect 설정이 비어 있으면 설정 예외를 발생시킨다")
+    void create_failure_blankFailureRedirectUri() {
+        // given
+        AuthService authService = mock(AuthService.class);
+        JwtProperties jwtProperties = jwtProperties();
+        OAuth2LoginProperties loginProperties = new OAuth2LoginProperties();
+        loginProperties.setFailureRedirectUri(" ");
+
+        // when & then
+        assertThatThrownBy(
+                () -> new OAuth2AuthenticationSuccessHandler(
+                        authService,
+                        jwtProperties,
+                        loginProperties
                 )
         ).isInstanceOfSatisfying(
                 AuthException.class,
