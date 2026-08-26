@@ -41,10 +41,10 @@ class AuthServiceTest {
                 oauthUser,
                 1L
         );
-        Member member = Member.create(
-                "octocat",
-                null
-        );
+        Member member = mock(Member.class);
+        when(member.getId()).thenReturn(1L);
+        when(member.getNickname()).thenReturn("octocat");
+        when(member.getProfileImageUrl()).thenReturn(null);
         when(
                 oauthIdentityService.findByProviderAndProviderUserId(
                         OAuthProvider.GITHUB,
@@ -172,10 +172,10 @@ class AuthServiceTest {
                 authTokenProvider
         );
         OAuthUser oauthUser = oauthUser();
-        Member member = Member.create(
-                "octocat",
-                null
-        );
+        Member member = mock(Member.class);
+        when(member.getId()).thenReturn(1L);
+        when(member.getNickname()).thenReturn("octocat");
+        when(member.getProfileImageUrl()).thenReturn(null);
         when(authTokenProvider.authenticateNickname("nickname-token")).thenReturn(oauthUser);
         when(
                 memberNicknameService.completeNickname(
@@ -199,10 +199,6 @@ class AuthServiceTest {
         // then
         assertThat(result).isEqualTo("access-token");
         verify(authTokenProvider).issue(authenticatedMember);
-        verify(
-                authTokenProvider,
-                never()
-        ).issue(member);
     }
 
     private OAuthUser oauthUser() {

@@ -3,11 +3,11 @@ package com.knot.backend.auth.application;
 import com.knot.backend.auth.domain.AuthErrorCode;
 import com.knot.backend.auth.domain.AuthException;
 import com.knot.backend.auth.domain.AuthTokenProvider;
+import com.knot.backend.auth.domain.AuthenticatedMember;
 import com.knot.backend.auth.domain.OAuthIdentity;
 import com.knot.backend.auth.domain.OAuthUser;
-import com.knot.backend.member.domain.Member;
 import com.knot.backend.member.application.MemberService;
-import java.util.Optional;
+import com.knot.backend.member.domain.Member;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -41,13 +41,23 @@ public class AuthService {
                 oauthUser,
                 nickname
         );
-        return authTokenProvider.issue(member);
+        AuthenticatedMember authenticatedMember = AuthenticatedMember.of(
+                member.getId(),
+                member.getNickname(),
+                member.getProfileImageUrl()
+        );
+        return authTokenProvider.issue(authenticatedMember);
     }
 
     private AuthLoginResult issueAccessToken(OAuthIdentity identity) {
-        Optional<Member> member = memberService.findById(identity.getMemberId());
-        Member authenticatedMember = member.orElseThrow(
-                () -> new AuthException(AuthErrorCode.MEMBER_NOT_FOUND_FOR_OAUTH_IDENTITY)
+        Member member = memberService.findById(identity.getMemberId())
+                .orElseThrow(
+                        () -> new AuthException(AuthErrorCode.MEMBER_NOT_FOUND_FOR_OAUTH_IDENTITY)
+                );
+        AuthenticatedMember authenticatedMember = AuthenticatedMember.of(
+                member.getId(),
+                member.getNickname(),
+                member.getProfileImageUrl()
         );
 
         return AuthLoginResult.authenticated(authTokenProvider.issue(authenticatedMember));

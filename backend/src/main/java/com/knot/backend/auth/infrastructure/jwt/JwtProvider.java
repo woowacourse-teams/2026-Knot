@@ -7,7 +7,6 @@ import com.knot.backend.auth.domain.AuthenticatedMember;
 import com.knot.backend.auth.domain.OAuthProvider;
 import com.knot.backend.auth.domain.OAuthUser;
 import com.knot.backend.global.config.JwtProperties;
-import com.knot.backend.member.domain.Member;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Duration;
@@ -61,21 +60,6 @@ public class JwtProvider implements AuthTokenProvider {
         timestampValidator.setAllowEmptyExpiryClaim(false);
         jwtDecoder.setJwtValidator(timestampValidator);
         this.decoder = jwtDecoder;
-    }
-
-    @Override
-    public String issue(Member member) {
-        if (member == null || member.getId() == null) {
-            throw new AuthException(AuthErrorCode.INVALID_AUTHENTICATED_MEMBER);
-        }
-
-        return issue(
-                AuthenticatedMember.of(
-                        member.getId(),
-                        member.getNickname(),
-                        member.getProfileImageUrl()
-                )
-        );
     }
 
     @Override

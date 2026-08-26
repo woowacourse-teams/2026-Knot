@@ -11,7 +11,6 @@ import com.knot.backend.auth.domain.AuthenticatedMember;
 import com.knot.backend.auth.domain.OAuthProvider;
 import com.knot.backend.auth.domain.OAuthUser;
 import com.knot.backend.global.config.JwtProperties;
-import com.knot.backend.member.domain.Member;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -41,28 +40,6 @@ class JwtProviderTest {
 
         // then
         assertThat(result).isEqualTo(member);
-    }
-
-    @Test
-    @DisplayName("식별자가 있는 member 정보로 JWT를 발급한다")
-    void issueMember_success() {
-        // given
-        JwtProvider provider = new JwtProvider(
-                properties(Duration.ofHours(1)),
-                Clock.systemUTC()
-        );
-        Member member = mock(Member.class);
-        when(member.getId()).thenReturn(1L);
-        when(member.getNickname()).thenReturn("octocat");
-
-        // when
-        String token = provider.issue(member);
-
-        // then
-        assertThat(
-                provider.authenticate(token)
-                        .getMemberId()
-        ).isEqualTo(1L);
     }
 
     @Test
