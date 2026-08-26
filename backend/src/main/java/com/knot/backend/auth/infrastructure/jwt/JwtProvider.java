@@ -32,8 +32,6 @@ public class JwtProvider implements AuthTokenProvider {
     private static final MacAlgorithm MAC_ALGORITHM = MacAlgorithm.HS256;
     private static final String HMAC_ALGORITHM = "HmacSHA256";
     private static final int MINIMUM_SECRET_BYTES = 32;
-    private static final String ISSUER = "https://knot.local";
-    private static final String AUDIENCE = "knot-api";
     private static final String ACCESS_TOKEN_TYPE = "ACCESS";
     private static final String NICKNAME_TOKEN_TYPE = "NICKNAME";
     private final JwtProperties properties;
@@ -109,8 +107,8 @@ public class JwtProvider implements AuthTokenProvider {
         Instant issuedAt = Instant.now(clock);
         JwtClaimsSet.Builder claimsBuilder = JwtClaimsSet.builder()
                 .subject(oauthUser.getExternalId())
-                .issuer(ISSUER)
-                .audience(List.of(AUDIENCE))
+                .issuer(properties.getIssuer())
+                .audience(List.of(properties.getAudience()))
                 .issuedAt(issuedAt)
                 .expiresAt(issuedAt.plus(properties.getNicknameTokenExpiration()))
                 .claim(
@@ -215,6 +213,11 @@ public class JwtProvider implements AuthTokenProvider {
                         .isNegative()) {
             throw new AuthException(AuthErrorCode.JWT_CONFIGURATION_INVALID);
         }
+        if (properties.getIssuer() == null || properties.getIssuer()
+                .isBlank() || properties.getAudience() == null || properties.getAudience()
+                        .isBlank()) {
+            throw new AuthException(AuthErrorCode.JWT_CONFIGURATION_INVALID);
+        }
         validateCookieName(
                 properties.getCookieName(),
                 properties.isSecure()
@@ -288,8 +291,8 @@ public class JwtProvider implements AuthTokenProvider {
     ) {
         return JwtClaimsSet.builder()
                 .subject(String.valueOf(member.getMemberId()))
-                .issuer(ISSUER)
-                .audience(List.of(AUDIENCE))
+                .issuer(properties.getIssuer())
+                .audience(List.of(properties.getAudience()))
                 .issuedAt(issuedAt)
                 .expiresAt(issuedAt.plus(properties.getExpiration()))
                 .claim(
@@ -313,8 +316,9 @@ public class JwtProvider implements AuthTokenProvider {
 
     private void validateTokenClaims(Jwt jwt) {
         List<String> audience = jwt.getAudience();
-        if (!ISSUER.equals(jwt.getClaimAsString("iss")) || audience == null
-                || !audience.contains(AUDIENCE)) {
+        if (!properties.getIssuer()
+                .equals(jwt.getClaimAsString("iss")) || audience == null
+                || !audience.contains(properties.getAudience())) {
             throw new AuthException(AuthErrorCode.INVALID_JWT);
         }
     }
