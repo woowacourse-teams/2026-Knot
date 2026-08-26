@@ -11,12 +11,19 @@ import com.knot.backend.auth.domain.AuthenticatedMember;
 import com.knot.backend.auth.domain.OAuthProvider;
 import com.knot.backend.auth.domain.OAuthUser;
 import com.knot.backend.global.config.JwtProperties;
+import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 
 class JwtProviderTest {
 
@@ -65,6 +72,29 @@ class JwtProviderTest {
     }
 
     @Test
+    @DisplayName("신규 사용자 JWT의 token_type은 ONBOARDING이다")
+    void issueNickname_success_onboardingTokenType() {
+        // given
+        JwtProperties properties = properties(Duration.ofHours(1));
+        JwtProvider provider = new JwtProvider(
+                properties,
+                Clock.systemUTC()
+        );
+        OAuthUser oauthUser = OAuthUser.of(
+                OAuthProvider.GITHUB,
+                "42",
+                null
+        );
+
+        // when
+        String token = provider.issueNickname(oauthUser);
+        Jwt jwt = decoder(properties).decode(token);
+
+        // then
+        assertThat(jwt.getClaimAsString("token_type")).isEqualTo("ONBOARDING");
+    }
+
+    @Test
     @DisplayName("닉네임 토큰은 일반 인증 주체로 인증하지 않는다")
     void authenticate_failure_nicknameToken() {
         // given
@@ -81,6 +111,30 @@ class JwtProviderTest {
 
         // when & then
         assertThatThrownBy(() -> provider.authenticate(token)).isInstanceOfSatisfying(
+                AuthException.class,
+                exception -> assertThat(exception.getErrorCode())
+                        .isEqualTo(AuthErrorCode.INVALID_JWT)
+        );
+    }
+
+    @Test
+    @DisplayName("access token은 온보딩 인증 주체로 인증하지 않는다")
+    void authenticateNickname_failure_accessToken() {
+        // given
+        JwtProvider provider = new JwtProvider(
+                properties(Duration.ofHours(1)),
+                Clock.systemUTC()
+        );
+        String accessToken = provider.issue(
+                AuthenticatedMember.of(
+                        1L,
+                        "octocat",
+                        null
+                )
+        );
+
+        // when & then
+        assertThatThrownBy(() -> provider.authenticateNickname(accessToken)).isInstanceOfSatisfying(
                 AuthException.class,
                 exception -> assertThat(exception.getErrorCode())
                         .isEqualTo(AuthErrorCode.INVALID_JWT)
@@ -336,5 +390,16 @@ class JwtProviderTest {
         properties.setCookieName("KNOT_ACCESS_TOKEN");
         properties.setSecure(false);
         return properties;
+    }
+
+    private JwtDecoder decoder(JwtProperties properties) {
+        SecretKey secretKey = new SecretKeySpec(
+                properties.getSecret()
+                        .getBytes(StandardCharsets.UTF_8),
+                "HmacSHA256"
+        );
+        return NimbusJwtDecoder.withSecretKey(secretKey)
+                .macAlgorithm(MacAlgorithm.HS256)
+                .build();
     }
 }
