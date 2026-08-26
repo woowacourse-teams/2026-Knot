@@ -18,8 +18,6 @@ class GithubUserAttributesTest {
         Map<String, Object> attributes = Map.of(
                 "id",
                 42L,
-                "login",
-                "octocat",
                 "avatar_url",
                 "https://example.com/avatar"
         );
@@ -29,7 +27,6 @@ class GithubUserAttributesTest {
 
         // then
         assertThat(result.id()).isEqualTo(42L);
-        assertThat(result.login()).isEqualTo("octocat");
         assertThat(result.avatarUrl()).isEqualTo("https://example.com/avatar");
     }
 
@@ -39,9 +36,7 @@ class GithubUserAttributesTest {
         // given
         Map<String, Object> attributes = Map.of(
                 "id",
-                "42",
-                "login",
-                "octocat"
+                "42"
         );
 
         // when & then

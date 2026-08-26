@@ -8,6 +8,8 @@ import static org.mockito.Mockito.when;
 import com.knot.backend.auth.domain.AuthErrorCode;
 import com.knot.backend.auth.domain.AuthException;
 import com.knot.backend.auth.domain.AuthenticatedMember;
+import com.knot.backend.auth.domain.OAuthProvider;
+import com.knot.backend.auth.domain.OAuthUser;
 import com.knot.backend.global.config.JwtProperties;
 import com.knot.backend.member.domain.Member;
 import java.time.Clock;
@@ -29,7 +31,6 @@ class JwtProviderTest {
         );
         AuthenticatedMember member = AuthenticatedMember.of(
                 1L,
-                42L,
                 "octocat",
                 "https://example.com/avatar"
         );
@@ -52,7 +53,6 @@ class JwtProviderTest {
         );
         Member member = mock(Member.class);
         when(member.getId()).thenReturn(1L);
-        when(member.getGithubId()).thenReturn(42L);
         when(member.getNickname()).thenReturn("octocat");
 
         // when
@@ -63,6 +63,51 @@ class JwtProviderTest {
                 provider.authenticate(token)
                         .getMemberId()
         ).isEqualTo(1L);
+    }
+
+    @Test
+    @DisplayName("OAuth 사용자 정보로 닉네임 토큰을 발급하고 다시 복원한다")
+    void issueAndAuthenticateNickname_success() {
+        // given
+        JwtProvider provider = new JwtProvider(
+                properties(Duration.ofHours(1)),
+                Clock.systemUTC()
+        );
+        OAuthUser oauthUser = OAuthUser.of(
+                OAuthProvider.GITHUB,
+                "42",
+                "https://example.com/avatar"
+        );
+
+        // when
+        String token = provider.issueNickname(oauthUser);
+        OAuthUser result = provider.authenticateNickname(token);
+
+        // then
+        assertThat(result).isEqualTo(oauthUser);
+    }
+
+    @Test
+    @DisplayName("닉네임 토큰은 일반 인증 주체로 인증하지 않는다")
+    void authenticate_failure_nicknameToken() {
+        // given
+        JwtProvider provider = new JwtProvider(
+                properties(Duration.ofHours(1)),
+                Clock.systemUTC()
+        );
+        OAuthUser oauthUser = OAuthUser.of(
+                OAuthProvider.GITHUB,
+                "42",
+                null
+        );
+        String token = provider.issueNickname(oauthUser);
+
+        // when & then
+        assertThatThrownBy(() -> provider.authenticate(token)).isInstanceOfSatisfying(
+                AuthException.class,
+                exception -> assertThat(exception.getErrorCode())
+                        .isEqualTo(AuthErrorCode.INVALID_JWT)
+        );
     }
 
     @Test
@@ -82,7 +127,6 @@ class JwtProviderTest {
         );
         AuthenticatedMember member = AuthenticatedMember.of(
                 1L,
-                42L,
                 "octocat",
                 null
         );
@@ -118,6 +162,26 @@ class JwtProviderTest {
     @DisplayName("JWT expiration이 0이면 커스텀 설정 예외를 발생시킨다")
     void create_failure_zeroExpiration() {
         JwtProperties properties = properties(Duration.ZERO);
+
+        // when & then
+        assertThatThrownBy(
+                () -> new JwtProvider(
+                        properties,
+                        Clock.systemUTC()
+                )
+        ).isInstanceOfSatisfying(
+                AuthException.class,
+                exception -> assertThat(exception.getErrorCode())
+                        .isEqualTo(AuthErrorCode.JWT_CONFIGURATION_INVALID)
+        );
+    }
+
+    @Test
+    @DisplayName("닉네임 토큰 만료 시간이 0이면 커스텀 설정 예외를 발생시킨다")
+    void create_failure_zeroNicknameTokenExpiration() {
+        // given
+        JwtProperties properties = properties(Duration.ofHours(1));
+        properties.setNicknameTokenExpiration(Duration.ZERO);
 
         // when & then
         assertThatThrownBy(
@@ -188,7 +252,6 @@ class JwtProviderTest {
         );
         AuthenticatedMember member = AuthenticatedMember.of(
                 1L,
-                42L,
                 "octocat",
                 null
         );

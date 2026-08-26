@@ -33,8 +33,6 @@ class GithubOAuth2UserServiceTest {
                 Map.of(
                         "id",
                         42L,
-                        "login",
-                        "octocat",
                         "avatar_url",
                         "https://example.com/avatar"
                 )
@@ -52,11 +50,7 @@ class GithubOAuth2UserServiceTest {
         assertThat(
                 githubUser.getOAuthUser()
                         .getExternalId()
-        ).isEqualTo(42L);
-        assertThat(
-                githubUser.getOAuthUser()
-                        .getNickname()
-        ).isEqualTo("octocat");
+        ).isEqualTo("42");
     }
 
     @Test
@@ -82,9 +76,7 @@ class GithubOAuth2UserServiceTest {
         when(user.getAttributes()).thenReturn(
                 Map.of(
                         "id",
-                        "not-a-number",
-                        "login",
-                        "octocat"
+                        "not-a-number"
                 )
         );
         when(delegate.loadUser(request)).thenReturn(user);

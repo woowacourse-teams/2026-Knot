@@ -5,6 +5,7 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 
 import com.knot.backend.auth.domain.OAuthUser;
+import com.knot.backend.auth.domain.OAuthProvider;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
@@ -20,8 +21,8 @@ class GithubOAuth2UserTest {
     void create_success() {
         // given
         OAuthUser oauthUser = OAuthUser.of(
-                42L,
-                "octocat",
+                OAuthProvider.GITHUB,
+                "42",
                 "https://example.com/avatar"
         );
         OAuth2User delegate = mock(OAuth2User.class);
@@ -31,9 +32,7 @@ class GithubOAuth2UserTest {
         doReturn(
                 Map.of(
                         "id",
-                        42L,
-                        "login",
-                        "octocat"
+                        42L
                 )
         ).when(delegate)
                 .getAttributes();

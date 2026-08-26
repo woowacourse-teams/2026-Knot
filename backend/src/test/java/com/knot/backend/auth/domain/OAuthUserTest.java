@@ -9,13 +9,42 @@ import org.junit.jupiter.api.Test;
 class OAuthUserTest {
 
     @Test
-    @DisplayName("OAuth 사용자 ID가 유효하지 않으면 커스텀 예외를 발생시킨다")
-    void create_failure_invalidExternalId() {
+    @DisplayName("유효한 OAuth 사용자 정보를 생성한다")
+    void create_success() {
+        // when
+        OAuthUser user = OAuthUser.of(
+                OAuthProvider.GITHUB,
+                "42",
+                "https://example.com/avatar"
+        );
+
+        // then
+        assertThat(user.getProvider()).isEqualTo(OAuthProvider.GITHUB);
+        assertThat(user.getExternalId()).isEqualTo("42");
+        assertThat(user.getProfileImageUrl()).isEqualTo("https://example.com/avatar");
+    }
+
+    @Test
+    @DisplayName("OAuth provider가 없으면 커스텀 예외를 발생시킨다")
+    void create_failure_nullProvider() {
         // when & then
         assertThatThrownBy(
                 () -> OAuthUser.of(
-                        0L,
-                        "octocat",
+                        null,
+                        "42",
+                        null
+                )
+        ).isInstanceOf(AuthException.class);
+    }
+
+    @Test
+    @DisplayName("OAuth 외부 ID가 비어 있으면 커스텀 예외를 발생시킨다")
+    void create_failure_blankExternalId() {
+        // when & then
+        assertThatThrownBy(
+                () -> OAuthUser.of(
+                        OAuthProvider.GITHUB,
+                        " ",
                         null
                 )
         ).isInstanceOfSatisfying(
@@ -26,26 +55,13 @@ class OAuthUserTest {
     }
 
     @Test
-    @DisplayName("OAuth 닉네임이 비어 있으면 커스텀 예외를 발생시킨다")
-    void create_failure_blankNickname() {
+    @DisplayName("OAuth 외부 ID가 null이면 커스텀 예외를 발생시킨다")
+    void create_failure_nullExternalId() {
         // when & then
         assertThatThrownBy(
                 () -> OAuthUser.of(
-                        42L,
-                        " ",
-                        null
-                )
-        ).isInstanceOf(AuthException.class);
-    }
-
-    @Test
-    @DisplayName("OAuth 닉네임이 20자를 초과하면 커스텀 예외를 발생시킨다")
-    void create_failure_overlongNickname() {
-        // when & then
-        assertThatThrownBy(
-                () -> OAuthUser.of(
-                        42L,
-                        "a".repeat(21),
+                        OAuthProvider.GITHUB,
+                        null,
                         null
                 )
         ).isInstanceOf(AuthException.class);
@@ -57,8 +73,8 @@ class OAuthUserTest {
         // when & then
         assertThatThrownBy(
                 () -> OAuthUser.of(
-                        42L,
-                        "octocat",
+                        OAuthProvider.GITHUB,
+                        "42",
                         " "
                 )
         ).isInstanceOf(AuthException.class);
@@ -70,8 +86,8 @@ class OAuthUserTest {
         // when & then
         assertThatThrownBy(
                 () -> OAuthUser.of(
-                        42L,
-                        "octocat",
+                        OAuthProvider.GITHUB,
+                        "42",
                         "a".repeat(501)
                 )
         ).isInstanceOf(AuthException.class);

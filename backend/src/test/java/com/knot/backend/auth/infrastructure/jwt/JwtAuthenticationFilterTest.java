@@ -48,7 +48,6 @@ class JwtAuthenticationFilterTest {
         // given
         AuthenticatedMember expected = AuthenticatedMember.of(
                 1L,
-                42L,
                 "octocat",
                 "https://example.com/avatar"
         );

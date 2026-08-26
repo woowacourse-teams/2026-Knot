@@ -10,8 +10,10 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.knot.backend.auth.application.AuthService;
+import com.knot.backend.auth.application.AuthLoginResult;
 import com.knot.backend.auth.domain.AuthErrorCode;
 import com.knot.backend.auth.domain.AuthException;
+import com.knot.backend.auth.domain.OAuthProvider;
 import com.knot.backend.auth.domain.OAuthUser;
 import com.knot.backend.auth.infrastructure.github.GithubOAuth2User;
 import com.knot.backend.global.config.JwtProperties;
@@ -48,8 +50,8 @@ class OAuth2AuthenticationSuccessHandlerTest {
                 failureHandler
         );
         OAuthUser oauthUser = OAuthUser.of(
-                42L,
-                "octocat",
+                OAuthProvider.GITHUB,
+                "42",
                 null
         );
         OAuth2User delegate = mock(OAuth2User.class);
@@ -67,7 +69,7 @@ class OAuth2AuthenticationSuccessHandlerTest {
         );
         Authentication authentication = mock(Authentication.class);
         when(authentication.getPrincipal()).thenReturn(githubUser);
-        when(authService.login(oauthUser)).thenReturn("jwt-token");
+        when(authService.login(oauthUser)).thenReturn(AuthLoginResult.authenticated("jwt-token"));
         MockHttpServletRequest request = new MockHttpServletRequest();
         MockHttpServletResponse response = new MockHttpServletResponse();
 
@@ -88,6 +90,61 @@ class OAuth2AuthenticationSuccessHandlerTest {
         assertThat(cookie.getPath()).isEqualTo("/");
         assertThat(cookie.getMaxAge()).isEqualTo(3600);
         assertThat(response.getHeader("Set-Cookie")).contains("SameSite=Lax");
+    }
+
+    @Test
+    @DisplayName("처음 OAuth 인증한 사용자는 닉네임 쿠키를 발급하고 닉네임 페이지로 redirect한다")
+    void onAuthenticationSuccess_nickname_redirectsToNickname() throws Exception {
+        // given
+        AuthService authService = mock(AuthService.class);
+        JwtProperties jwtProperties = jwtProperties();
+        OAuth2LoginProperties loginProperties = new OAuth2LoginProperties();
+        loginProperties.setNicknameRedirectUri("/nickname");
+        OAuth2AuthenticationFailureHandler failureHandler = new OAuth2AuthenticationFailureHandler(
+                loginProperties
+        );
+        OAuth2AuthenticationSuccessHandler handler = new OAuth2AuthenticationSuccessHandler(
+                authService,
+                jwtProperties,
+                loginProperties,
+                failureHandler
+        );
+        OAuthUser oauthUser = OAuthUser.of(
+                OAuthProvider.GITHUB,
+                "42",
+                null
+        );
+        OAuth2User delegate = mock(OAuth2User.class);
+        doReturn(List.of(new SimpleGrantedAuthority("ROLE_USER"))).when(delegate)
+                .getAuthorities();
+        when(delegate.getAttributes()).thenReturn(
+                Map.of(
+                        "id",
+                        42L
+                )
+        );
+        GithubOAuth2User githubUser = GithubOAuth2User.of(
+                oauthUser,
+                delegate
+        );
+        Authentication authentication = mock(Authentication.class);
+        when(authentication.getPrincipal()).thenReturn(githubUser);
+        when(authService.login(oauthUser)).thenReturn(AuthLoginResult.nickname("nickname-token"));
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        // when
+        handler.onAuthenticationSuccess(
+                new MockHttpServletRequest(),
+                response,
+                authentication
+        );
+
+        // then
+        assertThat(response.getRedirectedUrl()).isEqualTo("/nickname");
+        Cookie cookie = response.getCookie("KNOT_NICKNAME_TOKEN");
+        assertThat(cookie).isNotNull();
+        assertThat(cookie.getValue()).isEqualTo("nickname-token");
+        assertThat(response.getCookie("KNOT_ACCESS_TOKEN")).isNull();
     }
 
     @Test
@@ -142,8 +199,8 @@ class OAuth2AuthenticationSuccessHandlerTest {
                 failureHandler
         );
         OAuthUser oauthUser = OAuthUser.of(
-                42L,
-                "octocat",
+                OAuthProvider.GITHUB,
+                "42",
                 null
         );
         OAuth2User delegate = mock(OAuth2User.class);

@@ -70,7 +70,6 @@ class KnotApplicationTests {
         // given
         AuthenticatedMember member = AuthenticatedMember.of(
                 1L,
-                42L,
                 "octocat",
                 "https://example.com/avatar"
         );
@@ -89,7 +88,6 @@ class KnotApplicationTests {
         // then
         result.andExpect(status().isOk())
                 .andExpect(jsonPath("$.memberId").value(1))
-                .andExpect(jsonPath("$.githubId").value(42))
                 .andExpect(jsonPath("$.nickname").value("octocat"))
                 .andExpect(jsonPath("$.profileImageUrl").value("https://example.com/avatar"));
     }
@@ -130,7 +128,6 @@ class KnotApplicationTests {
         // given
         AuthenticatedMember member = AuthenticatedMember.of(
                 1L,
-                42L,
                 "octocat",
                 null
         );
