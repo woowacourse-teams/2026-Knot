@@ -7,6 +7,8 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.knot.backend.auth.application.dto.CompleteNicknameCommand;
+import com.knot.backend.auth.application.dto.result.AuthLoginResult;
 import com.knot.backend.auth.domain.AuthErrorCode;
 import com.knot.backend.auth.domain.AuthException;
 import com.knot.backend.auth.domain.AuthTokenProvider;
@@ -63,7 +65,7 @@ class AuthServiceTest {
         AuthLoginResult result = service.login(oauthUser);
 
         // then
-        assertThat(result.getToken()).isEqualTo("access-token");
+        assertThat(result.token()).isEqualTo("access-token");
         assertThat(result.requiresNickname()).isFalse();
         verify(authTokenProvider).issue(authenticatedMember);
         verify(
@@ -99,7 +101,7 @@ class AuthServiceTest {
         AuthLoginResult result = service.login(oauthUser);
 
         // then
-        assertThat(result.getToken()).isEqualTo("nickname-token");
+        assertThat(result.token()).isEqualTo("nickname-token");
         assertThat(result.requiresNickname()).isTrue();
         verify(
                 memberService,
@@ -161,7 +163,7 @@ class AuthServiceTest {
 
     @Test
     @DisplayName("닉네임 토큰과 닉네임으로 member를 생성하고 access token을 발급한다")
-    void completeNickname_success() {
+    void completeNicknameSetup_success() {
         // given
         AuthTokenProvider authTokenProvider = mock(AuthTokenProvider.class);
         MemberNicknameService memberNicknameService = mock(MemberNicknameService.class);
@@ -178,7 +180,7 @@ class AuthServiceTest {
         when(member.getProfileImageUrl()).thenReturn(null);
         when(authTokenProvider.authenticateNickname("nickname-token")).thenReturn(oauthUser);
         when(
-                memberNicknameService.completeNickname(
+                memberNicknameService.completeNicknameSetup(
                         oauthUser,
                         "octocat"
                 )
@@ -191,9 +193,11 @@ class AuthServiceTest {
         when(authTokenProvider.issue(authenticatedMember)).thenReturn("access-token");
 
         // when
-        String result = service.completeNickname(
-                "nickname-token",
-                "octocat"
+        String result = service.completeNicknameSetup(
+                new CompleteNicknameCommand(
+                        "nickname-token",
+                        "octocat"
+                )
         );
 
         // then

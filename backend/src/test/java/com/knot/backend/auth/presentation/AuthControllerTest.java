@@ -5,6 +5,7 @@ import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.mock;
 
 import com.knot.backend.auth.application.AuthService;
+import com.knot.backend.auth.application.dto.CompleteNicknameCommand;
 import com.knot.backend.auth.domain.AuthenticatedMember;
 import com.knot.backend.auth.presentation.dto.request.CompleteNicknameRequest;
 import com.knot.backend.auth.presentation.dto.response.AuthenticatedMemberResponse;
@@ -42,7 +43,7 @@ class AuthControllerTest {
 
     @Test
     @DisplayName("닉네임 설정 요청이 성공하면 access token을 발급하고 닉네임 쿠키를 만료시킨다")
-    void completeNickname_success() {
+    void completeNicknameSetup_success() {
         // given
         AuthService authService = mock(AuthService.class);
         JwtProperties jwtProperties = new JwtProperties();
@@ -55,9 +56,11 @@ class AuthControllerTest {
                 new AuthCookieManager(jwtProperties)
         );
         when(
-                authService.completeNickname(
-                        "nickname-token",
-                        "octocat"
+                authService.completeNicknameSetup(
+                        new CompleteNicknameCommand(
+                                "nickname-token",
+                                "octocat"
+                        )
                 )
         ).thenReturn("access-token");
         MockHttpServletResponse response = new MockHttpServletResponse();

@@ -22,7 +22,7 @@ class MemberNicknameServiceTest {
 
     @Test
     @DisplayName("닉네임을 입력하면 member와 OAuth identity 저장을 요청한다")
-    void completeNickname_success() {
+    void completeNicknameSetup_success() {
         // given
         MemberService memberService = mock(MemberService.class);
         OAuthIdentityService oauthIdentityService = mock(OAuthIdentityService.class);
@@ -41,7 +41,7 @@ class MemberNicknameServiceTest {
         ).thenReturn(member);
 
         // when
-        Member result = service.completeNickname(
+        Member result = service.completeNicknameSetup(
                 oauthUser,
                 "octocat"
         );
@@ -63,7 +63,7 @@ class MemberNicknameServiceTest {
 
         // when & then
         assertThatThrownBy(
-                () -> service.completeNickname(
+                () -> service.completeNicknameSetup(
                         null,
                         "octocat"
                 )

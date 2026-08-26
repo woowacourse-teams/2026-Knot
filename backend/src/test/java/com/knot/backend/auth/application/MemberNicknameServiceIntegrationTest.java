@@ -44,9 +44,9 @@ class MemberNicknameServiceIntegrationTest {
 
     @Test
     @DisplayName("닉네임 설정을 완료하면 member와 OAuth identity를 함께 저장한다")
-    void complete_success_savesMemberAndIdentity() {
+    void completeNicknameSetup_success_savesMemberAndIdentity() {
         // when
-        memberNicknameService.completeNickname(
+        memberNicknameService.completeNicknameSetup(
                 oauthUser(),
                 "octocat"
         );
@@ -58,10 +58,10 @@ class MemberNicknameServiceIntegrationTest {
 
     @Test
     @DisplayName("유효하지 않은 닉네임이면 member와 OAuth identity를 저장하지 않는다")
-    void complete_failure_invalidNickname_rollsBack() {
+    void completeNicknameSetup_failure_invalidNickname_rollsBack() {
         // when & then
         assertThatThrownBy(
-                () -> memberNicknameService.completeNickname(
+                () -> memberNicknameService.completeNicknameSetup(
                         oauthUser(),
                         " "
                 )
@@ -72,16 +72,16 @@ class MemberNicknameServiceIntegrationTest {
 
     @Test
     @DisplayName("같은 OAuth 사용자가 다시 닉네임을 설정하면 중복 예외가 발생하고 추가 저장하지 않는다")
-    void complete_failure_duplicateIdentity_rollsBack() {
+    void completeNicknameSetup_failure_duplicateIdentity_rollsBack() {
         // given
-        memberNicknameService.completeNickname(
+        memberNicknameService.completeNicknameSetup(
                 oauthUser(),
                 "octocat"
         );
 
         // when & then
         assertThatThrownBy(
-                () -> memberNicknameService.completeNickname(
+                () -> memberNicknameService.completeNicknameSetup(
                         oauthUser(),
                         "other"
                 )

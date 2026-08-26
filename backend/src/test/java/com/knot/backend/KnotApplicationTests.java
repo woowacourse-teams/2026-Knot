@@ -185,7 +185,7 @@ class KnotApplicationTests {
 
     @Test
     @DisplayName("CSRF 쿠키와 헤더가 있으면 닉네임 설정 요청이 실제 보안 필터를 통과한다")
-    void completeNickname_success_withCookieCsrfToken() throws Exception {
+    void completeNicknameSetup_success_withCookieCsrfToken() throws Exception {
         // given
         MvcResult csrfResult = mockMvc.perform(get("/auth/me"))
                 .andReturn();
@@ -228,7 +228,7 @@ class KnotApplicationTests {
 
     @Test
     @DisplayName("닉네임 설정 요청은 CSRF 토큰이 없으면 거부한다")
-    void completeNickname_failure_missingCsrfToken() throws Exception {
+    void completeNicknameSetup_failure_missingCsrfToken() throws Exception {
         // given
         String nicknameToken = authTokenProvider.issueNickname(
                 OAuthUser.of(

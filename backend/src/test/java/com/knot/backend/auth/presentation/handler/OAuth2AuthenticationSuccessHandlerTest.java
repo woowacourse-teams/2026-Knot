@@ -10,7 +10,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.knot.backend.auth.application.AuthService;
-import com.knot.backend.auth.application.AuthLoginResult;
+import com.knot.backend.auth.application.dto.result.AuthLoginResult;
 import com.knot.backend.auth.domain.AuthErrorCode;
 import com.knot.backend.auth.domain.AuthException;
 import com.knot.backend.auth.domain.OAuthProvider;
@@ -137,7 +137,8 @@ class OAuth2AuthenticationSuccessHandlerTest {
         );
         Authentication authentication = mock(Authentication.class);
         when(authentication.getPrincipal()).thenReturn(githubUser);
-        when(authService.login(oauthUser)).thenReturn(AuthLoginResult.nickname("nickname-token"));
+        when(authService.login(oauthUser))
+                .thenReturn(AuthLoginResult.nicknameSetupRequired("nickname-token"));
         MockHttpServletResponse response = new MockHttpServletResponse();
 
         // when
