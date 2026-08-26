@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.knot.backend.global.config.JwtProperties;
 import java.time.Duration;
+import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpServletRequest;
@@ -30,10 +31,24 @@ class JwtLogoutHandlerTest {
         );
 
         // then
-        assertThat(response.getHeader("Set-Cookie")).contains("KNOT_ACCESS_TOKEN=")
-                .contains("Max-Age=0")
-                .contains("Path=/")
-                .contains("HttpOnly")
-                .contains("SameSite=Lax");
+        List<String> cookies = response.getHeaders("Set-Cookie");
+        assertThat(cookies).anySatisfy(
+                cookie -> assertThat(cookie).contains(
+                        "KNOT_ACCESS_TOKEN=",
+                        "Max-Age=0",
+                        "Path=/",
+                        "HttpOnly",
+                        "SameSite=Lax"
+                )
+        );
+        assertThat(cookies).anySatisfy(
+                cookie -> assertThat(cookie).contains(
+                        "KNOT_NICKNAME_TOKEN=",
+                        "Max-Age=0",
+                        "Path=/",
+                        "HttpOnly",
+                        "SameSite=Lax"
+                )
+        );
     }
 }
