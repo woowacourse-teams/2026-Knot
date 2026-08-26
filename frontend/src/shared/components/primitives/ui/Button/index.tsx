@@ -15,6 +15,9 @@ export type ButtonSize = "lg" | "md" | "sm";
 export type ButtonVariant = "filled" | "outline";
 type ButtonStatus = "active" | "loading" | "inactive";
 
+type ButtonSizeToken =
+  "paddingX" | "paddingY" | "borderRadius" | "gap" | "iconSize" | "spinnerSize";
+
 const BUTTON_SIZE = {
   lg: {
     paddingX: "1.25rem" /* 20px */,
@@ -40,7 +43,7 @@ const BUTTON_SIZE = {
     iconSize: "1rem" /* 16px */,
     spinnerSize: "1.25rem" /* 20px */,
   },
-} as const satisfies Record<ButtonSize, Record<string, string>>;
+} as const satisfies Record<ButtonSize, Record<ButtonSizeToken, string>>;
 
 const buttonAppearance = (theme: Theme) => {
   return {
