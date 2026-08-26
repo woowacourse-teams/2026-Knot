@@ -19,6 +19,7 @@ import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.TestConstructor;
 import org.springframework.test.context.TestConstructor.AutowireMode;
@@ -124,5 +125,23 @@ class OAuthIdentityRepositoryTest {
                 exception -> assertThat(exception.getErrorCode())
                         .isEqualTo(AuthErrorCode.NICKNAME_SETUP_ALREADY_COMPLETED)
         );
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 member 연결 오류는 중복 가입 오류로 변환하지 않는다")
+    void save_failure_missingMember_propagatesConstraintViolation() {
+        // given
+        OAuthIdentity identity = OAuthIdentity.create(
+                OAuthUser.of(
+                        OAuthProvider.GITHUB,
+                        "missing-member-user",
+                        null
+                ),
+                999999L
+        );
+
+        // when & then
+        assertThatThrownBy(() -> oauthIdentityRepository.save(identity))
+                .isInstanceOf(DataIntegrityViolationException.class);
     }
 }
