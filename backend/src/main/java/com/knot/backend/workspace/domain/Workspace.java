@@ -8,7 +8,9 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.Instant;
 import java.util.regex.Pattern;
+import lombok.Getter;
 
+@Getter
 @Entity
 @Table(name = "workspaces")
 public class Workspace {
@@ -45,18 +47,6 @@ public class Workspace {
                 name,
                 createdAt
         );
-    }
-
-    public Long getId() {
-        return id;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public Instant getCreatedAt() {
-        return createdAt;
     }
 
     private void validateName(String name) {

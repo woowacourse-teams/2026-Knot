@@ -9,7 +9,9 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.Instant;
+import lombok.Getter;
 
+@Getter
 @Entity
 @Table(name = "workspace_members")
 public class WorkspaceMember {
@@ -60,26 +62,6 @@ public class WorkspaceMember {
                 role,
                 joinedAt
         );
-    }
-
-    public Long getId() {
-        return id;
-    }
-
-    public Long getWorkspaceId() {
-        return workspaceId;
-    }
-
-    public Long getMemberId() {
-        return memberId;
-    }
-
-    public WorkspaceMemberRole getRole() {
-        return role;
-    }
-
-    public Instant getJoinedAt() {
-        return joinedAt;
     }
 
     private void validateWorkspaceId(Long workspaceId) {
