@@ -5,11 +5,13 @@ import com.knot.backend.auth.application.dto.command.CompleteNicknameCommand;
 import com.knot.backend.auth.domain.AuthenticatedMember;
 import com.knot.backend.auth.presentation.dto.request.CompleteNicknameRequest;
 import com.knot.backend.auth.presentation.dto.response.AuthenticatedMemberResponse;
+import com.knot.backend.auth.presentation.dto.response.CsrfTokenResponse;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.web.csrf.CsrfToken;
 import org.springframework.web.bind.annotation.CookieValue;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -29,6 +31,11 @@ public class AuthController {
             @AuthenticationPrincipal AuthenticatedMember authenticatedMember
     ) {
         return AuthenticatedMemberResponse.from(authenticatedMember);
+    }
+
+    @GetMapping("/csrf")
+    public CsrfTokenResponse csrf(CsrfToken csrfToken) {
+        return new CsrfTokenResponse(csrfToken.getToken());
     }
 
     @PostMapping("/nickname")
