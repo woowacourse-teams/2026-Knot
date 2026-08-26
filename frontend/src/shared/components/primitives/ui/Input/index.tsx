@@ -67,7 +67,7 @@ export default function Input({ status, ...props }: InputProps) {
 }
 
 const StyledInput = styled.input<{ $status: InputStatus }>`
-  padding: 0.96rem 1rem;
+  padding: 0.96875rem 1rem; /* 15.5px 16px */
   border: 1px solid;
   border-radius: 0.875rem;
   color: ${({ theme }) => theme.neutral[900]};
