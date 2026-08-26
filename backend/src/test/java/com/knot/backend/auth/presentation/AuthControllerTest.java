@@ -5,7 +5,7 @@ import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.mock;
 
 import com.knot.backend.auth.application.AuthService;
-import com.knot.backend.auth.application.dto.CompleteNicknameCommand;
+import com.knot.backend.auth.application.dto.command.CompleteNicknameCommand;
 import com.knot.backend.auth.domain.AuthenticatedMember;
 import com.knot.backend.auth.presentation.dto.request.CompleteNicknameRequest;
 import com.knot.backend.auth.presentation.dto.response.AuthenticatedMemberResponse;
@@ -66,7 +66,7 @@ class AuthControllerTest {
         MockHttpServletResponse response = new MockHttpServletResponse();
 
         // when
-        ResponseEntity<Void> result = controller.completeNickname(
+        ResponseEntity<Void> result = controller.completeNicknameSetup(
                 "nickname-token",
                 new CompleteNicknameRequest("octocat"),
                 response

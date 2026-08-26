@@ -1,6 +1,7 @@
 package com.knot.backend.auth.presentation;
 
 import com.knot.backend.auth.application.AuthService;
+import com.knot.backend.auth.application.dto.command.CompleteNicknameCommand;
 import com.knot.backend.auth.domain.AuthenticatedMember;
 import com.knot.backend.auth.presentation.dto.request.CompleteNicknameRequest;
 import com.knot.backend.auth.presentation.dto.response.AuthenticatedMemberResponse;
@@ -31,14 +32,16 @@ public class AuthController {
     }
 
     @PostMapping("/nickname")
-    public ResponseEntity<Void> completeNickname(
+    public ResponseEntity<Void> completeNicknameSetup(
             @CookieValue(name = "${auth.jwt.nickname-cookie-name}", required = false) String nicknameToken,
             @Valid @RequestBody CompleteNicknameRequest request,
             HttpServletResponse response
     ) {
-        String accessToken = authService.completeNickname(
-                nicknameToken,
-                request.nickname()
+        String accessToken = authService.completeNicknameSetup(
+                new CompleteNicknameCommand(
+                        nicknameToken,
+                        request.nickname()
+                )
         );
 
         authCookieManager.addAccessToken(

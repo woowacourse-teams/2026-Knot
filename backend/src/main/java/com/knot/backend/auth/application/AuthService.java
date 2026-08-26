@@ -1,5 +1,7 @@
 package com.knot.backend.auth.application;
 
+import com.knot.backend.auth.application.dto.command.CompleteNicknameCommand;
+import com.knot.backend.auth.application.dto.result.AuthLoginResult;
 import com.knot.backend.auth.domain.AuthErrorCode;
 import com.knot.backend.auth.domain.AuthException;
 import com.knot.backend.auth.domain.AuthTokenProvider;
@@ -32,14 +34,11 @@ public class AuthService {
                 .orElseGet(() -> issueNicknameToken(oauthUser));
     }
 
-    public String completeNickname(
-            String nicknameToken,
-            String nickname
-    ) {
-        OAuthUser oauthUser = authTokenProvider.authenticateNickname(nicknameToken);
-        Member member = memberNicknameService.completeNickname(
+    public String completeNicknameSetup(CompleteNicknameCommand command) {
+        OAuthUser oauthUser = authTokenProvider.authenticateNickname(command.nicknameToken());
+        Member member = memberNicknameService.completeNicknameSetup(
                 oauthUser,
-                nickname
+                command.nickname()
         );
         AuthenticatedMember authenticatedMember = AuthenticatedMember.of(
                 member.getId(),
@@ -64,6 +63,6 @@ public class AuthService {
     }
 
     private AuthLoginResult issueNicknameToken(OAuthUser oauthUser) {
-        return AuthLoginResult.nickname(authTokenProvider.issueNickname(oauthUser));
+        return AuthLoginResult.nicknameSetupRequired(authTokenProvider.issueNickname(oauthUser));
     }
 }

@@ -7,7 +7,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.knot.backend.auth.application.dto.CompleteNicknameCommand;
+import com.knot.backend.auth.application.dto.command.CompleteNicknameCommand;
 import com.knot.backend.auth.application.dto.result.AuthLoginResult;
 import com.knot.backend.auth.domain.AuthErrorCode;
 import com.knot.backend.auth.domain.AuthException;

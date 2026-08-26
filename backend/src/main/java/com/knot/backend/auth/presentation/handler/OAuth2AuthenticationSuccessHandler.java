@@ -1,7 +1,7 @@
 package com.knot.backend.auth.presentation.handler;
 
 import com.knot.backend.auth.application.AuthService;
-import com.knot.backend.auth.application.AuthLoginResult;
+import com.knot.backend.auth.application.dto.result.AuthLoginResult;
 import com.knot.backend.auth.domain.AuthErrorCode;
 import com.knot.backend.auth.domain.AuthException;
 import com.knot.backend.auth.infrastructure.github.GithubOAuth2User;
@@ -61,7 +61,7 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
             if (result.requiresNickname()) {
                 authCookieManager.addNicknameToken(
                         response,
-                        result.getToken()
+                        result.token()
                 );
                 clearAuthentication(request);
                 response.sendRedirect(loginProperties.getNicknameRedirectUri());
@@ -70,7 +70,7 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
 
             authCookieManager.addAccessToken(
                     response,
-                    result.getToken()
+                    result.token()
             );
             clearAuthentication(request);
             response.sendRedirect(loginProperties.getSuccessRedirectUri());

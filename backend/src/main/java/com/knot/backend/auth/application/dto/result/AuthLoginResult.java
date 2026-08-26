@@ -1,24 +1,16 @@
-package com.knot.backend.auth.application;
+package com.knot.backend.auth.application.dto.result;
 
 import com.knot.backend.auth.domain.AuthErrorCode;
 import com.knot.backend.auth.domain.AuthException;
-import lombok.Getter;
 
-@Getter
-public final class AuthLoginResult {
-    private final String token;
-    private final boolean nicknameRequired;
-
-    private AuthLoginResult(
-            String token,
-            boolean nicknameRequired
-    ) {
+public record AuthLoginResult(
+        String token,
+        boolean nicknameRequired
+) {
+    public AuthLoginResult {
         if (token == null || token.isBlank()) {
             throw new AuthException(AuthErrorCode.AUTHENTICATION_INTERNAL_ERROR);
         }
-
-        this.token = token;
-        this.nicknameRequired = nicknameRequired;
     }
 
     public static AuthLoginResult authenticated(String accessToken) {
@@ -28,7 +20,7 @@ public final class AuthLoginResult {
         );
     }
 
-    public static AuthLoginResult nickname(String nicknameToken) {
+    public static AuthLoginResult nicknameSetupRequired(String nicknameToken) {
         return new AuthLoginResult(
                 nicknameToken,
                 true

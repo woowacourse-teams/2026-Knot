@@ -17,7 +17,7 @@ public class MemberNicknameService {
     private final OAuthIdentityService oauthIdentityService;
 
     @Transactional
-    public Member completeNickname(
+    public Member completeNicknameSetup(
             OAuthUser oauthUser,
             String nickname
     ) {
