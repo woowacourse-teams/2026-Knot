@@ -14,6 +14,9 @@ interface TextFieldProps extends Omit<
 /**
  * 에러 메시지까지 함께 다루는 입력 필드.
  *
+ * 값과 에러 메시지로 입력창의 `status`를 계산해 넘기므로,
+ * `Input`은 상태 판단 없이 받은 status만 그려요.
+ *
  * `errorMessage`를 넘기면 입력창이 에러 스타일로 바뀌면서 아래에 메시지가 생기고,
  * 그 메시지는 `aria-describedby`로 입력창과 연결돼요.
  *
@@ -39,7 +42,7 @@ export default function TextField({
       <Input
         id={inputId}
         value={value}
-        isError={isError}
+        status={isError ? "error" : value.length > 0 ? "filled" : "empty"}
         aria-describedby={isError ? errorMessageId : undefined}
         {...props}
       />
