@@ -1,6 +1,5 @@
 package com.knot.backend.member.application;
 
-import com.knot.backend.auth.domain.OAuthUser;
 import com.knot.backend.member.domain.Member;
 import com.knot.backend.member.domain.MemberErrorCode;
 import com.knot.backend.member.domain.MemberException;
@@ -15,65 +14,43 @@ import org.springframework.transaction.annotation.Transactional;
 public class MemberService {
     private final MemberRepository memberRepository;
 
-    @Transactional
-    public Member login(OAuthUser oauthUser) {
-        validateOAuthUser(oauthUser);
-        Member member = Member.create(
-                oauthUser.getExternalId(),
-                oauthUser.getNickname(),
-                oauthUser.getProfileImageUrl()
-        );
-        memberRepository.insertIfAbsent(member);
-        Member loggedInMember = memberRepository.findByGithubId(member.getGithubId())
-                .orElseThrow(() -> new MemberException(MemberErrorCode.MEMBER_LOGIN_FAILED));
-        loggedInMember.updateProfile(
-                oauthUser.getExternalId(),
-                oauthUser.getNickname(),
-                oauthUser.getProfileImageUrl()
-        );
-        return memberRepository.save(loggedInMember);
-    }
-
     @Transactional(readOnly = true)
-    public Optional<Member> findByGithubId(long githubId) {
-        if (githubId <= 0) {
+    public Optional<Member> findById(long memberId) {
+        if (memberId <= 0) {
             throw new MemberException(MemberErrorCode.INVALID_MEMBER_DATA);
         }
-        return memberRepository.findByGithubId(githubId);
+
+        return memberRepository.findById(memberId);
     }
 
     @Transactional
-    public Member create(OAuthUser oauthUser) {
-        validateOAuthUser(oauthUser);
-        return memberRepository.save(
-                Member.create(
-                        oauthUser.getExternalId(),
-                        oauthUser.getNickname(),
-                        oauthUser.getProfileImageUrl()
-                )
+    public Member create(
+            String nickname,
+            String profileImageUrl
+    ) {
+        Member member = Member.create(
+                nickname,
+                profileImageUrl
         );
+
+        return memberRepository.save(member);
     }
 
     @Transactional
     public Member updateProfile(
             Member member,
-            OAuthUser oauthUser
+            String nickname,
+            String profileImageUrl
     ) {
         if (member == null) {
             throw new MemberException(MemberErrorCode.INVALID_MEMBER_DATA);
         }
-        validateOAuthUser(oauthUser);
-        member.updateProfile(
-                oauthUser.getExternalId(),
-                oauthUser.getNickname(),
-                oauthUser.getProfileImageUrl()
-        );
-        return memberRepository.save(member);
-    }
 
-    private void validateOAuthUser(OAuthUser oauthUser) {
-        if (oauthUser == null) {
-            throw new MemberException(MemberErrorCode.INVALID_MEMBER_DATA);
-        }
+        member.updateProfile(
+                nickname,
+                profileImageUrl
+        );
+
+        return memberRepository.save(member);
     }
 }

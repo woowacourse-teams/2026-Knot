@@ -9,21 +9,11 @@ import org.springframework.stereotype.Repository;
 @Repository
 @RequiredArgsConstructor
 public class MemberRepositoryImpl implements MemberRepository {
-
     private final MemberJpaRepository memberJpaRepository;
 
     @Override
-    public Optional<Member> findByGithubId(long githubId) {
-        return memberJpaRepository.findByGithubId(githubId);
-    }
-
-    @Override
-    public void insertIfAbsent(Member member) {
-        memberJpaRepository.insertIfAbsent(
-                member.getGithubId(),
-                member.getNickname(),
-                member.getProfileImageUrl()
-        );
+    public Optional<Member> findById(long memberId) {
+        return memberJpaRepository.findById(memberId);
     }
 
     @Override
