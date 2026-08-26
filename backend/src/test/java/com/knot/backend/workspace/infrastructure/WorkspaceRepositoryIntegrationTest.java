@@ -25,6 +25,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -42,11 +43,14 @@ class WorkspaceRepositoryIntegrationTest {
     private WorkspaceMemberRepository workspaceMemberRepository;
     @Autowired
     private EntityManager entityManager;
+    @Autowired
+    private JdbcClient jdbcClient;
 
     @DisplayName("워크스페이스와 멤버십을 저장하고 조회한다")
     @Test
     void saveAndFindWorkspaceAndMember() {
         // given
+        long memberId = saveMember(1L);
         Workspace workspace = saveAndFlush(
                 Workspace.create(
                         "Knot 팀",
@@ -55,7 +59,7 @@ class WorkspaceRepositoryIntegrationTest {
         );
         WorkspaceMember workspaceMember = WorkspaceMember.create(
                 workspace.getId(),
-                1L,
+                memberId,
                 WorkspaceMemberRole.OWNER,
                 JOINED_AT
         );
@@ -79,13 +83,13 @@ class WorkspaceRepositoryIntegrationTest {
                         WorkspaceMember::getJoinedAt
                 )
                 .containsExactly(
-                        1L,
+                        memberId,
                         JOINED_AT
                 );
         assertThat(
                 workspaceMemberRepository.existsByWorkspaceIdAndMemberId(
                         workspace.getId(),
-                        1L
+                        memberId
                 )
         ).isTrue();
     }
@@ -94,6 +98,7 @@ class WorkspaceRepositoryIntegrationTest {
     @Test
     void rejectDuplicateWorkspaceMember() {
         // given
+        long memberId = saveMember(2L);
         Workspace workspace = saveAndFlush(
                 Workspace.create(
                         "Knot 팀",
@@ -103,14 +108,14 @@ class WorkspaceRepositoryIntegrationTest {
         saveAndFlush(
                 WorkspaceMember.create(
                         workspace.getId(),
-                        1L,
+                        memberId,
                         WorkspaceMemberRole.MEMBER,
                         JOINED_AT
                 )
         );
         WorkspaceMember duplicate = WorkspaceMember.create(
                 workspace.getId(),
-                1L,
+                memberId,
                 WorkspaceMemberRole.MEMBER,
                 JOINED_AT
         );
@@ -127,6 +132,7 @@ class WorkspaceRepositoryIntegrationTest {
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     void rejectConcurrentDuplicateWorkspaceMember() throws Exception {
         // given
+        long memberId = saveMember(3L);
         Workspace workspace = workspaceRepository.save(
                 Workspace.create(
                         "Knot 동시성 팀",
@@ -141,7 +147,7 @@ class WorkspaceRepositoryIntegrationTest {
                 workspaceMemberRepository.save(
                         WorkspaceMember.create(
                                 workspace.getId(),
-                                1L,
+                                memberId,
                                 WorkspaceMemberRole.MEMBER,
                                 JOINED_AT
                         )
@@ -175,9 +181,10 @@ class WorkspaceRepositoryIntegrationTest {
     @Test
     void rejectMissingWorkspaceReference() {
         // given
+        long memberId = saveMember(4L);
         WorkspaceMember workspaceMember = WorkspaceMember.create(
                 Long.MAX_VALUE,
-                1L,
+                memberId,
                 WorkspaceMemberRole.MEMBER,
                 JOINED_AT
         );
@@ -187,6 +194,48 @@ class WorkspaceRepositoryIntegrationTest {
 
         // then
         assertThatThrownBy(action).isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @DisplayName("존재하지 않는 멤버를 참조하는 멤버십은 저장할 수 없다")
+    @Test
+    void rejectMissingMemberReference() {
+        // given
+        Workspace workspace = saveAndFlush(
+                Workspace.create(
+                        "Knot 팀",
+                        CREATED_AT
+                )
+        );
+        WorkspaceMember workspaceMember = WorkspaceMember.create(
+                workspace.getId(),
+                Long.MAX_VALUE,
+                WorkspaceMemberRole.MEMBER,
+                JOINED_AT
+        );
+
+        // when
+        ThrowingCallable action = () -> saveAndFlush(workspaceMember);
+
+        // then
+        assertThatThrownBy(action).isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    private long saveMember(long githubId) {
+        return jdbcClient.sql("""
+                INSERT INTO member (github_id, nickname, profile_image_url)
+                VALUES (:githubId, :nickname, NULL)
+                RETURNING id
+                """)
+                .param(
+                        "githubId",
+                        githubId
+                )
+                .param(
+                        "nickname",
+                        "member" + githubId
+                )
+                .query(Long.class)
+                .single();
     }
 
     private Workspace saveAndFlush(Workspace workspace) {

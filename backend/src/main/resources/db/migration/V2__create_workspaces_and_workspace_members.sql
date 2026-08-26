@@ -18,6 +18,10 @@ CREATE TABLE workspace_members (
         FOREIGN KEY (workspace_id)
         REFERENCES workspaces (id)
         ON DELETE RESTRICT,
+    CONSTRAINT fk_workspace_members_member
+        FOREIGN KEY (member_id)
+        REFERENCES member (id)
+        ON DELETE RESTRICT,
     CONSTRAINT chk_workspace_members_member_id_positive CHECK (member_id > 0),
     CONSTRAINT chk_workspace_members_role CHECK (role IN ('OWNER', 'MEMBER'))
 );
