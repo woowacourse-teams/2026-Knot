@@ -5,7 +5,7 @@ import com.knot.backend.auth.domain.AuthException;
 
 public record AuthLoginResult(
         String token,
-        boolean nicknameRequired
+        boolean requiresNickname
 ) {
     public AuthLoginResult {
         if (token == null || token.isBlank()) {
@@ -25,9 +25,5 @@ public record AuthLoginResult(
                 nicknameToken,
                 true
         );
-    }
-
-    public boolean requiresNickname() {
-        return nicknameRequired;
     }
 }
