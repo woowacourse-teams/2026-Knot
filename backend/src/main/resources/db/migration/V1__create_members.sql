@@ -21,7 +21,6 @@ CREATE TABLE oauth_identities (
     provider VARCHAR(20) NOT NULL,
     provider_user_id VARCHAR(255) NOT NULL,
     member_id BIGINT NOT NULL,
-    profile_image_url VARCHAR(500),
 
     CONSTRAINT pk_oauth_identity
       PRIMARY KEY (id),
@@ -40,11 +39,5 @@ CREATE TABLE oauth_identities (
       CHECK (btrim(provider) <> ''),
 
     CONSTRAINT ck_oauth_identity_provider_user_not_blank
-      CHECK (btrim(provider_user_id) <> ''),
-
-    CONSTRAINT ck_oauth_identity_profile_image_not_blank
-      CHECK (
-          profile_image_url IS NULL
-              OR btrim(profile_image_url) <> ''
-          )
+      CHECK (btrim(provider_user_id) <> '')
 );

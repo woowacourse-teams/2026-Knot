@@ -85,6 +85,28 @@ class OAuthIdentityRepositoryTest {
     }
 
     @Test
+    @DisplayName("OAuth identity에는 프로필 이미지 중복 컬럼을 저장하지 않는다")
+    void schema_success_withoutProfileImageColumn() {
+        // given
+        String sql = """
+                SELECT COUNT(*)
+                FROM information_schema.columns
+                WHERE table_schema = current_schema()
+                  AND table_name = 'oauth_identities'
+                  AND column_name = 'profile_image_url'
+                """;
+
+        // when
+        Integer columnCount = jdbcTemplate.queryForObject(
+                sql,
+                Integer.class
+        );
+
+        // then
+        assertThat(columnCount).isZero();
+    }
+
+    @Test
     @DisplayName("같은 provider와 외부 ID를 중복 저장하면 커스텀 예외를 발생시킨다")
     void save_failure_duplicateProviderUser() {
         // given

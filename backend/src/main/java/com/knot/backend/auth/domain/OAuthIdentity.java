@@ -20,7 +20,6 @@ import lombok.Getter;
                 "provider"})})
 public class OAuthIdentity {
     private static final int MAX_PROVIDER_USER_ID_LENGTH = 255;
-    private static final int MAX_PROFILE_IMAGE_URL_LENGTH = 500;
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY) private Long id;
@@ -31,8 +30,6 @@ public class OAuthIdentity {
     @Column(name = "provider_user_id", nullable = false, length = 255) private String providerUserId;
 
     @Column(name = "member_id", nullable = false) private Long memberId;
-
-    @Column(name = "profile_image_url", length = 500) private String profileImageUrl;
 
     protected OAuthIdentity() {}
 
@@ -47,7 +44,6 @@ public class OAuthIdentity {
         this.provider = oauthUser.getProvider();
         this.providerUserId = oauthUser.getExternalId();
         this.memberId = memberId;
-        this.profileImageUrl = oauthUser.getProfileImageUrl();
 
         validate();
     }
@@ -72,9 +68,5 @@ public class OAuthIdentity {
             throw new AuthException(AuthErrorCode.INVALID_AUTHENTICATED_MEMBER);
         }
 
-        if (profileImageUrl != null && (profileImageUrl.isBlank()
-                || profileImageUrl.length() > MAX_PROFILE_IMAGE_URL_LENGTH)) {
-            throw new AuthException(AuthErrorCode.INVALID_OAUTH_USER);
-        }
     }
 }
