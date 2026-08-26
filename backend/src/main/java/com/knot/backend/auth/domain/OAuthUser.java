@@ -8,44 +8,52 @@ import lombok.ToString;
 @EqualsAndHashCode
 @ToString
 public final class OAuthUser {
-    private static final int MAX_NICKNAME_LENGTH = 20;
     private static final int MAX_PROFILE_IMAGE_URL_LENGTH = 500;
-    private final long externalId;
-    private final String nickname;
+
+    private final OAuthProvider provider;
+    private final String externalId;
     private final String profileImageUrl;
 
     private OAuthUser(
-            long externalId,
-            String nickname,
+            OAuthProvider provider,
+            String externalId,
             String profileImageUrl
     ) {
-        if (externalId <= 0) {
-            throw new AuthException(AuthErrorCode.INVALID_OAUTH_USER);
-        }
-        if (nickname == null || nickname.isBlank()) {
-            throw new AuthException(AuthErrorCode.INVALID_OAUTH_USER);
-        }
-        if (nickname.length() > MAX_NICKNAME_LENGTH) {
-            throw new AuthException(AuthErrorCode.INVALID_OAUTH_USER);
-        }
-        if (profileImageUrl != null && (profileImageUrl.isBlank()
-                || profileImageUrl.length() > MAX_PROFILE_IMAGE_URL_LENGTH)) {
-            throw new AuthException(AuthErrorCode.INVALID_OAUTH_USER);
-        }
+        validate(
+                provider,
+                externalId,
+                profileImageUrl
+        );
+
+        this.provider = provider;
         this.externalId = externalId;
-        this.nickname = nickname;
         this.profileImageUrl = profileImageUrl;
     }
 
     public static OAuthUser of(
-            long externalId,
-            String nickname,
+            OAuthProvider provider,
+            String externalId,
             String profileImageUrl
     ) {
         return new OAuthUser(
+                provider,
                 externalId,
-                nickname,
                 profileImageUrl
         );
+    }
+
+    private static void validate(
+            OAuthProvider provider,
+            String externalId,
+            String profileImageUrl
+    ) {
+        if (provider == null || externalId == null || externalId.isBlank()) {
+            throw new AuthException(AuthErrorCode.INVALID_OAUTH_USER);
+        }
+
+        if (profileImageUrl != null && (profileImageUrl.isBlank()
+                || profileImageUrl.length() > MAX_PROFILE_IMAGE_URL_LENGTH)) {
+            throw new AuthException(AuthErrorCode.INVALID_OAUTH_USER);
+        }
     }
 }

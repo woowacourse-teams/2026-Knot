@@ -6,7 +6,6 @@ import java.util.Map;
 
 public record GithubUserAttributes(
         long id,
-        String login,
         String avatarUrl
 ) {
 
@@ -21,11 +20,6 @@ public record GithubUserAttributes(
                     "id",
                     Number.class
             );
-            String login = required(
-                    attributes,
-                    "login",
-                    String.class
-            );
             String avatarUrl = optional(
                     attributes,
                     "avatar_url",
@@ -33,7 +27,6 @@ public record GithubUserAttributes(
             );
             return new GithubUserAttributes(
                     id.longValue(),
-                    login,
                     avatarUrl
             );
         } catch (ClassCastException exception) {

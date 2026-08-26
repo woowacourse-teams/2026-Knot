@@ -34,6 +34,7 @@ public class SecurityConfig {
                 auth -> auth.requestMatchers(
                         "/oauth2/**",
                         "/login/**",
+                        "/auth/nickname",
                         "/actuator/health",
                         "/error"
                 )

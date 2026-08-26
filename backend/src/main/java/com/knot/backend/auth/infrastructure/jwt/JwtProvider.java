@@ -4,6 +4,8 @@ import com.knot.backend.auth.domain.AuthErrorCode;
 import com.knot.backend.auth.domain.AuthException;
 import com.knot.backend.auth.domain.AuthTokenProvider;
 import com.knot.backend.auth.domain.AuthenticatedMember;
+import com.knot.backend.auth.domain.OAuthProvider;
+import com.knot.backend.auth.domain.OAuthUser;
 import com.knot.backend.global.config.JwtProperties;
 import com.knot.backend.member.domain.Member;
 import java.nio.charset.StandardCharsets;
@@ -20,7 +22,6 @@ import org.springframework.security.oauth2.jwt.JwtClaimsSet;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
-import org.springframework.security.oauth2.jwt.JwtException;
 import org.springframework.security.oauth2.jwt.JwtTimestampValidator;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
@@ -33,6 +34,8 @@ public class JwtProvider implements AuthTokenProvider {
     private static final int MINIMUM_SECRET_BYTES = 32;
     private static final String ISSUER = "https://knot.local";
     private static final String AUDIENCE = "knot-api";
+    private static final String ACCESS_TOKEN_TYPE = "ACCESS";
+    private static final String NICKNAME_TOKEN_TYPE = "NICKNAME";
     private final JwtProperties properties;
     private final JwtEncoder encoder;
     private final JwtDecoder decoder;
@@ -71,7 +74,6 @@ public class JwtProvider implements AuthTokenProvider {
         return issue(
                 AuthenticatedMember.of(
                         member.getId(),
-                        member.getGithubId(),
                         member.getNickname(),
                         member.getProfileImageUrl()
                 )
@@ -99,24 +101,50 @@ public class JwtProvider implements AuthTokenProvider {
     }
 
     @Override
-    public AuthenticatedMember authenticate(String token) {
-        if (token == null || token.isBlank()) {
-            throw new AuthException(AuthErrorCode.INVALID_JWT);
+    public String issueNickname(OAuthUser oauthUser) {
+        if (oauthUser == null) {
+            throw new AuthException(AuthErrorCode.INVALID_OAUTH_USER);
         }
 
+        Instant issuedAt = Instant.now(clock);
+        JwtClaimsSet.Builder claimsBuilder = JwtClaimsSet.builder()
+                .subject(oauthUser.getExternalId())
+                .issuer(ISSUER)
+                .audience(List.of(AUDIENCE))
+                .issuedAt(issuedAt)
+                .expiresAt(issuedAt.plus(properties.getNicknameTokenExpiration()))
+                .claim(
+                        "token_type",
+                        NICKNAME_TOKEN_TYPE
+                )
+                .claim(
+                        "provider",
+                        oauthUser.getProvider()
+                                .name()
+                );
+
+        if (oauthUser.getProfileImageUrl() != null) {
+            claimsBuilder.claim(
+                    "profile_image_url",
+                    oauthUser.getProfileImageUrl()
+            );
+        }
+
+        return encode(claimsBuilder.build());
+    }
+
+    @Override
+    public AuthenticatedMember authenticate(String token) {
         try {
-            Jwt jwt = decoder.decode(token);
-            validateTokenClaims(jwt);
+            Jwt jwt = decodeAndValidate(token);
+            validateTokenType(
+                    jwt,
+                    ACCESS_TOKEN_TYPE
+            );
             return AuthenticatedMember.of(
                     positiveLong(jwt.getSubject()),
-                    positiveLong(jwt.getClaimAsString("github_id")),
                     requiredClaim(jwt.getClaimAsString("nickname")),
                     jwt.getClaimAsString("profile_image_url")
-            );
-        } catch (JwtException exception) {
-            throw new AuthException(
-                    AuthErrorCode.INVALID_JWT,
-                    exception
             );
         } catch (AuthException exception) {
             if (exception.getErrorCode() == AuthErrorCode.INVALID_AUTHENTICATED_MEMBER) {
@@ -126,7 +154,27 @@ public class JwtProvider implements AuthTokenProvider {
                 );
             }
             throw exception;
-        } catch (RuntimeException exception) {
+        }
+    }
+
+    @Override
+    public OAuthUser authenticateNickname(String token) {
+        try {
+            Jwt jwt = decodeAndValidate(token);
+            validateTokenType(
+                    jwt,
+                    NICKNAME_TOKEN_TYPE
+            );
+
+            OAuthProvider provider = OAuthProvider
+                    .valueOf(requiredClaim(jwt.getClaimAsString("provider")));
+
+            return OAuthUser.of(
+                    provider,
+                    requiredClaim(jwt.getSubject()),
+                    jwt.getClaimAsString("profile_image_url")
+            );
+        } catch (IllegalArgumentException exception) {
             throw new AuthException(
                     AuthErrorCode.INVALID_JWT,
                     exception
@@ -160,13 +208,51 @@ public class JwtProvider implements AuthTokenProvider {
                         .isNegative()) {
             throw new AuthException(AuthErrorCode.JWT_CONFIGURATION_INVALID);
         }
-        if (properties.getCookieName() == null || properties.getCookieName()
-                .isBlank()) {
+        if (properties.getNicknameTokenExpiration() == null
+                || properties.getNicknameTokenExpiration()
+                        .isZero()
+                || properties.getNicknameTokenExpiration()
+                        .isNegative()) {
             throw new AuthException(AuthErrorCode.JWT_CONFIGURATION_INVALID);
         }
-        if (properties.getCookieName()
-                .startsWith("__Host-") && !properties.isSecure()) {
+        validateCookieName(
+                properties.getCookieName(),
+                properties.isSecure()
+        );
+        validateCookieName(
+                properties.getNicknameCookieName(),
+                properties.isSecure()
+        );
+    }
+
+    private void validateCookieName(
+            String cookieName,
+            boolean secure
+    ) {
+        if (cookieName == null || cookieName.isBlank()) {
             throw new AuthException(AuthErrorCode.JWT_CONFIGURATION_INVALID);
+        }
+        if (cookieName.startsWith("__Host-") && !secure) {
+            throw new AuthException(AuthErrorCode.JWT_CONFIGURATION_INVALID);
+        }
+    }
+
+    private Jwt decodeAndValidate(String token) {
+        if (token == null || token.isBlank()) {
+            throw new AuthException(AuthErrorCode.INVALID_JWT);
+        }
+
+        try {
+            Jwt jwt = decoder.decode(token);
+            validateTokenClaims(jwt);
+            return jwt;
+        } catch (AuthException exception) {
+            throw exception;
+        } catch (RuntimeException exception) {
+            throw new AuthException(
+                    AuthErrorCode.INVALID_JWT,
+                    exception
+            );
         }
     }
 
@@ -207,13 +293,22 @@ public class JwtProvider implements AuthTokenProvider {
                 .issuedAt(issuedAt)
                 .expiresAt(issuedAt.plus(properties.getExpiration()))
                 .claim(
-                        "github_id",
-                        String.valueOf(member.getGithubId())
+                        "token_type",
+                        ACCESS_TOKEN_TYPE
                 )
                 .claim(
                         "nickname",
                         member.getNickname()
                 );
+    }
+
+    private void validateTokenType(
+            Jwt jwt,
+            String expectedType
+    ) {
+        if (!expectedType.equals(jwt.getClaimAsString("token_type"))) {
+            throw new AuthException(AuthErrorCode.INVALID_JWT);
+        }
     }
 
     private void validateTokenClaims(Jwt jwt) {

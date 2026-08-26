@@ -1,6 +1,7 @@
 package com.knot.backend.auth.infrastructure.github;
 
 import com.knot.backend.auth.domain.AuthException;
+import com.knot.backend.auth.domain.OAuthProvider;
 import com.knot.backend.auth.domain.OAuthUser;
 import java.util.Map;
 import org.springframework.security.oauth2.client.userinfo.DefaultOAuth2UserService;
@@ -57,8 +58,8 @@ public class GithubOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
         try {
             GithubUserAttributes githubAttributes = GithubUserAttributes.from(attributes);
             return OAuthUser.of(
-                    githubAttributes.id(),
-                    githubAttributes.login(),
+                    OAuthProvider.GITHUB,
+                    String.valueOf(githubAttributes.id()),
                     githubAttributes.avatarUrl()
             );
         } catch (AuthException exception) {

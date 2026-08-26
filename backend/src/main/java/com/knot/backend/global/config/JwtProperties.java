@@ -11,6 +11,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public class JwtProperties {
     private String secret;
     private Duration expiration = Duration.ofHours(1);
+    private Duration nicknameTokenExpiration = Duration.ofMinutes(10);
     private String cookieName = "__Host-KNOT_ACCESS_TOKEN";
+    private String nicknameCookieName = "KNOT_NICKNAME_TOKEN";
     private boolean secure = true;
 }

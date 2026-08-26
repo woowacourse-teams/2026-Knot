@@ -1,6 +1,7 @@
 package com.knot.backend.auth.presentation.handler;
 
 import com.knot.backend.auth.application.AuthService;
+import com.knot.backend.auth.application.AuthLoginResult;
 import com.knot.backend.auth.domain.AuthErrorCode;
 import com.knot.backend.auth.domain.AuthException;
 import com.knot.backend.auth.infrastructure.github.GithubOAuth2User;
@@ -10,6 +11,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.time.Duration;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
 import org.springframework.security.core.Authentication;
@@ -31,6 +33,9 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
     ) {
         if (loginProperties == null || loginProperties.getSuccessRedirectUri() == null
                 || loginProperties.getSuccessRedirectUri()
+                        .isBlank()
+                || loginProperties.getNicknameRedirectUri() == null
+                || loginProperties.getNicknameRedirectUri()
                         .isBlank()) {
             throw new AuthException(AuthErrorCode.OAUTH_CONFIGURATION_INVALID);
         }
@@ -48,20 +53,25 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
     ) throws IOException, ServletException {
         try {
             GithubOAuth2User githubUser = getGithubUser(authentication);
-            String token = authService.login(githubUser.getOAuthUser());
-            ResponseCookie cookie = ResponseCookie.from(
+            AuthLoginResult result = authService.login(githubUser.getOAuthUser());
+
+            if (result.requiresNickname()) {
+                addCookie(
+                        response,
+                        jwtProperties.getNicknameCookieName(),
+                        result.getToken(),
+                        jwtProperties.getNicknameTokenExpiration()
+                );
+                failureHandler.clearAuthentication(request);
+                response.sendRedirect(loginProperties.getNicknameRedirectUri());
+                return;
+            }
+
+            addCookie(
+                    response,
                     jwtProperties.getCookieName(),
-                    token
-            )
-                    .httpOnly(true)
-                    .secure(jwtProperties.isSecure())
-                    .sameSite("Lax")
-                    .path("/")
-                    .maxAge(jwtProperties.getExpiration())
-                    .build();
-            response.addHeader(
-                    HttpHeaders.SET_COOKIE,
-                    cookie.toString()
+                    result.getToken(),
+                    jwtProperties.getExpiration()
             );
             failureHandler.clearAuthentication(request);
             response.sendRedirect(loginProperties.getSuccessRedirectUri());
@@ -78,14 +88,35 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
         }
     }
 
+    private void addCookie(
+            HttpServletResponse response,
+            String name,
+            String value,
+            Duration maxAge
+    ) {
+        ResponseCookie cookie = ResponseCookie.from(
+                name,
+                value
+        )
+                .httpOnly(true)
+                .secure(jwtProperties.isSecure())
+                .sameSite("Lax")
+                .path("/")
+                .maxAge(maxAge)
+                .build();
+        response.addHeader(
+                HttpHeaders.SET_COOKIE,
+                cookie.toString()
+        );
+    }
+
     private GithubOAuth2User getGithubUser(Authentication authentication) {
         if (authentication == null) {
             throw new AuthException(AuthErrorCode.OAUTH_AUTHENTICATION_FAILED);
         }
 
         try {
-            GithubOAuth2User githubUser = GithubOAuth2User.class
-                    .cast(authentication.getPrincipal());
+            GithubOAuth2User githubUser = (GithubOAuth2User) authentication.getPrincipal();
             if (githubUser == null) {
                 throw new AuthException(AuthErrorCode.OAUTH_AUTHENTICATION_FAILED);
             }

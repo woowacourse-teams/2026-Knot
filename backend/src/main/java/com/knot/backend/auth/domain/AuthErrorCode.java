@@ -52,6 +52,18 @@ public enum AuthErrorCode implements ErrorCode {
             ErrorCategory.INTERNAL_SERVER_ERROR,
             "AUTHENTICATION_INTERNAL_ERROR",
             "인증 처리 중 오류가 발생했습니다"
+    ),
+
+    MEMBER_NOT_FOUND_FOR_OAUTH_IDENTITY(
+            ErrorCategory.INTERNAL_SERVER_ERROR,
+            "MEMBER_NOT_FOUND_FOR_OAUTH_IDENTITY",
+            "OAuth identity에 연결된 회원을 찾을 수 없습니다"
+    ),
+
+    NICKNAME_SETUP_ALREADY_COMPLETED(
+            ErrorCategory.CONFLICT,
+            "NICKNAME_SETUP_ALREADY_COMPLETED",
+            "이미 닉네임 설정이 완료된 사용자입니다"
     );
 
     private final ErrorCategory category;
