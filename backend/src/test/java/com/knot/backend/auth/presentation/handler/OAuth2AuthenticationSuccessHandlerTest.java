@@ -22,15 +22,22 @@ import jakarta.servlet.http.Cookie;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 
 class OAuth2AuthenticationSuccessHandlerTest {
+
+    @AfterEach
+    void clearSecurityContext() {
+        SecurityContextHolder.clearContext();
+    }
 
     @Test
     @DisplayName("OAuth 인증 성공 시 JWT 쿠키를 발급하고 설정된 URI로 redirect한다")
@@ -71,6 +78,9 @@ class OAuth2AuthenticationSuccessHandlerTest {
         when(authentication.getPrincipal()).thenReturn(githubUser);
         when(authService.login(oauthUser)).thenReturn(AuthLoginResult.authenticated("jwt-token"));
         MockHttpServletRequest request = new MockHttpServletRequest();
+        request.getSession();
+        SecurityContextHolder.getContext()
+                .setAuthentication(authentication);
         MockHttpServletResponse response = new MockHttpServletResponse();
 
         // when
@@ -90,6 +100,11 @@ class OAuth2AuthenticationSuccessHandlerTest {
         assertThat(cookie.getPath()).isEqualTo("/");
         assertThat(cookie.getMaxAge()).isEqualTo(3600);
         assertThat(response.getHeader("Set-Cookie")).contains("SameSite=Lax");
+        assertThat(request.getSession(false)).isNull();
+        assertThat(
+                SecurityContextHolder.getContext()
+                        .getAuthentication()
+        ).isNull();
     }
 
     @Test
