@@ -1,5 +1,6 @@
 package com.knot.backend;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.startsWith;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -11,17 +12,28 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.knot.backend.auth.domain.AuthTokenProvider;
 import com.knot.backend.auth.domain.AuthenticatedMember;
+import com.knot.backend.auth.domain.OAuthProvider;
+import com.knot.backend.auth.domain.OAuthUser;
+import com.knot.backend.auth.infrastructure.jwt.JwtProvider;
+import com.knot.backend.global.config.JwtProperties;
 import com.knot.backend.testsupport.TestApplicationProperties;
 import com.knot.backend.testsupport.TestcontainersConfiguration;
 import jakarta.servlet.http.Cookie;
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.http.MediaType;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.TestConstructor;
 import org.springframework.test.context.TestConstructor.AutowireMode;
+import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 
@@ -33,6 +45,8 @@ import org.springframework.test.web.servlet.ResultActions;
 @TestConstructor(autowireMode = AutowireMode.ALL)
 class KnotApplicationTests {
     private static final String JWT_COOKIE_NAME = "KNOT_ACCESS_TOKEN";
+    private static final String NICKNAME_COOKIE_NAME = "KNOT_NICKNAME_TOKEN";
+    private static final String CSRF_COOKIE_NAME = "XSRF-TOKEN";
     private final MockMvc mockMvc;
     private final AuthTokenProvider authTokenProvider;
 
@@ -123,6 +137,125 @@ class KnotApplicationTests {
     }
 
     @Test
+    @DisplayName("만료된 JWT 쿠키가 있으면 인증되지 않은 요청으로 처리한다")
+    void authMe_failure_expiredToken() throws Exception {
+        // given
+        String expiredToken = expiredAccessToken();
+
+        // when
+        ResultActions result = mockMvc.perform(
+                get("/auth/me").cookie(
+                        new Cookie(
+                                JWT_COOKIE_NAME,
+                                expiredToken
+                        )
+                )
+        );
+
+        // then
+        result.andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("UNAUTHENTICATED"));
+    }
+
+    @Test
+    @DisplayName("닉네임 설정용 JWT를 일반 인증 쿠키로 보내면 인증되지 않는다")
+    void authMe_failure_nicknameToken() throws Exception {
+        // given
+        String nicknameToken = authTokenProvider.issueNickname(
+                OAuthUser.of(
+                        OAuthProvider.GITHUB,
+                        uniqueValue("nickname-user-"),
+                        null
+                )
+        );
+
+        // when
+        ResultActions result = mockMvc.perform(
+                get("/auth/me").cookie(
+                        new Cookie(
+                                JWT_COOKIE_NAME,
+                                nicknameToken
+                        )
+                )
+        );
+
+        // then
+        result.andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("UNAUTHENTICATED"));
+    }
+
+    @Test
+    @DisplayName("CSRF 쿠키와 헤더가 있으면 닉네임 설정 요청이 실제 보안 필터를 통과한다")
+    void completeNickname_success_withCookieCsrfToken() throws Exception {
+        // given
+        MvcResult csrfResult = mockMvc.perform(get("/auth/me"))
+                .andReturn();
+        Cookie csrfCookie = csrfResult.getResponse()
+                .getCookie(CSRF_COOKIE_NAME);
+        assertThat(csrfCookie).isNotNull();
+        String csrfToken = csrfCookie.getValue();
+        String nickname = uniqueValue("user-");
+        String nicknameToken = authTokenProvider.issueNickname(
+                OAuthUser.of(
+                        OAuthProvider.GITHUB,
+                        uniqueValue("csrf-user-"),
+                        null
+                )
+        );
+
+        // when
+        ResultActions result = mockMvc.perform(
+                post("/auth/nickname").cookie(
+                        new Cookie(
+                                NICKNAME_COOKIE_NAME,
+                                nicknameToken
+                        ),
+                        new Cookie(
+                                CSRF_COOKIE_NAME,
+                                csrfToken
+                        )
+                )
+                        .header(
+                                "X-XSRF-TOKEN",
+                                csrfToken
+                        )
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"nickname\":\"" + nickname + "\"}")
+        );
+
+        // then
+        result.andExpect(status().isNoContent());
+    }
+
+    @Test
+    @DisplayName("닉네임 설정 요청은 CSRF 토큰이 없으면 거부한다")
+    void completeNickname_failure_missingCsrfToken() throws Exception {
+        // given
+        String nicknameToken = authTokenProvider.issueNickname(
+                OAuthUser.of(
+                        OAuthProvider.GITHUB,
+                        uniqueValue("missing-csrf-user-"),
+                        null
+                )
+        );
+
+        // when
+        ResultActions result = mockMvc.perform(
+                post("/auth/nickname").cookie(
+                        new Cookie(
+                                NICKNAME_COOKIE_NAME,
+                                nicknameToken
+                        )
+                )
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"nickname\":\"" + uniqueValue("user-") + "\"}")
+        );
+
+        // then
+        result.andExpect(status().isForbidden());
+    }
+
+    @Test
     @DisplayName("로그아웃하면 JWT 쿠키를 만료시킨다")
     void logout_success() throws Exception {
         // given
@@ -157,6 +290,42 @@ class KnotApplicationTests {
                                 "Set-Cookie",
                                 containsString(JWT_COOKIE_NAME + "=")
                         )
+                );
+    }
+
+    private String expiredAccessToken() {
+        JwtProperties properties = new JwtProperties();
+        properties.setSecret("test-jwt-secret-012345678901234567890123456789");
+        properties.setExpiration(Duration.ofHours(1));
+        properties.setCookieName(JWT_COOKIE_NAME);
+        properties.setSecure(false);
+        JwtProvider provider = new JwtProvider(
+                properties,
+                Clock.fixed(
+                        Instant.now()
+                                .minus(Duration.ofHours(2)),
+                        ZoneOffset.UTC
+                )
+        );
+        return provider.issue(
+                AuthenticatedMember.of(
+                        1L,
+                        "octocat",
+                        null
+                )
+        );
+    }
+
+    private String uniqueValue(String prefix) {
+        return prefix + UUID.randomUUID()
+                .toString()
+                .replace(
+                        "-",
+                        ""
+                )
+                .substring(
+                        0,
+                        12
                 );
     }
 }
