@@ -9,7 +9,7 @@ import org.junit.jupiter.api.Test;
 class OAuthIdentityTest {
 
     @Test
-    @DisplayName("온보딩을 완료한 OAuth 사용자 identity를 생성한다")
+    @DisplayName("닉네임 설정을 완료한 OAuth 사용자 identity를 생성한다")
     void create_success() {
         // given
         OAuthUser oauthUser = OAuthUser.of(

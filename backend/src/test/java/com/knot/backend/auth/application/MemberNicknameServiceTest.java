@@ -52,7 +52,7 @@ class MemberNicknameServiceTest {
     }
 
     @Test
-    @DisplayName("OAuth 사용자가 없으면 온보딩을 진행하지 않는다")
+    @DisplayName("OAuth 사용자가 없으면 닉네임 설정을 진행하지 않는다")
     void complete_failure_nullOAuthUser() {
         // given
         MemberService memberService = mock(MemberService.class);
