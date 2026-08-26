@@ -2,16 +2,10 @@ package com.knot.backend.member.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.knot.backend.auth.domain.OAuthUser;
 import com.knot.backend.member.domain.Member;
 import com.knot.backend.testsupport.TestApplicationProperties;
 import com.knot.backend.testsupport.TestcontainersConfiguration;
-import java.util.concurrent.Callable;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
@@ -41,91 +35,53 @@ class MemberServiceIntegrationTest {
 
     @BeforeEach
     void clearMembers() {
-        jdbcTemplate.update("TRUNCATE TABLE members RESTART IDENTITY");
+        jdbcTemplate.update("TRUNCATE TABLE oauth_identities, members RESTART IDENTITY");
     }
 
     @Test
-    @DisplayName("동시에 같은 GitHub 사용자가 로그인해도 member 하나만 유지한다")
-    void login_concurrentFirstRequests_success() throws Exception {
-        // given
-        OAuthUser oauthUser = OAuthUser.of(
-                42L,
+    @DisplayName("닉네임으로 member를 생성하면 데이터베이스에 저장된다")
+    void create_success() {
+        // when
+        Member result = memberService.create(
                 "octocat",
                 "https://example.com/avatar"
         );
-        CountDownLatch ready = new CountDownLatch(2);
-        CountDownLatch start = new CountDownLatch(1);
-        ExecutorService executor = Executors.newFixedThreadPool(2);
-        Callable<Member> loginTask = () -> {
-            ready.countDown();
-            start.await();
-            return memberService.login(oauthUser);
-        };
 
-        try {
-            Future<Member> first = executor.submit(loginTask);
-            Future<Member> second = executor.submit(loginTask);
-            assertThat(
-                    ready.await(
-                            5,
-                            TimeUnit.SECONDS
-                    )
-            ).isTrue();
-
-            // when
-            start.countDown();
-            Member firstMember = first.get(
-                    10,
-                    TimeUnit.SECONDS
-            );
-            Member secondMember = second.get(
-                    10,
-                    TimeUnit.SECONDS
-            );
-
-            // then
-            assertThat(firstMember.getGithubId()).isEqualTo(42L);
-            assertThat(secondMember.getGithubId()).isEqualTo(42L);
-            assertThat(
-                    jdbcTemplate.queryForObject(
-                            "SELECT COUNT(*) FROM members",
-                            Integer.class
-                    )
-            ).isEqualTo(1);
-        } finally {
-            executor.shutdownNow();
-        }
+        // then
+        assertThat(result.getId()).isNotNull();
+        assertThat(
+                jdbcTemplate.queryForObject(
+                        "SELECT nickname FROM members WHERE id = ?",
+                        String.class,
+                        result.getId()
+                )
+        ).isEqualTo("octocat");
     }
 
     @Test
-    @DisplayName("기존 GitHub 사용자가 로그인하면 도메인 프로필 변경을 거쳐 최신 정보를 저장한다")
-    void login_existingMember_updatesProfile_success() {
+    @DisplayName("저장된 member를 ID로 조회한다")
+    void findById_success() {
         // given
-        memberService.login(
-                OAuthUser.of(
-                        42L,
-                        "old-name",
-                        "https://example.com/old"
-                )
-        );
-        OAuthUser updatedUser = OAuthUser.of(
-                42L,
-                "new-name",
-                "https://example.com/new"
+        Member member = memberService.create(
+                "octocat",
+                null
         );
 
         // when
-        Member result = memberService.login(updatedUser);
+        Member result = memberService.findById(member.getId())
+                .orElseThrow();
 
         // then
-        assertThat(result.getNickname()).isEqualTo("new-name");
-        assertThat(result.getProfileImageUrl()).isEqualTo("https://example.com/new");
-        assertThat(
-                jdbcTemplate.queryForObject(
-                        "SELECT nickname FROM members WHERE github_id = ?",
-                        String.class,
-                        42L
-                )
-        ).isEqualTo("new-name");
+        assertThat(result.getNickname()).isEqualTo("octocat");
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 member ID는 빈 결과를 반환한다")
+    void findById_missingMember_success() {
+        // when
+        Optional<Member> result = memberService.findById(1L);
+
+        // then
+        assertThat(result).isEmpty();
     }
 }

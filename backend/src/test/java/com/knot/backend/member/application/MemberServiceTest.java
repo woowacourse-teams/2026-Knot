@@ -4,11 +4,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.knot.backend.auth.domain.OAuthUser;
 import com.knot.backend.member.domain.Member;
 import com.knot.backend.member.domain.MemberErrorCode;
 import com.knot.backend.member.domain.MemberException;
@@ -20,46 +18,57 @@ import org.junit.jupiter.api.Test;
 class MemberServiceTest {
 
     @Test
-    @DisplayName("GitHub ID로 member를 조회한다")
-    void findByGithubId_success() {
+    @DisplayName("member ID로 member를 조회한다")
+    void findById_success() {
         // given
         MemberRepository repository = mock(MemberRepository.class);
         MemberService service = new MemberService(repository);
         Member member = Member.create(
-                42L,
                 "octocat",
                 null
         );
-        when(repository.findByGithubId(42L)).thenReturn(Optional.of(member));
+        when(repository.findById(1L)).thenReturn(Optional.of(member));
 
         // when
-        Optional<Member> result = service.findByGithubId(42L);
+        Optional<Member> result = service.findById(1L);
 
         // then
         assertThat(result).containsSame(member);
-        verify(repository).findByGithubId(42L);
+        verify(repository).findById(1L);
     }
 
     @Test
-    @DisplayName("OAuth 사용자로 member를 생성한다")
+    @DisplayName("member ID가 유효하지 않으면 커스텀 예외를 발생시킨다")
+    void findById_failure_invalidMemberId() {
+        // given
+        MemberRepository repository = mock(MemberRepository.class);
+        MemberService service = new MemberService(repository);
+
+        // when & then
+        assertThatThrownBy(() -> service.findById(0L)).isInstanceOfSatisfying(
+                MemberException.class,
+                exception -> assertThat(exception.getErrorCode())
+                        .isEqualTo(MemberErrorCode.INVALID_MEMBER_DATA)
+        );
+    }
+
+    @Test
+    @DisplayName("닉네임으로 member를 생성하고 저장한다")
     void create_success() {
         // given
         MemberRepository repository = mock(MemberRepository.class);
         MemberService service = new MemberService(repository);
-        OAuthUser oauthUser = OAuthUser.of(
-                42L,
-                "octocat",
-                null
-        );
         Member savedMember = Member.create(
-                oauthUser.getExternalId(),
-                oauthUser.getNickname(),
-                oauthUser.getProfileImageUrl()
+                "octocat",
+                "https://example.com/avatar"
         );
         when(repository.save(any(Member.class))).thenReturn(savedMember);
 
         // when
-        Member result = service.create(oauthUser);
+        Member result = service.create(
+                "octocat",
+                "https://example.com/avatar"
+        );
 
         // then
         assertThat(result).isSameAs(savedMember);
@@ -67,19 +76,13 @@ class MemberServiceTest {
     }
 
     @Test
-    @DisplayName("member의 OAuth 프로필을 갱신한다")
+    @DisplayName("member 프로필을 갱신하고 저장한다")
     void updateProfile_success() {
         // given
         MemberRepository repository = mock(MemberRepository.class);
         MemberService service = new MemberService(repository);
         Member member = Member.create(
-                42L,
                 "old-name",
-                null
-        );
-        OAuthUser updatedUser = OAuthUser.of(
-                42L,
-                "new-name",
                 null
         );
         when(repository.save(member)).thenReturn(member);
@@ -87,113 +90,33 @@ class MemberServiceTest {
         // when
         Member result = service.updateProfile(
                 member,
-                updatedUser
+                "new-name",
+                "https://example.com/avatar"
         );
 
         // then
+        assertThat(result).isSameAs(member);
         assertThat(result.getNickname()).isEqualTo("new-name");
         verify(repository).save(member);
     }
 
     @Test
-    @DisplayName("GitHub 사용자가 처음 로그인하면 member를 생성한다")
-    void login_success_newMember() {
+    @DisplayName("갱신할 member가 없으면 커스텀 예외를 발생시킨다")
+    void updateProfile_failure_nullMember() {
         // given
-        MemberRepository repository = mock(MemberRepository.class);
-        MemberService service = new MemberService(repository);
-        OAuthUser oauthUser = OAuthUser.of(
-                42L,
-                "octocat",
-                "https://example.com/avatar"
-        );
-        Member savedMember = Member.create(
-                oauthUser.getExternalId(),
-                oauthUser.getNickname(),
-                oauthUser.getProfileImageUrl()
-        );
-        when(repository.findByGithubId(42L)).thenReturn(Optional.of(savedMember));
-        when(repository.save(savedMember)).thenReturn(savedMember);
-
-        // when
-        Member result = service.login(oauthUser);
-
-        // then
-        assertThat(result).isSameAs(savedMember);
-        assertThat(result.getGithubId()).isEqualTo(42L);
-        verify(repository).insertIfAbsent(any(Member.class));
-        verify(repository).save(savedMember);
-    }
-
-    @Test
-    @DisplayName("기존 GitHub 사용자가 로그인하면 프로필 정보를 갱신한다")
-    void login_success_existingMember() {
-        // given
-        MemberRepository repository = mock(MemberRepository.class);
-        MemberService service = new MemberService(repository);
-        OAuthUser updatedUser = OAuthUser.of(
-                42L,
-                "new-name",
-                "https://example.com/new"
-        );
-        Member updatedMember = Member.create(
-                42L,
-                "old-name",
-                "https://example.com/old"
-        );
-        when(repository.findByGithubId(42L)).thenReturn(Optional.of(updatedMember));
-        when(repository.save(updatedMember)).thenReturn(updatedMember);
-
-        // when
-        Member result = service.login(updatedUser);
-
-        // then
-        assertThat(result).isSameAs(updatedMember);
-        assertThat(result.getNickname()).isEqualTo("new-name");
-        assertThat(result.getProfileImageUrl()).isEqualTo("https://example.com/new");
-        verify(repository).insertIfAbsent(any(Member.class));
-        verify(repository).save(updatedMember);
-    }
-
-    @Test
-    @DisplayName("OAuth 사용자가 없으면 member 조회/생성을 진행하지 않는다")
-    void login_failure_nullOAuthUser() {
-        // given
-        MemberRepository repository = mock(MemberRepository.class);
-        MemberService service = new MemberService(repository);
+        MemberService service = new MemberService(mock(MemberRepository.class));
 
         // when & then
-        assertThatThrownBy(() -> service.login(null)).isInstanceOf(MemberException.class)
-                .extracting(exception -> ((MemberException) exception).getErrorCode())
-                .isEqualTo(MemberErrorCode.INVALID_MEMBER_DATA);
-        verify(
-                repository,
-                never()
-        ).insertIfAbsent(any(Member.class));
-    }
-
-    @Test
-    @DisplayName("로그인 프로필 저장 후 member를 조회하지 못하면 커스텀 예외를 발생시킨다")
-    void login_failure_memberNotFoundAfterSave() {
-        // given
-        MemberRepository repository = mock(MemberRepository.class);
-        MemberService service = new MemberService(repository);
-        OAuthUser oauthUser = OAuthUser.of(
-                42L,
-                "octocat",
-                null
-        );
-        when(repository.findByGithubId(42L)).thenReturn(Optional.empty());
-
-        // when & then
-        assertThatThrownBy(() -> service.login(oauthUser)).isInstanceOfSatisfying(
+        assertThatThrownBy(
+                () -> service.updateProfile(
+                        null,
+                        "new-name",
+                        null
+                )
+        ).isInstanceOfSatisfying(
                 MemberException.class,
                 exception -> assertThat(exception.getErrorCode())
-                        .isEqualTo(MemberErrorCode.MEMBER_LOGIN_FAILED)
+                        .isEqualTo(MemberErrorCode.INVALID_MEMBER_DATA)
         );
-        verify(repository).insertIfAbsent(any(Member.class));
-        verify(
-                repository,
-                never()
-        ).save(any(Member.class));
     }
 }
