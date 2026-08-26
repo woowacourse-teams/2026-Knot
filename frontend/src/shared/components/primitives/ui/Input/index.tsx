@@ -42,7 +42,10 @@ const STATUS_STYLE = {
     background-color: ${theme.neutral[0]};
     border-color: ${theme.sub.accent[500]};
   `,
-};
+} as const satisfies Record<
+  InputStatus,
+  (theme: Theme) => ReturnType<typeof css>
+>;
 
 /**
  * 단일 줄 텍스트 입력 UI.
