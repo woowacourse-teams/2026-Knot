@@ -58,11 +58,15 @@ const STATUS_STYLE = {
  */
 export default function Input({ status, ...props }: InputProps) {
   return (
-    <StyledInput status={status} aria-invalid={status === "error"} {...props} />
+    <StyledInput
+      $status={status}
+      aria-invalid={status === "error"}
+      {...props}
+    />
   );
 }
 
-const StyledInput = styled.input<{ status: InputStatus }>`
+const StyledInput = styled.input<{ $status: InputStatus }>`
   padding: 0.96rem 1rem;
   border: 1px solid;
   border-radius: 0.875rem;
@@ -80,5 +84,5 @@ const StyledInput = styled.input<{ status: InputStatus }>`
     outline: none;
   }
 
-  ${({ status, theme }) => STATUS_STYLE[status](theme)};
+  ${({ $status, theme }) => STATUS_STYLE[$status](theme)};
 `;
