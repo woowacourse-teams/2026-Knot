@@ -1,7 +1,6 @@
 package com.knot.backend;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.startsWith;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -23,6 +22,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
@@ -273,24 +273,32 @@ class KnotApplicationTests {
                                 new Cookie(
                                         JWT_COOKIE_NAME,
                                         token
+                                ),
+                                new Cookie(
+                                        NICKNAME_COOKIE_NAME,
+                                        "nickname-token"
                                 )
                         )
         );
 
         // then
         result.andExpect(status().isFound())
-                .andExpect(
-                        header().string(
-                                "Set-Cookie",
-                                containsString("Max-Age=0")
-                        )
-                )
-                .andExpect(
-                        header().string(
-                                "Set-Cookie",
-                                containsString(JWT_COOKIE_NAME + "=")
-                        )
-                );
+                .andExpect(resultActions -> {
+                    List<String> cookies = resultActions.getResponse()
+                            .getHeaders("Set-Cookie");
+                    assertThat(cookies).anySatisfy(
+                            cookie -> assertThat(cookie).contains(
+                                    JWT_COOKIE_NAME + "=",
+                                    "Max-Age=0"
+                            )
+                    );
+                    assertThat(cookies).anySatisfy(
+                            cookie -> assertThat(cookie).contains(
+                                    NICKNAME_COOKIE_NAME + "=",
+                                    "Max-Age=0"
+                            )
+                    );
+                });
     }
 
     private String expiredAccessToken() {
