@@ -22,8 +22,22 @@ public class JwtLogoutHandler implements LogoutHandler {
             HttpServletResponse response,
             Authentication authentication
     ) {
+        expireCookie(
+                response,
+                jwtProperties.getCookieName()
+        );
+        expireCookie(
+                response,
+                jwtProperties.getNicknameCookieName()
+        );
+    }
+
+    private void expireCookie(
+            HttpServletResponse response,
+            String name
+    ) {
         ResponseCookie cookie = ResponseCookie.from(
-                jwtProperties.getCookieName(),
+                name,
                 ""
         )
                 .httpOnly(true)
