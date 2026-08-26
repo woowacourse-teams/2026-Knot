@@ -15,6 +15,7 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 
 @Configuration
 @EnableWebSecurity
@@ -27,9 +28,19 @@ public class SecurityConfig {
     private final OAuth2AuthenticationFailureHandler failureHandler;
     private final AuthAuthenticationEntryPoint authenticationEntryPoint;
     private final JwtLogoutHandler jwtLogoutHandler;
+    private final JwtProperties jwtProperties;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        CookieCsrfTokenRepository csrfTokenRepository = CookieCsrfTokenRepository
+                .withHttpOnlyFalse();
+        csrfTokenRepository.setCookieCustomizer(
+                cookie -> cookie.httpOnly(false)
+                        .secure(jwtProperties.isSecure())
+                        .sameSite("Lax")
+                        .path("/")
+        );
+
         http.authorizeHttpRequests(
                 auth -> auth.requestMatchers(
                         "/oauth2/**",
@@ -44,6 +55,16 @@ public class SecurityConfig {
         )
                 .exceptionHandling(
                         exception -> exception.authenticationEntryPoint(authenticationEntryPoint)
+                )
+                .csrf(
+                        csrf -> csrf.csrfTokenRepository(csrfTokenRepository)
+                                .csrfTokenRequestHandler(
+                                        (
+                                                request,
+                                                response,
+                                                csrfToken
+                                        ) -> csrfToken.get()
+                                )
                 )
                 .sessionManagement(
                         session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)

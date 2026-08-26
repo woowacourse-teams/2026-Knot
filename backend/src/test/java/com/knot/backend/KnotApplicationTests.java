@@ -2,7 +2,6 @@ package com.knot.backend;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.startsWith;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -265,19 +264,29 @@ class KnotApplicationTests {
                 null
         );
         String token = authTokenProvider.issue(member);
+        MvcResult csrfResult = mockMvc.perform(get("/auth/me"))
+                .andReturn();
+        Cookie csrfCookie = csrfResult.getResponse()
+                .getCookie(CSRF_COOKIE_NAME);
+        assertThat(csrfCookie).isNotNull();
+        String csrfToken = csrfCookie.getValue();
 
         // when
         ResultActions result = mockMvc.perform(
-                post("/logout").with(csrf())
-                        .cookie(
-                                new Cookie(
-                                        JWT_COOKIE_NAME,
-                                        token
-                                ),
-                                new Cookie(
-                                        NICKNAME_COOKIE_NAME,
-                                        "nickname-token"
-                                )
+                post("/logout").cookie(
+                        new Cookie(
+                                JWT_COOKIE_NAME,
+                                token
+                        ),
+                        new Cookie(
+                                NICKNAME_COOKIE_NAME,
+                                "nickname-token"
+                        )
+                )
+                        .cookie(csrfCookie)
+                        .header(
+                                "X-XSRF-TOKEN",
+                                csrfToken
                         )
         );
 
