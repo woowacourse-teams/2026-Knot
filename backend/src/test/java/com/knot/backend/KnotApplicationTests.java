@@ -3,6 +3,7 @@ package com.knot.backend;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.startsWith;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -28,6 +29,8 @@ import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.TestConstructor;
@@ -35,6 +38,8 @@ import org.springframework.test.context.TestConstructor.AutowireMode;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 @Tag("acceptance")
 @Import(TestcontainersConfiguration.class)
@@ -43,18 +48,23 @@ import org.springframework.test.web.servlet.ResultActions;
 @AutoConfigureMockMvc
 @TestConstructor(autowireMode = AutowireMode.ALL)
 class KnotApplicationTests {
+    private static final String FRONTEND_ORIGIN = "https://knoted.kr";
+    private static final String UNALLOWED_ORIGIN = "https://attacker.example";
     private static final String JWT_COOKIE_NAME = "KNOT_ACCESS_TOKEN";
     private static final String NICKNAME_COOKIE_NAME = "KNOT_NICKNAME_TOKEN";
     private static final String CSRF_COOKIE_NAME = "XSRF-TOKEN";
     private final MockMvc mockMvc;
     private final AuthTokenProvider authTokenProvider;
+    private final ObjectMapper objectMapper;
 
     KnotApplicationTests(
             MockMvc mockMvc,
-            AuthTokenProvider authTokenProvider
+            AuthTokenProvider authTokenProvider,
+            ObjectMapper objectMapper
     ) {
         this.mockMvc = mockMvc;
         this.authTokenProvider = authTokenProvider;
+        this.objectMapper = objectMapper;
     }
 
     @Test
@@ -184,10 +194,88 @@ class KnotApplicationTests {
     }
 
     @Test
-    @DisplayName("CSRF 쿠키와 헤더가 있으면 닉네임 설정 요청이 실제 보안 필터를 통과한다")
-    void completeNicknameSetup_success_withCookieCsrfToken() throws Exception {
+    @DisplayName("허용된 프론트 Origin의 닉네임 설정 preflight 요청을 허용한다")
+    void completeNicknameSetup_preflight_success_allowedOrigin() throws Exception {
+        // when
+        ResultActions result = mockMvc.perform(
+                options("/auth/nickname").header(
+                        HttpHeaders.ORIGIN,
+                        FRONTEND_ORIGIN
+                )
+                        .header(
+                                HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD,
+                                HttpMethod.POST.name()
+                        )
+                        .header(
+                                HttpHeaders.ACCESS_CONTROL_REQUEST_HEADERS,
+                                "content-type,x-xsrf-token"
+                        )
+        );
+
+        // then
+        result.andExpect(status().isOk())
+                .andExpect(
+                        header().string(
+                                HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN,
+                                FRONTEND_ORIGIN
+                        )
+                )
+                .andExpect(
+                        header().string(
+                                HttpHeaders.ACCESS_CONTROL_ALLOW_CREDENTIALS,
+                                "true"
+                        )
+                );
+    }
+
+    @Test
+    @DisplayName("허용하지 않은 Origin에는 CORS 허용 헤더를 제공하지 않는다")
+    void completeNicknameSetup_preflight_failure_unallowedOrigin() throws Exception {
+        // when
+        ResultActions result = mockMvc.perform(
+                options("/auth/nickname").header(
+                        HttpHeaders.ORIGIN,
+                        UNALLOWED_ORIGIN
+                )
+                        .header(
+                                HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD,
+                                HttpMethod.POST.name()
+                        )
+        );
+
+        // then
+        result.andExpect(header().doesNotExist(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN));
+    }
+
+    @Test
+    @DisplayName("인증 없이 CSRF 토큰을 조회하고 쿠키와 응답에 동일한 토큰을 반환한다")
+    void csrf_success_unauthenticated() throws Exception {
+        // when
+        MvcResult result = mockMvc.perform(get("/auth/csrf"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.token").isNotEmpty())
+                .andReturn();
+
+        // then
+        Cookie csrfCookie = result.getResponse()
+                .getCookie(CSRF_COOKIE_NAME);
+        assertThat(csrfCookie).isNotNull();
+        JsonNode responseBody = objectMapper.readTree(
+                result.getResponse()
+                        .getContentAsString()
+        );
+        assertThat(
+                responseBody.get("token")
+                        .asText()
+        ).isEqualTo(csrfCookie.getValue());
+    }
+
+    @Test
+    @DisplayName("CSRF 토큰 조회 API에서 받은 토큰으로 닉네임 설정을 완료한다")
+    void completeNicknameSetup_success_withCsrfTokenEndpoint() throws Exception {
         // given
-        MvcResult csrfResult = mockMvc.perform(get("/auth/me"))
+        MvcResult csrfResult = mockMvc.perform(get("/auth/csrf"))
+                .andExpect(status().isOk())
                 .andReturn();
         Cookie csrfCookie = csrfResult.getResponse()
                 .getCookie(CSRF_COOKIE_NAME);
@@ -264,7 +352,8 @@ class KnotApplicationTests {
                 null
         );
         String token = authTokenProvider.issue(member);
-        MvcResult csrfResult = mockMvc.perform(get("/auth/me"))
+        MvcResult csrfResult = mockMvc.perform(get("/auth/csrf"))
+                .andExpect(status().isOk())
                 .andReturn();
         Cookie csrfCookie = csrfResult.getResponse()
                 .getCookie(CSRF_COOKIE_NAME);
