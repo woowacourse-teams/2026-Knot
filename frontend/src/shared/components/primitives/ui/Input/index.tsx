@@ -8,8 +8,9 @@ import type { InputHTMLAttributes } from "react";
  * - `empty` : 아직 입력하지 않음 (피그마 status=입력 전)
  * - `filled` : 값이 들어 있음 (피그마 status=입력 중)
  * - `error` : 유효하지 않은 값 (피그마 status=입력 에러)
+ * - `success` : 검증을 통과한 값 (피그마 Field/TextField/Code status=인증 완료)
  */
-export type InputStatus = "empty" | "filled" | "error";
+export type InputStatus = "empty" | "filled" | "error" | "success";
 
 interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   status: InputStatus;
@@ -37,6 +38,10 @@ const STATUS_STYLE = {
     background-color: ${theme.sub.warning[50]};
     border-color: ${theme.sub.warning[600]};
   `,
+  success: (theme: Theme) => css`
+    background-color: ${theme.neutral[0]};
+    border-color: ${theme.sub.accent[500]};
+  `,
 };
 
 /**
@@ -49,6 +54,7 @@ const STATUS_STYLE = {
  * @see https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=424-595 status=입력 전 (`empty`)
  * @see https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=424-597 status=입력 중 (`filled`)
  * @see https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=432-1325 status=입력 에러 (`error`)
+ * @see https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=664-552 Field/TextField/Code status=인증 완료 (`success`)
  */
 export default function Input({ status, ...props }: InputProps) {
   return (
