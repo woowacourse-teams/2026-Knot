@@ -119,7 +119,9 @@ widgets 내부에서 독립적으로 존재할 수 있는, 섹션이 되지 못�
 ## 네이밍 규칙
 
 - 폴더명은 구현체 이름으로 짓고, 구현체 파일은 `index.ts(x)`로 통일. (예: `Button/index.tsx`) 코로케이션과 함께 변경에 유연함을 열어두기 위한 선택.
-- 케밥 케이스와 카멜 케이스가 섞여 헷갈리는 문제가 있어, 네이밍은 카멜(파스칼 포함)로 통일. 케밥 케이스는 사용하지 않음.
+- 케밥 케이스와 카멜 케이스가 섞여 헷갈리는 문제가 있어, 네이밍은 카멜(파스칼 포함)로 통일.
+- **예외: `src/pages` 하위의 라우트 폴더는 `kebab-case` 허용.** 폴더 경로가 곧 URL 경로이므로 URL 표기를 그대로 따름. (e.g. `pages/join-error` → `/join-error`) 레이아웃·동적 세그먼트 등 라우팅 규약용 특수 폴더(`_layout`, `[workspaceId]`)도 규약 표기를 그대로 사용.
+- 위 예외를 제외한 나머지(`modules`, `shared` 전체)에서는 케밥 케이스를 사용하지 않음.
 - 인덱스 파일과 어색하게 섞이지 않도록, 인덱스를 제외한 나머지는 폴더로 둠. 테스트 파일(`test.ts`, 컴포넌트 통합 테스트는 `test.tsx`)은 예외.
 - **컴포넌트 폴더의 세그먼트(`ui`/`model`/`utils`/`types`/`constants`/`context`) 내부는 예외**: 폴더 + `index.ts`를 다시 쓰지 않고 구현체 이름의 플랫 파일로 둠. (예: `ui/LoadingFallback.tsx`, `model/useCalendar.ts`, `utils/formatDate.ts` + `utils/formatDate.test.ts`) `shared` 레이어는 기존대로 폴더 + `index.ts`.
 - 타입 파일은 `index.ts`를 두지 않고 항상 `types/` 폴더 안에 `user.ts`처럼 내용을 나타내는 이름으로 작성. (`types.ts` 단일 파일은 쓰지 않음)

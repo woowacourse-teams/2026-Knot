@@ -7,6 +7,7 @@ description: 코드 작성 시 지켜야 하는 전역 규칙(네이밍, 타입,
 ### 폴더 및 파일명
 
 - 폴더명: `camelCase`
+  - **예외: `src/pages` 하위의 라우트 폴더는 URL 경로를 그대로 반영하므로 `kebab-case` 허용** (e.g. `pages/join-error`, `pages/workspace/code`). 라우팅 규약용 특수 폴더(`_layout`, `[workspaceId]` 등)도 그대로 사용.
 - 파일명:
   - 컴포넌트 파일: `PascalCase` + `.tsx`(`.jsx`)
   - 컴포넌트 외 파일: `camelCase` + `.ts`(`.js`)
@@ -102,7 +103,9 @@ description: 코드 작성 시 지켜야 하는 전역 규칙(네이밍, 타입,
 
 ## 스타일
 
-- app = Emotion Native(`styled`), web = Tailwind CSS 4 (+ `clsx`/`tailwind-merge`)
+- 스타일은 **Emotion**으로 작성. (`@emotion/styled`, `@emotion/react`)
+- 디자인 토큰(색상·타이포·간격)은 `shared/provider/themeProvider`의 ThemeProvider를 통해 사용하고, 값을 컴포넌트에 하드코딩하지 않음.
+- **Tailwind CSS는 사용하지 않음.** (`className` 유틸 클래스, `clsx`/`tailwind-merge` 미사용)
 
 ## 임포트 경로
 
