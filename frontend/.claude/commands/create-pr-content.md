@@ -32,7 +32,7 @@ git diff develop...HEAD                  # 실제 변경 코드
 
 - `context/statement.md` 파일이 존재하면 읽어서 작성자의 의도·주의사항을 반영. (없으면 생략)
 - diff가 큰 경우 `--stat`으로 전체 윤곽을 먼저 잡고, 핵심 파일만 개별적으로 확인.
-- 이슈 번호는 커밋 메시지·브랜치명(`feature/#51-...`)에서 추출. 찾지 못하면 2단계에서 사용자에게 물어봄.
+- 이슈 번호는 커밋 메시지·브랜치명(`feature/#51-...`)에서 추출. 찾지 못하면 임의로 추측하지 말고 **작업을 멈추고 사용자에게 이슈 번호를 물어본 뒤 진행**.
 
 ## 2단계: 이슈 확인 (상위 이슈 포함)
 
@@ -50,16 +50,21 @@ gh issue view <이슈번호> --json number,title,body,state,labels
 
 ```bash
 gh api graphql -f query='
-query($owner:String!, $name:String!, $number:Int!) {
+query($owner:String!, $name:String!, $number:Int!, $after:String) {
   repository(owner:$owner, name:$name) {
     issue(number:$number) {
       number title body state
       parent { number title body state }
-      subIssues(first:30) { nodes { number title state } }
+      subIssues(first:30, after:$after) {
+        nodes { number title state }
+        pageInfo { hasNextPage endCursor }
+      }
     }
   }
 }' -F owner=woowacourse-teams -F name=2026-Knot -F number=<이슈번호>
 ```
+
+- `subIssues`는 한 번에 최대 30개만 반환하므로, `pageInfo.hasNextPage`가 `true`이면 `-F after=<endCursor>`로 **`hasNextPage`가 `false`가 될 때까지 반복 조회**하여 하위 이슈 목록을 모두 모음.
 
 판단 기준:
 
@@ -78,7 +83,7 @@ query($owner:String!, $name:String!, $number:Int!) {
 | 이슈의 `## 메모`, 라벨                      | 참고 사항 / 논의점                                     |
 
 - 서브 이슈일 경우 관련 이슈 섹션에 **양쪽 모두** 기재.
-- 이슈 번호를 끝내 찾지 못하면 임의로 추측하지 말고 `- #` 로 비워둔 뒤 사용자에게 알림.
+- 이슈 번호를 자동으로 찾지 못한 경우는 1단계와 동일하게 처리. 임의로 추측하거나 `- #`로 비워두지 말고, 작업을 멈추고 사용자에게 물어본 뒤 진행.
 - `gh` 인증 실패·네트워크 오류 시 이슈 조회를 생략하고, **"이슈 내용을 반영하지 못했음"을 사용자에게 명시적으로 알림.**
 
 ### 관련 이슈 표기 형식
@@ -100,12 +105,7 @@ query($owner:String!, $name:String!, $number:Int!) {
 - #51
 ```
 
-## 3단계: PR 템플릿 확인
-
-`.github/PULL_REQUEST_TEMPLATE.md`(레포 루트 기준, frontend에서 실행 시 `../.github/PULL_REQUEST_TEMPLATE.md`)를 읽어 **현재 템플릿 구조를 그대로 따름.**
-템플릿이 변경되었다면 아래 형식보다 **템플릿이 우선**.
-
-## 4단계: PR 문서 작성
+## 3단계: PR 문서 작성
 
 ### 저장 위치
 
@@ -119,7 +119,7 @@ mkdir -p /tmp/knot-pr
 - 파일이 이미 존재하면 덮어씀.
 - **`context/` 하위에는 절대 작성하지 않음.**
 
-## 5단계: VS Code로 열기
+## 4단계: VS Code로 열기
 
 작성 완료 후 반드시 실행:
 
@@ -133,7 +133,7 @@ code /tmp/knot-pr/<파일명>.md
 
 ## PR 문서 형식
 
-`.github/PULL_REQUEST_TEMPLATE.md` 기준. 주석(`<!-- -->`)은 모두 제거하고 실제 내용으로 채움.
+아래 형식을 그대로 따름. 주석(`<!-- -->`)은 모두 제거하고 실제 내용으로 채움.
 
 ```md
 ## 관련 이슈
@@ -258,19 +258,18 @@ const getRouterPath = (routeKey: RouteKey) => ROUTES[routeKey];
 ````md
 ### TextField 프리미티브 구현
 
-label·error·helperText를 함께 제어하는 `TextField`를 추가하였습니다.
+값과 에러 메시지를 함께 다루는 `TextField`를 추가하였습니다.
 
 ```tsx
 <TextField
-  label="팀 이름"
   value={name}
   onChange={handleChange}
-  error={isDuplicated}
-  helperText="이미 존재하는 팀 이름입니다."
+  placeholder="팀 이름을 입력해 주세요."
+  errorMessage={isDuplicated ? "이미 존재하는 팀 이름입니다." : undefined}
 />
 ```
 
-Input의 스타일 변형을 컴포넌트 내부에서 처리하므로, 사용처에서는 상태만 전달하면 됩니다.
+`errorMessage` 유무와 값의 길이로 `Input`의 `status`를 계산해 넘기므로, 사용처에서는 값과 에러 메시지만 전달하면 됩니다.
 ````
 
 ---
