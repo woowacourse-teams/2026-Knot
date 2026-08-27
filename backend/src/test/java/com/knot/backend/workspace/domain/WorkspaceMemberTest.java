@@ -13,7 +13,7 @@ class WorkspaceMemberTest {
 
     @DisplayName("워크스페이스와 멤버 식별자 및 역할로 멤버십을 생성한다")
     @Test
-    void createWorkspaceMember() {
+    void create_success() {
         // given
         Long workspaceId = 1L;
         Long memberId = 2L;
@@ -35,7 +35,7 @@ class WorkspaceMemberTest {
 
     @DisplayName("워크스페이스 ID가 양수가 아니면 멤버십 생성을 거부한다")
     @Test
-    void rejectInvalidWorkspaceId() {
+    void create_failure_invalidWorkspaceId() {
         // given
         Long invalidWorkspaceId = 0L;
 
@@ -55,7 +55,7 @@ class WorkspaceMemberTest {
 
     @DisplayName("멤버 ID가 양수가 아니면 멤버십 생성을 거부한다")
     @Test
-    void rejectInvalidMemberId() {
+    void create_failure_invalidMemberId() {
         // given
         Long invalidMemberId = 0L;
 
@@ -75,7 +75,7 @@ class WorkspaceMemberTest {
 
     @DisplayName("역할이 없으면 멤버십 생성을 거부한다")
     @Test
-    void rejectMissingRole() {
+    void create_failure_missingRole() {
         // given
         WorkspaceMemberRole missingRole = null;
 
@@ -95,7 +95,7 @@ class WorkspaceMemberTest {
 
     @DisplayName("참여 시각이 없으면 멤버십 생성을 거부한다")
     @Test
-    void rejectMissingJoinedAt() {
+    void create_failure_missingJoinedAt() {
         // given
         Instant missingJoinedAt = null;
 

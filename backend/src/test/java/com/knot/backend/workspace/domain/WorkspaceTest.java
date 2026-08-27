@@ -13,7 +13,7 @@ class WorkspaceTest {
 
     @DisplayName("유효한 이름으로 워크스페이스를 생성한다")
     @Test
-    void createWorkspace() {
+    void create_success() {
         // given
         String name = "Knot 팀";
 
@@ -30,7 +30,7 @@ class WorkspaceTest {
 
     @DisplayName("워크스페이스 이름은 최대 20자까지 허용한다")
     @Test
-    void createWorkspaceWithMaximumLengthName() {
+    void create_success_maximumLengthName() {
         // given
         String maximumLengthName = "가".repeat(Workspace.MAX_NAME_LENGTH);
 
@@ -46,7 +46,7 @@ class WorkspaceTest {
 
     @DisplayName("워크스페이스 이름이 비어 있으면 생성을 거부한다")
     @Test
-    void rejectBlankName() {
+    void create_failure_blankName() {
         // given
         String blankName = " ";
 
@@ -64,7 +64,7 @@ class WorkspaceTest {
 
     @DisplayName("워크스페이스 이름이 최대 길이를 넘으면 생성을 거부한다")
     @Test
-    void rejectTooLongName() {
+    void create_failure_tooLongName() {
         // given
         String tooLongName = "가".repeat(Workspace.MAX_NAME_LENGTH + 1);
 
@@ -82,7 +82,7 @@ class WorkspaceTest {
 
     @DisplayName("워크스페이스 이름에 특수문자가 있으면 생성을 거부한다")
     @Test
-    void rejectNameContainingSpecialCharacter() {
+    void create_failure_specialCharacter() {
         // given
         String nameContainingSpecialCharacter = "Knot_팀";
 
@@ -100,7 +100,7 @@ class WorkspaceTest {
 
     @DisplayName("생성 시각이 없으면 워크스페이스 생성을 거부한다")
     @Test
-    void rejectMissingCreatedAt() {
+    void create_failure_missingCreatedAt() {
         // given
         Instant missingCreatedAt = null;
 
