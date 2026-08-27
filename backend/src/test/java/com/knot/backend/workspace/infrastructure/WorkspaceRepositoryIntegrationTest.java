@@ -30,8 +30,7 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 @Tag("integration")
-@Import({TestcontainersConfiguration.class, WorkspaceRepositoryAdapter.class,
-        WorkspaceMemberRepositoryAdapter.class})
+@Import({TestcontainersConfiguration.class, WorkspaceRepositoryAdapter.class, WorkspaceMemberRepositoryAdapter.class})
 @DataJpaTest
 class WorkspaceRepositoryIntegrationTest {
     private static final Instant CREATED_AT = Instant.parse("2026-08-24T00:00:00Z");
@@ -48,7 +47,7 @@ class WorkspaceRepositoryIntegrationTest {
 
     @DisplayName("워크스페이스와 멤버십을 저장하고 조회한다")
     @Test
-    void saveAndFindWorkspaceAndMember() {
+    void saveAndFind_success() {
         // given
         long memberId = saveMember(1L);
         Workspace workspace = saveAndFlush(
@@ -96,7 +95,7 @@ class WorkspaceRepositoryIntegrationTest {
 
     @DisplayName("같은 워크스페이스와 멤버 조합은 중복 저장할 수 없다")
     @Test
-    void rejectDuplicateWorkspaceMember() {
+    void save_failure_duplicateWorkspaceMember() {
         // given
         long memberId = saveMember(2L);
         Workspace workspace = saveAndFlush(
@@ -130,7 +129,7 @@ class WorkspaceRepositoryIntegrationTest {
     @DisplayName("같은 워크스페이스와 멤버 조합을 동시에 저장해도 하나만 성공한다")
     @Test
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
-    void rejectConcurrentDuplicateWorkspaceMember() throws Exception {
+    void save_failure_concurrentDuplicateWorkspaceMember() throws Exception {
         // given
         long memberId = saveMember(3L);
         Workspace workspace = workspaceRepository.save(
@@ -179,7 +178,7 @@ class WorkspaceRepositoryIntegrationTest {
 
     @DisplayName("존재하지 않는 워크스페이스를 참조하는 멤버십은 저장할 수 없다")
     @Test
-    void rejectMissingWorkspaceReference() {
+    void save_failure_missingWorkspaceReference() {
         // given
         long memberId = saveMember(4L);
         WorkspaceMember workspaceMember = WorkspaceMember.create(
@@ -198,7 +197,7 @@ class WorkspaceRepositoryIntegrationTest {
 
     @DisplayName("존재하지 않는 멤버를 참조하는 멤버십은 저장할 수 없다")
     @Test
-    void rejectMissingMemberReference() {
+    void save_failure_missingMemberReference() {
         // given
         Workspace workspace = saveAndFlush(
                 Workspace.create(
