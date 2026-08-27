@@ -41,7 +41,7 @@ class AgentHarnessParityTest(unittest.TestCase):
         self.assertIn("adr.required=true", agents_md)
         self.assertIn("ADR 자산화 절차", agents_md)
 
-    def test_test_mode_never_grants_remote_write_authority(self):
+    def test_default_mode_requires_explicit_publish_for_remote_write(self):
         agents_md = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
         canonical = (
             ROOT / ".agents" / "skills" / "knot-issue-planning" / "SKILL.md"
@@ -59,6 +59,8 @@ class AgentHarnessParityTest(unittest.TestCase):
             with self.subTest(document=text[:40]):
                 self.assertIn("remote_write_authorized", text)
                 self.assertIn("false", text)
+                self.assertIn("--publish", text)
+                self.assertIn("gh issue create", text)
         self.assertIn("requested_action=publish_issue", canonical)
 
     def test_temporary_snapshot_is_restricted_and_removed(self):

@@ -93,13 +93,19 @@ snapshot은 저장소에 저장하지 않는다. OS 임시 파일을 현재 사�
 판정 또는 ADR 생성이 끝나면 성공·실패와 관계없이 삭제한다. 인터뷰 원문, 토큰,
 비밀번호와 개인정보를 넣지 않는다.
 
-현재 테스트 버전의 결과 필드는 다음 의미를 가진다.
+기본 dry-run 결과 필드는 다음 의미를 가진다.
 
-- `action`: 실제 수행한 동작이며 통과한 계약은 `render_draft`다.
+- `action`: 실제 수행한 동작이다. 기본 통과 계약은 `render_draft`이고, 명시적 publish
+  성공은 `publish_issue`다.
 - `requested_action`: `operation=create`이면 `publish_issue`, 초안이면 `render_draft`다.
 - `publish_ready`: 생성 의도로 들어온 Issue 후보 계약이 통과했는지 나타낸다. ADR 실제
   경로가 확정됐다는 뜻은 아니다.
-- `remote_write_authorized`: 항상 `false`다. 다른 필드를 원격 쓰기 권한으로 해석하지 않는다.
+- `remote_write_authorized`: 기본값은 `false`다. 사용자가 현재 요청에서 실제 GitHub Issue
+  생성을 명시적으로 허용했고 CLI를 `--publish --repo OWNER/REPO`로 실행해 계약이 통과한
+  경우에만 `gh issue create` 실행 뒤 `true`가 될 수 있다. 다른 필드를 원격 쓰기 권한으로
+  해석하지 않는다.
+- `issue_url`: publish 성공 시 생성된 GitHub Issue URL이다.
+- `issue_number`: publish 성공 시 URL에서 실제 번호를 판독할 수 있으면 포함한다.
 - `interview_status`: 고위험 계약의 인터뷰가 `completed` 또는 `skipped`인지 나타낸다.
 - `interview_notice`: 사용자에게 그대로 보여줄 인터뷰 완료 또는 생략 안내다.
 - `adr_path_status`: 실제 Issue 번호 전이면 `pending_issue_number`, 확정 뒤에는 `finalized`다.
