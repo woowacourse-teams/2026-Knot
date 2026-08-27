@@ -121,16 +121,30 @@ jobs:
             /opt/knot-backend/app.jar
 
           sudo -n /usr/bin/systemctl restart knot-backend.service
-          sudo -n /usr/bin/systemctl is-active knot-backend.service
 
-          curl \
-            --fail \
-            --silent \
-            --show-error \
-            --max-time 15 \
-            http://127.0.0.1:8080/actuator/health
+          for attempt in {1..30}; do
+            if curl \
+              --fail \
+              --silent \
+              --max-time 5 \
+              http://127.0.0.1:8080/actuator/health; then
+              printf '\n'
+              rm -f /tmp/knot-backend-dev.jar
+              exit 0
+            fi
 
+            if ! sudo -n /usr/bin/systemctl is-active knot-backend.service >/dev/null; then
+              echo "knot-backend.service stopped during startup"
+              rm -f /tmp/knot-backend-dev.jar
+              exit 1
+            fi
+
+            sleep 2
+          done
+
+          echo "Health check timed out after 60 seconds"
           rm -f /tmp/knot-backend-dev.jar
+          exit 1
           REMOTE
 
       - name: Notify Discord
