@@ -60,7 +60,10 @@ class AgentHarnessParityTest(unittest.TestCase):
                 self.assertIn("remote_write_authorized", text)
                 self.assertIn("false", text)
                 self.assertIn("--publish", text)
-                self.assertIn("gh issue create", text)
+                self.assertIn("재사용", text)
+                self.assertIn("publish_issue", text)
+        self.assertIn("gh issue edit", agents_md)
+        self.assertIn("Project 변경", agents_md)
         self.assertIn("requested_action=publish_issue", canonical)
 
     def test_temporary_snapshot_is_restricted_and_removed(self):

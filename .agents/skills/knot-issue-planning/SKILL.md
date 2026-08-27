@@ -18,8 +18,7 @@ Issue 생성 요청을 저장소 전역의 실행 가능한 작업 계약으로 
 3. 두 의미가 섞였으면 원격 변경을 허용하지 않는 `draft`를 기본값으로 사용하고 사용자에게
    생성 여부를 확인한다.
 4. 기본 실행에서는 `create`도 계획 결과만 출력한다. 실제 생성을 명시적으로 허용받은
-   경우에만 `--publish --repo OWNER/REPO`로 `gh issue create`를 실행한다. `gh issue edit`와
-   Project 변경은 실행하지 않는다.
+   경우에만 `--publish --repo OWNER/REPO`로 게시한다. Project 변경은 실행하지 않는다.
 
 ## 2. 근거 조사
 
@@ -97,13 +96,17 @@ ADR 필요 여부를 판정한다.
      --publish --repo OWNER/REPO --pretty
    ```
 
-   성공하면 `action=publish_issue`, `remote_write_authorized=true`, `issue_url`과 가능한
-   경우 `issue_number`를 보고한다. `draft`, `hold`, 누락된 `--repo`, GitHub 인증 실패는
-   게시하지 않거나 실패 결과로 멈춘다. 이 publish 경로는 Issue 생성만 수행하며 Project
-   변경, branch, commit, push, PR merge 또는 ADR 파일 생성을 함께 하지 않는다.
-10. ADR이 필요하고 `adr_path_status=pending_issue_number`면 Issue 생성 뒤 실제 번호로
-   경로를 확정해야 한다고 보고한다.
-11. 성공·실패와 관계없이 임시 snapshot을 삭제한다.
+   게시기는 같은 `contract_id` 표식의 기존 Issue를 먼저 찾는다. 하나면
+   `reuse_existing_issue`로 재사용하고, 둘 이상이면 중복을 해소할 때까지 `hold`한다. 새로
+   만들면 `action=publish_issue`로 보고한다. 두 성공 결과 모두
+   `remote_write_authorized=true`, `issue_url`, `issue_number`를 포함한다.
+10. ADR이 필요하면 실제 Issue 번호로 예정 경로를 확정하고 같은 Issue 본문만 갱신한다.
+    생성 이후 본문 갱신이 실패하면 번호와 URL을 보존한 `partial_publish_issue`로 보고한다.
+    Project 변경, branch, commit, push, PR merge 또는 ADR 파일 생성은 함께 하지 않는다.
+11. `draft`, `hold`, 잘못된 `--repo`에는 원격 호출을 하지 않는다. 승인된 게시 단계의
+    검색·생성·갱신 실패는 권한과 성공을 구분해 `remote_write_authorized=true`인 실패로
+    보고한다.
+12. 성공·실패와 관계없이 임시 snapshot을 삭제한다.
 
 ## 7. 구현 시작 시 ADR 자산화
 
@@ -131,7 +134,7 @@ python3 harness/materialize_adr.py <snapshot.json> \
 - ADR 경로가 번호 확정 전인지 실제 Issue 번호로 확정됐는지 보고했다.
 - `hold`의 누락 항목 또는 `pass`의 Issue 본문을 사용자가 확인할 수 있다.
 - dry-run Issue 기획에서는 GitHub, branch, commit과 ADR 파일을 변경하지 않았다.
-- publish Issue 기획에서는 명시적으로 허용된 `gh issue create` 외의 원격 변경, branch,
-  commit과 ADR 파일을 변경하지 않았다.
+- publish Issue 기획에서는 계약 표식 기반 생성·재사용과 ADR 경로 확정을 위한 동일 Issue
+  본문 갱신 외의 원격 변경, branch, commit과 ADR 파일을 변경하지 않았다.
 - 구현 요청에서는 필요한 ADR 파일이 `Proposed`로 현재 작업 브랜치에 있고 코드와 같은
   PR의 검토 대상이다.

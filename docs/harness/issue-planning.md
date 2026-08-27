@@ -2,7 +2,7 @@
 
 - 적용 범위: 저장소 전역, BE·FE 공통
 - 상태: dry-run 기본, 명시적 publish opt-in
-- 원격 변경: `--publish --repo OWNER/REPO`에서 Issue 생성만 활성화
+- 원격 변경: `--publish --repo OWNER/REPO`에서 계약 표식 기반 Issue 생성·재사용 활성화
 
 이 하네스는 깊이 있는 내부 계약을 검증한 뒤 팀의 기존 세 섹션으로 짧은 GitHub Issue
 후보를 만든다. 기본 실행은 Issue 본문과 판정 결과만 생성한다. 사용자가 현재 요청에서
@@ -37,11 +37,13 @@ python3 harness/issue_planning.py <snapshot.json> \
   --publish --repo OWNER/REPO --pretty
 ```
 
-`--publish`는 `operation=create`, `status=pass`, `publish_ready=true`일 때만 `gh issue
-create`를 실행한다. 성공 결과는 `action=publish_issue`, `remote_write_authorized=true`,
-`issue_url`과 가능한 경우 `issue_number`를 포함한다. `draft`, `hold`, 누락된 `--repo`,
-GitHub 인증 실패는 게시하지 않거나 실패 결과로 멈춘다. 이 경로는 Issue 생성만 수행하며
-Project 변경, branch, commit, push, PR merge 또는 ADR 파일 생성을 함께 하지 않는다.
+`--publish`는 `operation=create`, `status=pass`, `publish_ready=true`일 때만 동작한다. 먼저
+`contract_id` 표식으로 모든 상태의 기존 Issue를 찾고, 하나면 재사용하며 둘 이상이면
+`hold`한다. 없으면 `gh issue create`를 실행한다. ADR이 필요하면 실제 Issue 번호로 예정
+경로를 확정하기 위해 같은 Issue 본문만 갱신한다. 성공 결과는 `action=publish_issue` 또는
+`reuse_existing_issue`, `remote_write_authorized=true`, `issue_url`, `issue_number`를 포함한다.
+생성 뒤 본문 갱신이 실패하면 번호와 URL을 보존한 `partial_publish_issue`로 보고한다.
+Project 변경, branch, commit, push, PR merge 또는 ADR 파일 생성은 함께 하지 않는다.
 
 ## 동작
 
@@ -137,7 +139,8 @@ Issue #165의 프론트엔드 공통 하네스는 `frontend/` 코드 구현·테
 - ADR 필요 여부와 채택안
 - 원격 쓰기 권한 판정
 - 명시적 GitHub Issue 게시
-- 중복 방지용 안정적인 계약 식별자 생성
+- 안정적인 계약 식별자 기반 중복 검색·재사용·중복 감지
+- 게시 직후 실제 Issue 번호로 ADR 예정 경로 확정
 - 구현 브랜치의 안전하고 멱등적인 `Proposed` ADR 파일 생성
 - GitHub Actions의 결정적 하네스 테스트
 

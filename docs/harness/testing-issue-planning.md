@@ -23,6 +23,8 @@ python3 -m unittest discover harness/tests -p 'test_*.py' -v
 - 실제 대안이 둘 미만이거나 확인되지 않으면 ADR을 요구할 수 없다.
 - 생성·초안 요청 모두 기본 dry-run에서는 원격 쓰기를 허용하지 않는다.
 - `--publish --repo OWNER/REPO`를 명시한 생성 요청만 GitHub Issue 생성을 허용한다.
+- 같은 계약 표식의 Issue는 재사용하고, 둘 이상이면 추가 생성 없이 Hold한다.
+- ADR 필요 Issue는 생성 직후 실제 번호로 본문 경로를 확정하고 부분 실패를 보존한다.
 - 잘못된 문자열·목록 타입과 Markdown H2 삽입은 예외 없이 Hold한다.
 - Hold 결과는 CLI 종료 코드 1을 반환한다.
 - 같은 계약은 같은 `contract_id`를 만든다.
@@ -74,11 +76,12 @@ python3 harness/issue_planning.py \
   --publish --repo OWNER/REPO --pretty
 ```
 
-성공 결과는 `status=pass`, `action=publish_issue`,
-`remote_write_authorized=true`, `issue_url`과 가능한 경우 `issue_number`를 포함한다.
+성공 결과는 `status=pass`, `action=publish_issue` 또는 `reuse_existing_issue`,
+`remote_write_authorized=true`, `issue_url`, `issue_number`를 포함한다.
 이 명령은 실제 GitHub Issue를 생성하므로 테스트 저장소나 실제 생성이 허용된 상황에서만
-실행한다. `draft`, `hold`, 누락된 `--repo`, GitHub 인증 실패는 게시하지 않거나 실패
-결과로 멈춘다.
+실행한다. `draft`, `hold`, 누락된 `--repo`는 원격 호출 없이 멈춘다. 승인된 게시 단계의
+검색·생성 실패는 권한과 성공을 구분해 보고하고, 생성 뒤 ADR 본문 갱신 실패는
+`partial_publish_issue`와 실제 번호·URL을 보존한다.
 
 ## 3. ADR materializer 격리 테스트
 
@@ -149,8 +152,8 @@ git log -1 --oneline
 
 기존 작업 파일 외에 예상한 하네스 파일만 변경됐는지 확인한다. 기본 dry-run 스킬과
 검증기는 `gh issue create`, `gh issue edit`, Project 변경, `git commit`, `git push`,
-PR merge를 실행하지 않는다. 명시적 publish 검증은 `gh issue create`만 실행하며 다른 원격
-변경이나 git 작업을 함께 수행하지 않는다.
+PR merge를 실행하지 않는다. 명시적 publish 검증은 계약 표식 검색, 필요한 생성, ADR 경로
+확정을 위한 동일 Issue 본문 갱신만 실행하며 Project나 git 작업을 함께 수행하지 않는다.
 
 ## 7. 새 Codex 세션에서 routing 확인
 
@@ -178,7 +181,7 @@ codex exec --ephemeral --sandbox read-only -C . \
 
 ## 수동 검증 또는 후속 검증 항목
 
-- 실제 GitHub Issue 생성과 Project 연결
+- 실제 GitHub Issue 생성·재사용과 별도 권한의 Project 연결
 - GitHub 인증 실패 뒤 재개
 - 팀원별 Codex 버전과 자연어 implicit invocation 편차
 - 팀원별 Claude Code 버전과 skill discovery 편차

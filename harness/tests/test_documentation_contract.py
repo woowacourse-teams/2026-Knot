@@ -24,6 +24,8 @@ class DocumentationContractTest(unittest.TestCase):
         self.assertIn("remote_write_authorized=false", guide)
         self.assertIn("--publish --repo OWNER/REPO", guide)
         self.assertIn("action=publish_issue", guide)
+        self.assertIn("reuse_existing_issue", guide)
+        self.assertIn("partial_publish_issue", guide)
         self.assertIn("remote_write_authorized=true", guide)
         self.assertIn("--issue-number 123", guide)
         self.assertIn("adr_path_status=pending_issue_number", guide)

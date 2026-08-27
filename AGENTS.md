@@ -26,9 +26,11 @@ Knot의 GitHub Issue 생성·초안·검토 요청에는 `$knot-issue-planning`�
 쓰기 권한이 아니다. 사용자가 현재 요청에서 실제 GitHub Issue 생성을 명시적으로 허용했고
 판정기가 `pass`와 `publish_ready=true`를 반환한 경우에만 저장소 루트에서
 `python3 harness/issue_planning.py <snapshot.json> --publish --repo OWNER/REPO --pretty`를
-실행할 수 있다. 이 opt-in 경로는 `gh issue create`만 허용하며 `gh issue edit`, Project 변경,
-branch, commit, push, PR merge와 ADR 파일 생성을 함께 실행하지 않는다. `draft` 또는 `hold`
-계약은 `--publish`가 있어도 GitHub에 쓰지 않는다.
+실행할 수 있다. 게시기는 계약 표식으로 기존 Issue를 먼저 찾아 하나면 재사용하고, 둘 이상이면
+중복 해소 전까지 멈춘다. `gh issue edit`는 ADR 예정 경로를 실제 Issue 번호로 확정하기 위해
+방금 생성하거나 재사용한 동일 Issue의 본문을 갱신할 때만 허용한다. Project 변경, branch,
+commit, push, PR merge와 ADR 파일 생성은 함께 실행하지 않는다. `draft` 또는 `hold` 계약은
+`--publish`가 있어도 GitHub에 쓰지 않는다.
 
 ## Issue 구현
 
