@@ -24,6 +24,10 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-flyway'
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
 	implementation 'org.springframework.boot:spring-boot-starter-webmvc'
+	implementation 'org.springframework.boot:spring-boot-starter-jackson'
+	implementation 'org.springframework.boot:spring-boot-starter-security'
+	implementation 'org.springframework.boot:spring-boot-starter-oauth2-client'
+	implementation 'org.springframework.security:spring-security-oauth2-jose'
 
 	implementation 'org.flywaydb:flyway-database-postgresql'
 
@@ -37,6 +41,7 @@ dependencies {
 	testImplementation 'org.springframework.boot:spring-boot-starter-flyway-test'
 	testImplementation 'org.springframework.boot:spring-boot-starter-validation-test'
 	testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
+	testImplementation 'org.springframework.security:spring-security-test'
 
 	testImplementation 'org.springframework.boot:spring-boot-testcontainers'
 	testImplementation 'org.testcontainers:testcontainers-junit-jupiter'
@@ -50,6 +55,8 @@ dependencies {
 
 spotless {
 	java {
+		// JPA Entity는 애노테이션 필드 블록 공백 규칙을 별도로 적용한다.
+		targetExclude('src/main/java/com/knot/backend/member/domain/Member.java')
 		eclipse('4.39').configFile('config/spotless/eclipse-formatter.xml')
 		removeUnusedImports()
 		trimTrailingWhitespace()
