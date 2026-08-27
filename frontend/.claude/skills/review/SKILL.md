@@ -75,6 +75,7 @@ git status --short                                 # 커밋되지 않은 변경�
 | 모든 변경 (공통)             | `CLAUDE.md`, `.claude/rules/general-code-convention.md`                                          |
 | 컴포넌트 신규·수정·이동      | `.claude/rules/component-abstract-pattern.md`, `.claude/rules/component-colocation-pattern.md`   |
 | 컴포넌트 폴더 내부 파일 배치 | `.claude/rules/segment-pattern.md`                                                               |
+| `shared` 하위 파일 배치      | `.claude/rules/shared-layer.md`                                                                  |
 | 새 파일·폴더 추가, 위치 변경 | `.claude/rules/project-structure.md`                                                             |
 | 테스트 코드                  | `.claude/rules/test-strategy.md`                                                                 |
 | API 함수                     | `.claude/rules/api-guide.md`                                                                     |
@@ -136,7 +137,7 @@ git status --short                                 # 커밋되지 않은 변경�
 
 5. 변경 유형에 해당하는 `.claude/rules/*.md`를 읽어 근거를 확보합니다.
    (컴포넌트 → component-abstract-pattern / component-colocation-pattern / segment-pattern,
-    API → api-guide, 쿼리훅 → query-hooks, shared 훅 → hook-guide, 테스트 → test-strategy,
+    shared → shared-layer, API → api-guide, 쿼리훅 → query-hooks, shared 훅 → hook-guide, 테스트 → test-strategy,
     파일 위치 → project-structure, 공통 → general-code-convention)
 
 6. 체크리스트의 A부터 H까지 전 섹션을 순서대로 적용하여 리뷰합니다.

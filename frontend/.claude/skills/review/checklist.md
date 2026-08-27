@@ -95,7 +95,7 @@
 
 ### C-4. 훅 위치 — 4대 판단 기준
 
-> 근거: `.claude/rules/segment-pattern.md`, `.claude/rules/hook-guide.md`
+> 근거: `.claude/rules/shared-layer.md`, `.claude/rules/hook-guide.md`
 
 **"지금은 여기서만 쓴다"는 판단 근거가 아님.** 강결합 여부로만 판단.
 
