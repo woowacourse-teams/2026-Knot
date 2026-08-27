@@ -1,3 +1,5 @@
+import type { ReferenceSource } from "./types/searchReference";
+
 export type SearchReferenceCardListResponse = Array<{
   id: number;
   messageId: number;
@@ -13,7 +15,6 @@ export type SearchReferenceCardListResponse = Array<{
   };
   referenceSource: ReferenceSource;
 }>;
-type ReferenceSource = "notion";
 
 export const mock = [
   {
