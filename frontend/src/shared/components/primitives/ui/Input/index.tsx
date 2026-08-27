@@ -38,7 +38,6 @@ const VARIANT_STYLE = {
   code: (theme: Theme) => css`
     padding: 0.6875rem 1rem;
     text-align: center;
-    /* 피그마에 텍스트 스타일로 정의되지 않은 코드 필드 전용 값이라 theme 토큰이 아닌 여기에 둬요 */
     font-size: 1.5rem; /* 24px */
     font-weight: 700;
     line-height: 1.5;
@@ -64,8 +63,8 @@ const STATUS_STYLE = {
     border-color: ${theme.neutral[300]};
 
     &:focus {
+      outline: none;
       background-color: ${theme.neutral[0]};
-      border-color: ${theme.primary};
     }
   `,
   filled: (theme: Theme) => css`
@@ -73,16 +72,27 @@ const STATUS_STYLE = {
     border-color: ${theme.neutral[200]};
 
     &:focus {
-      border-color: ${theme.primary};
+      outline: none;
+      border-color: ${theme.neutral[400]};
     }
   `,
   error: (theme: Theme) => css`
     background-color: ${theme.sub.warning[50]};
-    border-color: ${theme.sub.warning[600]};
+    border-color: ${theme.sub.warning[200]};
+
+    &:focus {
+      outline: none;
+      border-color: ${theme.sub.warning[600]};
+    }
   `,
   success: (theme: Theme) => css`
     background-color: ${theme.neutral[0]};
-    border-color: ${theme.sub.accent[500]};
+    border-color: ${theme.sub.accent[200]};
+
+    &:focus {
+      outline: none;
+      border-color: ${theme.sub.accent[500]};
+    }
   `,
 } as const satisfies Record<
   InputStatus,
@@ -127,15 +137,10 @@ const StyledInput = styled.input<{
   border: 1px solid;
   border-radius: 0.875rem;
   color: ${({ theme }) => theme.neutral[900]};
-  /* 피그마 가이드: 상태 변환(입력 전 → 입력 후 등) 시 transition: all 0.3s ease-in */
   transition: all 0.3s ease-in;
 
   &::placeholder {
     color: ${({ theme }) => theme.neutral[500]};
-  }
-
-  &:focus {
-    outline: none;
   }
 
   ${({ variant, theme }) => VARIANT_STYLE[variant](theme)};
