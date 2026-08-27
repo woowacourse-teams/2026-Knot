@@ -50,9 +50,8 @@ public class Workspace {
     }
 
     private void validateName(String name) {
-        if (name == null || name.isBlank() || name.length() > MAX_NAME_LENGTH
-                || !NAME_PATTERN.matcher(name)
-                        .matches()) {
+        if (name == null || name.isBlank() || name.length() > MAX_NAME_LENGTH || !NAME_PATTERN.matcher(name)
+                .matches()) {
             throw new WorkspaceException(WorkspaceErrorCode.INVALID_WORKSPACE_NAME);
         }
     }

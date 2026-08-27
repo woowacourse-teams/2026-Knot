@@ -9,9 +9,7 @@ import org.springframework.stereotype.Repository;
 public class WorkspaceMemberRepositoryAdapter implements WorkspaceMemberRepository {
     private final WorkspaceMemberJpaRepository workspaceMemberJpaRepository;
 
-    public WorkspaceMemberRepositoryAdapter(
-            WorkspaceMemberJpaRepository workspaceMemberJpaRepository
-    ) {
+    public WorkspaceMemberRepositoryAdapter(WorkspaceMemberJpaRepository workspaceMemberJpaRepository) {
         this.workspaceMemberJpaRepository = workspaceMemberJpaRepository;
     }
 
