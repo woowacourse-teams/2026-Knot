@@ -10,6 +10,7 @@ import lombok.ToString;
 public final class AuthenticatedMember {
     private static final int MAX_NICKNAME_LENGTH = 20;
     private static final int MAX_PROFILE_IMAGE_URL_LENGTH = 500;
+
     private final long memberId;
     private final String nickname;
     private final String profileImageUrl;
@@ -25,8 +26,8 @@ public final class AuthenticatedMember {
         if (nickname == null || nickname.isBlank() || nickname.length() > MAX_NICKNAME_LENGTH) {
             throw new AuthException(AuthErrorCode.INVALID_AUTHENTICATED_MEMBER);
         }
-        if (profileImageUrl != null && (profileImageUrl.isBlank()
-                || profileImageUrl.length() > MAX_PROFILE_IMAGE_URL_LENGTH)) {
+        if (profileImageUrl != null
+                && (profileImageUrl.isBlank() || profileImageUrl.length() > MAX_PROFILE_IMAGE_URL_LENGTH)) {
             throw new AuthException(AuthErrorCode.INVALID_AUTHENTICATED_MEMBER);
         }
         this.memberId = memberId;

@@ -28,8 +28,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 @Configuration
 @EnableWebSecurity
-@EnableConfigurationProperties({JwtProperties.class, OAuth2LoginProperties.class,
-        CorsProperties.class})
+@EnableConfigurationProperties({JwtProperties.class, OAuth2LoginProperties.class, CorsProperties.class})
 @RequiredArgsConstructor
 public class SecurityConfig {
     private final GithubOAuth2UserService githubOAuth2UserService;
@@ -75,8 +74,7 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        CookieCsrfTokenRepository csrfTokenRepository = CookieCsrfTokenRepository
-                .withHttpOnlyFalse();
+        CookieCsrfTokenRepository csrfTokenRepository = CookieCsrfTokenRepository.withHttpOnlyFalse();
         csrfTokenRepository.setCookieCustomizer(
                 cookie -> cookie.httpOnly(false)
                         .secure(jwtProperties.isSecure())
@@ -98,21 +96,14 @@ public class SecurityConfig {
                                 .anyRequest()
                                 .authenticated()
                 )
-                .exceptionHandling(
-                        exception -> exception.authenticationEntryPoint(authenticationEntryPoint)
-                )
+                .exceptionHandling(exception -> exception.authenticationEntryPoint(authenticationEntryPoint))
                 .csrf(
                         csrf -> csrf.csrfTokenRepository(csrfTokenRepository)
                                 .csrfTokenRequestHandler(new CsrfTokenRequestAttributeHandler())
                 )
-                .sessionManagement(
-                        session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
-                )
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
                 .oauth2Login(
-                        oauth2 -> oauth2
-                                .userInfoEndpoint(
-                                        userInfo -> userInfo.userService(githubOAuth2UserService)
-                                )
+                        oauth2 -> oauth2.userInfoEndpoint(userInfo -> userInfo.userService(githubOAuth2UserService))
                                 .successHandler(successHandler)
                                 .failureHandler(failureHandler)
                 )

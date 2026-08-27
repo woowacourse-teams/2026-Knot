@@ -27,9 +27,7 @@ public class AuthController {
     private final AuthCookieManager authCookieManager;
 
     @GetMapping("/me")
-    public AuthenticatedMemberResponse me(
-            @AuthenticationPrincipal AuthenticatedMember authenticatedMember
-    ) {
+    public AuthenticatedMemberResponse me(@AuthenticationPrincipal AuthenticatedMember authenticatedMember) {
         return AuthenticatedMemberResponse.from(authenticatedMember);
     }
 

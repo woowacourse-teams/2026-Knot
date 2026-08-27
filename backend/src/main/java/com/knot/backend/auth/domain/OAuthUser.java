@@ -51,8 +51,8 @@ public final class OAuthUser {
             throw new AuthException(AuthErrorCode.INVALID_OAUTH_USER);
         }
 
-        if (profileImageUrl != null && (profileImageUrl.isBlank()
-                || profileImageUrl.length() > MAX_PROFILE_IMAGE_URL_LENGTH)) {
+        if (profileImageUrl != null
+                && (profileImageUrl.isBlank() || profileImageUrl.length() > MAX_PROFILE_IMAGE_URL_LENGTH)) {
             throw new AuthException(AuthErrorCode.INVALID_OAUTH_USER);
         }
     }

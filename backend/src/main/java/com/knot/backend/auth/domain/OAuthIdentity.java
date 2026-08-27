@@ -14,22 +14,24 @@ import lombok.Getter;
 @Getter
 @Entity
 @Table(name = "oauth_identities", uniqueConstraints = {
-        @UniqueConstraint(name = "uk_oauth_identity_provider_user", columnNames = {"provider",
-                "provider_user_id"}),
-        @UniqueConstraint(name = "uk_oauth_identity_member_provider", columnNames = {"member_id",
-                "provider"})})
+        @UniqueConstraint(name = "uk_oauth_identity_provider_user", columnNames = {"provider", "provider_user_id"}),
+        @UniqueConstraint(name = "uk_oauth_identity_member_provider", columnNames = {"member_id", "provider"})})
 public class OAuthIdentity {
     private static final int MAX_PROVIDER_USER_ID_LENGTH = 255;
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY) private Long id;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "provider", nullable = false, length = 20) private OAuthProvider provider;
+    @Column(name = "provider", nullable = false, length = 20)
+    private OAuthProvider provider;
 
-    @Column(name = "provider_user_id", nullable = false, length = 255) private String providerUserId;
+    @Column(name = "provider_user_id", nullable = false, length = 255)
+    private String providerUserId;
 
-    @Column(name = "member_id", nullable = false) private Long memberId;
+    @Column(name = "member_id", nullable = false)
+    private Long memberId;
 
     protected OAuthIdentity() {}
 

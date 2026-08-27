@@ -47,10 +47,9 @@ public class OAuthIdentityRepositoryImpl implements OAuthIdentityRepository {
     private boolean isUniqueConstraintViolation(Throwable exception) {
         Throwable cause = exception;
         while (cause != null) {
-            if (SQLException.class.isInstance(
-                    cause
-            ) && UNIQUE_VIOLATION_SQL_STATE.equals(SQLException.class.cast(cause)
-                    .getSQLState()
+            if (SQLException.class.isInstance(cause) && UNIQUE_VIOLATION_SQL_STATE.equals(
+                    SQLException.class.cast(cause)
+                            .getSQLState()
             )) {
                 return true;
             }

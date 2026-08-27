@@ -21,8 +21,8 @@ import org.slf4j.LoggerFactory;
 
 @Component
 public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccessHandler {
-    private static final Logger log = LoggerFactory
-            .getLogger(OAuth2AuthenticationSuccessHandler.class);
+    private static final Logger log = LoggerFactory.getLogger(OAuth2AuthenticationSuccessHandler.class);
+
     private final AuthService authService;
     private final OAuth2LoginProperties loginProperties;
     private final AuthCookieManager authCookieManager;
@@ -35,11 +35,9 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
         if (loginProperties == null || loginProperties.getSuccessRedirectUri() == null
                 || loginProperties.getSuccessRedirectUri()
                         .isBlank()
-                || loginProperties.getNicknameRedirectUri() == null
-                || loginProperties.getNicknameRedirectUri()
+                || loginProperties.getNicknameRedirectUri() == null || loginProperties.getNicknameRedirectUri()
                         .isBlank()
-                || loginProperties.getFailureRedirectUri() == null
-                || loginProperties.getFailureRedirectUri()
+                || loginProperties.getFailureRedirectUri() == null || loginProperties.getFailureRedirectUri()
                         .isBlank()) {
             throw new AuthException(AuthErrorCode.OAUTH_CONFIGURATION_INVALID);
         }

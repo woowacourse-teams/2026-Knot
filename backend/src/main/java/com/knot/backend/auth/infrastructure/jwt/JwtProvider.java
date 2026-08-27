@@ -33,6 +33,7 @@ public class JwtProvider implements AuthTokenProvider {
     private static final int MINIMUM_SECRET_BYTES = 32;
     private static final String ACCESS_TOKEN_TYPE = "ACCESS";
     private static final String ONBOARDING_TOKEN_TYPE = "ONBOARDING";
+
     private final JwtProperties properties;
     private final JwtEncoder encoder;
     private final JwtDecoder decoder;
@@ -148,8 +149,7 @@ public class JwtProvider implements AuthTokenProvider {
                     ONBOARDING_TOKEN_TYPE
             );
 
-            OAuthProvider provider = OAuthProvider
-                    .valueOf(requiredClaim(jwt.getClaimAsString("provider")));
+            OAuthProvider provider = OAuthProvider.valueOf(requiredClaim(jwt.getClaimAsString("provider")));
 
             return OAuthUser.of(
                     provider,
@@ -190,10 +190,8 @@ public class JwtProvider implements AuthTokenProvider {
                         .isNegative()) {
             throw new AuthException(AuthErrorCode.JWT_CONFIGURATION_INVALID);
         }
-        if (properties.getNicknameTokenExpiration() == null
-                || properties.getNicknameTokenExpiration()
-                        .isZero()
-                || properties.getNicknameTokenExpiration()
+        if (properties.getNicknameTokenExpiration() == null || properties.getNicknameTokenExpiration()
+                .isZero() || properties.getNicknameTokenExpiration()
                         .isNegative()) {
             throw new AuthException(AuthErrorCode.JWT_CONFIGURATION_INVALID);
         }

@@ -20,8 +20,7 @@ public final class GithubOAuth2User implements OAuth2User {
     ) {
         this.oauthUser = oauthUser;
         this.authorities = List.copyOf(delegate.getAuthorities());
-        this.attributes = Collections
-                .unmodifiableMap(new LinkedHashMap<>(delegate.getAttributes()));
+        this.attributes = Collections.unmodifiableMap(new LinkedHashMap<>(delegate.getAttributes()));
     }
 
     public static GithubOAuth2User of(

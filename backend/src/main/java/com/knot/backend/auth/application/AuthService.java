@@ -50,9 +50,7 @@ public class AuthService {
 
     private AuthLoginResult issueAccessToken(OAuthIdentity identity) {
         Member member = memberService.findById(identity.getMemberId())
-                .orElseThrow(
-                        () -> new AuthException(AuthErrorCode.MEMBER_NOT_FOUND_FOR_OAUTH_IDENTITY)
-                );
+                .orElseThrow(() -> new AuthException(AuthErrorCode.MEMBER_NOT_FOUND_FOR_OAUTH_IDENTITY));
         AuthenticatedMember authenticatedMember = AuthenticatedMember.of(
                 member.getId(),
                 member.getNickname(),
