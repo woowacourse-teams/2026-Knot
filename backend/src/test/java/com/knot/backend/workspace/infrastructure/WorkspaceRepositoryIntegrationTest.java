@@ -220,19 +220,15 @@ class WorkspaceRepositoryIntegrationTest {
         assertThatThrownBy(action).isInstanceOf(DataIntegrityViolationException.class);
     }
 
-    private long saveMember(long githubId) {
+    private long saveMember(long memberNumber) {
         return jdbcClient.sql("""
-                INSERT INTO member (github_id, nickname, profile_image_url)
-                VALUES (:githubId, :nickname, NULL)
+                INSERT INTO members (nickname, profile_image_url)
+                VALUES (:nickname, NULL)
                 RETURNING id
                 """)
                 .param(
-                        "githubId",
-                        githubId
-                )
-                .param(
                         "nickname",
-                        "member" + githubId
+                        "member" + memberNumber
                 )
                 .query(Long.class)
                 .single();
