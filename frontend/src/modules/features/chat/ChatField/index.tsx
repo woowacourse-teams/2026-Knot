@@ -2,14 +2,28 @@ import { ComponentProps } from "react";
 import styled from "@emotion/styled";
 import Textarea from "@/shared/components/primitives/ui/Textarea";
 import ChatFieldSubmitButton from "./ui/ChatFieldSubmitButton";
+import { useChatField } from "./model/useChatField";
 
-interface ChatFieldProps extends ComponentProps<"textarea"> {}
+interface ChatFieldProps extends Omit<
+  ComponentProps<"textarea">,
+  "value" | "onChange"
+> {}
 
 export default function ChatField({ ...props }: ChatFieldProps) {
+  const { message, submitStatus, handleChange, handleKeyDown, handleSubmit } =
+    useChatField();
+
   return (
-    <Container>
-      <ChatTextarea rows={1} placeholder="무엇이든 요청하세요" {...props} />
-      <ChatFieldSubmitButton />
+    <Container onSubmit={handleSubmit}>
+      <ChatTextarea
+        rows={1}
+        placeholder="무엇이든 요청하세요"
+        value={message}
+        onChange={handleChange}
+        onKeyDown={handleKeyDown}
+        {...props}
+      />
+      <ChatFieldSubmitButton status={submitStatus} />
     </Container>
   );
 }

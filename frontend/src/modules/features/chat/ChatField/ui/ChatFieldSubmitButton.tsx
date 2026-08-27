@@ -13,10 +13,10 @@ import Spinner from "@/shared/components/primitives/ui/Spinner";
  * - `loading`: 요청을 보냈고 응답은 아직 시작 전. 이미 나간 요청이라 취소 불가
  * - `stop`: 답변 생성 중. 누르면 생성을 중단
  */
-type ButtonStatus = "active" | "inactive" | "loading" | "stop";
+export type ButtonStatus = "active" | "inactive" | "loading" | "stop";
 
 interface ChatFieldSubmitButtonProps extends ComponentProps<"button"> {
-  status?: ButtonStatus;
+  status: ButtonStatus;
 }
 
 const STATUS_STYLE = {
@@ -49,23 +49,24 @@ const STATUS_STYLE = {
  * @see https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=1080-648
  */
 export default function ChatFieldSubmitButton({
-  status = "active",
+  status,
   ...props
 }: ChatFieldSubmitButtonProps) {
   const isLoading = status === "loading";
+  const isStop = status === "stop";
   const isDisabled = status === "inactive" || isLoading;
 
   return (
     <Root
-      type="submit"
+      {...props}
+      type={isStop ? "button" : "submit"}
       $status={status}
       disabled={isDisabled}
       aria-busy={isLoading}
-      {...props}
     >
       <IconWrapper>
         {isLoading && <Spinner size="1rem" />}
-        {status === "stop" && <StopIcon />}
+        {isStop && <StopIcon />}
         {(status === "active" || status === "inactive") && <Send />}
       </IconWrapper>
     </Root>
@@ -76,8 +77,8 @@ const Root = styled.button<{ $status: ButtonStatus }>`
   display: flex;
   justify-content: center;
   align-items: center;
-  width: 36px;
-  height: 36px;
+  width: 2.25rem;
+  height: 2.25rem;
   padding: 0;
   border-radius: 999px;
   transition:
@@ -105,8 +106,8 @@ const IconWrapper = styled.div`
 `;
 
 const StopIcon = styled.span`
-  width: 11px;
-  height: 11px;
+  width: 0.6875rem;
+  height: 0.6875rem;
   border-radius: 2.5px;
   background-color: currentColor;
 `;
