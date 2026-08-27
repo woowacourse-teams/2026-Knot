@@ -22,15 +22,15 @@ export const router = createBrowserRouter([
     path: PATH_ROUTE.HOME,
     loader: () => replace(PATH_ROUTE.LOGIN),
   },
-  {
-    path: PATH_ROUTE.LOGIN,
-    element: <LoginPage />,
-  },
 
-  // 중앙 카드 — 워크스페이스 진입 전 플로우
+  // 화면 가운데 정렬 — 워크스페이스 진입 전 플로우
   {
     element: <CenteredLayout />,
     children: [
+      {
+        path: PATH_ROUTE.LOGIN,
+        element: <LoginPage />,
+      },
       {
         path: PATH_ROUTE.ONBOARDING,
         element: <OnboardingPage />,
