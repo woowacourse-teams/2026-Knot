@@ -1,13 +1,19 @@
 declare module "*.css";
 
 declare const process: {
-    env: {
-        API_BASE_URL: string;
-    }
+  env: {
+    API_BASE_URL: string;
+  };
+};
+declare module "*.svg" {
+  import type { FunctionComponent, SVGProps } from "react";
+  const Component: FunctionComponent<
+    SVGProps<SVGSVGElement> & { size?: number | string }
+  >;
+  export default Component;
 }
 
-// SVGR 도입할 때 수정 필요
-declare module "*.svg" {
+declare module "*.svg?url" {
   const src: string;
   export default src;
 }
