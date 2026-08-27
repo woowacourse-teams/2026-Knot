@@ -1,7 +1,7 @@
 package com.knot.backend.auth.domain;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.catchThrowable;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -11,6 +11,8 @@ class OAuthUserTest {
     @Test
     @DisplayName("유효한 OAuth 사용자 정보를 생성한다")
     void create_success() {
+        // given
+
         // when
         OAuthUser user = OAuthUser.of(
                 OAuthProvider.GITHUB,
@@ -27,69 +29,93 @@ class OAuthUserTest {
     @Test
     @DisplayName("OAuth provider가 없으면 커스텀 예외를 발생시킨다")
     void create_failure_nullProvider() {
-        // when & then
-        assertThatThrownBy(
+        // given
+
+        // when
+        Throwable thrown = catchThrowable(
                 () -> OAuthUser.of(
                         null,
                         "42",
                         null
                 )
-        ).isInstanceOf(AuthException.class);
+        );
+
+        // then
+        assertThat(thrown).isInstanceOf(AuthException.class);
     }
 
     @Test
     @DisplayName("OAuth 외부 ID가 비어 있으면 커스텀 예외를 발생시킨다")
     void create_failure_blankExternalId() {
-        // when & then
-        assertThatThrownBy(
+        // given
+
+        // when
+        Throwable thrown = catchThrowable(
                 () -> OAuthUser.of(
                         OAuthProvider.GITHUB,
                         " ",
                         null
                 )
-        ).isInstanceOfSatisfying(
+        );
+
+        // then
+        assertThat(thrown).isInstanceOfSatisfying(
                 AuthException.class,
-                exception -> assertThat(exception.getErrorCode())
-                        .isEqualTo(AuthErrorCode.INVALID_OAUTH_USER)
+                exception -> assertThat(exception.getErrorCode()).isEqualTo(AuthErrorCode.INVALID_OAUTH_USER)
         );
     }
 
     @Test
     @DisplayName("OAuth 외부 ID가 null이면 커스텀 예외를 발생시킨다")
     void create_failure_nullExternalId() {
-        // when & then
-        assertThatThrownBy(
+        // given
+
+        // when
+        Throwable thrown = catchThrowable(
                 () -> OAuthUser.of(
                         OAuthProvider.GITHUB,
                         null,
                         null
                 )
-        ).isInstanceOf(AuthException.class);
+        );
+
+        // then
+        assertThat(thrown).isInstanceOf(AuthException.class);
     }
 
     @Test
     @DisplayName("OAuth 프로필 이미지 URL이 비어 있으면 커스텀 예외를 발생시킨다")
     void create_failure_blankProfileImageUrl() {
-        // when & then
-        assertThatThrownBy(
+        // given
+
+        // when
+        Throwable thrown = catchThrowable(
                 () -> OAuthUser.of(
                         OAuthProvider.GITHUB,
                         "42",
                         " "
                 )
-        ).isInstanceOf(AuthException.class);
+        );
+
+        // then
+        assertThat(thrown).isInstanceOf(AuthException.class);
     }
 
     @Test
     @DisplayName("OAuth 프로필 이미지 URL이 길이 제한을 초과하면 커스텀 예외를 발생시킨다")
     void create_failure_overlongProfileImageUrl() {
-        // when & then
-        assertThatThrownBy(
+        // given
+
+        // when
+        Throwable thrown = catchThrowable(
                 () -> OAuthUser.of(
                         OAuthProvider.GITHUB,
                         "42",
                         "a".repeat(501)
                 )
-        ).isInstanceOf(AuthException.class);
+        );
+
+        // then
+        assertThat(thrown).isInstanceOf(AuthException.class);
     }
 }

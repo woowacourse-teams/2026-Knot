@@ -1,7 +1,7 @@
 package com.knot.backend.auth.infrastructure;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.catchThrowable;
 
 import com.knot.backend.auth.domain.AuthErrorCode;
 import com.knot.backend.auth.domain.AuthException;
@@ -134,15 +134,18 @@ class OAuthIdentityRepositoryTest {
                 )
         );
 
-        // when & then
-        assertThatThrownBy(
+        // when
+        Throwable thrown = catchThrowable(
                 () -> oauthIdentityRepository.save(
                         OAuthIdentity.create(
                                 oauthUser,
                                 secondMember.getId()
                         )
                 )
-        ).isInstanceOfSatisfying(
+        );
+
+        // then
+        assertThat(thrown).isInstanceOfSatisfying(
                 AuthException.class,
                 exception -> assertThat(exception.getErrorCode())
                         .isEqualTo(AuthErrorCode.NICKNAME_SETUP_ALREADY_COMPLETED)
@@ -151,7 +154,7 @@ class OAuthIdentityRepositoryTest {
 
     @Test
     @DisplayName("존재하지 않는 member 연결 오류는 중복 가입 오류로 변환하지 않는다")
-    void save_failure_missingMember_propagatesConstraintViolation() {
+    void save_failure_missingMemberPropagatesConstraintViolation() {
         // given
         OAuthIdentity identity = OAuthIdentity.create(
                 OAuthUser.of(
@@ -162,8 +165,10 @@ class OAuthIdentityRepositoryTest {
                 999999L
         );
 
-        // when & then
-        assertThatThrownBy(() -> oauthIdentityRepository.save(identity))
-                .isInstanceOf(DataIntegrityViolationException.class);
+        // when
+        Throwable thrown = catchThrowable(() -> oauthIdentityRepository.save(identity));
+
+        // then
+        assertThat(thrown).isInstanceOf(DataIntegrityViolationException.class);
     }
 }

@@ -1,7 +1,7 @@
 package com.knot.backend.member.infrastructure;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.catchThrowable;
 
 import com.knot.backend.member.domain.Member;
 import com.knot.backend.member.domain.MemberRepository;
@@ -62,7 +62,9 @@ class MemberRepositoryTest {
 
     @Test
     @DisplayName("존재하지 않는 member ID를 조회하면 빈 결과를 반환한다")
-    void findById_missingMember_success() {
+    void findById_success_missingMember() {
+        // given
+
         // when
         Optional<Member> result = memberRepository.findById(1L);
 
@@ -73,25 +75,35 @@ class MemberRepositoryTest {
     @Test
     @DisplayName("공백 nickname이면 데이터베이스가 저장을 거부한다")
     void save_failure_blankNickname() {
-        // when & then
-        assertThatThrownBy(
+        // given
+
+        // when
+        Throwable thrown = catchThrowable(
                 () -> jdbcTemplate.update(
                         "INSERT INTO members (nickname) VALUES (?)",
                         "   "
                 )
-        ).isInstanceOf(DataIntegrityViolationException.class);
+        );
+
+        // then
+        assertThat(thrown).isInstanceOf(DataIntegrityViolationException.class);
     }
 
     @Test
     @DisplayName("공백 프로필 이미지 URL이면 데이터베이스가 저장을 거부한다")
     void save_failure_blankProfileImageUrl() {
-        // when & then
-        assertThatThrownBy(
+        // given
+
+        // when
+        Throwable thrown = catchThrowable(
                 () -> jdbcTemplate.update(
                         "INSERT INTO members (nickname, profile_image_url) VALUES (?, ?)",
                         "octocat",
                         "   "
                 )
-        ).isInstanceOf(DataIntegrityViolationException.class);
+        );
+
+        // then
+        assertThat(thrown).isInstanceOf(DataIntegrityViolationException.class);
     }
 }

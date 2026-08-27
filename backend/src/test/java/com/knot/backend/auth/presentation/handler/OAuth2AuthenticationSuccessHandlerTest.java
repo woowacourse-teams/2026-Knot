@@ -1,7 +1,7 @@
 package com.knot.backend.auth.presentation.handler;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -105,8 +105,8 @@ class OAuth2AuthenticationSuccessHandlerTest {
     }
 
     @Test
-    @DisplayName("처음 OAuth 인증한 사용자는 닉네임 쿠키를 발급하고 닉네임 페이지로 redirect한다")
-    void onAuthenticationSuccess_nickname_redirectsToNickname() throws Exception {
+    @DisplayName("처음 OAuth 인증한 사용자는 닉네임 쿠키를 받고 설정 화면으로 이동한다")
+    void onAuthenticationSuccess_success_nicknameSetupRequired() throws Exception {
         // given
         AuthService authService = mock(AuthService.class);
         JwtProperties jwtProperties = jwtProperties();
@@ -137,8 +137,7 @@ class OAuth2AuthenticationSuccessHandlerTest {
         );
         Authentication authentication = mock(Authentication.class);
         when(authentication.getPrincipal()).thenReturn(githubUser);
-        when(authService.login(oauthUser))
-                .thenReturn(AuthLoginResult.nicknameSetupRequired("nickname-token"));
+        when(authService.login(oauthUser)).thenReturn(AuthLoginResult.nicknameSetupRequired("nickname-token"));
         MockHttpServletResponse response = new MockHttpServletResponse();
 
         // when
@@ -219,8 +218,7 @@ class OAuth2AuthenticationSuccessHandlerTest {
         );
         Authentication authentication = mock(Authentication.class);
         when(authentication.getPrincipal()).thenReturn(githubUser);
-        when(authService.login(oauthUser))
-                .thenThrow(new AuthException(AuthErrorCode.OAUTH_AUTHENTICATION_FAILED));
+        when(authService.login(oauthUser)).thenThrow(new AuthException(AuthErrorCode.OAUTH_AUTHENTICATION_FAILED));
         MockHttpServletResponse response = new MockHttpServletResponse();
 
         // when
@@ -243,17 +241,19 @@ class OAuth2AuthenticationSuccessHandlerTest {
         OAuth2LoginProperties loginProperties = new OAuth2LoginProperties();
         loginProperties.setSuccessRedirectUri(" ");
 
-        // when & then
-        assertThatThrownBy(
+        // when
+        Throwable thrown = catchThrowable(
                 () -> new OAuth2AuthenticationSuccessHandler(
                         authService,
                         loginProperties,
                         new AuthCookieManager(jwtProperties)
                 )
-        ).isInstanceOfSatisfying(
+        );
+
+        // then
+        assertThat(thrown).isInstanceOfSatisfying(
                 AuthException.class,
-                exception -> assertThat(exception.getErrorCode())
-                        .isEqualTo(AuthErrorCode.OAUTH_CONFIGURATION_INVALID)
+                exception -> assertThat(exception.getErrorCode()).isEqualTo(AuthErrorCode.OAUTH_CONFIGURATION_INVALID)
         );
     }
 
@@ -266,17 +266,19 @@ class OAuth2AuthenticationSuccessHandlerTest {
         OAuth2LoginProperties loginProperties = new OAuth2LoginProperties();
         loginProperties.setFailureRedirectUri(" ");
 
-        // when & then
-        assertThatThrownBy(
+        // when
+        Throwable thrown = catchThrowable(
                 () -> new OAuth2AuthenticationSuccessHandler(
                         authService,
                         loginProperties,
                         new AuthCookieManager(jwtProperties)
                 )
-        ).isInstanceOfSatisfying(
+        );
+
+        // then
+        assertThat(thrown).isInstanceOfSatisfying(
                 AuthException.class,
-                exception -> assertThat(exception.getErrorCode())
-                        .isEqualTo(AuthErrorCode.OAUTH_CONFIGURATION_INVALID)
+                exception -> assertThat(exception.getErrorCode()).isEqualTo(AuthErrorCode.OAUTH_CONFIGURATION_INVALID)
         );
     }
 

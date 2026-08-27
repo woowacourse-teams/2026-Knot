@@ -1,7 +1,7 @@
 package com.knot.backend.auth.presentation.handler;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.catchThrowable;
 
 import com.knot.backend.auth.domain.AuthErrorCode;
 import com.knot.backend.auth.domain.AuthException;
@@ -17,19 +17,15 @@ class OAuth2AuthenticationFailureHandlerTest {
 
     @Test
     @DisplayName("OAuth 인증 실패를 로그인 오류 화면으로 redirect한다")
-    void onAuthenticationFailure_redirectsToLogin() throws Exception {
+    void onAuthenticationFailure_success_redirectsToLogin() throws Exception {
         // given
         OAuth2LoginProperties loginProperties = new OAuth2LoginProperties();
         loginProperties.setFailureRedirectUri("/login?error=oauth2");
-        OAuth2AuthenticationFailureHandler handler = new OAuth2AuthenticationFailureHandler(
-                loginProperties
-        );
+        OAuth2AuthenticationFailureHandler handler = new OAuth2AuthenticationFailureHandler(loginProperties);
         MockHttpServletRequest request = new MockHttpServletRequest();
         request.getSession();
         MockHttpServletResponse response = new MockHttpServletResponse();
-        OAuth2AuthenticationException exception = new OAuth2AuthenticationException(
-                new OAuth2Error("oauth_error")
-        );
+        OAuth2AuthenticationException exception = new OAuth2AuthenticationException(new OAuth2Error("oauth_error"));
 
         // when
         handler.onAuthenticationFailure(
@@ -50,12 +46,13 @@ class OAuth2AuthenticationFailureHandlerTest {
         OAuth2LoginProperties loginProperties = new OAuth2LoginProperties();
         loginProperties.setFailureRedirectUri(" ");
 
-        // when & then
-        assertThatThrownBy(() -> new OAuth2AuthenticationFailureHandler(loginProperties))
-                .isInstanceOfSatisfying(
-                        AuthException.class,
-                        exception -> assertThat(exception.getErrorCode())
-                                .isEqualTo(AuthErrorCode.OAUTH_CONFIGURATION_INVALID)
-                );
+        // when
+        Throwable thrown = catchThrowable(() -> new OAuth2AuthenticationFailureHandler(loginProperties));
+
+        // then
+        assertThat(thrown).isInstanceOfSatisfying(
+                AuthException.class,
+                exception -> assertThat(exception.getErrorCode()).isEqualTo(AuthErrorCode.OAUTH_CONFIGURATION_INVALID)
+        );
     }
 }

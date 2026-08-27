@@ -1,7 +1,7 @@
 package com.knot.backend.auth.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -53,7 +53,7 @@ class MemberNicknameServiceTest {
 
     @Test
     @DisplayName("OAuth 사용자가 없으면 닉네임 설정을 진행하지 않는다")
-    void complete_failure_nullOAuthUser() {
+    void completeNicknameSetup_failure_nullOAuthUser() {
         // given
         MemberService memberService = mock(MemberService.class);
         MemberNicknameService service = new MemberNicknameService(
@@ -61,16 +61,18 @@ class MemberNicknameServiceTest {
                 mock(OAuthIdentityService.class)
         );
 
-        // when & then
-        assertThatThrownBy(
+        // when
+        Throwable thrown = catchThrowable(
                 () -> service.completeNicknameSetup(
                         null,
                         "octocat"
                 )
-        ).isInstanceOfSatisfying(
+        );
+
+        // then
+        assertThat(thrown).isInstanceOfSatisfying(
                 AuthException.class,
-                exception -> assertThat(exception.getErrorCode())
-                        .isEqualTo(AuthErrorCode.INVALID_OAUTH_USER)
+                exception -> assertThat(exception.getErrorCode()).isEqualTo(AuthErrorCode.INVALID_OAUTH_USER)
         );
         verify(
                 memberService,

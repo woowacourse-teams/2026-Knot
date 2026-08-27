@@ -1,7 +1,7 @@
 package com.knot.backend.auth.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -26,7 +26,7 @@ class AuthServiceTest {
 
     @Test
     @DisplayName("등록된 OAuth identity가 있으면 일반 access token을 발급한다")
-    void login_existingIdentity_success() {
+    void login_success_existingIdentity() {
         // given
         MemberService memberService = mock(MemberService.class);
         OAuthIdentityService oauthIdentityService = mock(OAuthIdentityService.class);
@@ -76,7 +76,7 @@ class AuthServiceTest {
 
     @Test
     @DisplayName("등록된 OAuth identity가 없으면 닉네임 토큰을 발급한다")
-    void login_missingIdentity_success() {
+    void login_success_missingIdentity() {
         // given
         MemberService memberService = mock(MemberService.class);
         OAuthIdentityService oauthIdentityService = mock(OAuthIdentityService.class);
@@ -120,11 +120,13 @@ class AuthServiceTest {
                 mock(AuthTokenProvider.class)
         );
 
-        // when & then
-        assertThatThrownBy(() -> service.login(null)).isInstanceOfSatisfying(
+        // when
+        Throwable thrown = catchThrowable(() -> service.login(null));
+
+        // then
+        assertThat(thrown).isInstanceOfSatisfying(
                 AuthException.class,
-                exception -> assertThat(exception.getErrorCode())
-                        .isEqualTo(AuthErrorCode.INVALID_OAUTH_USER)
+                exception -> assertThat(exception.getErrorCode()).isEqualTo(AuthErrorCode.INVALID_OAUTH_USER)
         );
     }
 
@@ -153,8 +155,11 @@ class AuthServiceTest {
         ).thenReturn(Optional.of(identity));
         when(memberService.findById(1L)).thenReturn(Optional.empty());
 
-        // when & then
-        assertThatThrownBy(() -> service.login(oauthUser)).isInstanceOfSatisfying(
+        // when
+        Throwable thrown = catchThrowable(() -> service.login(oauthUser));
+
+        // then
+        assertThat(thrown).isInstanceOfSatisfying(
                 AuthException.class,
                 exception -> assertThat(exception.getErrorCode())
                         .isEqualTo(AuthErrorCode.MEMBER_NOT_FOUND_FOR_OAUTH_IDENTITY)

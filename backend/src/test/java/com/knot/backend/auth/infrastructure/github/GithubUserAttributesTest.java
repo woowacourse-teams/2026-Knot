@@ -1,7 +1,7 @@
 package com.knot.backend.auth.infrastructure.github;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.catchThrowable;
 
 import com.knot.backend.auth.domain.AuthErrorCode;
 import com.knot.backend.auth.domain.AuthException;
@@ -39,11 +39,13 @@ class GithubUserAttributesTest {
                 "42"
         );
 
-        // when & then
-        assertThatThrownBy(() -> GithubUserAttributes.from(attributes)).isInstanceOfSatisfying(
+        // when
+        Throwable thrown = catchThrowable(() -> GithubUserAttributes.from(attributes));
+
+        // then
+        assertThat(thrown).isInstanceOfSatisfying(
                 AuthException.class,
-                exception -> assertThat(exception.getErrorCode())
-                        .isEqualTo(AuthErrorCode.INVALID_OAUTH_USER)
+                exception -> assertThat(exception.getErrorCode()).isEqualTo(AuthErrorCode.INVALID_OAUTH_USER)
         );
     }
 }

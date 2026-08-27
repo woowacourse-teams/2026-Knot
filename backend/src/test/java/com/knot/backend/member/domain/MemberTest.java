@@ -1,7 +1,7 @@
 package com.knot.backend.member.domain;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.catchThrowable;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -11,6 +11,8 @@ class MemberTest {
     @Test
     @DisplayName("유효한 닉네임으로 member를 생성한다")
     void create_success() {
+        // given
+
         // when
         Member member = Member.create(
                 "octocat",
@@ -25,13 +27,18 @@ class MemberTest {
     @Test
     @DisplayName("닉네임이 비어 있으면 커스텀 예외를 발생시킨다")
     void create_failure_blankNickname() {
-        // when & then
-        assertThatThrownBy(
+        // given
+
+        // when
+        Throwable thrown = catchThrowable(
                 () -> Member.create(
                         " ",
                         null
                 )
-        ).isInstanceOf(MemberException.class)
+        );
+
+        // then
+        assertThat(thrown).isInstanceOf(MemberException.class)
                 .extracting(exception -> ((MemberException) exception).getErrorCode())
                 .isEqualTo(MemberErrorCode.INVALID_MEMBER_DATA);
     }
@@ -39,13 +46,18 @@ class MemberTest {
     @Test
     @DisplayName("닉네임이 길이 제한을 초과하면 커스텀 예외를 발생시킨다")
     void create_failure_overlongNickname() {
-        // when & then
-        assertThatThrownBy(
+        // given
+
+        // when
+        Throwable thrown = catchThrowable(
                 () -> Member.create(
                         "a".repeat(21),
                         null
                 )
-        ).isInstanceOf(MemberException.class);
+        );
+
+        // then
+        assertThat(thrown).isInstanceOf(MemberException.class);
     }
 
     @Test
@@ -77,13 +89,16 @@ class MemberTest {
                 null
         );
 
-        // when & then
-        assertThatThrownBy(
+        // when
+        Throwable thrown = catchThrowable(
                 () -> member.updateProfile(
                         " ",
                         null
                 )
-        ).isInstanceOf(MemberException.class)
+        );
+
+        // then
+        assertThat(thrown).isInstanceOf(MemberException.class)
                 .extracting(exception -> ((MemberException) exception).getErrorCode())
                 .isEqualTo(MemberErrorCode.INVALID_MEMBER_DATA);
     }

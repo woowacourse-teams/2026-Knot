@@ -1,7 +1,7 @@
 package com.knot.backend.auth.infrastructure.github;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -60,13 +60,15 @@ class GithubOAuth2UserServiceTest {
         OAuth2UserService<OAuth2UserRequest, OAuth2User> delegate = mock(OAuth2UserService.class);
         GithubOAuth2UserService service = new GithubOAuth2UserService(delegate);
 
-        // when & then
-        assertThatThrownBy(() -> service.loadUser(request("google")))
-                .isInstanceOf(OAuth2AuthenticationException.class);
+        // when
+        Throwable thrown = catchThrowable(() -> service.loadUser(request("google")));
+
+        // then
+        assertThat(thrown).isInstanceOf(OAuth2AuthenticationException.class);
     }
 
     @Test
-    @DisplayName("GitHub OAuth 응답이 올바르지 않으면 커스텀 예외 원인을 가진 인증 예외를 발생시킨다")
+    @DisplayName("잘못된 GitHub OAuth 응답은 인증 예외 원인으로 보존한다")
     void loadUser_failure_invalidUserInfo() {
         // given
         OAuth2UserService<OAuth2UserRequest, OAuth2User> delegate = mock(OAuth2UserService.class);
@@ -81,8 +83,11 @@ class GithubOAuth2UserServiceTest {
         );
         when(delegate.loadUser(request)).thenReturn(user);
 
-        // when & then
-        assertThatThrownBy(() -> service.loadUser(request)).isInstanceOfSatisfying(
+        // when
+        Throwable thrown = catchThrowable(() -> service.loadUser(request));
+
+        // then
+        assertThat(thrown).isInstanceOfSatisfying(
                 OAuth2AuthenticationException.class,
                 exception -> assertThat(exception.getCause()).isInstanceOf(AuthException.class)
         );
@@ -97,8 +102,11 @@ class GithubOAuth2UserServiceTest {
         OAuth2UserRequest request = request("github");
         when(delegate.loadUser(request)).thenThrow(new IllegalStateException());
 
-        // when & then
-        assertThatThrownBy(() -> service.loadUser(request)).isInstanceOfSatisfying(
+        // when
+        Throwable thrown = catchThrowable(() -> service.loadUser(request));
+
+        // then
+        assertThat(thrown).isInstanceOfSatisfying(
                 OAuth2AuthenticationException.class,
                 exception -> assertThat(
                         exception.getError()

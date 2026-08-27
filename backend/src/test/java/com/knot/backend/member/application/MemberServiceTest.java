@@ -1,7 +1,7 @@
 package com.knot.backend.member.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -44,11 +44,13 @@ class MemberServiceTest {
         MemberRepository repository = mock(MemberRepository.class);
         MemberService service = new MemberService(repository);
 
-        // when & then
-        assertThatThrownBy(() -> service.findById(0L)).isInstanceOfSatisfying(
+        // when
+        Throwable thrown = catchThrowable(() -> service.findById(0L));
+
+        // then
+        assertThat(thrown).isInstanceOfSatisfying(
                 MemberException.class,
-                exception -> assertThat(exception.getErrorCode())
-                        .isEqualTo(MemberErrorCode.INVALID_MEMBER_DATA)
+                exception -> assertThat(exception.getErrorCode()).isEqualTo(MemberErrorCode.INVALID_MEMBER_DATA)
         );
     }
 
@@ -106,17 +108,19 @@ class MemberServiceTest {
         // given
         MemberService service = new MemberService(mock(MemberRepository.class));
 
-        // when & then
-        assertThatThrownBy(
+        // when
+        Throwable thrown = catchThrowable(
                 () -> service.updateProfile(
                         null,
                         "new-name",
                         null
                 )
-        ).isInstanceOfSatisfying(
+        );
+
+        // then
+        assertThat(thrown).isInstanceOfSatisfying(
                 MemberException.class,
-                exception -> assertThat(exception.getErrorCode())
-                        .isEqualTo(MemberErrorCode.INVALID_MEMBER_DATA)
+                exception -> assertThat(exception.getErrorCode()).isEqualTo(MemberErrorCode.INVALID_MEMBER_DATA)
         );
     }
 }

@@ -1,7 +1,7 @@
 package com.knot.backend.auth.infrastructure.jwt;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -109,11 +109,13 @@ class JwtProviderTest {
         );
         String token = provider.issueNickname(oauthUser);
 
-        // when & then
-        assertThatThrownBy(() -> provider.authenticate(token)).isInstanceOfSatisfying(
+        // when
+        Throwable thrown = catchThrowable(() -> provider.authenticate(token));
+
+        // then
+        assertThat(thrown).isInstanceOfSatisfying(
                 AuthException.class,
-                exception -> assertThat(exception.getErrorCode())
-                        .isEqualTo(AuthErrorCode.INVALID_JWT)
+                exception -> assertThat(exception.getErrorCode()).isEqualTo(AuthErrorCode.INVALID_JWT)
         );
     }
 
@@ -133,11 +135,13 @@ class JwtProviderTest {
                 )
         );
 
-        // when & then
-        assertThatThrownBy(() -> provider.authenticateNickname(accessToken)).isInstanceOfSatisfying(
+        // when
+        Throwable thrown = catchThrowable(() -> provider.authenticateNickname(accessToken));
+
+        // then
+        assertThat(thrown).isInstanceOfSatisfying(
                 AuthException.class,
-                exception -> assertThat(exception.getErrorCode())
-                        .isEqualTo(AuthErrorCode.INVALID_JWT)
+                exception -> assertThat(exception.getErrorCode()).isEqualTo(AuthErrorCode.INVALID_JWT)
         );
     }
 
@@ -163,47 +167,55 @@ class JwtProviderTest {
         );
         String token = provider.issue(member);
 
-        // when & then
-        assertThatThrownBy(() -> provider.authenticate(token)).isInstanceOfSatisfying(
+        // when
+        Throwable thrown = catchThrowable(() -> provider.authenticate(token));
+
+        // then
+        assertThat(thrown).isInstanceOfSatisfying(
                 AuthException.class,
-                exception -> assertThat(exception.getErrorCode())
-                        .isEqualTo(AuthErrorCode.INVALID_JWT)
+                exception -> assertThat(exception.getErrorCode()).isEqualTo(AuthErrorCode.INVALID_JWT)
         );
     }
 
     @Test
     @DisplayName("JWT secret이 없으면 커스텀 설정 예외를 발생시킨다")
     void create_failure_invalidJwtConfiguration() {
+        // given
         JwtProperties properties = new JwtProperties();
 
-        // when & then
-        assertThatThrownBy(
+        // when
+        Throwable thrown = catchThrowable(
                 () -> new JwtProvider(
                         properties,
                         Clock.systemUTC()
                 )
-        ).isInstanceOfSatisfying(
+        );
+
+        // then
+        assertThat(thrown).isInstanceOfSatisfying(
                 AuthException.class,
-                exception -> assertThat(exception.getErrorCode())
-                        .isEqualTo(AuthErrorCode.JWT_CONFIGURATION_INVALID)
+                exception -> assertThat(exception.getErrorCode()).isEqualTo(AuthErrorCode.JWT_CONFIGURATION_INVALID)
         );
     }
 
     @Test
     @DisplayName("JWT expiration이 0이면 커스텀 설정 예외를 발생시킨다")
     void create_failure_zeroExpiration() {
+        // given
         JwtProperties properties = properties(Duration.ZERO);
 
-        // when & then
-        assertThatThrownBy(
+        // when
+        Throwable thrown = catchThrowable(
                 () -> new JwtProvider(
                         properties,
                         Clock.systemUTC()
                 )
-        ).isInstanceOfSatisfying(
+        );
+
+        // then
+        assertThat(thrown).isInstanceOfSatisfying(
                 AuthException.class,
-                exception -> assertThat(exception.getErrorCode())
-                        .isEqualTo(AuthErrorCode.JWT_CONFIGURATION_INVALID)
+                exception -> assertThat(exception.getErrorCode()).isEqualTo(AuthErrorCode.JWT_CONFIGURATION_INVALID)
         );
     }
 
@@ -214,16 +226,18 @@ class JwtProviderTest {
         JwtProperties properties = properties(Duration.ofHours(1));
         properties.setNicknameTokenExpiration(Duration.ZERO);
 
-        // when & then
-        assertThatThrownBy(
+        // when
+        Throwable thrown = catchThrowable(
                 () -> new JwtProvider(
                         properties,
                         Clock.systemUTC()
                 )
-        ).isInstanceOfSatisfying(
+        );
+
+        // then
+        assertThat(thrown).isInstanceOfSatisfying(
                 AuthException.class,
-                exception -> assertThat(exception.getErrorCode())
-                        .isEqualTo(AuthErrorCode.JWT_CONFIGURATION_INVALID)
+                exception -> assertThat(exception.getErrorCode()).isEqualTo(AuthErrorCode.JWT_CONFIGURATION_INVALID)
         );
     }
 
@@ -234,16 +248,18 @@ class JwtProviderTest {
         JwtProperties properties = properties(Duration.ofHours(1));
         properties.setCookieName(" ");
 
-        // when & then
-        assertThatThrownBy(
+        // when
+        Throwable thrown = catchThrowable(
                 () -> new JwtProvider(
                         properties,
                         Clock.systemUTC()
                 )
-        ).isInstanceOfSatisfying(
+        );
+
+        // then
+        assertThat(thrown).isInstanceOfSatisfying(
                 AuthException.class,
-                exception -> assertThat(exception.getErrorCode())
-                        .isEqualTo(AuthErrorCode.JWT_CONFIGURATION_INVALID)
+                exception -> assertThat(exception.getErrorCode()).isEqualTo(AuthErrorCode.JWT_CONFIGURATION_INVALID)
         );
     }
 
@@ -254,16 +270,18 @@ class JwtProviderTest {
         JwtProperties properties = properties(Duration.ofHours(1));
         properties.setIssuer(" ");
 
-        // when & then
-        assertThatThrownBy(
+        // when
+        Throwable thrown = catchThrowable(
                 () -> new JwtProvider(
                         properties,
                         Clock.systemUTC()
                 )
-        ).isInstanceOfSatisfying(
+        );
+
+        // then
+        assertThat(thrown).isInstanceOfSatisfying(
                 AuthException.class,
-                exception -> assertThat(exception.getErrorCode())
-                        .isEqualTo(AuthErrorCode.JWT_CONFIGURATION_INVALID)
+                exception -> assertThat(exception.getErrorCode()).isEqualTo(AuthErrorCode.JWT_CONFIGURATION_INVALID)
         );
     }
 
@@ -274,16 +292,18 @@ class JwtProviderTest {
         JwtProperties properties = properties(Duration.ofHours(1));
         properties.setAudience(" ");
 
-        // when & then
-        assertThatThrownBy(
+        // when
+        Throwable thrown = catchThrowable(
                 () -> new JwtProvider(
                         properties,
                         Clock.systemUTC()
                 )
-        ).isInstanceOfSatisfying(
+        );
+
+        // then
+        assertThat(thrown).isInstanceOfSatisfying(
                 AuthException.class,
-                exception -> assertThat(exception.getErrorCode())
-                        .isEqualTo(AuthErrorCode.JWT_CONFIGURATION_INVALID)
+                exception -> assertThat(exception.getErrorCode()).isEqualTo(AuthErrorCode.JWT_CONFIGURATION_INVALID)
         );
     }
 
@@ -294,16 +314,18 @@ class JwtProviderTest {
         JwtProperties properties = properties(Duration.ofHours(1));
         properties.setCookieName("__Host-KNOT_ACCESS_TOKEN");
 
-        // when & then
-        assertThatThrownBy(
+        // when
+        Throwable thrown = catchThrowable(
                 () -> new JwtProvider(
                         properties,
                         Clock.systemUTC()
                 )
-        ).isInstanceOfSatisfying(
+        );
+
+        // then
+        assertThat(thrown).isInstanceOfSatisfying(
                 AuthException.class,
-                exception -> assertThat(exception.getErrorCode())
-                        .isEqualTo(AuthErrorCode.JWT_CONFIGURATION_INVALID)
+                exception -> assertThat(exception.getErrorCode()).isEqualTo(AuthErrorCode.JWT_CONFIGURATION_INVALID)
         );
     }
 
@@ -328,11 +350,13 @@ class JwtProviderTest {
         );
         String token = issuer.issue(member);
 
-        // when & then
-        assertThatThrownBy(() -> verifier.authenticate(token)).isInstanceOfSatisfying(
+        // when
+        Throwable thrown = catchThrowable(() -> verifier.authenticate(token));
+
+        // then
+        assertThat(thrown).isInstanceOfSatisfying(
                 AuthException.class,
-                exception -> assertThat(exception.getErrorCode())
-                        .isEqualTo(AuthErrorCode.INVALID_JWT)
+                exception -> assertThat(exception.getErrorCode()).isEqualTo(AuthErrorCode.INVALID_JWT)
         );
     }
 
@@ -358,11 +382,13 @@ class JwtProviderTest {
         );
         String token = issuer.issue(member);
 
-        // when & then
-        assertThatThrownBy(() -> verifier.authenticate(token)).isInstanceOfSatisfying(
+        // when
+        Throwable thrown = catchThrowable(() -> verifier.authenticate(token));
+
+        // then
+        assertThat(thrown).isInstanceOfSatisfying(
                 AuthException.class,
-                exception -> assertThat(exception.getErrorCode())
-                        .isEqualTo(AuthErrorCode.INVALID_JWT)
+                exception -> assertThat(exception.getErrorCode()).isEqualTo(AuthErrorCode.INVALID_JWT)
         );
     }
 
@@ -375,11 +401,13 @@ class JwtProviderTest {
                 Clock.systemUTC()
         );
 
-        // when & then
-        assertThatThrownBy(() -> provider.authenticate(" ")).isInstanceOfSatisfying(
+        // when
+        Throwable thrown = catchThrowable(() -> provider.authenticate(" "));
+
+        // then
+        assertThat(thrown).isInstanceOfSatisfying(
                 AuthException.class,
-                exception -> assertThat(exception.getErrorCode())
-                        .isEqualTo(AuthErrorCode.INVALID_JWT)
+                exception -> assertThat(exception.getErrorCode()).isEqualTo(AuthErrorCode.INVALID_JWT)
         );
     }
 

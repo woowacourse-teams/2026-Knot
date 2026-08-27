@@ -1,7 +1,7 @@
 package com.knot.backend.auth.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.catchThrowable;
 
 import com.knot.backend.auth.domain.AuthErrorCode;
 import com.knot.backend.auth.domain.AuthException;
@@ -45,6 +45,8 @@ class MemberNicknameServiceIntegrationTest {
     @Test
     @DisplayName("닉네임 설정을 완료하면 member와 OAuth identity를 함께 저장한다")
     void completeNicknameSetup_success_savesMemberAndIdentity() {
+        // given
+
         // when
         memberNicknameService.completeNicknameSetup(
                 oauthUser(),
@@ -58,34 +60,42 @@ class MemberNicknameServiceIntegrationTest {
 
     @Test
     @DisplayName("유효하지 않은 닉네임이면 member와 OAuth identity를 저장하지 않는다")
-    void completeNicknameSetup_failure_invalidNickname_rollsBack() {
-        // when & then
-        assertThatThrownBy(
+    void completeNicknameSetup_failure_invalidNicknameRollsBack() {
+        // given
+
+        // when
+        Throwable thrown = catchThrowable(
                 () -> memberNicknameService.completeNicknameSetup(
                         oauthUser(),
                         " "
                 )
-        ).isInstanceOf(MemberException.class);
+        );
+
+        // then
+        assertThat(thrown).isInstanceOf(MemberException.class);
         assertThat(count("members")).isZero();
         assertThat(count("oauth_identities")).isZero();
     }
 
     @Test
-    @DisplayName("같은 OAuth 사용자가 다시 닉네임을 설정하면 중복 예외가 발생하고 추가 저장하지 않는다")
-    void completeNicknameSetup_failure_duplicateIdentity_rollsBack() {
+    @DisplayName("같은 OAuth 사용자가 다시 닉네임을 설정하면 중복 예외가 발생한다")
+    void completeNicknameSetup_failure_duplicateIdentityRollsBack() {
         // given
         memberNicknameService.completeNicknameSetup(
                 oauthUser(),
                 "octocat"
         );
 
-        // when & then
-        assertThatThrownBy(
+        // when
+        Throwable thrown = catchThrowable(
                 () -> memberNicknameService.completeNicknameSetup(
                         oauthUser(),
                         "other"
                 )
-        ).isInstanceOfSatisfying(
+        );
+
+        // then
+        assertThat(thrown).isInstanceOfSatisfying(
                 AuthException.class,
                 exception -> assertThat(exception.getErrorCode())
                         .isEqualTo(AuthErrorCode.NICKNAME_SETUP_ALREADY_COMPLETED)

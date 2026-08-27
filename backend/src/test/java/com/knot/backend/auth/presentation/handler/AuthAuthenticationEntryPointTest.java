@@ -16,9 +16,7 @@ class AuthAuthenticationEntryPointTest {
     @DisplayName("인증되지 않은 요청에 구조화된 401 응답을 반환한다")
     void commence_failure_unauthenticated() throws Exception {
         // given
-        AuthAuthenticationEntryPoint entryPoint = new AuthAuthenticationEntryPoint(
-                new ObjectMapper()
-        );
+        AuthAuthenticationEntryPoint entryPoint = new AuthAuthenticationEntryPoint(new ObjectMapper());
         MockHttpServletResponse response = new MockHttpServletResponse();
 
         // when

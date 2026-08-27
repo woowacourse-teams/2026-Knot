@@ -41,6 +41,8 @@ class MemberServiceIntegrationTest {
     @Test
     @DisplayName("닉네임으로 member를 생성하면 데이터베이스에 저장된다")
     void create_success() {
+        // given
+
         // when
         Member result = memberService.create(
                 "octocat",
@@ -77,7 +79,9 @@ class MemberServiceIntegrationTest {
 
     @Test
     @DisplayName("존재하지 않는 member ID는 빈 결과를 반환한다")
-    void findById_missingMember_success() {
+    void findById_success_missingMember() {
+        // given
+
         // when
         Optional<Member> result = memberService.findById(1L);
 

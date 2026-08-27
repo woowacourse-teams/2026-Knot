@@ -53,6 +53,7 @@ class KnotApplicationTests {
     private static final String JWT_COOKIE_NAME = "KNOT_ACCESS_TOKEN";
     private static final String NICKNAME_COOKIE_NAME = "KNOT_NICKNAME_TOKEN";
     private static final String CSRF_COOKIE_NAME = "XSRF-TOKEN";
+
     private final MockMvc mockMvc;
     private final AuthTokenProvider authTokenProvider;
     private final ObjectMapper objectMapper;
@@ -69,11 +70,19 @@ class KnotApplicationTests {
 
     @Test
     @DisplayName("애플리케이션 컨텍스트가 정상적으로 시작된다")
-    void contextLoads() {}
+    void contextLoads_success() {
+        // given
+
+        // when
+
+        // then
+    }
 
     @Test
     @DisplayName("GitHub OAuth 시작 요청은 GitHub authorization URL로 redirect한다")
-    void githubOAuth_start_success() throws Exception {
+    void githubOAuthStart_success() throws Exception {
+        // given
+
         // when
         ResultActions result = mockMvc.perform(get("/oauth2/authorization/github"));
 
@@ -118,6 +127,8 @@ class KnotApplicationTests {
     @Test
     @DisplayName("인증되지 않은 member 조회 요청은 Controller에 도달하지 않고 거부된다")
     void authMe_failure_unauthorized() throws Exception {
+        // given
+
         // when
         ResultActions result = mockMvc.perform(get("/auth/me"));
 
@@ -130,6 +141,8 @@ class KnotApplicationTests {
     @Test
     @DisplayName("잘못된 JWT 쿠키가 있으면 구조화된 401 응답을 반환한다")
     void authMe_failure_invalidToken() throws Exception {
+        // given
+
         // when
         ResultActions result = mockMvc.perform(
                 get("/auth/me").cookie(
@@ -195,7 +208,9 @@ class KnotApplicationTests {
 
     @Test
     @DisplayName("허용된 프론트 Origin의 닉네임 설정 preflight 요청을 허용한다")
-    void completeNicknameSetup_preflight_success_allowedOrigin() throws Exception {
+    void completeNicknameSetupPreflight_success_allowedOrigin() throws Exception {
+        // given
+
         // when
         ResultActions result = mockMvc.perform(
                 options("/auth/nickname").header(
@@ -230,7 +245,9 @@ class KnotApplicationTests {
 
     @Test
     @DisplayName("허용하지 않은 Origin에는 CORS 허용 헤더를 제공하지 않는다")
-    void completeNicknameSetup_preflight_failure_unallowedOrigin() throws Exception {
+    void completeNicknameSetupPreflight_failure_unallowedOrigin() throws Exception {
+        // given
+
         // when
         ResultActions result = mockMvc.perform(
                 options("/auth/nickname").header(
@@ -250,6 +267,8 @@ class KnotApplicationTests {
     @Test
     @DisplayName("인증 없이 CSRF 토큰을 조회하고 쿠키와 응답에 동일한 토큰을 반환한다")
     void csrf_success_unauthenticated() throws Exception {
+        // given
+
         // when
         MvcResult result = mockMvc.perform(get("/auth/csrf"))
                 .andExpect(status().isOk())

@@ -73,8 +73,7 @@ class JwtAuthenticationFilterTest {
                         .getAuthentication()
         ).satisfies(authentication -> {
             assertThat(authentication.getPrincipal()).isEqualTo(expected);
-            assertThat(authentication.getAuthorities())
-                    .extracting(authority -> authority.getAuthority())
+            assertThat(authentication.getAuthorities()).extracting(authority -> authority.getAuthority())
                     .containsExactly("ROLE_USER");
         });
     }
