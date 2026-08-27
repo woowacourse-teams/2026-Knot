@@ -65,7 +65,7 @@ export const theme = {
   primary: "#3C3B39",
 
   neutral: {
-    0: "#FFFFFF",
+    0: "#FDFDFD",
     50: "#FAF9F7",
     100: "#F4F2EE",
     200: "#E9E6E1",
@@ -86,6 +86,7 @@ export const theme = {
     },
     warning: {
       50: "#FAEFEE",
+      200: "#DDACA6",
       600: "#BF3B2C",
       800: "#8C2A1F",
     },
