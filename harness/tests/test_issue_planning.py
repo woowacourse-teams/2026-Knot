@@ -5,6 +5,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 
 
@@ -294,6 +295,94 @@ class IssuePlanningTest(unittest.TestCase):
         self.assertEqual("publish_issue", result["requested_action"])
         self.assertEqual("render_draft", result["action"])
         self.assertFalse(result["remote_write_authorized"])
+
+    def test_publish_requires_create_operation(self):
+        snapshot = fixture("low-risk-create.json")
+        snapshot["operation"] = "draft"
+
+        with mock.patch.object(issue_planning.subprocess, "run") as run:
+            result = issue_planning.publish_issue(snapshot, "woowacourse-teams/2026-Knot")
+
+        self.assertEqual("hold", result["status"])
+        self.assertEqual("report_hold", result["action"])
+        self.assertFalse(result["remote_write_authorized"])
+        self.assertIn("publish requires operation=create", result["errors"][0])
+        run.assert_not_called()
+
+    def test_publish_requires_explicit_repo(self):
+        with mock.patch.object(issue_planning.subprocess, "run") as run:
+            result = issue_planning.publish_issue(fixture("low-risk-create.json"), "")
+
+        self.assertEqual("hold", result["status"])
+        self.assertEqual("report_hold", result["action"])
+        self.assertFalse(result["remote_write_authorized"])
+        self.assertIn("--repo OWNER/REPO is required", result["errors"][0])
+        run.assert_not_called()
+
+    def test_publish_creates_github_issue_after_contract_passes(self):
+        completed = subprocess.CompletedProcess(
+            args=[],
+            returncode=0,
+            stdout="https://github.com/woowacourse-teams/2026-Knot/issues/456\n",
+            stderr="",
+        )
+
+        with mock.patch.object(
+            issue_planning.subprocess, "run", return_value=completed
+        ) as run:
+            result = issue_planning.publish_issue(
+                fixture("low-risk-create.json"), "woowacourse-teams/2026-Knot"
+            )
+
+        self.assertEqual("pass", result["status"])
+        self.assertEqual("publish_issue", result["action"])
+        self.assertTrue(result["remote_write_authorized"])
+        self.assertEqual(456, result["issue_number"])
+        self.assertEqual(
+            "https://github.com/woowacourse-teams/2026-Knot/issues/456",
+            result["issue_url"],
+        )
+        run.assert_called_once()
+        command = run.call_args.args[0]
+        self.assertEqual(
+            [
+                "gh",
+                "issue",
+                "create",
+                "--repo",
+                "woowacourse-teams/2026-Knot",
+                "--title",
+                "[BE] 로그인 오류 메시지 오탈자 수정",
+                "--body-file",
+                "-",
+            ],
+            command,
+        )
+        self.assertIn("## 구현 기능 설명", run.call_args.kwargs["input"])
+        self.assertIn("## TODO", run.call_args.kwargs["input"])
+        self.assertIn("## 메모", run.call_args.kwargs["input"])
+        self.assertTrue(run.call_args.kwargs["capture_output"])
+        self.assertFalse(run.call_args.kwargs["check"])
+
+    def test_publish_reports_gh_failure(self):
+        completed = subprocess.CompletedProcess(
+            args=[],
+            returncode=1,
+            stdout="",
+            stderr="authentication failed",
+        )
+
+        with mock.patch.object(
+            issue_planning.subprocess, "run", return_value=completed
+        ):
+            result = issue_planning.publish_issue(
+                fixture("low-risk-create.json"), "woowacourse-teams/2026-Knot"
+            )
+
+        self.assertEqual("hold", result["status"])
+        self.assertEqual("publish_failed", result["action"])
+        self.assertTrue(result["remote_write_authorized"])
+        self.assertIn("authentication failed", result["errors"][0])
 
     def test_high_risk_without_adr_uses_plain_issue_template(self):
         snapshot = fixture("high-risk-create.json")

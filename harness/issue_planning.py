@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Plan a Knot Issue contract without mutating GitHub or the repository."""
+"""Plan a Knot Issue contract and optionally publish it to GitHub."""
 
 from __future__ import annotations
 
@@ -7,6 +7,7 @@ import argparse
 import hashlib
 import json
 import re
+import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -531,11 +532,87 @@ def plan(snapshot: Any) -> dict[str, Any]:
     return result
 
 
+def _issue_number_from_url(issue_url: str) -> int | None:
+    match = re.search(r"/issues/([1-9]\d*)/?$", issue_url.strip())
+    return int(match.group(1)) if match else None
+
+
+def publish_issue(snapshot: Any, repo: str) -> dict[str, Any]:
+    result = plan(snapshot)
+    if result["status"] != "pass":
+        return result
+    if result["requested_action"] != "publish_issue" or not result["publish_ready"]:
+        return {
+            **result,
+            "status": "hold",
+            "action": "report_hold",
+            "remote_write_authorized": False,
+            "publish_ready": False,
+            "errors": ["publish requires operation=create and a passing Issue contract"],
+        }
+    if not _is_nonblank_string(repo) or "/" not in repo:
+        return {
+            **result,
+            "status": "hold",
+            "action": "report_hold",
+            "remote_write_authorized": False,
+            "publish_ready": False,
+            "errors": ["--repo OWNER/REPO is required when --publish is used"],
+        }
+
+    completed = subprocess.run(
+        [
+            "gh",
+            "issue",
+            "create",
+            "--repo",
+            repo,
+            "--title",
+            snapshot["title"],
+            "--body-file",
+            "-",
+        ],
+        input=result["issue_body"],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if completed.returncode != 0:
+        error = completed.stderr.strip() or completed.stdout.strip()
+        return {
+            **result,
+            "status": "hold",
+            "action": "publish_failed",
+            "remote_write_authorized": True,
+            "errors": [f"gh issue create failed: {error}"],
+        }
+
+    issue_url = completed.stdout.strip()
+    published = {
+        **result,
+        "action": "publish_issue",
+        "remote_write_authorized": True,
+        "issue_url": issue_url,
+    }
+    issue_number = _issue_number_from_url(issue_url)
+    if issue_number is not None:
+        published["issue_number"] = issue_number
+    return published
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("snapshot", type=Path, help="Issue contract JSON snapshot")
     parser.add_argument(
         "--pretty", action="store_true", help="Pretty-print JSON output"
+    )
+    parser.add_argument(
+        "--publish",
+        action="store_true",
+        help="Create the GitHub Issue after the contract passes",
+    )
+    parser.add_argument(
+        "--repo", help="GitHub repository in OWNER/REPO form, required with --publish"
     )
     return parser.parse_args()
 
@@ -544,7 +621,7 @@ def main() -> int:
     args = parse_args()
     try:
         snapshot = json.loads(args.snapshot.read_text(encoding="utf-8"))
-        result = plan(snapshot)
+        result = publish_issue(snapshot, args.repo or "") if args.publish else plan(snapshot)
     except (OSError, json.JSONDecodeError) as error:
         result = {
             "status": "hold",
