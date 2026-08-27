@@ -1,0 +1,188 @@
+name: Backend CI
+
+on:
+  pull_request:
+
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "25"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Grant execute permission
+        run: chmod +x gradlew
+
+      - name: Check formatting
+        id: formatting
+        run: ./gradlew spotlessCheck
+
+      - name: Run unit tests
+        id: unit-tests
+        run: ./gradlew test
+
+      - name: Run integration tests
+        id: integration-tests
+        run: ./gradlew integrationTest
+
+      - name: Run acceptance tests
+        id: acceptance-tests
+        run: ./gradlew acceptanceTest
+
+      - name: Build
+        id: build
+        run: ./gradlew bootJar
+
+      - name: Notify Discord on failure
+        if: ${{ failure() }}
+        working-directory: .
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_CI_WEBHOOK_URL }}
+
+          FORMATTING: ${{ steps.formatting.outcome }}
+          UNIT_TESTS: ${{ steps.unit-tests.outcome }}
+          INTEGRATION_TESTS: ${{ steps.integration-tests.outcome }}
+          ACCEPTANCE_TESTS: ${{ steps.acceptance-tests.outcome }}
+          BUILD: ${{ steps.build.outcome }}
+
+          EVENT_NAME: ${{ github.event_name }}
+          ACTOR: ${{ github.actor }}
+
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+
+          BRANCH: ${{ github.head_ref || github.ref_name }}
+          REPOSITORY: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
+          SERVER_URL: ${{ github.server_url }}
+
+        run: |
+          FAILED_STAGE="Unknown"
+
+          if [ "$FORMATTING" = "failure" ]; then
+            FAILED_STAGE="Formatting"
+          elif [ "$UNIT_TESTS" = "failure" ]; then
+            FAILED_STAGE="Unit Test"
+          elif [ "$INTEGRATION_TESTS" = "failure" ]; then
+            FAILED_STAGE="Integration Test"
+          elif [ "$ACCEPTANCE_TESTS" = "failure" ]; then
+            FAILED_STAGE="Acceptance Test"
+          elif [ "$BUILD" = "failure" ]; then
+            FAILED_STAGE="Build"
+          fi
+
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            GITHUB_USER="$PR_AUTHOR"
+            TITLE="#$PR_NUMBER $PR_TITLE"
+            DESCRIPTION="Pull Request CI 검증에 실패했습니다."
+            TARGET_URL="$PR_URL"
+          else
+            GITHUB_USER="$ACTOR"
+            TITLE="main Branch CI Failed"
+            DESCRIPTION="main 브랜치 CI 검증에 실패했습니다."
+            TARGET_URL="$SERVER_URL/$REPOSITORY/actions/runs/$RUN_ID"
+          fi
+
+          DISCORD_ID=$(awk -v user="$GITHUB_USER" \
+            '$1 == user ":" {gsub(/"/, "", $2); print $2}' \
+            .github/discord-users.yml)
+
+          SHORT_SHA="${GITHUB_SHA::7}"
+          RUN_URL="$SERVER_URL/$REPOSITORY/actions/runs/$RUN_ID"
+
+          if [ -n "$DISCORD_ID" ]; then
+            CONTENT="<@$DISCORD_ID>"
+          else
+            CONTENT=""
+          fi
+
+          PAYLOAD=$(jq -n \
+            --arg content "$CONTENT" \
+            --arg discord_id "$DISCORD_ID" \
+            --arg title "🚨 Backend CI Failed" \
+            --arg description "$DESCRIPTION" \
+            --arg pr_title "$TITLE" \
+            --arg author "$GITHUB_USER" \
+            --arg branch "$BRANCH" \
+            --arg sha "$SHORT_SHA" \
+            --arg failed_stage "$FAILED_STAGE" \
+            --arg target_url "$TARGET_URL" \
+            --arg run_url "$RUN_URL" \
+            '{
+              username: "Knot GitHub",
+              content: $content,
+              allowed_mentions: {
+                users: (
+                  if $discord_id == ""
+                  then []
+                  else [$discord_id]
+                  end
+                )
+              },
+              embeds: [
+                {
+                  title: $title,
+                  description: (
+                    "**" + $pr_title + "**\n\n" +
+                    $description
+                  ),
+                  url: $target_url,
+                  color: 15158332,
+                  fields: [
+                    {
+                      name: "❌ Failed Stage",
+                      value: ("`" + $failed_stage + "`"),
+                      inline: true
+                    },
+                    {
+                      name: "👤 Author",
+                      value: ("`" + $author + "`"),
+                      inline: true
+                    },
+                    {
+                      name: "🌿 Branch",
+                      value: ("`" + $branch + "`"),
+                      inline: true
+                    },
+                    {
+                      name: "📝 Commit",
+                      value: ("`" + $sha + "`"),
+                      inline: true
+                    },
+                    {
+                      name: "🔗 GitHub Actions",
+                      value: ("[실패 로그 확인](" + $run_url + ")"),
+                      inline: false
+                    }
+                  ]
+                }
+              ]
+            }')
+
+          curl --fail-with-body \
+            -H "Content-Type: application/json" \
+            -d "$PAYLOAD" \
+            "$DISCORD_WEBHOOK_URL"

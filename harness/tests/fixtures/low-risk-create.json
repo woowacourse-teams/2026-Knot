@@ -1,0 +1,10 @@
+{
+  "operation": "create",
+  "title": "[BE] 로그인 오류 메시지 오탈자 수정",
+  "purpose": "로그인 실패 메시지의 오탈자를 수정한다.",
+  "scope": ["오탈자가 있는 메시지 한 건 수정"],
+  "acceptance_criteria": ["사용자에게 수정된 메시지가 표시된다."],
+  "verification": ["관련 메시지 테스트를 실행한다."],
+  "evidence": ["오탈자가 있는 기존 메시지 위치"],
+  "risk_signals": []
+}

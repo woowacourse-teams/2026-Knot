@@ -1,0 +1,4 @@
+interface:
+  display_name: "Knot Deep Interview"
+  short_description: "고위험 Knot 요구사항을 한 질문씩 안전하게 명료화"
+  default_prompt: "Use $knot-deep-interview to clarify this high-risk Knot requirement one question at a time."
