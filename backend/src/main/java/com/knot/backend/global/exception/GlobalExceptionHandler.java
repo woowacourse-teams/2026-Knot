@@ -26,9 +26,7 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ErrorResponse> handleValidationException(
-            MethodArgumentNotValidException exception
-    ) {
+    public ResponseEntity<ErrorResponse> handleValidationException(MethodArgumentNotValidException exception) {
         List<FieldErrorResponse> fieldErrors = exception.getBindingResult()
                 .getFieldErrors()
                 .stream()
@@ -47,9 +45,7 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(ConstraintViolationException.class)
-    public ResponseEntity<ErrorResponse> handleConstraintViolationException(
-            ConstraintViolationException exception
-    ) {
+    public ResponseEntity<ErrorResponse> handleConstraintViolationException(ConstraintViolationException exception) {
         List<FieldErrorResponse> fieldErrors = exception.getConstraintViolations()
                 .stream()
                 .map(this::toFieldErrorResponse)
@@ -62,16 +58,12 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
-    public ResponseEntity<ErrorResponse> handleUnreadableMessage(
-            HttpMessageNotReadableException ignored
-    ) {
+    public ResponseEntity<ErrorResponse> handleUnreadableMessage(HttpMessageNotReadableException ignored) {
         return respond(CommonErrorCode.INVALID_REQUEST_BODY);
     }
 
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
-    public ResponseEntity<ErrorResponse> handleTypeMismatch(
-            MethodArgumentTypeMismatchException exception
-    ) {
+    public ResponseEntity<ErrorResponse> handleTypeMismatch(MethodArgumentTypeMismatchException exception) {
         FieldErrorResponse fieldError = new FieldErrorResponse(
                 exception.getName(),
                 CommonErrorCode.INVALID_PARAMETER.getMessage()
@@ -84,9 +76,7 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(MissingServletRequestParameterException.class)
-    public ResponseEntity<ErrorResponse> handleMissingParameter(
-            MissingServletRequestParameterException exception
-    ) {
+    public ResponseEntity<ErrorResponse> handleMissingParameter(MissingServletRequestParameterException exception) {
 
         FieldErrorResponse fieldError = new FieldErrorResponse(
                 exception.getParameterName(),
