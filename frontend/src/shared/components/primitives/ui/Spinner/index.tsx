@@ -2,7 +2,7 @@ import styled from "@emotion/styled";
 import { keyframes } from "@emotion/react";
 import type { HTMLAttributes } from "react";
 
-import spinnerMask from "@/assets/spinnerMask.svg";
+import spinnerMask from "@/assets/spinnerMask.svg?url";
 
 interface SpinnerProps extends HTMLAttributes<HTMLSpanElement> {
   /** 지름. 부모 글자 크기를 따라가게 하려면 `1em`을 넘기면 돼요. */

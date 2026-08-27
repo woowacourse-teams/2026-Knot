@@ -69,8 +69,67 @@ export default (env, argv) => {
           ],
         },
         {
-          test: /\.(png|svg|jpg|jpeg|gif)$/i, // 이미지 파일 확장자
+          test: /\.(png|jpg|jpeg|gif)$/i, // 이미지 파일 확장자
           type: "asset", // Asset Modules 사용
+        },
+        {
+          test: /\.svg$/i,
+          oneOf: [
+            // ① 주소가 필요할 때: import x from "...svg?url"
+            {
+              resourceQuery: /url/,
+              type: "asset",
+              generator: { filename: "static/media/[hash][ext]" },
+            },
+            // ② 그 외 전부: 컴포넌트로 변환
+            {
+              use: [
+                {
+                  loader: "@svgr/webpack",
+                  options: {
+                    typescript: true, // 타입이 붙은 코드를 만들어요
+                    jsxRuntime: "automatic", // import React를 넣지 않아요
+                    dimensions: false, // 원본 width/height를 지워요 (viewBox는 남겨요)
+                    expandProps: "end", // {...props}를 맨 뒤에 붙여 호출부가 이기게 해요
+                    svgProps: {
+                      width: "{size}",
+                      height: "{size}",
+                      focusable: "false",
+                      "aria-hidden": "true", // 아이콘은 기본으로 낭독기에서 무시돼요
+                    },
+                    svgoConfig: {
+                      plugins: [
+                        {
+                          name: "preset-default",
+                          params: {
+                            overrides: {
+                              removeViewBox: false, // viewBox가 없으면 크기 조절이 안 돼요
+                              cleanupIds: false, // id를 줄이면 아이콘끼리 충돌해요
+                            },
+                          },
+                        },
+                      ],
+                    },
+                    // size prop을 만들기 위해 코드 모양을 직접 정해요
+                    template: ({ componentName, jsx, exports }, { tpl }) => tpl`
+import * as React from 'react';
+import type { SVGProps } from 'react';
+
+export type IconProps = SVGProps<SVGSVGElement> & {
+  size?: number | string;
+};
+
+const ${componentName} = ({ size = 24, ...props }: IconProps) => (
+  ${jsx}
+);
+
+${exports}
+`,
+                  },
+                },
+              ],
+            },
+          ],
         },
         {
           test: /\.(woff|woff2|eot|ttf|otf)$/i, // 폰트 파일 확장자
@@ -90,8 +149,14 @@ export default (env, argv) => {
         "@features": path.resolve(__dirname, "src/modules/features"),
         "@routes": path.resolve(__dirname, "src/shared/routes"),
         "@api": path.resolve(__dirname, "src/shared/api"),
-        "@composites": path.resolve(__dirname, "src/shared/components/composites"),
-        "@primitives": path.resolve(__dirname, "src/shared/components/primitives"),
+        "@composites": path.resolve(
+          __dirname,
+          "src/shared/components/composites",
+        ),
+        "@primitives": path.resolve(
+          __dirname,
+          "src/shared/components/primitives",
+        ),
         "@constants": path.resolve(__dirname, "src/shared/constants"),
         "@provider": path.resolve(__dirname, "src/shared/provider"),
         "@hooks": path.resolve(__dirname, "src/shared/hooks"),
