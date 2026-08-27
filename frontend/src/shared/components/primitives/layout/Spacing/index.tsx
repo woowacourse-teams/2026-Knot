@@ -11,7 +11,7 @@ interface SpacingProps {
   direction?: "vertical" | "horizontal";
   /**
    * 벌릴 간격.
-   * 숫자를 넘기면 `px`로 붙고, 문자열은 `1rem`, `8%`처럼 단위까지 그대적용돼요.
+   * 숫자를 넘기면 `rem`으로 붙고, 문자열은 `16px`, `8%`처럼 단위까지 그대로 적용돼요.
    */
   size: string | number;
 }
@@ -24,16 +24,16 @@ interface SpacingProps {
  *
  * @example
  * <Title />
- * <Spacing size={16} />
+ * <Spacing size={1} />
  * <Description />
  *
  * @example
- * <Spacing direction="horizontal" size="1rem" />
+ * <Spacing direction="horizontal" size="16px" />
  */
 export default styled.div<SpacingProps>`
   flex-shrink: 0;
   ${({ direction = "vertical", size }) => {
-    const value = typeof size === "number" ? `${size}px` : size;
+    const value = typeof size === "number" ? `${size}rem` : size;
     return direction === "vertical" ? `height: ${value};` : `width: ${value};`;
   }}
 `;
