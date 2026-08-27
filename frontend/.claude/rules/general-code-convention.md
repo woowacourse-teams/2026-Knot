@@ -1,5 +1,8 @@
 ---
 description: 코드 작성 시 지켜야 하는 전역 규칙(네이밍, 타입, 컴포넌트/훅 작성 방식) 가이드라인
+paths:
+  - "src/**/*.ts"
+  - "src/**/*.tsx"
 ---
 
 ## 네이밍
@@ -98,7 +101,11 @@ description: 코드 작성 시 지켜야 하는 전역 규칙(네이밍, 타입,
 - 파라미터가 **2개 이상**일 때는 객체 구조 분해로 받기
 
   ```tsx
-  export const dateFormatHandler = ({ day, month, year }: DateFormatHandlerParams) => {};
+  export const dateFormatHandler = ({
+    day,
+    month,
+    year,
+  }: DateFormatHandlerParams) => {};
   ```
 
 ## 스타일
