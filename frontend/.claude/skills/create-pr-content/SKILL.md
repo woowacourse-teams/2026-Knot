@@ -1,5 +1,7 @@
 ---
+name: create-pr-content
 description: 현재 브랜치 HEAD 커밋과 develop 브랜치 커밋의 변경사항을 비교하여 pr 내용을 작성
+user-invocable: true
 disable-model-invocation: true
 allowed-tools: Bash(git diff:*), Bash(git log:*), Bash(git branch:*), Bash(git status:*), Bash(gh issue view:*), Bash(gh api:*), Bash(mkdir:*), Bash(code:*), Read, Write, Glob, Grep
 ---
