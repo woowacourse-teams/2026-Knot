@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "title_pattern": "^\\[(BE|FE)\\] \\S.*",
+  "branch_pattern": "^(?P<area>be|fe)/(?P<type>feature|bugfix|chore|docs|hotfix|refactor|release)/#(?P<issue>\\d+)$",
+  "required_pr_sections": [
+    "관련 이슈",
+    "작업 내용"
+  ],
+  "non_empty_pr_sections": ["작업 내용"],
+  "issue_reference_section": "관련 이슈",
+  "issue_reference_pattern": "#\\d+\\b"
+}

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Knot Grill Me"
+  short_description: "Knot Issue의 실패 흐름과 숨은 허점을 압박 검증"
+  default_prompt: "Use $knot-grill-me to stress-test this Knot issue contract before implementation."
