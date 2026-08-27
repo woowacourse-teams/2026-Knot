@@ -1,12 +1,13 @@
 # Knot Issue·ADR 하네스
 
 - 적용 범위: 저장소 전역, BE·FE 공통
-- 상태: 테스트
-- 원격 변경: 비활성화
+- 상태: dry-run 기본, 명시적 publish opt-in
+- 원격 변경: `--publish --repo OWNER/REPO`에서 Issue 생성만 활성화
 
 이 하네스는 깊이 있는 내부 계약을 검증한 뒤 팀의 기존 세 섹션으로 짧은 GitHub Issue
-후보를 만든다. 현재 테스트 버전은 Issue 본문과 판정 결과를 생성하지만 GitHub에는
-게시하지 않는다.
+후보를 만든다. 기본 실행은 Issue 본문과 판정 결과만 생성한다. 사용자가 현재 요청에서
+실제 GitHub Issue 생성을 명시적으로 허용했고 계약이 통과한 경우에만 CLI `--publish`
+옵션으로 GitHub Issue를 게시한다.
 
 ## 요청 방법
 
@@ -24,10 +25,23 @@
 이 요구사항을 Issue 형식으로 검토해줘
 ```
 
-테스트 버전에서는 두 요청 모두 원격 변경 없이 `action=render_draft`로 결과만 보여준다.
+기본 실행에서는 두 요청 모두 원격 변경 없이 `action=render_draft`로 결과만 보여준다.
 생성 요청은 `requested_action=publish_issue`, `publish_ready=true`로 의도를 구분한다.
-`remote_write_authorized`는 항상 `false`이며 다른 필드는 쓰기 권한이 아니다.
-`publish_ready`는 Issue 후보 계약만 통과했다는 뜻이며 ADR 실제 경로 확정을 뜻하지 않는다.
+`remote_write_authorized=false`인 결과의 다른 필드는 쓰기 권한이 아니다. `publish_ready`는
+Issue 후보 계약만 통과했다는 뜻이며 ADR 실제 경로 확정을 뜻하지 않는다.
+
+실제 게시를 허용받은 경우에만 다음처럼 실행한다.
+
+```bash
+python3 harness/issue_planning.py <snapshot.json> \
+  --publish --repo OWNER/REPO --pretty
+```
+
+`--publish`는 `operation=create`, `status=pass`, `publish_ready=true`일 때만 `gh issue
+create`를 실행한다. 성공 결과는 `action=publish_issue`, `remote_write_authorized=true`,
+`issue_url`과 가능한 경우 `issue_number`를 포함한다. `draft`, `hold`, 누락된 `--repo`,
+GitHub 인증 실패는 게시하지 않거나 실패 결과로 멈춘다. 이 경로는 Issue 생성만 수행하며
+Project 변경, branch, commit, push, PR merge 또는 ADR 파일 생성을 함께 하지 않는다.
 
 ## 동작
 
@@ -42,6 +56,7 @@
 → Grill Me → Pass/Hold → ADR 판단
 → 결정적 검증기
 → 세 섹션 dry-run Issue 본문
+→ 명시적으로 허용된 경우에만 GitHub Issue 게시
 ```
 
 `Hold`이면 Issue 후보를 만들지 않고 누락 항목과 재개 조건을 보여준다. `Pass`이면
@@ -95,8 +110,8 @@ python3 harness/materialize_adr.py <snapshot.json> \
 표시다. 새 Issue 번호가 정해지기 전에는 본문에
 `docs/adr/{ISSUE_NUMBER}-<slug>.md`만 표시하고 실제 파일을 만들지 않는다. 번호가 정해진
 뒤 materializer가 `docs/adr/<Issue 번호>-<slug>.md`를 만든다. 파일은 코드와 같은 PR에
-포함하고 팀 리뷰 후에만 `Accepted`로 바꾼다. 두 Python 스크립트는 commit, push, Issue
-게시와 PR merge를 실행하지 않는다.
+포함하고 팀 리뷰 후에만 `Accepted`로 바꾼다. materializer는 commit, push, Issue 게시와
+PR merge를 실행하지 않는다.
 
 ## 팀 공통 적용과 프론트엔드 하네스
 
@@ -121,6 +136,7 @@ Issue #165의 프론트엔드 공통 하네스는 `frontend/` 코드 구현·테
 - 근거 기반 Deep Interview 생략·수행 판정과 Grill Me
 - ADR 필요 여부와 채택안
 - 원격 쓰기 권한 판정
+- 명시적 GitHub Issue 게시
 - 중복 방지용 안정적인 계약 식별자 생성
 - 구현 브랜치의 안전하고 멱등적인 `Proposed` ADR 파일 생성
 - GitHub Actions의 결정적 하네스 테스트

@@ -22,9 +22,11 @@ class DocumentationContractTest(unittest.TestCase):
         self.assertIn("action=render_draft", guide)
         self.assertIn("requested_action=publish_issue", guide)
         self.assertIn("remote_write_authorized=false", guide)
+        self.assertIn("--publish --repo OWNER/REPO", guide)
+        self.assertIn("action=publish_issue", guide)
+        self.assertIn("remote_write_authorized=true", guide)
         self.assertIn("--issue-number 123", guide)
         self.assertIn("adr_path_status=pending_issue_number", guide)
-        self.assertNotIn("remote_write_authorized=true", guide)
 
     def test_signup_walkthrough_separates_actual_result_from_hypothetical_adr(self):
         walkthrough = (

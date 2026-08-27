@@ -1,7 +1,7 @@
 # Issue·ADR 하네스 테스트 방법
 
-이 문서는 GitHub Issue를 만들거나 코드를 push하지 않고 하네스의 routing과 계약 판정을
-확인하는 절차다.
+이 문서는 기본 dry-run으로 하네스의 routing과 계약 판정을 확인하고, 명시적 publish
+경로를 별도로 검증하는 절차다.
 
 ## 1. 자동 테스트
 
@@ -21,7 +21,8 @@ python3 -m unittest discover harness/tests -p 'test_*.py' -v
 - 완성된 고위험 계약은 ADR 예정 경로와 함께 Pass한다.
 - Issue 본문은 기존 템플릿의 세 섹션만 포함한다.
 - 실제 대안이 둘 미만이거나 확인되지 않으면 ADR을 요구할 수 없다.
-- 생성·초안 요청 모두 원격 쓰기를 허용하지 않는다.
+- 생성·초안 요청 모두 기본 dry-run에서는 원격 쓰기를 허용하지 않는다.
+- `--publish --repo OWNER/REPO`를 명시한 생성 요청만 GitHub Issue 생성을 허용한다.
 - 잘못된 문자열·목록 타입과 Markdown H2 삽입은 예외 없이 Hold한다.
 - Hold 결과는 CLI 종료 코드 1을 반환한다.
 - 같은 계약은 같은 `contract_id`를 만든다.
@@ -39,8 +40,8 @@ python3 harness/issue_planning.py \
 
 예상 결과는 `status=pass`, `action=render_draft`,
 `requested_action=publish_issue`, `publish_ready=true`와
-`remote_write_authorized=false`다. 생성 의도와 계약 통과 여부를 보여줄 뿐 GitHub 쓰기
-권한을 부여하지 않는다.
+`remote_write_authorized=false`다. 생성 의도와 계약 통과 여부를 보여줄 뿐 기본 실행은
+GitHub 쓰기 권한을 부여하지 않는다.
 
 미완성 고위험 요청을 확인한다.
 
@@ -64,6 +65,20 @@ python3 harness/issue_planning.py \
 `adr_path_status=pending_issue_number`, `next_after_issue_created=finalize_adr_path`이며
 `interview_status=skipped`, `interview_notice=자료 충분으로 인터뷰 생략`,
 `remote_write_authorized=false`다. 저장소에 ADR 파일은 생성되지 않는다.
+
+명시적으로 GitHub Issue 생성을 검증할 때는 owner/repo를 지정한다.
+
+```bash
+python3 harness/issue_planning.py \
+  harness/tests/fixtures/low-risk-create.json \
+  --publish --repo OWNER/REPO --pretty
+```
+
+성공 결과는 `status=pass`, `action=publish_issue`,
+`remote_write_authorized=true`, `issue_url`과 가능한 경우 `issue_number`를 포함한다.
+이 명령은 실제 GitHub Issue를 생성하므로 테스트 저장소나 실제 생성이 허용된 상황에서만
+실행한다. `draft`, `hold`, 누락된 `--repo`, GitHub 인증 실패는 게시하지 않거나 실패
+결과로 멈춘다.
 
 ## 3. ADR materializer 격리 테스트
 
@@ -99,7 +114,9 @@ Codex에서 `2026-Knot` 폴더를 프로젝트로 연 뒤 다음 순서로 확�
 7. 대안이 없다고 답했을 때 한 번만 확인하고 ADR을 만들지 않는지 확인한다.
 8. 실제 대안이 둘 이상이면 Grill 결과, ADR 판단과 세 섹션 dry-run 본문을 보여주는지
    확인한다.
-9. 모든 결과에서 `remote_write_authorized=false`인지 확인한다.
+9. 기본 dry-run 결과에서 `remote_write_authorized=false`인지 확인한다.
+10. 사용자가 실제 생성을 허용한 경우에만 `--publish --repo OWNER/REPO`를 사용하고,
+    성공 결과의 `issue_url`을 확인한다.
 
 ## 5. Claude Code 자연어 테스트
 
@@ -130,9 +147,10 @@ git status --short
 git log -1 --oneline
 ```
 
-기존 작업 파일 외에 예상한 하네스 파일만 변경됐는지 확인한다. 현재 스킬과 검증기는
-`gh issue create`, `gh issue edit`, Project 변경, `git commit`, `git push`, PR merge를
-실행하지 않는다.
+기존 작업 파일 외에 예상한 하네스 파일만 변경됐는지 확인한다. 기본 dry-run 스킬과
+검증기는 `gh issue create`, `gh issue edit`, Project 변경, `git commit`, `git push`,
+PR merge를 실행하지 않는다. 명시적 publish 검증은 `gh issue create`만 실행하며 다른 원격
+변경이나 git 작업을 함께 수행하지 않는다.
 
 ## 7. 새 Codex 세션에서 routing 확인
 
@@ -145,7 +163,8 @@ codex exec --ephemeral --sandbox read-only -C . \
 ```
 
 `knot-issue-planning`이 선택되고 위험 등급이 `Low`로 나와야 한다. 결과의
-`remote_write_authorized`는 `false`여야 한다. 필수 정보가 부족하면 `Hold`가 정상이다.
+`remote_write_authorized`는 기본 dry-run에서 `false`여야 한다. 필수 정보가 부족하면
+`Hold`가 정상이다.
 
 고위험 routing은 다음 명령으로 확인한다.
 
