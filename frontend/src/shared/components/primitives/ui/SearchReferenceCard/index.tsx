@@ -1,7 +1,7 @@
 import { ReactNode } from "react";
 import styled from "@emotion/styled";
-import Spacing from "../../layout/Spacing";
 import OpenExternal from "@/assets/icons/openExternal.svg";
+import Spacing from "@primitives/layout/Spacing";
 
 interface SearchReferenceCardProps {
   title: string;
