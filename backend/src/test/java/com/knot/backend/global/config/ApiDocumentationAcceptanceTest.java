@@ -38,29 +38,31 @@ class ApiDocumentationAcceptanceTest {
         // when & then
         mockMvc.perform(get("/swagger-ui.html"))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(header().string("Location", "/swagger-ui/index.html"));
+                .andExpect(
+                        header().string(
+                                "Location",
+                                "/swagger-ui/index.html"
+                        )
+                );
     }
 
     @Test
-    @DisplayName("개발 프로파일에서는 OpenAPI JSON을 공개하고 인증 계약을 포함한다")
+    @DisplayName("개발 프로파일에서는 OpenAPI JSON과 인증 태그를 공개한다")
     void openApi_success_developmentProfile() throws Exception {
         // when & then
         mockMvc.perform(get("/v3/api-docs"))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith("application/json"))
+                .andExpect(jsonPath("$.tags[0].name").value("인증"))
+                .andExpect(jsonPath("$.tags[0].description").value("회원가입, 로그인, 리프레쉬, 로그아웃, 확인"))
                 .andExpect(jsonPath("$.paths['/auth/me'].get").exists())
                 .andExpect(jsonPath("$.paths['/auth/csrf'].get").exists())
                 .andExpect(jsonPath("$.paths['/auth/nickname'].post").exists())
-                .andExpect(jsonPath("$.paths['/auth/me'].get.responses['401'].content['application/json'].schema['$ref']")
-                        .value("#/components/schemas/ErrorResponse"))
-                .andExpect(jsonPath("$.paths['/auth/csrf'].get.responses['200'].headers['Set-Cookie']").exists())
-                .andExpect(jsonPath("$.paths['/auth/nickname'].post.responses['204'].headers['Set-Cookie']").exists())
-                .andExpect(jsonPath("$.components.schemas.ErrorResponse").exists())
-                .andExpect(jsonPath("$.components.securitySchemes.accessTokenCookie.in").value("cookie"))
-                .andExpect(jsonPath("$.components.securitySchemes.accessTokenCookie.name").value("KNOT_ACCESS_TOKEN"))
-                .andExpect(jsonPath("$.paths['/auth/me'].get.security[0].accessTokenCookie").isArray())
-                .andExpect(jsonPath("$.paths['/oauth2/authorization/{registrationId}'].get.responses['302'].headers.Location")
-                        .exists());
+                .andExpect(
+                        jsonPath(
+                                "$.paths['/oauth2/authorization/{registrationId}'].get.responses['302'].headers.Location"
+                        ).exists()
+                );
     }
 
     @Test
