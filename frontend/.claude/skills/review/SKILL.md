@@ -138,7 +138,7 @@ git status --short                                 # 커밋되지 않은 변경�
 5. 변경 유형에 해당하는 `.claude/rules/*.md`(파일 위치는 `project-structure` 스킬)를 읽어 근거를 확보합니다.
    (컴포넌트 → component-abstract-pattern / component-colocation-pattern / segment-pattern,
     shared → shared-layer, API → api-guide, 쿼리훅 → query-hooks, shared 훅 → hook-guide, 테스트 → test-strategy,
-    파일 위치 → project-structure 스킬, 공통 → general-code-convention)
+    파일 위치·훅 위치 → project-structure 스킬, 공통 → general-code-convention)
 
 6. 체크리스트의 A부터 H까지 전 섹션을 순서대로 적용하여 리뷰합니다.
 
