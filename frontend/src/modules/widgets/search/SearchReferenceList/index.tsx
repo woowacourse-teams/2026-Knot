@@ -55,7 +55,7 @@ const Title = styled.h2`
   color: ${({ theme }) => theme.neutral[500]}
 `;
 
-const SortLabel = styled.h2`
+const SortLabel = styled.span`
   ${({ theme }) => theme.text.caption02}
   color: ${({ theme }) => theme.neutral[400]}
 `;
