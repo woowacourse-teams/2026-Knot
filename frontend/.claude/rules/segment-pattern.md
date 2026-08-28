@@ -9,7 +9,7 @@ description: 컴포넌트 폴더(widgets·features·composites) 내부 세그먼
 
 **세그먼트란 컴포넌트 폴더(widgets·features·composites) 내부를 역할별로 나누는 하위 폴더 구획**. 이 문서는 그 세그먼트의 정의와 배치·의존 규칙을 정의함.
 
-세그먼트는 `shared` 최상위 폴더 구성(`api`, `components`, `hooks`, `provider`, `routes`, `utils`, `constants`, `types`)과 별개 개념. `utils`·`types`·`constants`처럼 이름이 겹치는 폴더가 있어도, 세그먼트의 내용물은 해당 컴포넌트 내부 전용이고 `shared`의 폴더는 프로젝트 전역 공용. shared 레이어의 구성과 코드를 shared로 내리는 기준은 `.claude/rules/shared-layer.md` 참고.
+세그먼트는 `shared` 최상위 폴더 구성(`api`, `components`, `hooks`, `provider`, `routes`, `utils`, `constants`, `types`)과 별개 개념. `utils`·`types`·`constants`처럼 이름이 겹치는 폴더가 있어도, 세그먼트의 내용물은 해당 컴포넌트 내부 전용이고 `shared`의 폴더는 프로젝트 전역 공용. shared 레이어의 구성은 `.claude/rules/shared-layer.md`, 코드를 shared로 내리는 기준은 `project-structure` 스킬 참고.
 
 폴더 구조는 '변경에 유연함'을 판단 근거로 잡았기 때문에, 아래 모든 규칙은 "코드가 어떤 이유로 함께 바뀌는가"를 따라 결정됨.
 
@@ -39,7 +39,7 @@ features, widgets, composites 레이어의 세그먼트는 `ui`, `model`, `utils
   - 도메인 컴포넌트(widgets·features)의 강결합 훅 → 해당 컴포넌트의 `model`
   - 강결합된 로직이더라도 도메인과 무관한 UI 로직 → `shared/components/composites/{Component}/model` (예: `Tabs/model/useTabContext`)
 - 도메인 값만 주고받아 다른 화면에 이식 가능하면, 지금 한 곳에서만 쓰이더라도 `shared/hooks`에 둠.
-- 강결합 여부의 세부 판단 기준(이름·인자·반환값·다른 화면 이식 테스트)은 `.claude/rules/shared-layer.md`의 "코드를 shared로 내리는 기준" 참고.
+- 강결합 여부의 세부 판단 기준(이름·인자·반환값·다른 화면 이식 테스트)은 `project-structure` 스킬의 「코드를 shared로 내리는 기준」이 원본. 판단이 필요하면 스킬을 호출해 확인.
 
 ## api 코드의 위치
 

@@ -104,11 +104,11 @@ src/
 - `ui/` 내부의 서브 컴포넌트도 **부모 컴포넌트의 추상화 레벨 규칙을 그대로 따름**.
   - 예: `primitives` 컴포넌트의 서브 컴포넌트는 `composites`·`features`·`widgets`를 사용할 수 없음.
 - 컨텍스트로 강하게 결합된 하위 컴포넌트(예: TodoList 안의 TodoAccordion)는 밖에서 재사용될 수 없으므로 상위 컴포넌트의 `ui` 폴더 안에 코로케이션.
-- **훅의 위치는 사용 횟수("지금은 여기서만 쓴다")로 판단하지 않음.** 컴포넌트와 강결합된 훅(컴포넌트의 렌더 구조·Context·로컬 state에 구조적으로 묶인 훅)만 `model`에 코로케이션하고, 도메인 값만 주고받는 훅은 지금 한 곳에서만 쓰이더라도 `shared/hooks/domain/<도메인>`에 둠. 세부 기준은 `.claude/rules/shared-layer.md`의 "코드를 shared로 내리는 기준" 참고.
+- **훅의 위치는 사용 횟수("지금은 여기서만 쓴다")로 판단하지 않음.** 컴포넌트와 강결합된 훅(컴포넌트의 렌더 구조·Context·로컬 state에 구조적으로 묶인 훅)만 `model`에 코로케이션하고, 도메인 값만 주고받는 훅은 지금 한 곳에서만 쓰이더라도 `shared/hooks/domain/<도메인>`에 둠. 세부 기준은 `project-structure` 스킬의 「코드를 shared로 내리는 기준」 참고.
   - 강결합된 로직이더라도 도메인과 무관한 UI 로직이면 `shared/components/composites/{Component}/model`에 둠. (예: `Tabs/model/useTabContext`)
 - 특정 컴포넌트에서만 쓰이는 컨텍스트(컴파운드 패턴, 폼, prop drilling 제거용)는 `shared/provider`가 아니라 해당 컴포넌트 폴더의 `context` 세그먼트에 코로케이션. `createContext`, `useContext`, `Provider` 세 가지는 파편화를 막기 위해 한 파일 안에 함께 작성하며, Provider가 JSX를 반환하므로 `context/todoContext.tsx`처럼 `.tsx` 파일로 둠.
 - widgets, features 컴포넌트 세그먼트에서 사용되는 코드는 다른 도메인 컴포넌트에서 사용하지 않음.
-  - 중복적인 로직이 필요할 때는 먼저 `.claude/rules/shared-layer.md`의 훅 위치 판단 기준(이름·인자·반환값·다른 화면 이식 테스트)으로 판단.
+  - 중복적인 로직이 필요할 때는 먼저 `project-structure` 스킬의 「코드를 shared로 내리는 기준」(이름·인자·반환값·다른 화면 이식 테스트)으로 판단.
     - 도메인 값만 주고받아 다른 화면에 이식 가능한 로직이면 훅으로 만들어 `shared/hooks/domain`으로 내려서 재사용.
     - 컴포넌트의 렌더 구조·Context·로컬 state에 묶여 이식 불가한 코드면 재사용하지 않고 동일한 코드를 각 도메인 컴포넌트에 코로케이션.
 - 하나의 페이지를 렌더링하는 컴포넌트는 추상화 규칙의 대상은 아니지만, 폴더/`index.tsx` 콜로케이션 규칙은 동일하게 지킴.

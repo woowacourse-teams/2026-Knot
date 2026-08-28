@@ -18,7 +18,7 @@ e.g.
 - useHaptic, useSMS → common 훅
 - useGetCoursePath, useDrawPath → domain 훅
 
-단, 특정 컴포넌트와 강결합된 훅은 `shared/hooks`에 두지 않고 해당 컴포넌트 폴더의 `model`에 코로케이션. **훅의 위치는 사용 횟수("지금은 여기서만 쓴다")가 아니라 컴포넌트와의 강결합 여부로 판단**하며, 세부 기준은 `.claude/rules/shared-layer.md`의 "코드를 shared로 내리는 기준" 참고. 덕분에 재사용 가능한 훅을 찾을 때는 `shared/hooks`만 확인하면 됨.
+단, 특정 컴포넌트와 강결합된 훅은 `shared/hooks`에 두지 않고 해당 컴포넌트 폴더의 `model`에 코로케이션. **훅의 위치는 사용 횟수("지금은 여기서만 쓴다")가 아니라 컴포넌트와의 강결합 여부로 판단**하며, 세부 기준은 `project-structure` 스킬의 「코드를 shared로 내리는 기준」 참고. 덕분에 재사용 가능한 훅을 찾을 때는 `shared/hooks`만 확인하면 됨.
 
 쿼리·뮤테이션 훅은 `shared/hooks`가 아니라 `shared/api`의 `queries`/`mutations`에서 관리. (`.claude/rules/query-hooks.md` 참고)
 
