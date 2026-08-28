@@ -76,7 +76,7 @@ git status --short                                 # 커밋되지 않은 변경�
 | 컴포넌트 신규·수정·이동      | `.claude/rules/component-abstract-pattern.md`, `.claude/rules/component-colocation-pattern.md`   |
 | 컴포넌트 폴더 내부 파일 배치 | `.claude/rules/segment-pattern.md`                                                               |
 | `shared` 하위 파일 배치      | `.claude/rules/shared-layer.md`                                                                  |
-| 새 파일·폴더 추가, 위치 변경 | `.claude/rules/project-structure.md`                                                             |
+| 새 파일·폴더 추가, 위치 변경 | `project-structure` 스킬 (`.claude/skills/project-structure/SKILL.md`)                           |
 | 테스트 코드                  | `.claude/rules/test-strategy.md`                                                                 |
 | API 함수                     | `.claude/rules/api-guide.md`                                                                     |
 | 쿼리·뮤테이션 훅             | `.claude/rules/query-hooks.md`                                                                   |
@@ -135,10 +135,10 @@ git status --short                                 # 커밋되지 않은 변경�
    - 담당 파일을 임포트하는 곳 (Grep으로 확인)
    - 담당 파일이 임포트하는 대상의 실제 위치와 추상화 레벨
 
-5. 변경 유형에 해당하는 `.claude/rules/*.md`를 읽어 근거를 확보합니다.
+5. 변경 유형에 해당하는 `.claude/rules/*.md`(파일 위치는 `project-structure` 스킬)를 읽어 근거를 확보합니다.
    (컴포넌트 → component-abstract-pattern / component-colocation-pattern / segment-pattern,
     shared → shared-layer, API → api-guide, 쿼리훅 → query-hooks, shared 훅 → hook-guide, 테스트 → test-strategy,
-    파일 위치 → project-structure, 공통 → general-code-convention)
+    파일 위치 → project-structure 스킬, 공통 → general-code-convention)
 
 6. 체크리스트의 A부터 H까지 전 섹션을 순서대로 적용하여 리뷰합니다.
 
