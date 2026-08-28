@@ -5,9 +5,9 @@ import Spacing from "@primitives/layout/Spacing";
 
 interface SearchReferenceCardProps {
   title: string;
-  path: string;
-  notionUrl: string;
-  searchResourceIcon: ReactNode;
+  documentPath: string;
+  href: string;
+  sourceIcon: ReactNode;
 }
 
 /**
@@ -21,16 +21,14 @@ interface SearchReferenceCardProps {
 
 export default function SearchReferenceCard({
   title,
-  path,
-  notionUrl,
-  searchResourceIcon,
+  documentPath,
+  href,
+  sourceIcon,
 }: SearchReferenceCardProps) {
   return (
-    <Container href={notionUrl} target="_blank" rel="noopener noreferrer">
+    <Container href={href} target="_blank" rel="noopener noreferrer">
       <Header>
-        <ReferenceSourceIconWrapper>
-          {searchResourceIcon}
-        </ReferenceSourceIconWrapper>
+        <ReferenceSourceIconWrapper>{sourceIcon}</ReferenceSourceIconWrapper>
 
         <Spacing direction="horizontal" size={0.625} />
 
@@ -41,7 +39,7 @@ export default function SearchReferenceCard({
         </ExternalLinkIconWrapper>
       </Header>
 
-      <Location>{path}</Location>
+      <Location>{documentPath}</Location>
     </Container>
   );
 }

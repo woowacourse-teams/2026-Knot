@@ -20,15 +20,17 @@ export default function SearchReferenceList() {
 
       <List>
         {mock.map((data) => {
-          const ReferenceSourceIcon = getReferenceSourceIcon(data.referenceSource);
+          const ReferenceSourceIcon = getReferenceSourceIcon(
+            data.referenceSource,
+          );
 
           return (
             <SearchReferenceCard
               key={data.id}
-              searchResourceIcon={<ReferenceSourceIcon size={20} color="#6B6862" />}
               title={data.notionPage.title}
-              path={data.notionPage.path}
-              notionUrl={data.notionPage.notionUrl}
+              documentPath={data.notionPage.path}
+              href={data.notionPage.notionUrl}
+              sourceIcon={<ReferenceSourceIcon size={20} color="#6B6862" />}
             />
           );
         })}
