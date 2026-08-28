@@ -93,14 +93,25 @@ snapshot은 저장소에 저장하지 않는다. OS 임시 파일을 현재 사�
 판정 또는 ADR 생성이 끝나면 성공·실패와 관계없이 삭제한다. 인터뷰 원문, 토큰,
 비밀번호와 개인정보를 넣지 않는다.
 
-현재 테스트 버전의 결과 필드는 다음 의미를 가진다.
+기본 dry-run 결과 필드는 다음 의미를 가진다.
 
-- `action`: 실제 수행한 동작이며 통과한 계약은 `render_draft`다.
+- `action`: 실제 수행한 동작이다. 기본 통과 계약은 `render_draft`, 새 게시 성공은
+  `publish_issue`, 계약 표식으로 기존 Issue를 재사용하면 `reuse_existing_issue`, 생성 뒤
+  후속 동기화가 실패하면 `partial_publish_issue`다.
 - `requested_action`: `operation=create`이면 `publish_issue`, 초안이면 `render_draft`다.
 - `publish_ready`: 생성 의도로 들어온 Issue 후보 계약이 통과했는지 나타낸다. ADR 실제
   경로가 확정됐다는 뜻은 아니다.
-- `remote_write_authorized`: 항상 `false`다. 다른 필드를 원격 쓰기 권한으로 해석하지 않는다.
+- `remote_write_authorized`: 기본값은 `false`다. 사용자가 현재 요청에서 실제 GitHub Issue
+  생성을 명시적으로 허용했고 CLI를 `--publish --repo OWNER/REPO`로 실행해 계약이 통과한
+  경우 `true`다. 승인된 검색·생성·갱신의 성공 여부와 권한은 다르므로 `status`와 `action`을
+  함께 확인한다.
+- `issue_url`, `issue_number`: 새로 만들거나 계약 표식으로 재사용한 실제 GitHub Issue다.
 - `interview_status`: 고위험 계약의 인터뷰가 `completed` 또는 `skipped`인지 나타낸다.
 - `interview_notice`: 사용자에게 그대로 보여줄 인터뷰 완료 또는 생략 안내다.
-- `adr_path_status`: 실제 Issue 번호 전이면 `pending_issue_number`, 확정 뒤에는 `finalized`다.
+- `adr_path_status`: 실제 Issue 번호 전이면 `pending_issue_number`, 게시기가 같은 Issue
+  본문을 실제 번호로 갱신한 뒤에는 `finalized`다.
 - `next_after_issue_created`: 번호 확정이 필요하면 `finalize_adr_path`다.
+
+`operation=create`, `requested_action=publish_issue`, `publish_ready=true`만으로는 원격 쓰기
+권한이 아니다. 게시 전 같은 계약 표식을 모든 상태의 Issue에서 검색하며, 하나면 재사용하고
+둘 이상이면 `hold`한다. Project 변경은 이 권한에 포함되지 않는다.

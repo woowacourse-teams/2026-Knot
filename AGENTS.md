@@ -4,7 +4,7 @@
 
 이 지침의 Issue 기획·검증·ADR 생명주기는 저장소 전역과 BE·FE 작업에 공통으로 적용한다.
 하위 디렉터리의 지침은 해당 코드의 구현 규칙을 추가할 수 있지만, 공통 Issue 템플릿,
-원격 쓰기 차단, 실제 대안 확인과 ADR 생성 조건을 약화할 수 없다. 충돌하면 임의로 한쪽을
+원격 쓰기 opt-in, 실제 대안 확인과 ADR 생성 조건을 약화할 수 없다. 충돌하면 임의로 한쪽을
 선택하지 말고 충돌과 영향을 보고한다.
 
 백엔드 구현 지침은 코드와 검증 규칙을 추가하되 ADR 필요 여부는 이 공통 계약의 판정을
@@ -21,10 +21,16 @@
 Knot의 GitHub Issue 생성·초안·검토 요청에는 `$knot-issue-planning`을 사용한다. 운영
 규칙은 `docs/harness/issue-planning.md`를 읽는다.
 
-현재 하네스는 테스트 단계다. `Issue 만들어줘` 요청도 dry-run까지만 수행한다.
-`requested_action=publish_issue`는 사용자의 의도일 뿐 쓰기 권한이 아니다. 판정기의
-`remote_write_authorized`는 항상 `false`이며 `gh issue create`, `gh issue edit`와 Project
-변경을 실행하지 않는다. Issue 기획 중에는 branch, commit과 ADR 파일도 변경하지 않는다.
+기본 하네스 실행은 dry-run이다. `Issue 만들어줘` 요청도 기본값은 `action=render_draft`와
+`remote_write_authorized=false`이며, `requested_action=publish_issue`는 사용자의 의도일 뿐
+쓰기 권한이 아니다. 사용자가 현재 요청에서 실제 GitHub Issue 생성을 명시적으로 허용했고
+판정기가 `pass`와 `publish_ready=true`를 반환한 경우에만 저장소 루트에서
+`python3 harness/issue_planning.py <snapshot.json> --publish --repo OWNER/REPO --pretty`를
+실행할 수 있다. 게시기는 계약 표식으로 기존 Issue를 먼저 찾아 하나면 재사용하고, 둘 이상이면
+중복 해소 전까지 멈춘다. `gh issue edit`는 ADR 예정 경로를 실제 Issue 번호로 확정하기 위해
+방금 생성하거나 재사용한 동일 Issue의 본문을 갱신할 때만 허용한다. Project 변경, branch,
+commit, push, PR merge와 ADR 파일 생성은 함께 실행하지 않는다. `draft` 또는 `hold` 계약은
+`--publish`가 있어도 GitHub에 쓰지 않는다.
 
 ## Issue 구현
 
