@@ -1,5 +1,8 @@
 ---
 description: 코드 작성 시 지켜야 하는 전역 규칙(네이밍, 타입, 컴포넌트/훅 작성 방식) 가이드라인
+paths:
+  - "src/**/*.ts"
+  - "src/**/*.tsx"
 ---
 
 ## 네이밍
@@ -38,8 +41,10 @@ description: 코드 작성 시 지켜야 하는 전역 규칙(네이밍, 타입,
 
 ### 스타일(레이아웃) 요소 네이밍
 
+- `Root`: 컴포넌트의 **최상위 요소**이면서 **1개**의 요소만을 감쌀 때
 - `Container`: **2개 이상**의 요소를 감쌀 때
 - `Wrapper`: **1개**의 요소를 감쌀 때 (e.g. `<ImageWrapper />`)
+- 최상위 요소가 2개 이상을 감싸면 `Root`가 아니라 `Container`를 사용. `Root`와 `Wrapper`가 모두 해당하면 `Root` 우선
 
 ## 상수
 
@@ -98,7 +103,11 @@ description: 코드 작성 시 지켜야 하는 전역 규칙(네이밍, 타입,
 - 파라미터가 **2개 이상**일 때는 객체 구조 분해로 받기
 
   ```tsx
-  export const dateFormatHandler = ({ day, month, year }: DateFormatHandlerParams) => {};
+  export const dateFormatHandler = ({
+    day,
+    month,
+    year,
+  }: DateFormatHandlerParams) => {};
   ```
 
 ## 스타일
