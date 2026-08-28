@@ -15,7 +15,7 @@ import Divider from "@primitives/ui/Divider";
  */
 export default function WorkspaceEntryCard() {
   return (
-    <Root>
+    <Container>
       <Header>
         <Title>워크스페이스 생성 및 참여</Title>
         <Description>
@@ -30,11 +30,11 @@ export default function WorkspaceEntryCard() {
         <Divider label="또는" />
         <WorkspaceJoinByCodeButton />
       </Actions>
-    </Root>
+    </Container>
   );
 }
 
-const Root = styled.section`
+const Container = styled.section`
   display: flex;
   flex-direction: column;
   align-items: center;
