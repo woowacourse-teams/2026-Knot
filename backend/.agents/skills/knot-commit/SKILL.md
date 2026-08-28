@@ -1,6 +1,6 @@
 ---
 name: knot-commit
-description: Create, review, split, and validate commits for the 2026-Knot backend from the actual git diff using Knot's AngularJS-based commit convention, atomic intent rule, allowed types, optional scopes, Korean subjects, and optional reason-focused bodies. Use when Codex needs to draft a commit message, group mixed changes, stage an atomic commit, or review recent commit messages; do not create a commit unless the user explicitly requests it.
+description: “커밋해줘”, “작업 단위로 커밋해줘”, “커밋 메시지 작성해줘”처럼 Knot 백엔드의 실제 git diff를 원자적 커밋으로 계획·검토·생성할 때 사용한다. 메시지 초안은 commit 권한이 아니며 실제 commit은 명시적 요청에만 수행한다. push, PR 게시, merge에는 사용하지 않는다.
 ---
 
 # Knot Commit
@@ -21,7 +21,7 @@ Base every commit decision on the actual backend diff. Use the linked Issue or t
 - Keep implementation, tests, and required configuration for the same intent together when they form one reviewable change.
 - Split unrelated features, fixes, refactors, formatting-only changes, documentation, dependency changes, and tests into separate commits when practical.
 - Do not stage every changed file blindly.
-- Do not amend, rebase, reset, or create a commit unless the user explicitly asks for that operation.
+- Treat `커밋해줘` and `작업 단위로 커밋해줘` as explicit commit creation requests. `커밋 메시지 작성해줘` authorizes only a draft. Do not amend, rebase, or reset unless the user explicitly asks for that operation.
 - Preserve existing user changes and report pre-existing staged or dirty files before staging.
 - Do not claim a test or formatting check passed without running it and reporting the result.
 

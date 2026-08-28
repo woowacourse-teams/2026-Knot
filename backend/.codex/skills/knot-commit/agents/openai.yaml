@@ -1,4 +1,0 @@
-interface:
-  display_name: "Knot Commit"
-  short_description: "Create atomic Knot commits"
-  default_prompt: "Use $knot-commit to inspect the backend diff and draft an atomic commit message."
