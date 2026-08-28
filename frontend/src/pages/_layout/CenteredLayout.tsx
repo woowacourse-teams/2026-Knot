@@ -14,15 +14,15 @@ import LogoIcon from "@/assets/logos/logo.svg";
  */
 export default function CenteredLayout() {
   return (
-    <Root>
+    <Container>
       <Logo />
       <Spacing size={2.5} /> {/* 40px */}
       <Outlet />
-    </Root>
+    </Container>
   );
 }
 
-const Root = styled.main`
+const Container = styled.main`
   display: flex;
   flex-direction: column;
   align-items: center;
