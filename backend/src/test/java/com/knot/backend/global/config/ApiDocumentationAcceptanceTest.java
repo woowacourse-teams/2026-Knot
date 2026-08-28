@@ -1,5 +1,6 @@
 package com.knot.backend.global.config;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -27,9 +28,21 @@ import org.springframework.test.web.servlet.MockMvc;
 @TestConstructor(autowireMode = TestConstructor.AutowireMode.ALL)
 class ApiDocumentationAcceptanceTest {
     private final MockMvc mockMvc;
+    private final OAuth2LoginProperties oauth2LoginProperties;
 
-    ApiDocumentationAcceptanceTest(MockMvc mockMvc) {
+    ApiDocumentationAcceptanceTest(
+            MockMvc mockMvc,
+            OAuth2LoginProperties oauth2LoginProperties
+    ) {
         this.mockMvc = mockMvc;
+        this.oauth2LoginProperties = oauth2LoginProperties;
+    }
+
+    @Test
+    @DisplayName("OAuth 닉네임 설정 redirect 기본값은 온보딩 경로로 바인딩된다")
+    void oauth2LoginProperties_success_bindsOnboardingRedirect() {
+        // when & then
+        assertThat(oauth2LoginProperties.getNicknameRedirectUri()).isEqualTo("/onboarding");
     }
 
     @Test
