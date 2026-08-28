@@ -16,7 +16,7 @@ interface DividerProps extends HTMLAttributes<HTMLDivElement> {
  */
 export default function Divider({ label, ...props }: DividerProps) {
   return (
-    <Root role="separator" {...props}>
+    <Container role="separator" {...props}>
       <Line />
       {label && (
         <>
@@ -24,11 +24,11 @@ export default function Divider({ label, ...props }: DividerProps) {
           <Line />
         </>
       )}
-    </Root>
+    </Container>
   );
 }
 
-const Root = styled.div`
+const Container = styled.div`
   display: flex;
   align-items: center;
   gap: 0.75rem; /* 12px */
