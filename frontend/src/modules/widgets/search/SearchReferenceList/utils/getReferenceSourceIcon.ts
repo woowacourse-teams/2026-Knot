@@ -11,7 +11,7 @@ const REFERENCE_SOURCE_ICON: Record<ReferenceSource, ReferenceSourceIcon> = {
   notion: Notion,
 };
 
-const DEFAULT_REFERENCE_SOURCE_ICON = Notion;
+const DEFAULT_REFERENCE_SOURCE_ICON = REFERENCE_SOURCE_ICON.notion;
 
 /**
  * referenceSource에 해당하는 아이콘 컴포넌트를 반환합니다. 
@@ -27,5 +27,7 @@ const DEFAULT_REFERENCE_SOURCE_ICON = Notion;
 export const getReferenceSourceIcon = (referenceSource?: ReferenceSource) => {
   if (!referenceSource) return DEFAULT_REFERENCE_SOURCE_ICON;
 
-  return REFERENCE_SOURCE_ICON[referenceSource] ?? DEFAULT_REFERENCE_SOURCE_ICON;
+  return (
+    REFERENCE_SOURCE_ICON[referenceSource] ?? DEFAULT_REFERENCE_SOURCE_ICON
+  );
 };
