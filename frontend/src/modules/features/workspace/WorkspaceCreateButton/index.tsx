@@ -4,7 +4,7 @@ import useNavigateToWorkspaceCreate from "@hooks/domain/workspace/useNavigateToW
 /**
  * 새 워크스페이스 생성 화면(`/workspace/create`)으로 이동하는 버튼.
  */
-export default function CreateWorkspaceButton() {
+export default function WorkspaceCreateButton() {
   const { navigateToWorkspaceCreate } = useNavigateToWorkspaceCreate();
 
   return (
