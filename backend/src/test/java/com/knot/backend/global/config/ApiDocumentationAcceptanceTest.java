@@ -51,7 +51,16 @@ class ApiDocumentationAcceptanceTest {
                 .andExpect(jsonPath("$.paths['/auth/me'].get").exists())
                 .andExpect(jsonPath("$.paths['/auth/csrf'].get").exists())
                 .andExpect(jsonPath("$.paths['/auth/nickname'].post").exists())
-                .andExpect(jsonPath("$.components.schemas.ErrorResponse").exists());
+                .andExpect(jsonPath("$.paths['/auth/me'].get.responses['401'].content['application/json'].schema['$ref']")
+                        .value("#/components/schemas/ErrorResponse"))
+                .andExpect(jsonPath("$.paths['/auth/csrf'].get.responses['200'].headers['Set-Cookie']").exists())
+                .andExpect(jsonPath("$.paths['/auth/nickname'].post.responses['204'].headers['Set-Cookie']").exists())
+                .andExpect(jsonPath("$.components.schemas.ErrorResponse").exists())
+                .andExpect(jsonPath("$.components.securitySchemes.accessTokenCookie.in").value("cookie"))
+                .andExpect(jsonPath("$.components.securitySchemes.accessTokenCookie.name").value("KNOT_ACCESS_TOKEN"))
+                .andExpect(jsonPath("$.paths['/auth/me'].get.security[0].accessTokenCookie").isArray())
+                .andExpect(jsonPath("$.paths['/oauth2/authorization/{registrationId}'].get.responses['302'].headers.Location")
+                        .exists());
     }
 
     @Test
