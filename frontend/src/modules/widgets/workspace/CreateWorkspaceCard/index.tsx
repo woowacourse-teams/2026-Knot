@@ -60,6 +60,7 @@ export default function CreateWorkspaceCard() {
             errorMessage={errorMessage}
             aria-label="워크스페이스 이름"
             autoComplete="off"
+            autoFocus
           />
         </Field>
 
