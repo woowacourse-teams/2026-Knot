@@ -110,8 +110,24 @@ jobs:
             -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=yes \
             "$NCP_DEV_USER@$NCP_DEV_HOST" \
-            'bash -se' <<'REMOTE'
+          'bash -se' <<'REMOTE'
           set -Eeuo pipefail
+
+          sudo -n /usr/bin/install \
+            -d \
+            -o root \
+            -g root \
+            -m 755 \
+            /etc/systemd/system/knot-backend.service.d
+
+          sudo -n /usr/bin/tee \
+            /etc/systemd/system/knot-backend.service.d/10-development-profile.conf \
+            > /dev/null <<'UNIT'
+          [Service]
+          Environment=SPRING_PROFILES_ACTIVE=dev
+          UNIT
+
+          sudo -n /usr/bin/systemctl daemon-reload
 
           sudo -n /usr/bin/install \
             -o knot \

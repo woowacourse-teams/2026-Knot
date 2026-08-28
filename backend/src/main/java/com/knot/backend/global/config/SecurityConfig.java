@@ -28,7 +28,8 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 @Configuration
 @EnableWebSecurity
-@EnableConfigurationProperties({JwtProperties.class, OAuth2LoginProperties.class, CorsProperties.class})
+@EnableConfigurationProperties({JwtProperties.class, OAuth2LoginProperties.class, CorsProperties.class,
+        ApiDocumentationProperties.class})
 @RequiredArgsConstructor
 public class SecurityConfig {
     private final GithubOAuth2UserService githubOAuth2UserService;
@@ -39,6 +40,7 @@ public class SecurityConfig {
     private final JwtLogoutHandler jwtLogoutHandler;
     private final JwtProperties jwtProperties;
     private final CorsProperties corsProperties;
+    private final ApiDocumentationProperties apiDocumentationProperties;
 
     @Bean
     public UrlBasedCorsConfigurationSource corsConfigurationSource() {
@@ -83,19 +85,30 @@ public class SecurityConfig {
         );
 
         http.cors(Customizer.withDefaults())
-                .authorizeHttpRequests(
-                        auth -> auth.requestMatchers(
-                                "/oauth2/**",
-                                "/login/**",
-                                "/auth/nickname",
-                                "/auth/csrf",
-                                "/actuator/health",
-                                "/error"
+                .authorizeHttpRequests(auth -> {
+                    if (apiDocumentationProperties.isEnabled()) {
+                        auth.requestMatchers(
+                                "/swagger-ui.html",
+                                "/swagger-ui/**",
+                                "/v3/api-docs",
+                                "/v3/api-docs/**",
+                                "/v3/api-docs.yaml",
+                                "/webjars/**"
                         )
-                                .permitAll()
-                                .anyRequest()
-                                .authenticated()
-                )
+                                .permitAll();
+                    }
+                    auth.requestMatchers(
+                            "/oauth2/**",
+                            "/login/**",
+                            "/auth/nickname",
+                            "/auth/csrf",
+                            "/actuator/health",
+                            "/error"
+                    )
+                            .permitAll()
+                            .anyRequest()
+                            .authenticated();
+                })
                 .exceptionHandling(exception -> exception.authenticationEntryPoint(authenticationEntryPoint))
                 .csrf(
                         csrf -> csrf.csrfTokenRepository(csrfTokenRepository)
