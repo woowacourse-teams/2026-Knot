@@ -34,7 +34,7 @@ user-invocable: true
 
 ## 전체 폴더 구조
 
-```
+```plaintext
 src/
 ├── pages/
 │
