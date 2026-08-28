@@ -1,6 +1,6 @@
 import styled from "@emotion/styled";
 import WorkspaceCreateButton from "@features/workspace/WorkspaceCreateButton";
-import JoinWorkspaceByCodeButton from "@features/workspace/JoinWorkspaceByCodeButton";
+import WorkspaceJoinByCodeButton from "@features/workspace/WorkspaceJoinByCodeButton";
 import Divider from "@primitives/ui/Divider";
 
 /**
@@ -28,7 +28,7 @@ export default function WorkspaceEntryCard() {
       <Actions>
         <WorkspaceCreateButton />
         <Divider label="또는" />
-        <JoinWorkspaceByCodeButton />
+        <WorkspaceJoinByCodeButton />
       </Actions>
     </Root>
   );

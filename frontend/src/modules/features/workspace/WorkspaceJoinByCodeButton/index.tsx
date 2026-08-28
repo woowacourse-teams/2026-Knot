@@ -4,7 +4,7 @@ import useNavigateToWorkspaceCode from "@hooks/domain/workspace/useNavigateToWor
 /**
  * 초대 코드 참여 화면(`/workspace/code`)으로 이동하는 버튼.
  */
-export default function JoinWorkspaceByCodeButton() {
+export default function WorkspaceJoinByCodeButton() {
   const { navigateToWorkspaceCode } = useNavigateToWorkspaceCode();
 
   return (
