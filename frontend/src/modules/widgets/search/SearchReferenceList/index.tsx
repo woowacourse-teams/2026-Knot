@@ -1,5 +1,5 @@
 import styled from "@emotion/styled";
-import SearchReferenceCard from "@/shared/components/primitives/ui/SearchReferenceCard";
+import SearchReferenceCard from "@primitives/ui/SearchReferenceCard";
 import { mock } from "./mock";
 import { getReferenceSourceIcon } from "./utils/getReferenceSourceIcon";
 
