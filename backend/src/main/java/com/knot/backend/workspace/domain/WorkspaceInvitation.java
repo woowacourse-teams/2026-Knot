@@ -15,6 +15,7 @@ import lombok.Getter;
 @Table(name = "workspace_invitations")
 public class WorkspaceInvitation {
     public static final int MAX_HASH_LENGTH = 255;
+    public static final int MAX_SECRET_ENVELOPE_LENGTH = 512;
     public static final Duration VALIDITY_PERIOD = Duration.ofHours(24);
 
     @Id
@@ -29,6 +30,12 @@ public class WorkspaceInvitation {
 
     @Column(name = "invite_code_hash", nullable = false, updatable = false, length = MAX_HASH_LENGTH)
     private String inviteCodeHash;
+
+    @Column(name = "link_token_ciphertext", updatable = false, length = MAX_SECRET_ENVELOPE_LENGTH)
+    private String linkTokenCiphertext;
+
+    @Column(name = "invite_code_ciphertext", updatable = false, length = MAX_SECRET_ENVELOPE_LENGTH)
+    private String inviteCodeCiphertext;
 
     @Column(name = "expires_at", nullable = false, updatable = false)
     private Instant expiresAt;
@@ -45,17 +52,43 @@ public class WorkspaceInvitation {
             Long workspaceId,
             String linkTokenHash,
             String inviteCodeHash,
+            String linkTokenCiphertext,
+            String inviteCodeCiphertext,
             Instant createdAt
     ) {
         validateWorkspaceId(workspaceId);
         validateLinkTokenHash(linkTokenHash);
         validateInviteCodeHash(inviteCodeHash);
+        validateSecretEnvelopes(
+                linkTokenCiphertext,
+                inviteCodeCiphertext
+        );
         validateCreatedAt(createdAt);
         this.workspaceId = workspaceId;
         this.linkTokenHash = linkTokenHash;
         this.inviteCodeHash = inviteCodeHash;
+        this.linkTokenCiphertext = linkTokenCiphertext;
+        this.inviteCodeCiphertext = inviteCodeCiphertext;
         this.expiresAt = createdAt.plus(VALIDITY_PERIOD);
         this.createdAt = createdAt;
+    }
+
+    public static WorkspaceInvitation create(
+            Long workspaceId,
+            String linkTokenHash,
+            String inviteCodeHash,
+            String linkTokenCiphertext,
+            String inviteCodeCiphertext,
+            Instant createdAt
+    ) {
+        return new WorkspaceInvitation(
+                workspaceId,
+                linkTokenHash,
+                inviteCodeHash,
+                linkTokenCiphertext,
+                inviteCodeCiphertext,
+                createdAt
+        );
     }
 
     public static WorkspaceInvitation create(
@@ -68,6 +101,8 @@ public class WorkspaceInvitation {
                 workspaceId,
                 linkTokenHash,
                 inviteCodeHash,
+                null,
+                null,
                 createdAt
         );
     }
@@ -87,6 +122,10 @@ public class WorkspaceInvitation {
         }
     }
 
+    public boolean hasRecoverableSecrets() {
+        return linkTokenCiphertext != null && inviteCodeCiphertext != null;
+    }
+
     private void validateWorkspaceId(Long workspaceId) {
         if (workspaceId == null || workspaceId <= 0) {
             throw new WorkspaceException(WorkspaceErrorCode.INVALID_WORKSPACE_ID);
@@ -103,6 +142,21 @@ public class WorkspaceInvitation {
         if (inviteCodeHash == null || inviteCodeHash.isBlank() || inviteCodeHash.length() > MAX_HASH_LENGTH) {
             throw new WorkspaceException(WorkspaceErrorCode.INVALID_WORKSPACE_INVITATION_CODE_HASH);
         }
+    }
+
+    private void validateSecretEnvelopes(
+            String linkTokenCiphertext,
+            String inviteCodeCiphertext
+    ) {
+        boolean bothAbsent = linkTokenCiphertext == null && inviteCodeCiphertext == null;
+        boolean bothPresent = isValidEnvelope(linkTokenCiphertext) && isValidEnvelope(inviteCodeCiphertext);
+        if (!bothAbsent && !bothPresent) {
+            throw new WorkspaceException(WorkspaceErrorCode.INVALID_WORKSPACE_INVITATION_SECRET_ENVELOPE);
+        }
+    }
+
+    private boolean isValidEnvelope(String envelope) {
+        return envelope != null && !envelope.isBlank() && envelope.length() <= MAX_SECRET_ENVELOPE_LENGTH;
     }
 
     private void validateCreatedAt(Instant createdAt) {

@@ -7,4 +7,14 @@ public final class WorkspaceException extends ProjectException {
     public WorkspaceException(WorkspaceErrorCode errorCode) {
         super(errorCode);
     }
+
+    public WorkspaceException(
+            WorkspaceErrorCode errorCode,
+            Throwable cause
+    ) {
+        super(
+                errorCode,
+                cause
+        );
+    }
 }
