@@ -10,6 +10,7 @@ import com.knot.backend.workspace.domain.WorkspaceMemberRepository;
 import com.knot.backend.workspace.domain.WorkspaceRepository;
 import java.time.Clock;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -50,7 +51,7 @@ public class WorkspaceInvitationService {
                 memberId
         );
 
-        Instant now = Instant.now(clock);
+        Instant now = currentTime();
         return workspaceInvitationRepository.findUninvalidatedByWorkspaceId(workspaceId)
                 .map(
                         invitation -> issueWithExistingInvitation(
@@ -76,7 +77,7 @@ public class WorkspaceInvitationService {
                 memberId
         );
 
-        Instant now = Instant.now(clock);
+        Instant now = currentTime();
         WorkspaceInvitation invitation = workspaceInvitationRepository.findUninvalidatedByWorkspaceId(workspaceId)
                 .filter(candidate -> candidate.isValidAt(now))
                 .orElseThrow(() -> new WorkspaceException(WorkspaceErrorCode.WORKSPACE_INVITATION_NOT_FOUND));
@@ -95,7 +96,7 @@ public class WorkspaceInvitationService {
                 memberId
         );
 
-        Instant now = Instant.now(clock);
+        Instant now = currentTime();
         PreparedInvitation preparedInvitation = prepareInvitation(
                 workspaceId,
                 now
@@ -270,6 +271,11 @@ public class WorkspaceInvitationService {
         if (workspaceId == null || workspaceId <= 0) {
             throw new WorkspaceException(WorkspaceErrorCode.INVALID_WORKSPACE_ID);
         }
+    }
+
+    private Instant currentTime() {
+        return Instant.now(clock)
+                .truncatedTo(ChronoUnit.MICROS);
     }
 
     private WorkspaceException secretRecoveryFailed() {

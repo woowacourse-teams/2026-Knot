@@ -20,6 +20,7 @@ import com.knot.backend.workspace.domain.WorkspaceRepository;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -28,7 +29,8 @@ import org.mockito.ArgumentCaptor;
 class WorkspaceInvitationServiceTest {
     private static final Long WORKSPACE_ID = 1L;
     private static final long MEMBER_ID = 2L;
-    private static final Instant NOW = Instant.parse("2026-08-29T00:00:00Z");
+    private static final Instant NOW = Instant.parse("2026-08-29T00:00:00.123456789Z");
+    private static final Instant CURRENT_TIME = NOW.truncatedTo(ChronoUnit.MICROS);
     private static final String CODE = "ABCDEFGH";
     private static final String LINK_TOKEN = "link-token";
     private static final String CODE_HASH = "code-hash";
@@ -72,7 +74,7 @@ class WorkspaceInvitationServiceTest {
         // then
         assertThat(result.code()).isEqualTo(CODE);
         assertThat(result.linkToken()).isEqualTo(LINK_TOKEN);
-        assertThat(result.expiresAt()).isEqualTo(NOW.plus(WorkspaceInvitation.VALIDITY_PERIOD));
+        assertThat(result.expiresAt()).isEqualTo(CURRENT_TIME.plus(WorkspaceInvitation.VALIDITY_PERIOD));
         assertThat(result.created()).isTrue();
         ArgumentCaptor<WorkspaceInvitation> invitationCaptor = ArgumentCaptor.forClass(WorkspaceInvitation.class);
         verify(workspaceInvitationRepository).save(invitationCaptor.capture());
@@ -140,7 +142,7 @@ class WorkspaceInvitationServiceTest {
 
         // then
         assertThat(result.created()).isTrue();
-        assertThat(expiredInvitation.getInvalidatedAt()).isEqualTo(NOW);
+        assertThat(expiredInvitation.getInvalidatedAt()).isEqualTo(CURRENT_TIME);
         verify(
                 secretProtector,
                 never()
@@ -240,7 +242,7 @@ class WorkspaceInvitationServiceTest {
         );
 
         // then
-        assertThat(existingInvitation.getInvalidatedAt()).isEqualTo(NOW);
+        assertThat(existingInvitation.getInvalidatedAt()).isEqualTo(CURRENT_TIME);
         assertThat(result.code()).isEqualTo(CODE);
         assertThat(result.linkToken()).isEqualTo(LINK_TOKEN);
         assertThat(result.created()).isTrue();
