@@ -40,6 +40,18 @@ public enum WorkspaceErrorCode implements ErrorCode {
             ErrorCategory.INVALID_INPUT,
             "INVALID_WORKSPACE_MEMBER_JOINED_AT",
             "워크스페이스 참여 시각이 올바르지 않습니다"
+    ),
+
+    WORKSPACE_NOT_FOUND(
+            ErrorCategory.NOT_FOUND,
+            "WORKSPACE_NOT_FOUND",
+            "워크스페이스를 찾을 수 없습니다"
+    ),
+
+    WORKSPACE_ACCESS_DENIED(
+            ErrorCategory.FORBIDDEN,
+            "WORKSPACE_ACCESS_DENIED",
+            "워크스페이스에 접근할 수 없습니다"
     );
 
     private final ErrorCategory category;
