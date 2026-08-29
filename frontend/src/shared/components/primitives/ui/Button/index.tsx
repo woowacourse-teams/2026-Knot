@@ -26,8 +26,9 @@ type ButtonSizeToken =
  *
  * - `filled` : 배경이 채워진 기본 버튼
  * - `outline` : 흰 배경에 테두리만 있는 버튼
+ * - `accent` : 옅은 강조색 배경에 강조색 글자. `복사됨`처럼 방금 끝난 일을 알릴 때 써요
  */
-export type ButtonVariant = "filled" | "outline";
+export type ButtonVariant = "filled" | "outline" | "accent";
 
 /**
  * 버튼이 그려야 할 상태. prop이 아니라 `isLoading`·`disabled`로 계산해요.
@@ -112,6 +113,20 @@ const buttonAppearance = (theme: Theme) => {
         box-shadow: inset 0 0 0 1px ${theme.neutral[200]};
       `,
     },
+    accent: {
+      active: css`
+        background-color: ${theme.sub.accent[100]};
+        color: ${theme.sub.accent[500]};
+      `,
+      loading: css`
+        background-color: ${theme.sub.accent[100]};
+        color: ${theme.sub.accent[500]};
+      `,
+      inactive: css`
+        background-color: ${theme.neutral[200]};
+        color: ${theme.neutral[400]};
+      `,
+    },
   } satisfies Record<ButtonVariant, Record<ButtonStatus, SerializedStyles>>;
 };
 
@@ -127,6 +142,7 @@ const buttonAppearance = (theme: Theme) => {
  * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=422-440 Button/CTA/L}
  * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=511-284 Button/CTA/M}
  * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=484-4907 Button/CTA/S}
+ * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=484-4926 Field/Copy status=copied (`accent`)}
  */
 export default function Button({
   size = "md",
