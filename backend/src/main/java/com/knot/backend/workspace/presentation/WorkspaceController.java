@@ -5,6 +5,7 @@ import com.knot.backend.workspace.application.WorkspaceService;
 import com.knot.backend.workspace.application.dto.result.WorkspaceCreateResult;
 import com.knot.backend.workspace.presentation.dto.request.WorkspaceCreateRequest;
 import com.knot.backend.workspace.presentation.dto.response.WorkspaceCreateResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -17,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/workspaces")
 @RequiredArgsConstructor
+@Tag(name = "워크스페이스", description = "워크스페이스 생성 및 관리")
 public class WorkspaceController {
     private final WorkspaceService workspaceService;
 
