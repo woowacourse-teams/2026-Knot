@@ -26,7 +26,7 @@ export default function CreateWorkspaceCard() {
     useCreateWorkspace();
 
   return (
-    <Root>
+    <Container>
       <Title>워크스페이스 이름을 입력하세요</Title>
 
       <Form onSubmit={handleSubmit}>
@@ -50,11 +50,11 @@ export default function CreateWorkspaceCard() {
           워크스페이스 생성
         </Button>
       </Form>
-    </Root>
+    </Container>
   );
 }
 
-const Root = styled.section`
+const Container = styled.section`
   display: flex;
   flex-direction: column;
   align-items: flex-start;
