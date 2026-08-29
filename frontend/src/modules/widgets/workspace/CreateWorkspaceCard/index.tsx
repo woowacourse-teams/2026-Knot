@@ -64,7 +64,7 @@ const Container = styled.section`
   padding: 3rem; /* 48px */
   border-radius: 1.5rem; /* 24px */
   background-color: ${({ theme }) => theme.neutral[0]};
-  box-shadow: 0 12px 32px 0 rgba(15, 23, 41, 0.08);
+  box-shadow: ${({ theme }) => theme.shadow02};
 `;
 
 const Title = styled.h1`
