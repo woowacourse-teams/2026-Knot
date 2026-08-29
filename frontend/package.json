@@ -7,7 +7,8 @@
   "scripts": {
     "dev": "webpack serve --mode development",
     "build": "pnpm tsc && webpack --mode production",
-    "start": "webpack serve --mode production"
+    "start": "webpack serve --mode production",
+    "review": "node scripts/review.mjs"
   },
   "devDependencies": {
     "@emotion/babel-plugin": "^11.13.5",
