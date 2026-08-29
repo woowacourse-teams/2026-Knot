@@ -1,11 +1,9 @@
 import styled from "@emotion/styled";
-import useNavigateToWorkspaceInvite from "@hooks/domain/workspace/useNavigateToWorkspaceInvite";
 import Button from "@primitives/ui/Button";
 import TextField from "@primitives/ui/TextField";
-import { type ChangeEvent, type FormEvent, useState } from "react";
 
 import { WORKSPACE_NAME_MAX_LENGTH } from "./constants/workspaceName";
-import { getWorkspaceNameErrorMessage } from "./utils/getWorkspaceNameErrorMessage";
+import { useCreateWorkspace } from "./models/useCreateWorkspace";
 
 /**
  * 새 워크스페이스 이름 입력 카드.
@@ -24,24 +22,8 @@ import { getWorkspaceNameErrorMessage } from "./utils/getWorkspaceNameErrorMessa
  * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=432-1594 새 워크스페이스 생성/입력 에러}
  */
 export default function CreateWorkspaceCard() {
-  const [name, setName] = useState("");
-  const { navigateToWorkspaceInvite } = useNavigateToWorkspaceInvite();
-
-  const errorMessage = getWorkspaceNameErrorMessage(name);
-  const isSubmittable = name.trim().length > 0 && !errorMessage;
-
-  const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
-    setName(event.target.value.slice(0, WORKSPACE_NAME_MAX_LENGTH));
-  };
-
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!isSubmittable) return;
-
-    // TODO(#216): 워크스페이스 생성 API 연결 후 응답의 workspaceId로 교체
-    const TEMP_WORKSPACE_ID = "temp";
-    navigateToWorkspaceInvite(TEMP_WORKSPACE_ID);
-  };
+  const { errorMessage, handleChange, handleSubmit, isSubmittable, name } =
+    useCreateWorkspace();
 
   return (
     <Root>
