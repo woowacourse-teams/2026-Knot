@@ -1,0 +1,6 @@
+interface:
+  display_name: "Knot Commit"
+  short_description: "백엔드 diff를 작업 단위의 Knot 커밋으로 정리"
+  default_prompt: "$knot-commit으로 현재 백엔드 diff를 검사해 작업 단위의 커밋을 준비해줘."
+policy:
+  allow_implicit_invocation: true

@@ -1,6 +1,6 @@
 ---
 name: knot-pr
-description: Draft and validate Pull Requests for the 2026-Knot backend from the actual backend git diff and its linked GitHub Issue, including parent and sub-issue context, branch and title conventions, PR template, commit scope, and verification results. Use when Codex needs to prepare or review a Knot backend PR, but do not publish it unless explicitly asked.
+description: “PR 본문 작성해줘”, “PR 준비 상태 확인해줘”, “PR 생성해줘”, “PR 올려줘”처럼 Knot 백엔드의 실제 git diff와 연결된 GitHub Issue로 PR을 작성·검증·게시할 때 사용한다. 초안 요청은 게시 권한이 아니며 실제 게시도 명시적 요청에만 수행한다. commit, push, Issue 수정, merge에는 사용하지 않는다.
 ---
 
 # Knot PR
@@ -23,9 +23,9 @@ The diff is the source of truth for what changed. The Issue is the source of tru
 ## Operating rules
 
 - Work from the `backend` directory. Resolve the Git repository root with `git rev-parse --show-toplevel` when reading root-level rules.
-- Treat the repository's `CONTRIBUTING.md`, `.github/knot-conventions.yml`, and `.github/PULL_REQUEST_TEMPLATE.md` as project sources of truth. User instructions override them.
+- Treat the repository's `CONTRIBUTING.md`, `.github/knot-conventions.yml`, and `.github/pull_request_template.md` as project sources of truth. User instructions override them.
 - Do not commit, push, create a PR, edit an Issue, add labels, or close an Issue unless the user explicitly requests that exact write action.
-- Separate drafting from publishing. Publishing requires confirmation of the final title, base, head, Issue linkage, and body.
+- Separate drafting from publishing. `PR 생성해줘` and `PR 올려줘` explicitly authorize PR publication; resolve and verify the final title, base, head, Issue linkage, and body from repository evidence before publishing. Drafting, body-writing, and readiness-review requests do not authorize publication.
 - Do not claim tests, formatting, review, or Issue completion unless a command or GitHub state proves it.
 - Flag unrelated commits, files, generated artifacts, pre-existing dirty changes, and branch-rule mismatches instead of hiding them.
 
@@ -176,4 +176,4 @@ List blockers separately from optional polish. Include the exact branch, Issue h
 
 ## 6. Publish only on explicit request
 
-When the user explicitly asks to create or publish the PR, confirm the final title, base, head branch, Issue linkage, and body first. Do not close the Issue or add extra Issue references without permission. Use the repository's GitHub publishing workflow for commit, push, and PR creation rather than performing those mutations during a draft-only request.
+When the user explicitly asks to create or publish the PR, resolve and verify the final title, base, head branch, Issue linkage, and body before publishing. Ask only when repository evidence is missing or conflicting in a way that materially changes the PR. Do not close the Issue or add extra Issue references without permission. Use the repository's GitHub publishing workflow for commit, push, and PR creation rather than performing those mutations during a draft-only request.
