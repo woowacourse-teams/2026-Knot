@@ -12,6 +12,7 @@ import jakarta.persistence.EntityManager;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CyclicBarrier;
@@ -443,6 +444,34 @@ class WorkspaceInvitationRepositoryIntegrationTest {
         // then
         assertThat(savedInvitation.getCreatedAt()).isEqualTo(invitation.getCreatedAt());
         assertThat(savedInvitation.getExpiresAt()).isEqualTo(invitation.getExpiresAt());
+    }
+
+    @DisplayName("나노초 무효화 시각으로 저장해도 재조회한 무효화 시각이 일치한다")
+    @Test
+    void saveAndFind_success_preservesInvalidatedAtMicrosecondPrecision() {
+        // given
+        Workspace workspace = saveAndFlush(
+                Workspace.create(
+                        "Knot 팀",
+                        CREATED_AT
+                )
+        );
+        WorkspaceInvitation invitation = createInvitation(
+                workspace.getId(),
+                LINK_TOKEN_HASH,
+                INVITE_CODE_HASH,
+                CREATED_AT
+        );
+        Instant invalidatedAt = CREATED_AT_WITH_NANOS.plusSeconds(1);
+        Instant expectedInvalidatedAt = invalidatedAt.truncatedTo(ChronoUnit.MICROS);
+        invitation.invalidate(invalidatedAt);
+
+        // when
+        WorkspaceInvitation savedInvitation = saveAndReload(invitation);
+
+        // then
+        assertThat(savedInvitation.getInvalidatedAt()).isEqualTo(expectedInvalidatedAt);
+        assertThat(savedInvitation.getInvalidatedAt()).isEqualTo(invitation.getInvalidatedAt());
     }
 
     @DisplayName("이미 무효화된 초대의 stale entity 저장은 낙관적 잠금 실패로 거부한다")

@@ -75,7 +75,7 @@ public class WorkspaceInvitation {
         this.inviteCodeHash = inviteCodeHash;
         this.linkTokenCiphertext = linkTokenCiphertext;
         this.inviteCodeCiphertext = inviteCodeCiphertext;
-        Instant databasePrecisionCreatedAt = createdAt.truncatedTo(ChronoUnit.MICROS);
+        Instant databasePrecisionCreatedAt = truncateToDatabasePrecision(createdAt);
         this.expiresAt = databasePrecisionCreatedAt.plus(VALIDITY_PERIOD);
         this.createdAt = databasePrecisionCreatedAt;
     }
@@ -125,7 +125,7 @@ public class WorkspaceInvitation {
     public void invalidate(Instant invalidatedAt) {
         validateInvalidatedAt(invalidatedAt);
         if (this.invalidatedAt == null) {
-            this.invalidatedAt = invalidatedAt;
+            this.invalidatedAt = truncateToDatabasePrecision(invalidatedAt);
         }
     }
 
@@ -182,5 +182,9 @@ public class WorkspaceInvitation {
         if (invalidatedAt == null || invalidatedAt.isBefore(createdAt)) {
             throw new WorkspaceException(WorkspaceErrorCode.INVALID_WORKSPACE_INVITATION_INVALIDATED_AT);
         }
+    }
+
+    private Instant truncateToDatabasePrecision(Instant instant) {
+        return instant.truncatedTo(ChronoUnit.MICROS);
     }
 }
