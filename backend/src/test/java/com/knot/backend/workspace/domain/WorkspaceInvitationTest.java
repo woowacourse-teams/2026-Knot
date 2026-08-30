@@ -234,6 +234,22 @@ class WorkspaceInvitationTest {
         assertThat(invitation.isValidAt(invalidatedAt)).isFalse();
     }
 
+    @DisplayName("초대 무효화 시각은 PostgreSQL TIMESTAMPTZ와 같은 마이크로초 정밀도로 보정한다")
+    @Test
+    void invalidate_success_truncatesInvalidatedAtToMicroseconds() {
+        // given
+        WorkspaceInvitation invitation = createInvitation();
+        Instant invalidatedAt = CREATED_AT_WITH_NANOS.plusSeconds(1);
+        Instant expectedInvalidatedAt = invalidatedAt.truncatedTo(ChronoUnit.MICROS);
+
+        // when
+        invitation.invalidate(invalidatedAt);
+
+        // then
+        assertThat(invitation.getInvalidatedAt()).isEqualTo(expectedInvalidatedAt);
+        assertThat(invitation.isValidAt(expectedInvalidatedAt.minusNanos(1))).isFalse();
+    }
+
     @DisplayName("이미 무효화된 초대를 다시 무효화해도 최초 무효화 시각을 유지한다")
     @Test
     void invalidate_success_alreadyInvalidated() {
