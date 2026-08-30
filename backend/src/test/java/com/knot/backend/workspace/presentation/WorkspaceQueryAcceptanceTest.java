@@ -51,7 +51,8 @@ class WorkspaceQueryAcceptanceTest {
 
     @BeforeEach
     void clearTables() {
-        jdbcClient.sql("TRUNCATE TABLE workspace_members, workspaces, oauth_identities, members RESTART IDENTITY")
+        jdbcClient
+                .sql("TRUNCATE TABLE workspace_members, workspaces, oauth_identities, members RESTART IDENTITY CASCADE")
                 .update();
     }
 
@@ -66,8 +67,11 @@ class WorkspaceQueryAcceptanceTest {
                 memberId
         );
         String token = accessToken(memberId);
-        long workspaceCount = count("workspaces");
-        long workspaceMemberCount = count("workspace_members");
+        String workspaceSnapshot = workspaceSnapshot(workspaceId);
+        String workspaceMemberSnapshot = workspaceMemberSnapshot(
+                workspaceId,
+                memberId
+        );
 
         // when
         ResultActions result = mockMvc.perform(
@@ -85,8 +89,13 @@ class WorkspaceQueryAcceptanceTest {
         // then
         result.andExpect(status().isOk())
                 .andExpect(jsonPath("$.name").value("Knot 팀"));
-        assertThat(count("workspaces")).isEqualTo(workspaceCount);
-        assertThat(count("workspace_members")).isEqualTo(workspaceMemberCount);
+        assertThat(workspaceSnapshot(workspaceId)).isEqualTo(workspaceSnapshot);
+        assertThat(
+                workspaceMemberSnapshot(
+                        workspaceId,
+                        memberId
+                )
+        ).isEqualTo(workspaceMemberSnapshot);
     }
 
     @Test
@@ -141,6 +150,11 @@ class WorkspaceQueryAcceptanceTest {
         // given
         long memberId = saveMember();
         long workspaceId = saveWorkspace("Knot 팀");
+        long otherWorkspaceId = saveWorkspace("다른 팀");
+        saveWorkspaceMember(
+                otherWorkspaceId,
+                memberId
+        );
         String token = accessToken(memberId);
 
         // when
@@ -243,9 +257,38 @@ class WorkspaceQueryAcceptanceTest {
                 .update();
     }
 
-    private long count(String tableName) {
-        return jdbcClient.sql("SELECT COUNT(*) FROM " + tableName)
-                .query(Long.class)
+    private String workspaceSnapshot(long workspaceId) {
+        return jdbcClient.sql("""
+                SELECT name || '|' || created_at::text
+                FROM workspaces
+                WHERE id = :workspaceId
+                """)
+                .param(
+                        "workspaceId",
+                        workspaceId
+                )
+                .query(String.class)
+                .single();
+    }
+
+    private String workspaceMemberSnapshot(
+            long workspaceId,
+            long memberId
+    ) {
+        return jdbcClient.sql("""
+                SELECT role || '|' || joined_at::text
+                FROM workspace_members
+                WHERE workspace_id = :workspaceId AND member_id = :memberId
+                """)
+                .param(
+                        "workspaceId",
+                        workspaceId
+                )
+                .param(
+                        "memberId",
+                        memberId
+                )
+                .query(String.class)
                 .single();
     }
 
