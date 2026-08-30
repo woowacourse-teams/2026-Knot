@@ -6,7 +6,6 @@ import Spacing from "@primitives/layout/Spacing";
 interface SearchReferenceCardProps {
   title: string;
   documentPath: string;
-  href: string;
   sourceIcon: ReactNode;
 }
 
@@ -22,11 +21,10 @@ interface SearchReferenceCardProps {
 export default function SearchReferenceCard({
   title,
   documentPath,
-  href,
   sourceIcon,
 }: SearchReferenceCardProps) {
   return (
-    <Container href={href} target="_blank" rel="noopener noreferrer">
+    <Container>
       <Header>
         <ReferenceSourceIconWrapper>{sourceIcon}</ReferenceSourceIconWrapper>
 

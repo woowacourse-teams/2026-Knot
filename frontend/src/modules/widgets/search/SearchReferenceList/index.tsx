@@ -1,6 +1,7 @@
 import styled from "@emotion/styled";
 import SearchReferenceCard from "@primitives/ui/SearchReferenceCard";
 import { useSearchReferenceList } from "./model/useSearchReferenceList";
+import LinkTo from "@/shared/components/primitives/ui/LinkTo";
 
 /**
  * AI 탐색 답변의 근거가 된 문서 리스트를 보여주는 List UI.
@@ -21,13 +22,14 @@ export default function SearchReferenceList() {
 
       <List>
         {references.map(({ id, title, documentPath, href, SourceIcon }) => (
-          <SearchReferenceCard
-            key={id}
-            title={title}
-            documentPath={documentPath}
-            href={href}
-            sourceIcon={<SourceIcon />}
-          />
+          <LinkTo href={href}>
+            <SearchReferenceCard
+              key={id}
+              title={title}
+              documentPath={documentPath}
+              sourceIcon={<SourceIcon />}
+            />
+          </LinkTo>
         ))}
       </List>
     </Container>
