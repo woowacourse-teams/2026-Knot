@@ -1,7 +1,6 @@
 import styled from "@emotion/styled";
 import SearchReferenceCard from "@primitives/ui/SearchReferenceCard";
-import { mock } from "./mock";
-import { getReferenceSourceIcon } from "./utils/getReferenceSourceIcon";
+import { useSearchReferenceList } from "./model/useSearchReferenceList";
 
 /**
  * AI 탐색 답변의 근거가 된 문서 리스트를 보여주는 List UI.
@@ -11,6 +10,8 @@ import { getReferenceSourceIcon } from "./utils/getReferenceSourceIcon";
  */
 
 export default function SearchReferenceList() {
+  const { references } = useSearchReferenceList();
+
   return (
     <Container>
       <Header>
@@ -19,21 +20,15 @@ export default function SearchReferenceList() {
       </Header>
 
       <List>
-        {mock.map((data) => {
-          const ReferenceSourceIcon = getReferenceSourceIcon(
-            data.referenceSource,
-          );
-
-          return (
-            <SearchReferenceCard
-              key={data.id}
-              title={data.notionPage.title}
-              documentPath={data.notionPage.path}
-              href={data.notionPage.notionUrl}
-              sourceIcon={<ReferenceSourceIcon size={20} color="#6B6862" />}
-            />
-          );
-        })}
+        {references.map(({ id, title, documentPath, href, SourceIcon }) => (
+          <SearchReferenceCard
+            key={id}
+            title={title}
+            documentPath={documentPath}
+            href={href}
+            sourceIcon={<SourceIcon />}
+          />
+        ))}
       </List>
     </Container>
   );

@@ -1,16 +1,15 @@
-import type { FunctionComponent, SVGProps } from "react";
+import styled from "@emotion/styled";
 import Notion from "@/assets/icons/notion.svg";
-
 import type { ReferenceSource } from "../types/searchReference";
 
-type ReferenceSourceIcon = FunctionComponent<
-  SVGProps<SVGSVGElement> & { size?: number | string }
->;
+const NotionIcon = styled(Notion)`
+  color: ${({ theme }) => theme.neutral[600]};
+`;
 
-const REFERENCE_SOURCE_ICON: Record<ReferenceSource, ReferenceSourceIcon> = {
-  notion: Notion,
-};
-
+export const REFERENCE_SOURCE_ICON: Record<ReferenceSource, typeof NotionIcon> =
+  {
+    notion: NotionIcon,
+  };
 const DEFAULT_REFERENCE_SOURCE_ICON = REFERENCE_SOURCE_ICON.notion;
 
 /**
