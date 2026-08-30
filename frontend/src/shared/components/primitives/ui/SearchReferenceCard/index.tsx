@@ -35,7 +35,7 @@ export default function SearchReferenceCard({
         <Title>{title}</Title>
 
         <ExternalLinkIconWrapper>
-          <OpenExternal color="#55524D" />
+          <OpenExternal />
         </ExternalLinkIconWrapper>
       </Header>
 
@@ -78,6 +78,7 @@ const ExternalLinkIconWrapper = styled(IconWrapper)`
   height: 1.125rem;
   opacity: var(--external-link-icon-opacity, 0);
   transition: opacity 0.3s ease-in;
+  color: ${({ theme }) => theme.neutral[700]};
 `;
 
 const Title = styled.div`
