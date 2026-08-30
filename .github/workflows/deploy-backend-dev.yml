@@ -120,6 +120,7 @@ jobs:
           import sys
 
           values = {}
+          decoded_values = {}
           with open(sys.argv[1], encoding="utf-8") as env_file:
               for line in env_file:
                   key, value = line.rstrip("\n").split("=", 1)
@@ -128,13 +129,21 @@ jobs:
           for name in ("WORKSPACE_INVITATION_LOOKUP_HASH_KEY", "WORKSPACE_INVITATION_ENCRYPTION_KEY"):
               value = values.get(name, "")
               try:
-                  decoded = base64.urlsafe_b64decode(value + "=" * (-len(value) % 4))
+                  decoded = base64.b64decode(
+                      value + "=" * (-len(value) % 4),
+                      altchars=b"-_",
+                      validate=True,
+                  )
               except Exception:
                   sys.exit(f"{name} must be URL-safe base64")
               if len(decoded) != 32:
                   sys.exit(f"{name} must decode to 32 bytes")
+              decoded_values[name] = decoded
 
-          if values["WORKSPACE_INVITATION_LOOKUP_HASH_KEY"] == values["WORKSPACE_INVITATION_ENCRYPTION_KEY"]:
+          if (
+              decoded_values["WORKSPACE_INVITATION_LOOKUP_HASH_KEY"]
+              == decoded_values["WORKSPACE_INVITATION_ENCRYPTION_KEY"]
+          ):
               sys.exit("workspace invitation keys must be different")
           PY
 
