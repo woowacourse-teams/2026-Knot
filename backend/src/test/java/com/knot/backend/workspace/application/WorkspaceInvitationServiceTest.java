@@ -225,6 +225,43 @@ class WorkspaceInvitationServiceTest {
         ).save(any());
     }
 
+    @DisplayName("복호화한 링크 토큰의 lookup hash가 저장값과 다르면 복구를 거부한다")
+    @Test
+    void get_failure_linkTokenHashMismatch() {
+        // given
+        allowMemberWithoutLock();
+        WorkspaceInvitation invitation = recoverableInvitation(NOW.minusSeconds(1));
+        when(workspaceInvitationRepository.findUninvalidatedByWorkspaceId(WORKSPACE_ID))
+                .thenReturn(Optional.of(invitation));
+        prepareRecovery(invitation);
+        when(
+                secretProtector.matches(
+                        WorkspaceInvitationSecretKind.LINK_TOKEN,
+                        LINK_TOKEN,
+                        LINK_TOKEN_HASH
+                )
+        ).thenReturn(false);
+
+        // when
+        Throwable thrown = catchThrowable(
+                () -> service.get(
+                        WORKSPACE_ID,
+                        MEMBER_ID
+                )
+        );
+
+        // then
+        assertThat(thrown).isInstanceOfSatisfying(
+                WorkspaceException.class,
+                exception -> assertThat(exception.getErrorCode())
+                        .isEqualTo(WorkspaceErrorCode.WORKSPACE_INVITATION_SECRET_RECOVERY_FAILED)
+        );
+        verify(
+                workspaceInvitationRepository,
+                never()
+        ).save(any());
+    }
+
     @DisplayName("명시적 재발급은 기존 초대를 무효화하고 새 초대를 만든다")
     @Test
     void reissue_success_replacesInvitation() {
