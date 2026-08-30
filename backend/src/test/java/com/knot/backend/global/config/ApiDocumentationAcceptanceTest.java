@@ -1,16 +1,16 @@
 package com.knot.backend.global.config;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.hasItems;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.jayway.jsonpath.JsonPath;
 import com.knot.backend.testsupport.TestApplicationProperties;
 import com.knot.backend.testsupport.TestcontainersConfiguration;
-import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -74,70 +74,98 @@ class ApiDocumentationAcceptanceTest {
     }
 
     @Test
-    @DisplayName("개발 프로파일에서는 OpenAPI JSON과 인증 태그를 공개한다")
+    @DisplayName("개발 프로파일에서는 OpenAPI JSON에 인증과 워크스페이스 계약을 공개한다")
     void openApi_success_developmentProfile() throws Exception {
         // given
         String openApiPath = "/v3/api-docs";
-        String workspacePath = "$.paths['/workspaces/{workspaceId}'].get";
+        String createWorkspacePath = "$.paths['/workspaces'].post";
+        String detailWorkspacePath = "$.paths['/workspaces/{workspaceId}'].get";
+        String authDescriptionPath = "$.tags[?(@.name == '인증')].description";
+        String workspaceDescriptionPath = "$.tags[?(@.name == '워크스페이스')].description";
+        String workspaceTagsPath = createWorkspacePath + ".tags";
         String authDescription = "회원가입, 로그인, 리프레쉬, 로그아웃, 확인";
         String workspaceDescription = "워크스페이스 생성 및 조회";
-        String workspaceResponseRef = "#/components/schemas/WorkspaceDetailResponse";
+        String oauthAuthorizationPath = "$.paths['/oauth2/authorization/{registrationId}']";
+        String oauthLocationPath = oauthAuthorizationPath + ".get.responses['302'].headers.Location";
+        String workspaceRequestSchemaPath = "$.components.schemas.WorkspaceCreateRequest";
+        String workspaceNameSchemaPath = workspaceRequestSchemaPath + ".properties.name";
+        String createWorkspaceResponseRef = "#/components/schemas/WorkspaceCreateResponse";
+        String detailWorkspaceResponseRef = "#/components/schemas/WorkspaceDetailResponse";
         String errorResponseRef = "#/components/schemas/ErrorResponse";
-        String oauthLocationPath = "$.paths['/oauth2/authorization/{registrationId}']"
-                + ".get.responses['302'].headers.Location";
 
         // when
         ResultActions result = mockMvc.perform(get(openApiPath));
-        String responseBody = result.andReturn()
-                .getResponse()
-                .getContentAsString();
-        List<String> tagNames = JsonPath.read(
-                responseBody,
-                "$.tags[*].name"
-        );
-        List<String> authTagDescriptions = JsonPath.read(
-                responseBody,
-                "$.tags[?(@.name == '인증')].description"
-        );
-        List<String> workspaceTagDescriptions = JsonPath.read(
-                responseBody,
-                "$.tags[?(@.name == '워크스페이스')].description"
-        );
 
         // then
-        assertThat(tagNames).containsExactlyInAnyOrder(
-                "인증",
-                "워크스페이스"
-        );
-        assertThat(authTagDescriptions).containsExactly(authDescription);
-        assertThat(workspaceTagDescriptions).containsExactly(workspaceDescription);
         result.andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith("application/json"))
+                .andExpect(
+                        jsonPath("$.tags[*].name").value(
+                                hasItems(
+                                        "인증",
+                                        "워크스페이스"
+                                )
+                        )
+                )
+                .andExpect(jsonPath(authDescriptionPath).value(hasItem(authDescription)))
+                .andExpect(jsonPath(workspaceDescriptionPath).value(hasItem(workspaceDescription)))
                 .andExpect(jsonPath("$.paths['/auth/me'].get").exists())
                 .andExpect(jsonPath("$.paths['/auth/csrf'].get").exists())
                 .andExpect(jsonPath("$.paths['/auth/nickname'].post").exists())
+                .andExpect(jsonPath(createWorkspacePath).exists())
+                .andExpect(jsonPath(detailWorkspacePath).exists())
                 .andExpect(
-                        jsonPath(workspacePath + ".responses['200'].content['application/json'].schema['$ref']")
-                                .value(workspaceResponseRef)
+                        jsonPath(createWorkspacePath + ".responses['201'].content['application/json'].schema['$ref']")
+                                .value(createWorkspaceResponseRef)
                 )
                 .andExpect(
-                        jsonPath(workspacePath + ".responses['400'].content['application/json'].schema['$ref']")
+                        jsonPath(createWorkspacePath + ".responses['400'].content['application/json'].schema['$ref']")
                                 .value(errorResponseRef)
                 )
                 .andExpect(
-                        jsonPath(workspacePath + ".responses['401'].content['application/json'].schema['$ref']")
+                        jsonPath(createWorkspacePath + ".responses['401'].content['application/json'].schema['$ref']")
                                 .value(errorResponseRef)
                 )
                 .andExpect(
-                        jsonPath(workspacePath + ".responses['403'].content['application/json'].schema['$ref']")
+                        jsonPath(createWorkspacePath + ".responses['403'].content['application/json'].schema['$ref']")
                                 .value(errorResponseRef)
                 )
-                .andExpect(
-                        jsonPath(workspacePath + ".responses['404'].content['application/json'].schema['$ref']")
-                                .value(errorResponseRef)
-                )
-                .andExpect(jsonPath(workspacePath + ".security[*].accessTokenCookie").exists())
+                .andExpect(jsonPath(createWorkspacePath + ".security[0].accessTokenCookie").exists())
+                .andExpect(jsonPath(createWorkspacePath + ".security[0].csrfTokenHeader").exists())
+                .andExpect(jsonPath(workspaceTagsPath).value(hasItem("워크스페이스")))
                 .andExpect(jsonPath("$.components.securitySchemes.accessTokenCookie.in").value("cookie"))
+                .andExpect(
+                        jsonPath("$.components.securitySchemes.accessTokenCookie.name")
+                                .value("__Host-KNOT_ACCESS_TOKEN")
+                )
+                .andExpect(jsonPath("$.components.securitySchemes.csrfTokenHeader.in").value("header"))
+                .andExpect(jsonPath("$.components.securitySchemes.csrfTokenHeader.name").value("X-XSRF-TOKEN"))
+                .andExpect(jsonPath("$.components.schemas.WorkspaceCreateRequest").exists())
+                .andExpect(jsonPath(workspaceRequestSchemaPath + ".required").value(hasItem("name")))
+                .andExpect(jsonPath(workspaceNameSchemaPath + ".maxLength").value(20))
+                .andExpect(jsonPath(workspaceNameSchemaPath + ".pattern").value("^(?=.*[가-힣A-Za-z])[가-힣A-Za-z ]+$"))
+                .andExpect(jsonPath("$.components.schemas.WorkspaceCreateResponse").exists())
+                .andExpect(
+                        jsonPath(detailWorkspacePath + ".responses['200'].content['application/json'].schema['$ref']")
+                                .value(detailWorkspaceResponseRef)
+                )
+                .andExpect(
+                        jsonPath(detailWorkspacePath + ".responses['400'].content['application/json'].schema['$ref']")
+                                .value(errorResponseRef)
+                )
+                .andExpect(
+                        jsonPath(detailWorkspacePath + ".responses['401'].content['application/json'].schema['$ref']")
+                                .value(errorResponseRef)
+                )
+                .andExpect(
+                        jsonPath(detailWorkspacePath + ".responses['403'].content['application/json'].schema['$ref']")
+                                .value(errorResponseRef)
+                )
+                .andExpect(
+                        jsonPath(detailWorkspacePath + ".responses['404'].content['application/json'].schema['$ref']")
+                                .value(errorResponseRef)
+                )
+                .andExpect(jsonPath(detailWorkspacePath + ".security[*].accessTokenCookie").exists())
                 .andExpect(jsonPath("$.components.schemas.WorkspaceDetailResponse").exists())
                 .andExpect(jsonPath("$.components.schemas.ErrorResponse").exists())
                 .andExpect(jsonPath(oauthLocationPath).exists());

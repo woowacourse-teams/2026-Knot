@@ -14,6 +14,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.TestConstructor;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.ResultActions;
 
 @Tag("acceptance")
 @Import(TestcontainersConfiguration.class)
@@ -31,9 +32,14 @@ class ApiDocumentationDisabledAcceptanceTest {
     @Test
     @DisplayName("개발 프로파일이 아니면 OpenAPI 문서를 공개하지 않는다")
     void openApi_failure_disabledByDefault() throws Exception {
-        // when & then
-        mockMvc.perform(get("/v3/api-docs"))
-                .andExpect(status().isUnauthorized())
+        // given
+        String openApiPath = "/v3/api-docs";
+
+        // when
+        ResultActions result = mockMvc.perform(get(openApiPath));
+
+        // then
+        result.andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("UNAUTHENTICATED"));
     }
 }
