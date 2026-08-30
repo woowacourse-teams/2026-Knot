@@ -140,7 +140,7 @@ class ApiDocumentationAcceptanceTest {
                 .andExpect(jsonPath("$.components.schemas.WorkspaceCreateRequest").exists())
                 .andExpect(jsonPath(workspaceRequestSchemaPath + ".required").value(hasItem("name")))
                 .andExpect(jsonPath(workspaceNameSchemaPath + ".maxLength").value(20))
-                .andExpect(jsonPath(workspaceNameSchemaPath + ".pattern").value("^[가-힣A-Za-z ]+$"))
+                .andExpect(jsonPath(workspaceNameSchemaPath + ".pattern").value("^(?=.*[가-힣A-Za-z])[가-힣A-Za-z ]+$"))
                 .andExpect(jsonPath("$.components.schemas.WorkspaceCreateResponse").exists())
                 .andExpect(jsonPath("$.components.schemas.ErrorResponse").exists())
                 .andExpect(jsonPath(oauthLocationPath).exists());
