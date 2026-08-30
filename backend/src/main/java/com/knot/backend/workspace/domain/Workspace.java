@@ -15,7 +15,8 @@ import lombok.Getter;
 @Table(name = "workspaces")
 public class Workspace {
     public static final int MAX_NAME_LENGTH = 20;
-    private static final Pattern NAME_PATTERN = Pattern.compile("^[가-힣A-Za-z ]+$");
+    public static final String NAME_PATTERN_REGEX = "^[가-힣A-Za-z ]+$";
+    private static final Pattern NAME_PATTERN = Pattern.compile(NAME_PATTERN_REGEX);
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
