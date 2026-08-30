@@ -1,6 +1,7 @@
 package com.knot.backend.workspace.presentation;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.doThrow;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -14,7 +15,11 @@ import com.knot.backend.member.domain.Member;
 import com.knot.backend.member.domain.MemberRepository;
 import com.knot.backend.testsupport.TestApplicationProperties;
 import com.knot.backend.testsupport.TestcontainersConfiguration;
+import com.knot.backend.workspace.application.WorkspaceInvitationSecretGenerator;
 import com.knot.backend.workspace.domain.Workspace;
+import com.knot.backend.workspace.domain.WorkspaceErrorCode;
+import com.knot.backend.workspace.domain.WorkspaceException;
+import com.knot.backend.workspace.domain.WorkspaceInvitation;
 import com.knot.backend.workspace.domain.WorkspaceMember;
 import com.knot.backend.workspace.domain.WorkspaceMemberRepository;
 import com.knot.backend.workspace.domain.WorkspaceMemberRole;
@@ -33,6 +38,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.test.context.TestConstructor;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.ResultActions;
@@ -46,6 +52,8 @@ import tools.jackson.databind.ObjectMapper;
 @AutoConfigureMockMvc
 @TestConstructor(autowireMode = TestConstructor.AutowireMode.ALL)
 class WorkspaceInvitationAcceptanceTest {
+    @MockitoSpyBean
+    private WorkspaceInvitationSecretGenerator secretGenerator;
     private final MockMvc mockMvc;
     private final ObjectMapper objectMapper;
     private final AuthTokenProvider authTokenProvider;
@@ -180,6 +188,12 @@ class WorkspaceInvitationAcceptanceTest {
                         .with(csrf())
         )
                 .andExpect(status().isCreated())
+                .andExpect(
+                        header().string(
+                                HttpHeaders.LOCATION,
+                                "/workspaces/" + fixture.workspaceId() + "/invitation"
+                        )
+                )
                 .andReturn();
 
         // then
@@ -221,6 +235,98 @@ class WorkspaceInvitationAcceptanceTest {
         // then
         result.andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("UNAUTHENTICATED"));
+    }
+
+    @DisplayName("인증과 CSRF 토큰이 모두 없는 초대 발급 요청은 403을 반환한다")
+    @Test
+    void issue_failure_missingAuthenticationAndCsrf() throws Exception {
+        // given
+
+        // when
+        ResultActions result = mockMvc.perform(
+                post(
+                        "/workspaces/{workspaceId}/invitations",
+                        1L
+                )
+        );
+
+        // then
+        result.andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("FORBIDDEN"));
+    }
+
+    @DisplayName("인증과 CSRF 토큰이 모두 없는 초대 재발급 요청은 403을 반환한다")
+    @Test
+    void reissue_failure_missingAuthenticationAndCsrf() throws Exception {
+        // given
+
+        // when
+        ResultActions result = mockMvc.perform(
+                post(
+                        "/workspaces/{workspaceId}/invitations/reissue",
+                        1L
+                )
+        );
+
+        // then
+        result.andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("FORBIDDEN"));
+    }
+
+    @DisplayName("인증됐지만 CSRF 토큰이 없는 초대 발급 요청은 403을 반환한다")
+    @Test
+    void issue_failure_missingCsrf() throws Exception {
+        // given
+        WorkspaceFixture fixture = createWorkspaceFixture(true);
+
+        // when
+        ResultActions result = mockMvc.perform(
+                post(
+                        "/workspaces/{workspaceId}/invitations",
+                        fixture.workspaceId()
+                ).cookie(authenticatedCookie(fixture.member()))
+        );
+
+        // then
+        result.andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("FORBIDDEN"));
+    }
+
+    @DisplayName("인증되지 않은 초대 재발급 요청은 401을 반환한다")
+    @Test
+    void reissue_failure_unauthenticated() throws Exception {
+        // given
+
+        // when
+        ResultActions result = mockMvc.perform(
+                post(
+                        "/workspaces/{workspaceId}/invitations/reissue",
+                        1L
+                ).with(csrf())
+        );
+
+        // then
+        result.andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("UNAUTHENTICATED"));
+    }
+
+    @DisplayName("인증됐지만 CSRF 토큰이 없는 초대 재발급 요청은 403을 반환한다")
+    @Test
+    void reissue_failure_missingCsrf() throws Exception {
+        // given
+        WorkspaceFixture fixture = createWorkspaceFixture(true);
+
+        // when
+        ResultActions result = mockMvc.perform(
+                post(
+                        "/workspaces/{workspaceId}/invitations/reissue",
+                        fixture.workspaceId()
+                ).cookie(authenticatedCookie(fixture.member()))
+        );
+
+        // then
+        result.andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("FORBIDDEN"));
     }
 
     @DisplayName("워크스페이스 멤버가 아닌 사용자의 초대 발급 요청은 403을 반환한다")
@@ -276,6 +382,81 @@ class WorkspaceInvitationAcceptanceTest {
         // then
         result.andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("INVALID_WORKSPACE_ID"));
+    }
+
+    @DisplayName("양수가 아닌 Workspace ID의 초대 조회 요청은 400을 반환한다")
+    @Test
+    void get_failure_invalidWorkspaceId() throws Exception {
+        // given
+        WorkspaceFixture fixture = createWorkspaceFixture(false);
+
+        // when
+        ResultActions result = mockMvc.perform(
+                get(
+                        "/workspaces/{workspaceId}/invitation",
+                        0
+                ).cookie(authenticatedCookie(fixture.member()))
+        );
+
+        // then
+        result.andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_WORKSPACE_ID"));
+    }
+
+    @DisplayName("인증되지 않은 초대 조회 요청은 401을 반환한다")
+    @Test
+    void get_failure_unauthenticated() throws Exception {
+        // given
+
+        // when
+        ResultActions result = mockMvc.perform(
+                get(
+                        "/workspaces/{workspaceId}/invitation",
+                        1L
+                )
+        );
+
+        // then
+        result.andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("UNAUTHENTICATED"));
+    }
+
+    @DisplayName("워크스페이스 멤버가 아닌 사용자의 초대 조회 요청은 403을 반환한다")
+    @Test
+    void get_failure_nonMember() throws Exception {
+        // given
+        WorkspaceFixture fixture = createWorkspaceFixture(false);
+
+        // when
+        ResultActions result = mockMvc.perform(
+                get(
+                        "/workspaces/{workspaceId}/invitation",
+                        fixture.workspaceId()
+                ).cookie(authenticatedCookie(fixture.member()))
+        );
+
+        // then
+        result.andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("WORKSPACE_ACCESS_DENIED"));
+    }
+
+    @DisplayName("존재하지 않는 워크스페이스의 초대 조회 요청은 404를 반환한다")
+    @Test
+    void get_failure_workspaceNotFound() throws Exception {
+        // given
+        WorkspaceFixture fixture = createWorkspaceFixture(false);
+
+        // when
+        ResultActions result = mockMvc.perform(
+                get(
+                        "/workspaces/{workspaceId}/invitation",
+                        Long.MAX_VALUE
+                ).cookie(authenticatedCookie(fixture.member()))
+        );
+
+        // then
+        result.andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("WORKSPACE_NOT_FOUND"));
     }
 
     @DisplayName("활성 초대가 없으면 조회 요청에 404를 반환한다")
@@ -358,6 +539,89 @@ class WorkspaceInvitationAcceptanceTest {
                 .andExpect(jsonPath("$.linkToken").isNotEmpty());
         assertThat(countInvitations(fixture.workspaceId())).isEqualTo(2);
         assertThat(countUninvalidatedInvitations(fixture.workspaceId())).isEqualTo(1);
+    }
+
+    @DisplayName("양수가 아닌 Workspace ID의 초대 재발급 요청은 400을 반환한다")
+    @Test
+    void reissue_failure_invalidWorkspaceId() throws Exception {
+        // given
+        WorkspaceFixture fixture = createWorkspaceFixture(false);
+
+        // when
+        ResultActions result = mockMvc.perform(
+                post(
+                        "/workspaces/{workspaceId}/invitations/reissue",
+                        0
+                ).cookie(authenticatedCookie(fixture.member()))
+                        .with(csrf())
+        );
+
+        // then
+        result.andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_WORKSPACE_ID"));
+    }
+
+    @DisplayName("워크스페이스 멤버가 아닌 사용자의 초대 재발급 요청은 403을 반환한다")
+    @Test
+    void reissue_failure_nonMember() throws Exception {
+        // given
+        WorkspaceFixture fixture = createWorkspaceFixture(false);
+
+        // when
+        ResultActions result = mockMvc.perform(
+                post(
+                        "/workspaces/{workspaceId}/invitations/reissue",
+                        fixture.workspaceId()
+                ).cookie(authenticatedCookie(fixture.member()))
+                        .with(csrf())
+        );
+
+        // then
+        result.andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("WORKSPACE_ACCESS_DENIED"));
+    }
+
+    @DisplayName("존재하지 않는 워크스페이스의 초대 재발급 요청은 404를 반환한다")
+    @Test
+    void reissue_failure_workspaceNotFound() throws Exception {
+        // given
+        WorkspaceFixture fixture = createWorkspaceFixture(false);
+
+        // when
+        ResultActions result = mockMvc.perform(
+                post(
+                        "/workspaces/{workspaceId}/invitations/reissue",
+                        Long.MAX_VALUE
+                ).cookie(authenticatedCookie(fixture.member()))
+                        .with(csrf())
+        );
+
+        // then
+        result.andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("WORKSPACE_NOT_FOUND"));
+    }
+
+    @DisplayName("초대 secret 생성에 실패한 재발급 요청은 민감정보 없는 500을 반환한다")
+    @Test
+    void reissue_failure_secretGeneration() throws Exception {
+        // given
+        WorkspaceFixture fixture = createWorkspaceFixture(true);
+        doThrow(new WorkspaceException(WorkspaceErrorCode.WORKSPACE_INVITATION_SECRET_RECOVERY_FAILED))
+                .when(secretGenerator)
+                .generate();
+
+        // when
+        ResultActions result = mockMvc.perform(
+                post(
+                        "/workspaces/{workspaceId}/invitations/reissue",
+                        fixture.workspaceId()
+                ).cookie(authenticatedCookie(fixture.member()))
+                        .with(csrf())
+        );
+
+        // then
+        result.andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.code").value("WORKSPACE_INVITATION_SECRET_RECOVERY_FAILED"));
     }
 
     private WorkspaceFixture createWorkspaceFixture(boolean memberOfWorkspace) {
@@ -456,7 +720,7 @@ class WorkspaceInvitationAcceptanceTest {
                 )
                 .param(
                         "expiresAt",
-                        toOffsetDateTime(createdAt.plusSeconds(3600))
+                        toOffsetDateTime(createdAt.plus(WorkspaceInvitation.VALIDITY_PERIOD))
                 )
                 .param(
                         "createdAt",
