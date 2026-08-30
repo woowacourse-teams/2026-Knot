@@ -1,13 +1,9 @@
 import { ChangeEvent, KeyboardEvent, SubmitEvent, useState } from "react";
-import { ButtonStatus } from "../ui/ChatFieldSubmitButton";
-
-type SubmitStatus = Extract<ButtonStatus, "inactive" | "active">;
 
 export const useChatField = () => {
   const [message, setMessage] = useState("");
 
-  const isEmpty = message.trim().length === 0;
-  const submitStatus: SubmitStatus = isEmpty ? "inactive" : "active";
+  const canSubimt = message.trim().length > 0;
 
   const handleChange = (e: ChangeEvent<HTMLTextAreaElement>) =>
     setMessage(e.target.value);
@@ -22,14 +18,14 @@ export const useChatField = () => {
 
   const handleSubmit = (e: SubmitEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (isEmpty) return;
+    if (message.trim().length === 0) return;
 
     // TODO: 메시지 전송 mutation 연결
   };
 
   return {
     message,
-    submitStatus,
+    canSubimt,
     handleChange,
     handleKeyDown,
     handleSubmit,
