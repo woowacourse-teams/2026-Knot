@@ -26,6 +26,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,6 +37,7 @@ import org.springframework.transaction.annotation.Transactional;
 @DataJpaTest
 class WorkspaceInvitationRepositoryIntegrationTest {
     private static final Instant CREATED_AT = Instant.parse("2026-08-29T00:00:00Z");
+    private static final Instant CREATED_AT_WITH_NANOS = Instant.parse("2026-08-29T00:00:00.123456789Z");
     private static final String LINK_TOKEN_HASH = "link-token-hash";
     private static final String INVITE_CODE_HASH = "invite-code-hash";
 
@@ -240,9 +242,9 @@ class WorkspaceInvitationRepositoryIntegrationTest {
         assertThatThrownBy(action).isInstanceOf(DataIntegrityViolationException.class);
     }
 
-    @DisplayName("만료 시각이 생성 시각과 같으면 초대를 저장할 수 없다")
+    @DisplayName("만료 시각이 생성 시각으로부터 24시간보다 짧으면 초대를 저장할 수 없다")
     @Test
-    void save_failure_invalidExpiration() {
+    void save_failure_expirationLessThanTwentyFourHours() {
         // given
         Workspace workspace = saveAndFlush(
                 Workspace.create(
@@ -256,7 +258,34 @@ class WorkspaceInvitationRepositoryIntegrationTest {
                 workspace.getId(),
                 LINK_TOKEN_HASH,
                 INVITE_CODE_HASH,
-                CREATED_AT,
+                CREATED_AT.plus(WorkspaceInvitation.VALIDITY_PERIOD)
+                        .minusSeconds(1),
+                null,
+                CREATED_AT
+        );
+
+        // then
+        assertThatThrownBy(action).isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @DisplayName("만료 시각이 생성 시각으로부터 24시간보다 길면 초대를 저장할 수 없다")
+    @Test
+    void save_failure_expirationGreaterThanTwentyFourHours() {
+        // given
+        Workspace workspace = saveAndFlush(
+                Workspace.create(
+                        "Knot 팀",
+                        CREATED_AT
+                )
+        );
+
+        // when
+        ThrowingCallable action = () -> insertInvitation(
+                workspace.getId(),
+                LINK_TOKEN_HASH,
+                INVITE_CODE_HASH,
+                CREATED_AT.plus(WorkspaceInvitation.VALIDITY_PERIOD)
+                        .plusSeconds(1),
                 null,
                 CREATED_AT
         );
@@ -330,6 +359,66 @@ class WorkspaceInvitationRepositoryIntegrationTest {
                 .extracting(WorkspaceInvitation::getId)
                 .isEqualTo(savedNewInvitation.getId());
         assertThat(countInvitations(workspace.getId())).isEqualTo(2);
+    }
+
+    @DisplayName("나노초 생성 시각으로 저장해도 재조회한 만료 시각과 생성 시각이 일치한다")
+    @Test
+    void saveAndFind_success_preservesMicrosecondPrecision() {
+        // given
+        Workspace workspace = saveAndFlush(
+                Workspace.create(
+                        "Knot 팀",
+                        CREATED_AT_WITH_NANOS
+                )
+        );
+        WorkspaceInvitation invitation = createInvitation(
+                workspace.getId(),
+                LINK_TOKEN_HASH,
+                INVITE_CODE_HASH,
+                CREATED_AT_WITH_NANOS
+        );
+
+        // when
+        WorkspaceInvitation savedInvitation = saveAndReload(invitation);
+
+        // then
+        assertThat(savedInvitation.getCreatedAt()).isEqualTo(invitation.getCreatedAt());
+        assertThat(savedInvitation.getExpiresAt()).isEqualTo(invitation.getExpiresAt());
+    }
+
+    @DisplayName("이미 무효화된 초대의 stale entity 저장은 낙관적 잠금 실패로 거부한다")
+    @Test
+    void save_failure_staleEntityRestoresInvalidation() {
+        // given
+        Workspace workspace = saveAndFlush(
+                Workspace.create(
+                        "Knot 팀",
+                        CREATED_AT
+                )
+        );
+        WorkspaceInvitation savedInvitation = saveAndFlush(
+                createInvitation(
+                        workspace.getId(),
+                        LINK_TOKEN_HASH,
+                        INVITE_CODE_HASH,
+                        CREATED_AT
+                )
+        );
+        entityManager.detach(savedInvitation);
+        WorkspaceInvitation loadedInvitation = workspaceInvitationRepository.findByLinkTokenHash(LINK_TOKEN_HASH)
+                .orElseThrow();
+        loadedInvitation.invalidate(CREATED_AT.plusSeconds(1));
+        saveAndFlush(loadedInvitation);
+        entityManager.clear();
+
+        // when
+        ThrowingCallable action = () -> saveAndFlush(savedInvitation);
+
+        // then
+        assertThatThrownBy(action).isInstanceOf(ObjectOptimisticLockingFailureException.class);
+        assertThat(workspaceInvitationRepository.findByLinkTokenHash(LINK_TOKEN_HASH)).get()
+                .extracting(WorkspaceInvitation::getInvalidatedAt)
+                .isEqualTo(CREATED_AT.plusSeconds(1));
     }
 
     @DisplayName("같은 워크스페이스에 미무효화 초대를 동시에 저장해도 하나만 성공한다")
@@ -432,14 +521,16 @@ class WorkspaceInvitationRepositoryIntegrationTest {
                     invite_code_hash,
                     expires_at,
                     invalidated_at,
-                    created_at
+                    created_at,
+                    version
                 ) VALUES (
                     :workspaceId,
                     :linkTokenHash,
                     :inviteCodeHash,
                     :expiresAt,
                     :invalidatedAt,
-                    :createdAt
+                    :createdAt,
+                    0
                 )
                 """)
                 .param(

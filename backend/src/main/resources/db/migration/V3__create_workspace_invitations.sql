@@ -6,6 +6,7 @@ CREATE TABLE workspace_invitations (
     expires_at TIMESTAMPTZ NOT NULL,
     invalidated_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    version BIGINT NOT NULL DEFAULT 0,
     CONSTRAINT pk_workspace_invitations PRIMARY KEY (id),
     CONSTRAINT uk_workspace_invitations_link_token_hash UNIQUE (link_token_hash),
     CONSTRAINT uk_workspace_invitations_invite_code_hash UNIQUE (invite_code_hash),
@@ -13,7 +14,7 @@ CREATE TABLE workspace_invitations (
         FOREIGN KEY (workspace_id)
         REFERENCES workspaces (id)
         ON DELETE CASCADE,
-    CONSTRAINT chk_workspace_invitations_expiration CHECK (expires_at > created_at),
+    CONSTRAINT chk_workspace_invitations_expiration CHECK (expires_at = created_at + INTERVAL '24 hours'),
     CONSTRAINT chk_workspace_invitations_invalidation
         CHECK (invalidated_at IS NULL OR invalidated_at >= created_at)
 );

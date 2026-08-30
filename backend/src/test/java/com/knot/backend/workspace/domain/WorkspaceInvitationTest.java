@@ -4,12 +4,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 class WorkspaceInvitationTest {
     private static final Instant CREATED_AT = Instant.parse("2026-08-29T00:00:00Z");
+    private static final Instant CREATED_AT_WITH_NANOS = Instant.parse("2026-08-29T00:00:00.123456789Z");
     private static final String LINK_TOKEN_HASH = "link-token-hash";
     private static final String INVITE_CODE_HASH = "invite-code-hash";
 
@@ -34,6 +36,25 @@ class WorkspaceInvitationTest {
         assertThat(invitation.getExpiresAt()).isEqualTo(CREATED_AT.plus(WorkspaceInvitation.VALIDITY_PERIOD));
         assertThat(invitation.getInvalidatedAt()).isNull();
         assertThat(invitation.getCreatedAt()).isEqualTo(CREATED_AT);
+    }
+
+    @DisplayName("초대 생성 시각은 PostgreSQL TIMESTAMPTZ와 같은 마이크로초 정밀도로 보정한다")
+    @Test
+    void create_success_truncatesCreatedAtToMicroseconds() {
+        // given
+        Instant expectedCreatedAt = CREATED_AT_WITH_NANOS.truncatedTo(ChronoUnit.MICROS);
+
+        // when
+        WorkspaceInvitation invitation = WorkspaceInvitation.create(
+                1L,
+                LINK_TOKEN_HASH,
+                INVITE_CODE_HASH,
+                CREATED_AT_WITH_NANOS
+        );
+
+        // then
+        assertThat(invitation.getCreatedAt()).isEqualTo(expectedCreatedAt);
+        assertThat(invitation.getExpiresAt()).isEqualTo(expectedCreatedAt.plus(WorkspaceInvitation.VALIDITY_PERIOD));
     }
 
     @DisplayName("워크스페이스 ID가 양수가 아니면 초대 생성을 거부한다")
@@ -197,7 +218,7 @@ class WorkspaceInvitationTest {
         assertThat(valid).isFalse();
     }
 
-    @DisplayName("무효화 시각 전에는 유효하고 무효화 시각부터 유효하지 않다")
+    @DisplayName("무효화 시각이 있으면 조회 시점과 무관하게 유효하지 않다")
     @Test
     void invalidate_success() {
         // given
@@ -209,7 +230,7 @@ class WorkspaceInvitationTest {
 
         // then
         assertThat(invitation.getInvalidatedAt()).isEqualTo(invalidatedAt);
-        assertThat(invitation.isValidAt(invalidatedAt.minusNanos(1))).isTrue();
+        assertThat(invitation.isValidAt(invalidatedAt.minusNanos(1))).isFalse();
         assertThat(invitation.isValidAt(invalidatedAt)).isFalse();
     }
 
