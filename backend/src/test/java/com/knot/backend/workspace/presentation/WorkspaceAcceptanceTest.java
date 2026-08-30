@@ -57,7 +57,8 @@ class WorkspaceAcceptanceTest {
 
     @BeforeEach
     void clearTables() {
-        jdbcClient.sql("TRUNCATE TABLE workspace_members, workspaces, oauth_identities, members RESTART IDENTITY")
+        jdbcClient
+                .sql("TRUNCATE TABLE workspace_members, workspaces, oauth_identities, members RESTART IDENTITY CASCADE")
                 .update();
     }
 
@@ -88,6 +89,16 @@ class WorkspaceAcceptanceTest {
         // then
         result.andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").isNumber());
+        JsonNode responseBody = objectMapper.readTree(
+                result.andReturn()
+                        .getResponse()
+                        .getContentAsString()
+        );
+        long workspaceId = responseBody.get("id")
+                .asLong();
+        assertThat(responseBody.size()).isEqualTo(1);
+        assertThat(singleWorkspaceName(workspaceId)).isEqualTo("Knot 팀");
+        assertThat(singleWorkspaceMemberWorkspaceId()).isEqualTo(workspaceId);
         assertThat(count("workspaces")).isEqualTo(1);
         assertThat(count("workspace_members")).isEqualTo(1);
         assertThat(singleWorkspaceMemberRole()).isEqualTo("OWNER");
@@ -127,7 +138,7 @@ class WorkspaceAcceptanceTest {
 
     @Test
     @DisplayName("인증되지 않은 워크스페이스 생성 요청은 401로 거부한다")
-    void create_failure_unauthorized() throws Exception {
+    void create_failure_unauthorizedWithCsrfToken() throws Exception {
         // given
         CsrfCredentials csrfCredentials = csrfCredentials();
 
@@ -146,7 +157,54 @@ class WorkspaceAcceptanceTest {
 
         // then
         result.andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.code").value("UNAUTHENTICATED"));
+                .andExpect(jsonPath("$.code").value("UNAUTHENTICATED"))
+                .andExpect(jsonPath("$.message").value("인증이 필요합니다"));
+        assertThat(count("workspaces")).isZero();
+        assertThat(count("workspace_members")).isZero();
+    }
+
+    @Test
+    @DisplayName("CSRF 토큰이 없는 워크스페이스 생성 요청은 403으로 거부한다")
+    void create_failure_missingCsrfToken() throws Exception {
+        // given
+        long memberId = saveMember("octocat");
+        Cookie accessTokenCookie = accessTokenCookie(memberId);
+
+        // when
+        ResultActions result = mockMvc.perform(
+                post("/workspaces").cookie(accessTokenCookie)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"name":"Knot 팀"}
+                                """)
+        );
+
+        // then
+        result.andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("FORBIDDEN"))
+                .andExpect(jsonPath("$.message").value("요청 권한이 없습니다"));
+        assertThat(count("workspaces")).isZero();
+        assertThat(count("workspace_members")).isZero();
+    }
+
+    @Test
+    @DisplayName("JWT와 CSRF 토큰이 모두 없는 워크스페이스 생성 요청은 403으로 거부한다")
+    void create_failure_missingAuthenticationAndCsrfToken() throws Exception {
+        // given
+        String requestBody = """
+                {"name":"Knot 팀"}
+                """;
+
+        // when
+        ResultActions result = mockMvc.perform(
+                post("/workspaces").contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody)
+        );
+
+        // then
+        result.andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("FORBIDDEN"))
+                .andExpect(jsonPath("$.message").value("요청 권한이 없습니다"));
         assertThat(count("workspaces")).isZero();
         assertThat(count("workspace_members")).isZero();
     }
@@ -200,6 +258,22 @@ class WorkspaceAcceptanceTest {
     private String singleWorkspaceMemberRole() {
         return jdbcClient.sql("SELECT role FROM workspace_members")
                 .query(String.class)
+                .single();
+    }
+
+    private String singleWorkspaceName(long workspaceId) {
+        return jdbcClient.sql("SELECT name FROM workspaces WHERE id = :workspaceId")
+                .param(
+                        "workspaceId",
+                        workspaceId
+                )
+                .query(String.class)
+                .single();
+    }
+
+    private long singleWorkspaceMemberWorkspaceId() {
+        return jdbcClient.sql("SELECT workspace_id FROM workspace_members")
+                .query(Long.class)
                 .single();
     }
 

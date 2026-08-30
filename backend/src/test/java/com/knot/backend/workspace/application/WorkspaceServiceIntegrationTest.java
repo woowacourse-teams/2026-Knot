@@ -37,7 +37,8 @@ class WorkspaceServiceIntegrationTest {
 
     @BeforeEach
     void clearTables() {
-        jdbcClient.sql("TRUNCATE TABLE workspace_members, workspaces, oauth_identities, members RESTART IDENTITY")
+        jdbcClient
+                .sql("TRUNCATE TABLE workspace_members, workspaces, oauth_identities, members RESTART IDENTITY CASCADE")
                 .update();
     }
 
