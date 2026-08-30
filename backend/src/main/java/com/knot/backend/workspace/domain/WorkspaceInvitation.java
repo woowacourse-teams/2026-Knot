@@ -6,8 +6,10 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import lombok.Getter;
 
 @Getter
@@ -46,6 +48,10 @@ public class WorkspaceInvitation {
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
+    @Version
+    @Column(nullable = false)
+    private Long version;
+
     protected WorkspaceInvitation() {}
 
     private WorkspaceInvitation(
@@ -69,8 +75,9 @@ public class WorkspaceInvitation {
         this.inviteCodeHash = inviteCodeHash;
         this.linkTokenCiphertext = linkTokenCiphertext;
         this.inviteCodeCiphertext = inviteCodeCiphertext;
-        this.expiresAt = createdAt.plus(VALIDITY_PERIOD);
-        this.createdAt = createdAt;
+        Instant databasePrecisionCreatedAt = createdAt.truncatedTo(ChronoUnit.MICROS);
+        this.expiresAt = databasePrecisionCreatedAt.plus(VALIDITY_PERIOD);
+        this.createdAt = databasePrecisionCreatedAt;
     }
 
     public static WorkspaceInvitation create(
@@ -111,7 +118,7 @@ public class WorkspaceInvitation {
         validatePointInTime(pointInTime);
         boolean issued = !pointInTime.isBefore(createdAt);
         boolean unexpired = pointInTime.isBefore(expiresAt);
-        boolean uninvalidated = invalidatedAt == null || pointInTime.isBefore(invalidatedAt);
+        boolean uninvalidated = invalidatedAt == null;
         return issued && unexpired && uninvalidated;
     }
 
