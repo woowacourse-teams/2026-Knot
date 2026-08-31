@@ -107,15 +107,15 @@ public class SecurityConfig {
                     auth.requestMatchers(
                             "/oauth2/**",
                             "/login/**",
-                            "/auth/nickname",
-                            "/auth/csrf",
+                            "/api/v1/auth/nickname",
+                            "/api/v1/auth/csrf",
                             "/actuator/health",
                             "/error"
                     )
                             .permitAll()
                             .requestMatchers(
                                     HttpMethod.GET,
-                                    "/invitations/*"
+                                    "/api/v1/invitations/*"
                             )
                             .permitAll()
                             .anyRequest()
@@ -135,7 +135,10 @@ public class SecurityConfig {
                                 .successHandler(successHandler)
                                 .failureHandler(failureHandler)
                 )
-                .logout(logout -> logout.addLogoutHandler(jwtLogoutHandler))
+                .logout(
+                        logout -> logout.logoutUrl("/api/v1/auth/logout")
+                                .addLogoutHandler(jwtLogoutHandler)
+                )
                 .addFilterBefore(
                         jwtAuthenticationFilter,
                         UsernamePasswordAuthenticationFilter.class

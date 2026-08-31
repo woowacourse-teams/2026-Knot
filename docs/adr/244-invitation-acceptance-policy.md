@@ -10,7 +10,7 @@ Proposed
 
 ## 한 줄 요약
 
-인증된 사용자는 `POST /invitations/accept`에 코드 또는 링크 credential을 전달해 참여하며,
+인증된 사용자는 `POST /api/v1/invitations/accept`에 코드 또는 링크 credential을 전달해 참여하며,
 신규 멤버십은 `201`, 기존 멤버십은 변경 없이 `200`으로 응답한다.
 
 ## 왜 이 결정이 필요했나
@@ -46,7 +46,7 @@ Proposed
 
 ## 무엇을 결정했나
 
-- 참여 API는 인증과 CSRF 검증이 필요한 `POST /invitations/accept`로 제공한다.
+- 참여 API는 인증과 CSRF 검증이 필요한 `POST /api/v1/invitations/accept`로 제공한다.
 - 요청 본문은 `credential` 하나만 받고 코드와 링크 토큰을 같은 분류 규칙으로 처리한다.
 - 6자리 코드는 대문자로 정규화하고, 다른 nonblank 입력은 대소문자를 구분하는 링크
   토큰 원문으로 검증한다.

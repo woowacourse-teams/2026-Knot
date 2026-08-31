@@ -20,6 +20,9 @@ Base every commit decision on the actual backend diff. Use the linked Issue or t
 - Put one change intent in one commit whenever practical.
 - Keep implementation, tests, and required configuration for the same intent together when they form one reviewable change.
 - Split unrelated features, fixes, refactors, formatting-only changes, documentation, dependency changes, and tests into separate commits when practical.
+- For feature work, use behavior/method/schema-concern boundaries rather than the parent Issue as the commit boundary. Prefer many small, independently reviewable and reversible commits over a few broad feature commits.
+- When the workflow applies, separate the `test` -> `feat` -> `refactor` relay into distinct commits. A test-only contract, behavior implementation, and behavior-preserving cleanup must not be bundled when they can be reviewed independently.
+- Do not combine multiple independent public methods or unrelated layers merely because they belong to the same Issue. Each commit must have one review reason and an explicit file/hunk set.
 - Do not stage every changed file blindly.
 - Treat `커밋해줘` and `작업 단위로 커밋해줘` as explicit commit creation requests. `커밋 메시지 작성해줘` authorizes only a draft. Do not amend, rebase, or reset unless the user explicitly asks for that operation.
 - Preserve existing user changes and report pre-existing staged or dirty files before staging.

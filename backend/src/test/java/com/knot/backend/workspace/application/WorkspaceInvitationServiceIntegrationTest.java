@@ -13,6 +13,7 @@ import com.knot.backend.workspace.application.dto.result.WorkspaceInvitationSecr
 import com.knot.backend.workspace.domain.Workspace;
 import com.knot.backend.workspace.domain.WorkspaceInvitation;
 import com.knot.backend.workspace.domain.WorkspaceInvitationRepository;
+import com.knot.backend.workspace.domain.WorkspaceInvitationSecretCollisionException;
 import com.knot.backend.workspace.domain.WorkspaceMember;
 import com.knot.backend.workspace.domain.WorkspaceMemberRepository;
 import com.knot.backend.workspace.domain.WorkspaceMemberRole;
@@ -104,7 +105,51 @@ class WorkspaceInvitationServiceIntegrationTest {
         assertThat(countUninvalidatedInvitations(fixture.workspaceId())).isEqualTo(1);
     }
 
-    @DisplayName("새 초대 저장에 실패하면 Service가 무효화한 기존 초대를 rollback한다")
+    @DisplayName("최초 발급 secret이 충돌하면 rollback한 뒤 새 secret으로 재시도한다")
+    @Test
+    void issue_success_retriesWhenGeneratedSecretCollides() {
+        // given
+        WorkspaceFixture fixture = createWorkspaceFixture("최초 발급 충돌 복구 팀");
+        WorkspaceFixture collisionFixture = createWorkspaceFixture("최초 발급 충돌 대상 팀");
+        String duplicateCode = "GHJ789";
+        String duplicateLinkToken = uniqueValue("issue-duplicate-link-token-");
+        String retriedCode = "KMN234";
+        String retriedLinkToken = uniqueValue("issue-retried-link-token-");
+        workspaceInvitationRepository.save(
+                recoverableInvitation(
+                        collisionFixture.workspaceId(),
+                        duplicateCode,
+                        duplicateLinkToken,
+                        Instant.now()
+                )
+        );
+        doReturn(
+                new WorkspaceInvitationSecrets(
+                        duplicateCode,
+                        duplicateLinkToken
+                ),
+                new WorkspaceInvitationSecrets(
+                        retriedCode,
+                        retriedLinkToken
+                )
+        ).when(secretGenerator)
+                .generate();
+
+        // when
+        WorkspaceInvitationResult result = workspaceInvitationService.issue(
+                fixture.workspaceId(),
+                fixture.memberId()
+        );
+
+        // then
+        assertThat(result.code()).isEqualTo(retriedCode);
+        assertThat(result.linkToken()).isEqualTo(retriedLinkToken);
+        assertThat(result.created()).isTrue();
+        assertThat(countInvitations(fixture.workspaceId())).isEqualTo(1);
+        assertThat(countUninvalidatedInvitations(fixture.workspaceId())).isEqualTo(1);
+    }
+
+    @DisplayName("secret 충돌 재시도가 모두 실패하면 기존 초대 무효화를 rollback한다")
     @Test
     void reissue_failure_rollsBackInvalidationWhenSaveFails() {
         // given
@@ -141,8 +186,56 @@ class WorkspaceInvitationServiceIntegrationTest {
         );
 
         // then
-        assertThat(thrown).isNotNull();
+        assertThat(thrown).isInstanceOf(WorkspaceInvitationSecretCollisionException.class);
         assertThat(countInvitations(fixture.workspaceId())).isEqualTo(1);
+        assertThat(countUninvalidatedInvitations(fixture.workspaceId())).isEqualTo(1);
+    }
+
+    @DisplayName("재발급 secret이 충돌하면 rollback한 뒤 새 secret으로 재시도한다")
+    @Test
+    void reissue_success_retriesWhenGeneratedSecretCollides() {
+        // given
+        WorkspaceFixture fixture = createWorkspaceFixture("재발급 충돌 복구 팀");
+        WorkspaceFixture collisionFixture = createWorkspaceFixture("충돌 대상 팀");
+        String duplicateCode = "ABC234";
+        String duplicateLinkToken = uniqueValue("duplicate-link-token-");
+        String retriedCode = "DEF567";
+        String retriedLinkToken = uniqueValue("retried-link-token-");
+        workspaceInvitationService.issue(
+                fixture.workspaceId(),
+                fixture.memberId()
+        );
+        workspaceInvitationRepository.save(
+                recoverableInvitation(
+                        collisionFixture.workspaceId(),
+                        duplicateCode,
+                        duplicateLinkToken,
+                        Instant.now()
+                )
+        );
+        doReturn(
+                new WorkspaceInvitationSecrets(
+                        duplicateCode,
+                        duplicateLinkToken
+                ),
+                new WorkspaceInvitationSecrets(
+                        retriedCode,
+                        retriedLinkToken
+                )
+        ).when(secretGenerator)
+                .generate();
+
+        // when
+        WorkspaceInvitationResult result = workspaceInvitationService.reissue(
+                fixture.workspaceId(),
+                fixture.memberId()
+        );
+
+        // then
+        assertThat(result.code()).isEqualTo(retriedCode);
+        assertThat(result.linkToken()).isEqualTo(retriedLinkToken);
+        assertThat(result.created()).isTrue();
+        assertThat(countInvitations(fixture.workspaceId())).isEqualTo(2);
         assertThat(countUninvalidatedInvitations(fixture.workspaceId())).isEqualTo(1);
     }
 

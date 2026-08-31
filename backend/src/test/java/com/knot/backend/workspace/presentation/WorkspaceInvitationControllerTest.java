@@ -54,7 +54,7 @@ class WorkspaceInvitationControllerTest {
         assertThat(
                 response.getHeaders()
                         .getFirst(HttpHeaders.LOCATION)
-        ).isEqualTo("/workspaces/1/invitation");
+        ).isEqualTo("/api/v1/workspaces/1/invitation");
         assertThat(response.getBody()).isEqualTo(expectedResponse());
     }
 
@@ -133,7 +133,7 @@ class WorkspaceInvitationControllerTest {
         assertThat(
                 response.getHeaders()
                         .getFirst(HttpHeaders.LOCATION)
-        ).isEqualTo("/workspaces/1/invitation");
+        ).isEqualTo("/api/v1/workspaces/1/invitation");
         assertThat(response.getBody()).isEqualTo(expectedResponse());
     }
 

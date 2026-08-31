@@ -14,7 +14,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 @Order(Ordered.HIGHEST_PRECEDENCE)
 @Component
 public class WorkspaceInvitationPreviewCacheControlFilter extends OncePerRequestFilter {
-    private static final String PREVIEW_PATH_PREFIX = "/invitations/";
+    private static final String PREVIEW_PATH_PREFIX = "/api/v1/invitations/";
 
     @Override
     protected void doFilterInternal(
@@ -35,11 +35,9 @@ public class WorkspaceInvitationPreviewCacheControlFilter extends OncePerRequest
     }
 
     private boolean isPreviewPath(HttpServletRequest request) {
-        String applicationPath = request.getRequestURI()
-                .substring(
-                        request.getContextPath()
-                                .length()
-                );
+        String requestUri = request.getRequestURI();
+        String contextPath = request.getContextPath();
+        String applicationPath = requestUri.substring(contextPath.length());
         return applicationPath.startsWith(PREVIEW_PATH_PREFIX);
     }
 }

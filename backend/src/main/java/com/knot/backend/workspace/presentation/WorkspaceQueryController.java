@@ -3,7 +3,9 @@ package com.knot.backend.workspace.presentation;
 import com.knot.backend.auth.domain.AuthenticatedMember;
 import com.knot.backend.workspace.application.WorkspaceQueryService;
 import com.knot.backend.workspace.application.dto.result.WorkspaceDetailResult;
+import com.knot.backend.workspace.application.dto.result.WorkspaceListResult;
 import com.knot.backend.workspace.presentation.dto.response.WorkspaceDetailResponse;
+import com.knot.backend.workspace.presentation.dto.response.WorkspaceListResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -13,7 +15,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/workspaces")
+@RequestMapping("/api/v1/workspaces")
 @RequiredArgsConstructor
 @Tag(name = "워크스페이스", description = "워크스페이스 생성 및 조회")
 public class WorkspaceQueryController {
@@ -29,5 +31,11 @@ public class WorkspaceQueryController {
                 authenticatedMember.getMemberId()
         );
         return WorkspaceDetailResponse.from(result);
+    }
+
+    @GetMapping
+    public WorkspaceListResponse list(@AuthenticationPrincipal AuthenticatedMember authenticatedMember) {
+        WorkspaceListResult result = workspaceQueryService.findAllByMemberId(authenticatedMember.getMemberId());
+        return WorkspaceListResponse.from(result);
     }
 }

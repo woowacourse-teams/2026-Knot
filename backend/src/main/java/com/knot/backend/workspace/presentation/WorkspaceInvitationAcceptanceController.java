@@ -31,7 +31,7 @@ import org.springframework.web.bind.annotation.RestController;
 @Tag(name = "워크스페이스 초대", description = "워크스페이스 초대 코드와 링크 발급, 조회, 재발급")
 @SecurityRequirement(name = OpenApiConfig.ACCESS_TOKEN_COOKIE)
 @RestController
-@RequestMapping("/invitations")
+@RequestMapping("/api/v1/invitations")
 public class WorkspaceInvitationAcceptanceController {
     private final WorkspaceInvitationAcceptanceService workspaceInvitationAcceptanceService;
 

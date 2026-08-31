@@ -251,7 +251,7 @@ class WorkspaceInvitationAcceptAcceptanceTest {
 
         // when
         ResultActions result = mockMvc.perform(
-                post("/invitations/accept").contentType(MediaType.APPLICATION_JSON)
+                post("/api/v1/invitations/accept").contentType(MediaType.APPLICATION_JSON)
                         .content(
                                 requestBody(
                                         fixture.invitation()
@@ -280,7 +280,7 @@ class WorkspaceInvitationAcceptAcceptanceTest {
 
         // when
         ResultActions result = mockMvc.perform(
-                post("/invitations/accept").contentType(MediaType.APPLICATION_JSON)
+                post("/api/v1/invitations/accept").contentType(MediaType.APPLICATION_JSON)
                         .content(requestBody)
         );
 
@@ -302,7 +302,7 @@ class WorkspaceInvitationAcceptAcceptanceTest {
 
         // when
         ResultActions result = mockMvc.perform(
-                post("/invitations/accept").contentType(MediaType.APPLICATION_JSON)
+                post("/api/v1/invitations/accept").contentType(MediaType.APPLICATION_JSON)
                         .content(requestBody("ABCDEF"))
                         .cookie(authenticatedCookie(joiningMember))
         );
@@ -325,7 +325,7 @@ class WorkspaceInvitationAcceptAcceptanceTest {
 
         // when
         ResultActions result = mockMvc.perform(
-                post("/invitations/accept").contentType(MediaType.APPLICATION_JSON)
+                post("/api/v1/invitations/accept").contentType(MediaType.APPLICATION_JSON)
                         .content(requestBody("ABCDEF"))
                         .cookie(authenticatedCookie(joiningMember))
                         .with(csrf().useInvalidToken())
@@ -593,7 +593,7 @@ class WorkspaceInvitationAcceptAcceptanceTest {
         // when
         ResultActions result = mockMvc.perform(
                 get(
-                        "/invitations/{tokenOrCode}",
+                        "/api/v1/invitations/{tokenOrCode}",
                         "ABC1O0"
                 ).header(
                         HttpHeaders.ORIGIN,
@@ -834,7 +834,7 @@ class WorkspaceInvitationAcceptAcceptanceTest {
             String remoteAddress
     ) throws Exception {
         return mockMvc.perform(
-                post("/invitations/accept").contentType(MediaType.APPLICATION_JSON)
+                post("/api/v1/invitations/accept").contentType(MediaType.APPLICATION_JSON)
                         .content(body)
                         .cookie(authenticatedCookie(member))
                         .with(csrf())
@@ -888,7 +888,7 @@ class WorkspaceInvitationAcceptAcceptanceTest {
         for (int attempt = 0; attempt < count; attempt++) {
             mockMvc.perform(
                     get(
-                            "/invitations/{tokenOrCode}",
+                            "/api/v1/invitations/{tokenOrCode}",
                             tokenOrCode
                     ).with(request -> {
                         request.setRemoteAddr(remoteAddress);

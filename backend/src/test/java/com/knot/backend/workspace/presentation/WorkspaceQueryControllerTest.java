@@ -12,6 +12,8 @@ import com.knot.backend.auth.domain.AuthenticatedMember;
 import com.knot.backend.global.exception.GlobalExceptionHandler;
 import com.knot.backend.workspace.application.WorkspaceQueryService;
 import com.knot.backend.workspace.application.dto.result.WorkspaceDetailResult;
+import com.knot.backend.workspace.application.dto.result.WorkspaceListItemResult;
+import com.knot.backend.workspace.application.dto.result.WorkspaceListResult;
 import com.knot.backend.workspace.domain.WorkspaceErrorCode;
 import com.knot.backend.workspace.domain.WorkspaceException;
 import java.util.List;
@@ -61,7 +63,7 @@ class WorkspaceQueryControllerTest {
         // when
         ResultActions result = mockMvc.perform(
                 get(
-                        "/workspaces/{workspaceId}",
+                        "/api/v1/workspaces/{workspaceId}",
                         1L
                 )
         );
@@ -83,7 +85,7 @@ class WorkspaceQueryControllerTest {
                 .setAuthentication(memberAuthentication());
 
         // when
-        ResultActions result = mockMvc.perform(get("/workspaces/not-a-number"));
+        ResultActions result = mockMvc.perform(get("/api/v1/workspaces/not-a-number"));
 
         // then
         result.andExpect(status().isBadRequest())
@@ -108,7 +110,7 @@ class WorkspaceQueryControllerTest {
         // when
         ResultActions result = mockMvc.perform(
                 get(
-                        "/workspaces/{workspaceId}",
+                        "/api/v1/workspaces/{workspaceId}",
                         1L
                 )
         );
@@ -134,7 +136,7 @@ class WorkspaceQueryControllerTest {
         // when
         ResultActions result = mockMvc.perform(
                 get(
-                        "/workspaces/{workspaceId}",
+                        "/api/v1/workspaces/{workspaceId}",
                         1L
                 )
         );
@@ -142,6 +144,44 @@ class WorkspaceQueryControllerTest {
         // then
         result.andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("WORKSPACE_NOT_FOUND"));
+    }
+
+    @Test
+    @DisplayName("인증된 멤버가 목록 조회하면 200과 ID·이름 목록을 반환한다")
+    void list_success() throws Exception {
+        // given
+        SecurityContextHolder.getContext()
+                .setAuthentication(memberAuthentication());
+        when(workspaceQueryService.findAllByMemberId(10L)).thenReturn(
+                new WorkspaceListResult(
+                        List.of(
+                                new WorkspaceListItemResult(
+                                        2L,
+                                        "최근 팀"
+                                ),
+                                new WorkspaceListItemResult(
+                                        1L,
+                                        "이전 팀"
+                                )
+                        )
+                )
+        );
+
+        // when
+        ResultActions result = mockMvc.perform(get("/api/v1/workspaces"));
+
+        // then
+        result.andExpect(status().isOk())
+                .andExpect(jsonPath("$.workspaces").isArray())
+                .andExpect(jsonPath("$.workspaces.length()").value(2))
+                .andExpect(jsonPath("$.workspaces[0].id").value(2L))
+                .andExpect(jsonPath("$.workspaces[0].name").value("최근 팀"))
+                .andExpect(jsonPath("$.workspaces[0].role").doesNotExist())
+                .andExpect(jsonPath("$.workspaces[0].joinedAt").doesNotExist())
+                .andExpect(jsonPath("$.workspaces[0].createdAt").doesNotExist())
+                .andExpect(jsonPath("$.workspaces[1].id").value(1L))
+                .andExpect(jsonPath("$.workspaces[1].name").value("이전 팀"));
+        verify(workspaceQueryService).findAllByMemberId(10L);
     }
 
     private UsernamePasswordAuthenticationToken memberAuthentication() {
