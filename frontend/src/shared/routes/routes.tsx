@@ -1,6 +1,7 @@
 import CenteredLayout from "@pages/_layout/CenteredLayout";
 import ChatLayout from "@pages/_layout/ChatLayout";
 import WorkspaceLayout from "@pages/_layout/WorkspaceLayout";
+import InvitePage from "@pages/invite/[token]";
 import JoinErrorPage from "@pages/join-error";
 import LoginPage from "@pages/login";
 import OnboardingPage from "@pages/onboarding";
@@ -54,6 +55,10 @@ export const router = createBrowserRouter([
       {
         path: PATH_ROUTE.WORKSPACE_CODE,
         element: <WorkspaceCodePage />,
+      },
+      {
+        path: PATH_ROUTE.INVITE,
+        element: <InvitePage />,
       },
       {
         path: PATH_ROUTE.WORKSPACE_JOIN,
