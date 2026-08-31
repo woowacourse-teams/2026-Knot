@@ -22,7 +22,9 @@ export const useWorkspaceInvite = () => {
 
   // TODO(#229): 초대 API 연결 후 응답의 참여 코드로 교체
   const inviteCode = "X35D3S";
-  const { displayInviteLink, inviteLink } = getInviteLink(inviteCode);
+  // TODO(#229): 초대 API 연결 후 응답의 linkToken으로 교체. 링크 진입 게이트의 임시 통과 토큰과 같은 값이에요
+  const linkToken = "Xk3vQ9mZp2LrT7wB1nHc4A";
+  const { displayInviteLink, inviteLink } = getInviteLink(linkToken);
 
   const handleCopyCode = () => {
     copy({
