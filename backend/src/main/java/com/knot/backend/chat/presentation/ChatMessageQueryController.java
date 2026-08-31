@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/conversations")
+@RequestMapping("/api/v1/conversations")
 @RequiredArgsConstructor
 public class ChatMessageQueryController {
     private final ChatSessionService chatSessionService;

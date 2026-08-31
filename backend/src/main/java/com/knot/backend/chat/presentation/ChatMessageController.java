@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 @RestController
-@RequestMapping("/api/conversations")
+@RequestMapping("/api/v1/conversations")
 @RequiredArgsConstructor
 public class ChatMessageController {
     private static final long SSE_TIMEOUT_MILLIS = 30_000L;

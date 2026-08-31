@@ -20,7 +20,7 @@ import org.springframework.web.bind.annotation.RestController;
 import jakarta.validation.Valid;
 
 @RestController
-@RequestMapping("/api/workspaces/{workspaceId}/conversations")
+@RequestMapping("/api/v1/workspaces/{workspaceId}/conversations")
 @RequiredArgsConstructor
 public class ChatSessionController {
     private final ChatSessionService chatSessionService;
@@ -38,7 +38,7 @@ public class ChatSessionController {
                         request.title()
                 )
         );
-        return ResponseEntity.created(URI.create("/api/conversations/" + result.id()))
+        return ResponseEntity.created(URI.create("/api/v1/conversations/" + result.id()))
                 .body(ChatSessionResponse.from(result));
     }
 
