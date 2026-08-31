@@ -1,8 +1,8 @@
 package com.knot.backend.workspace.application;
 
 import com.knot.backend.workspace.application.dto.result.NotionImportStatusResult;
-import com.knot.backend.workspace.domain.NotionErrorCode;
-import com.knot.backend.workspace.domain.NotionException;
+import com.knot.backend.workspace.domain.NotionImportErrorCode;
+import com.knot.backend.workspace.domain.NotionImportException;
 import com.knot.backend.workspace.domain.NotionImportRun;
 import com.knot.backend.workspace.domain.NotionImportRunRepository;
 import lombok.RequiredArgsConstructor;
@@ -24,13 +24,13 @@ public class NotionImportQueryService {
                 importRunId,
                 memberId
         )
-                .orElseThrow(() -> new NotionException(NotionErrorCode.NOTION_IMPORT_RUN_NOT_FOUND));
+                .orElseThrow(() -> new NotionImportException(NotionImportErrorCode.NOTION_IMPORT_RUN_NOT_FOUND));
         return NotionImportStatusResult.from(importRun);
     }
 
     private void validateImportRunId(Long importRunId) {
         if (importRunId == null || importRunId <= 0) {
-            throw new NotionException(NotionErrorCode.INVALID_NOTION_IMPORT_RUN_ID);
+            throw new NotionImportException(NotionImportErrorCode.INVALID_NOTION_IMPORT_RUN_ID);
         }
     }
 }

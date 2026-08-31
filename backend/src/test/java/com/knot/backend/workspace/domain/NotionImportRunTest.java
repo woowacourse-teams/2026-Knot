@@ -61,9 +61,9 @@ class NotionImportRunTest {
         Throwable thrown = catchThrowable(action);
 
         // then
-        assertThat(thrown).isInstanceOf(NotionException.class)
-                .extracting(exception -> ((NotionException) exception).getErrorCode())
-                .isEqualTo(NotionErrorCode.INVALID_NOTION_IMPORT_RUN);
+        assertThat(thrown).isInstanceOf(NotionImportException.class)
+                .extracting(exception -> ((NotionImportException) exception).getErrorCode())
+                .isEqualTo(NotionImportErrorCode.INVALID_NOTION_IMPORT_RUN);
     }
 
     @DisplayName("상태에 맞는 시작·완료 시각 조합으로 생성한다")
@@ -109,9 +109,9 @@ class NotionImportRunTest {
         Throwable thrown = catchThrowable(action);
 
         // then
-        assertThat(thrown).isInstanceOf(NotionException.class)
-                .extracting(exception -> ((NotionException) exception).getErrorCode())
-                .isEqualTo(NotionErrorCode.INVALID_NOTION_IMPORT_RUN);
+        assertThat(thrown).isInstanceOf(NotionImportException.class)
+                .extracting(exception -> ((NotionImportException) exception).getErrorCode())
+                .isEqualTo(NotionImportErrorCode.INVALID_NOTION_IMPORT_RUN);
     }
 
     private NotionImportRun createImportRun(NotionImportStatus status) {

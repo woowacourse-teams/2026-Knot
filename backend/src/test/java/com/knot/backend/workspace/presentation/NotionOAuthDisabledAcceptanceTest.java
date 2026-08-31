@@ -4,12 +4,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.knot.backend.testsupport.TestApplicationProperties;
 import com.knot.backend.testsupport.TestcontainersConfiguration;
-import com.knot.backend.workspace.application.NotionConnectionQueryService;
-import com.knot.backend.workspace.application.NotionConnectionService;
-import com.knot.backend.workspace.application.NotionOAuthAuthorizationService;
-import com.knot.backend.workspace.application.NotionOAuthCallbackService;
-import com.knot.backend.workspace.application.NotionOAuthClient;
-import com.knot.backend.workspace.application.NotionOAuthSettings;
+import com.knot.backend.workspace.application.ContentSourceConnectionQueryService;
+import com.knot.backend.workspace.application.ContentSourceConnectionService;
+import com.knot.backend.workspace.application.ContentSourceAuthorizationService;
+import com.knot.backend.workspace.application.ContentSourceCallbackService;
+import com.knot.backend.workspace.application.ContentSourceAuthorizationClient;
+import com.knot.backend.workspace.application.ContentSourceAuthorizationSettings;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -40,11 +40,11 @@ class NotionOAuthDisabledAcceptanceTest {
         // then
         assertThat(applicationContext.getBeansOfType(NotionOAuthController.class)).isEmpty();
         assertThat(applicationContext.getBeansOfType(NotionOpenApiConfig.class)).isEmpty();
-        assertThat(applicationContext.getBeansOfType(NotionConnectionQueryService.class)).isEmpty();
-        assertThat(applicationContext.getBeansOfType(NotionConnectionService.class)).isEmpty();
-        assertThat(applicationContext.getBeansOfType(NotionOAuthAuthorizationService.class)).isEmpty();
-        assertThat(applicationContext.getBeansOfType(NotionOAuthCallbackService.class)).isEmpty();
-        assertThat(applicationContext.getBeansOfType(NotionOAuthSettings.class)).isEmpty();
-        assertThat(applicationContext.getBeansOfType(NotionOAuthClient.class)).isEmpty();
+        assertThat(applicationContext.getBeansOfType(ContentSourceConnectionQueryService.class)).isEmpty();
+        assertThat(applicationContext.getBeansOfType(ContentSourceConnectionService.class)).isEmpty();
+        assertThat(applicationContext.getBeansOfType(ContentSourceAuthorizationService.class)).isEmpty();
+        assertThat(applicationContext.getBeansOfType(ContentSourceCallbackService.class)).isEmpty();
+        assertThat(applicationContext.getBeansOfType(ContentSourceAuthorizationSettings.class)).isEmpty();
+        assertThat(applicationContext.getBeansOfType(ContentSourceAuthorizationClient.class)).isEmpty();
     }
 }

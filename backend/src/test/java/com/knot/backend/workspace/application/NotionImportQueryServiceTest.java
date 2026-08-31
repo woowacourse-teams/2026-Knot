@@ -8,8 +8,8 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.knot.backend.workspace.application.dto.result.NotionImportStatusResult;
-import com.knot.backend.workspace.domain.NotionErrorCode;
-import com.knot.backend.workspace.domain.NotionException;
+import com.knot.backend.workspace.domain.NotionImportErrorCode;
+import com.knot.backend.workspace.domain.NotionImportException;
 import com.knot.backend.workspace.domain.NotionImportRun;
 import com.knot.backend.workspace.domain.NotionImportRunRepository;
 import com.knot.backend.workspace.domain.NotionImportStatus;
@@ -96,9 +96,9 @@ class NotionImportQueryServiceTest {
         Throwable thrown = catchThrowable(action);
 
         // then
-        assertThat(thrown).isInstanceOf(NotionException.class)
-                .extracting(exception -> ((NotionException) exception).getErrorCode())
-                .isEqualTo(NotionErrorCode.INVALID_NOTION_IMPORT_RUN_ID);
+        assertThat(thrown).isInstanceOf(NotionImportException.class)
+                .extracting(exception -> ((NotionImportException) exception).getErrorCode())
+                .isEqualTo(NotionImportErrorCode.INVALID_NOTION_IMPORT_RUN_ID);
         verifyNoInteractions(importRunRepository);
     }
 
@@ -121,9 +121,9 @@ class NotionImportQueryServiceTest {
         Throwable thrown = catchThrowable(action);
 
         // then
-        assertThat(thrown).isInstanceOf(NotionException.class)
-                .extracting(exception -> ((NotionException) exception).getErrorCode())
-                .isEqualTo(NotionErrorCode.NOTION_IMPORT_RUN_NOT_FOUND);
+        assertThat(thrown).isInstanceOf(NotionImportException.class)
+                .extracting(exception -> ((NotionImportException) exception).getErrorCode())
+                .isEqualTo(NotionImportErrorCode.NOTION_IMPORT_RUN_NOT_FOUND);
     }
 
     private NotionImportRun mockImportRun(

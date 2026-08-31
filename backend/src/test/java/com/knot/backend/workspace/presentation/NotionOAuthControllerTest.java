@@ -6,13 +6,15 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.knot.backend.auth.domain.AuthenticatedMember;
-import com.knot.backend.workspace.application.NotionConnectionQueryService;
-import com.knot.backend.workspace.application.NotionOAuthAuthorizationService;
-import com.knot.backend.workspace.application.NotionOAuthCallbackService;
-import com.knot.backend.workspace.application.NotionOAuthSettings;
-import com.knot.backend.workspace.application.dto.result.NotionConnectionStatusResult;
-import com.knot.backend.workspace.application.dto.result.NotionOAuthAuthorizationResult;
-import com.knot.backend.workspace.domain.NotionConnectionStatus;
+import com.knot.backend.workspace.application.ContentSourceConnectionQueryService;
+import com.knot.backend.workspace.application.ContentSourceAuthorizationService;
+import com.knot.backend.workspace.application.ContentSourceCallbackService;
+import com.knot.backend.workspace.application.ContentSourceAuthorizationSettings;
+import com.knot.backend.workspace.application.dto.result.ContentSourceConnectionStatusResult;
+import com.knot.backend.workspace.application.dto.result.ContentSourceAuthorizationResult;
+import com.knot.backend.workspace.application.dto.result.ContentSourceCallbackResult;
+import com.knot.backend.workspace.domain.ContentSourceConnectionStatus;
+import com.knot.backend.workspace.domain.ContentSourceProvider;
 import com.knot.backend.workspace.presentation.dto.response.NotionConnectionStatusResponse;
 import com.knot.backend.workspace.presentation.dto.response.NotionOAuthAuthorizationResponse;
 import java.net.URI;
@@ -28,10 +30,14 @@ class NotionOAuthControllerTest {
     private static final URI SUCCESS_REDIRECT_URI = URI.create("https://app.example.com/notion?result=connected");
     private static final URI FAILURE_REDIRECT_URI = URI.create("https://app.example.com/notion?result=failed");
 
-    private final NotionOAuthAuthorizationService authorizationService = mock(NotionOAuthAuthorizationService.class);
-    private final NotionOAuthCallbackService callbackService = mock(NotionOAuthCallbackService.class);
-    private final NotionConnectionQueryService connectionQueryService = mock(NotionConnectionQueryService.class);
-    private final NotionOAuthSettings settings = mock(NotionOAuthSettings.class);
+    private final ContentSourceAuthorizationService authorizationService = mock(
+            ContentSourceAuthorizationService.class
+    );
+    private final ContentSourceCallbackService callbackService = mock(ContentSourceCallbackService.class);
+    private final ContentSourceConnectionQueryService connectionQueryService = mock(
+            ContentSourceConnectionQueryService.class
+    );
+    private final ContentSourceAuthorizationSettings settings = mock(ContentSourceAuthorizationSettings.class);
     private final NotionOAuthController controller = new NotionOAuthController(
             authorizationService,
             callbackService,
@@ -51,9 +57,10 @@ class NotionOAuthControllerTest {
         when(
                 authorizationService.start(
                         WORKSPACE_ID,
-                        MEMBER_ID
+                        MEMBER_ID,
+                        ContentSourceProvider.NOTION
                 )
-        ).thenReturn(new NotionOAuthAuthorizationResult(AUTHORIZATION_URI));
+        ).thenReturn(new ContentSourceAuthorizationResult(AUTHORIZATION_URI));
 
         // when
         ResponseEntity<NotionOAuthAuthorizationResponse> response = controller.start(
@@ -73,7 +80,8 @@ class NotionOAuthControllerTest {
         ).isEqualTo("no-store");
         verify(authorizationService).start(
                 WORKSPACE_ID,
-                MEMBER_ID
+                MEMBER_ID,
+                ContentSourceProvider.NOTION
         );
     }
 
@@ -83,12 +91,13 @@ class NotionOAuthControllerTest {
         // given
         when(
                 callbackService.complete(
+                        ContentSourceProvider.NOTION,
                         "oauth-code",
                         "oauth-state",
                         null
                 )
-        ).thenReturn(true);
-        when(settings.successRedirectUri()).thenReturn(SUCCESS_REDIRECT_URI);
+        ).thenReturn(ContentSourceCallbackResult.connected(WORKSPACE_ID));
+        when(settings.successRedirectUri(WORKSPACE_ID)).thenReturn(SUCCESS_REDIRECT_URI);
 
         // when
         ResponseEntity<Void> response = controller.callback(
@@ -118,12 +127,13 @@ class NotionOAuthControllerTest {
         // given
         when(
                 callbackService.complete(
+                        ContentSourceProvider.NOTION,
                         null,
                         "oauth-state",
                         "access_denied"
                 )
-        ).thenReturn(false);
-        when(settings.failureRedirectUri()).thenReturn(FAILURE_REDIRECT_URI);
+        ).thenReturn(ContentSourceCallbackResult.failed(WORKSPACE_ID));
+        when(settings.failureRedirectUri(WORKSPACE_ID)).thenReturn(FAILURE_REDIRECT_URI);
 
         // when
         ResponseEntity<Void> response = controller.callback(
@@ -154,9 +164,10 @@ class NotionOAuthControllerTest {
         when(
                 connectionQueryService.findStatus(
                         WORKSPACE_ID,
-                        MEMBER_ID
+                        MEMBER_ID,
+                        ContentSourceProvider.NOTION
                 )
-        ).thenReturn(new NotionConnectionStatusResult(NotionConnectionStatus.CONNECTED));
+        ).thenReturn(new ContentSourceConnectionStatusResult(ContentSourceConnectionStatus.CONNECTED));
 
         // when
         NotionConnectionStatusResponse response = controller.status(
@@ -165,6 +176,6 @@ class NotionOAuthControllerTest {
         );
 
         // then
-        assertThat(response).isEqualTo(new NotionConnectionStatusResponse(NotionConnectionStatus.CONNECTED));
+        assertThat(response).isEqualTo(new NotionConnectionStatusResponse(ContentSourceConnectionStatus.CONNECTED));
     }
 }
