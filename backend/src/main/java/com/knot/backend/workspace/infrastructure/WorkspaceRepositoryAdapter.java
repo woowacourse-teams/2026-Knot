@@ -22,4 +22,9 @@ public class WorkspaceRepositoryAdapter implements WorkspaceRepository {
     public Optional<Workspace> findById(Long workspaceId) {
         return workspaceJpaRepository.findById(workspaceId);
     }
+
+    @Override
+    public Optional<Workspace> findByIdForUpdate(Long workspaceId) {
+        return workspaceJpaRepository.findWithLockById(workspaceId);
+    }
 }

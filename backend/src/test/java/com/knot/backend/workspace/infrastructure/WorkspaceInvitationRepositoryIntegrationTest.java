@@ -29,8 +29,10 @@ import org.springframework.context.annotation.Import;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @Tag("integration")
 @Import({TestcontainersConfiguration.class, WorkspaceRepositoryAdapter.class,
@@ -50,6 +52,8 @@ class WorkspaceInvitationRepositoryIntegrationTest {
     private EntityManager entityManager;
     @Autowired
     private JdbcClient jdbcClient;
+    @Autowired
+    private PlatformTransactionManager transactionManager;
 
     @DisplayName("워크스페이스 초대를 저장하고 링크 토큰 해시와 초대 코드 해시로 조회한다")
     @Test
@@ -81,6 +85,61 @@ class WorkspaceInvitationRepositoryIntegrationTest {
         assertThat(workspaceInvitationRepository.findUninvalidatedByWorkspaceId(workspace.getId())).get()
                 .extracting(WorkspaceInvitation::getId)
                 .isEqualTo(savedInvitation.getId());
+        assertThat(savedInvitation.hasRecoverableSecrets()).isFalse();
+    }
+
+    @DisplayName("V4 암호문 envelope를 저장하고 다시 조회한다")
+    @Test
+    void saveAndFind_success_secretEnvelopes() {
+        // given
+        Workspace workspace = saveAndFlush(
+                Workspace.create(
+                        "Knot 팀",
+                        CREATED_AT
+                )
+        );
+        WorkspaceInvitation invitation = WorkspaceInvitation.create(
+                workspace.getId(),
+                LINK_TOKEN_HASH,
+                INVITE_CODE_HASH,
+                "v1:link-nonce:link-ciphertext",
+                "v1:code-nonce:code-ciphertext",
+                CREATED_AT
+        );
+
+        // when
+        WorkspaceInvitation savedInvitation = saveAndReload(invitation);
+
+        // then
+        assertThat(savedInvitation.getLinkTokenCiphertext()).isEqualTo("v1:link-nonce:link-ciphertext");
+        assertThat(savedInvitation.getInviteCodeCiphertext()).isEqualTo("v1:code-nonce:code-ciphertext");
+        assertThat(savedInvitation.hasRecoverableSecrets()).isTrue();
+    }
+
+    @DisplayName("V4는 링크 토큰과 초대 코드 암호문 중 하나만 저장하는 Row를 거부한다")
+    @Test
+    void save_failure_incompleteSecretEnvelopes() {
+        // given
+        Workspace workspace = saveAndFlush(
+                Workspace.create(
+                        "Knot 팀",
+                        CREATED_AT
+                )
+        );
+
+        // when
+        ThrowingCallable action = () -> insertInvitationWithEnvelopes(
+                workspace.getId(),
+                LINK_TOKEN_HASH,
+                INVITE_CODE_HASH,
+                "v1:link-nonce:link-ciphertext",
+                null,
+                CREATED_AT.plus(WorkspaceInvitation.VALIDITY_PERIOD),
+                CREATED_AT
+        );
+
+        // then
+        assertThatThrownBy(action).isInstanceOf(DataIntegrityViolationException.class);
     }
 
     @DisplayName("같은 링크 토큰 해시는 서로 다른 워크스페이스에서도 중복 저장할 수 없다")
@@ -502,6 +561,55 @@ class WorkspaceInvitationRepositoryIntegrationTest {
         }
     }
 
+    @DisplayName("새 초대 저장 실패 시 기존 초대 무효화를 rollback한다")
+    @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    void reissue_failure_rollsBackInvalidation() {
+        // given
+        Long targetWorkspaceId = insertWorkspace("대상 팀");
+        Long otherWorkspaceId = insertWorkspace("다른 팀");
+        insertInvitation(
+                targetWorkspaceId,
+                "target-link-hash",
+                "target-code-hash",
+                CREATED_AT.plus(WorkspaceInvitation.VALIDITY_PERIOD),
+                null,
+                CREATED_AT
+        );
+        insertInvitation(
+                otherWorkspaceId,
+                "duplicate-link-hash",
+                "other-code-hash",
+                CREATED_AT.plus(WorkspaceInvitation.VALIDITY_PERIOD),
+                null,
+                CREATED_AT
+        );
+        TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
+
+        // when
+        ThrowingCallable action = () -> transactionTemplate.executeWithoutResult(status -> {
+            WorkspaceInvitation previousInvitation = workspaceInvitationRepository
+                    .findUninvalidatedByWorkspaceId(targetWorkspaceId)
+                    .orElseThrow();
+            previousInvitation.invalidate(CREATED_AT.plusSeconds(1));
+            workspaceInvitationRepository.save(previousInvitation);
+            workspaceInvitationRepository.save(
+                    WorkspaceInvitation.create(
+                            targetWorkspaceId,
+                            "duplicate-link-hash",
+                            "new-code-hash",
+                            CREATED_AT.plusSeconds(2)
+                    )
+            );
+        });
+
+        // then
+        assertThatThrownBy(action).isInstanceOf(DataIntegrityViolationException.class);
+        assertThat(workspaceInvitationRepository.findUninvalidatedByWorkspaceId(targetWorkspaceId)).get()
+                .extracting(WorkspaceInvitation::getInvalidatedAt)
+                .isNull();
+    }
+
     private WorkspaceInvitation createInvitation(
             Long workspaceId,
             String linkTokenHash,
@@ -587,6 +695,83 @@ class WorkspaceInvitationRepositoryIntegrationTest {
                         toOffsetDateTime(createdAt)
                 )
                 .update();
+    }
+
+    private void insertInvitationWithEnvelopes(
+            Long workspaceId,
+            String linkTokenHash,
+            String inviteCodeHash,
+            String linkTokenCiphertext,
+            String inviteCodeCiphertext,
+            Instant expiresAt,
+            Instant createdAt
+    ) {
+        jdbcClient.sql("""
+                INSERT INTO workspace_invitations (
+                    workspace_id,
+                    link_token_hash,
+                    invite_code_hash,
+                    link_token_ciphertext,
+                    invite_code_ciphertext,
+                    expires_at,
+                    created_at
+                ) VALUES (
+                    :workspaceId,
+                    :linkTokenHash,
+                    :inviteCodeHash,
+                    :linkTokenCiphertext,
+                    :inviteCodeCiphertext,
+                    :expiresAt,
+                    :createdAt
+                )
+                """)
+                .param(
+                        "workspaceId",
+                        workspaceId
+                )
+                .param(
+                        "linkTokenHash",
+                        linkTokenHash
+                )
+                .param(
+                        "inviteCodeHash",
+                        inviteCodeHash
+                )
+                .param(
+                        "linkTokenCiphertext",
+                        linkTokenCiphertext
+                )
+                .param(
+                        "inviteCodeCiphertext",
+                        inviteCodeCiphertext
+                )
+                .param(
+                        "expiresAt",
+                        toOffsetDateTime(expiresAt)
+                )
+                .param(
+                        "createdAt",
+                        toOffsetDateTime(createdAt)
+                )
+                .update();
+    }
+
+    private Long insertWorkspace(String name) {
+        return jdbcClient.sql("""
+                INSERT INTO workspaces (name, created_at)
+                VALUES (:name, :createdAt)
+                RETURNING id
+                """)
+                .param(
+                        "name",
+                        name
+                )
+                .param(
+                        "createdAt",
+                        toOffsetDateTime(CREATED_AT)
+                )
+                .query(Long.class)
+                .single();
     }
 
     private OffsetDateTime toOffsetDateTime(Instant instant) {

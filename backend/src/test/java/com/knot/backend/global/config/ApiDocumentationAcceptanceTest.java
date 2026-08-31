@@ -173,6 +173,103 @@ class ApiDocumentationAcceptanceTest {
     }
 
     @Test
+    @DisplayName("OpenAPI JSON에 워크스페이스 초대 발급·조회·재발급 계약을 공개한다")
+    void openApi_success_workspaceInvitationContract() throws Exception {
+        // given
+        String openApiPath = "/v3/api-docs";
+        String issuePath = "$.paths['/workspaces/{workspaceId}/invitations'].post";
+        String getPath = "$.paths['/workspaces/{workspaceId}/invitation'].get";
+        String reissuePath = "$.paths['/workspaces/{workspaceId}/invitations/reissue'].post";
+        String errorResponseRef = "#/components/schemas/ErrorResponse";
+
+        // when
+        ResultActions result = mockMvc.perform(get(openApiPath));
+
+        // then
+        result.andExpect(status().isOk())
+                .andExpect(jsonPath(issuePath + ".security[*].accessTokenCookie").exists())
+                .andExpect(jsonPath(issuePath + ".parameters[?(@.name == 'X-XSRF-TOKEN')]").exists())
+                .andExpect(
+                        jsonPath(issuePath + ".responses['200'].content['application/json'].schema['$ref']").exists()
+                )
+                .andExpect(jsonPath(issuePath + ".responses['201'].headers.Location").exists())
+                .andExpect(
+                        jsonPath(issuePath + ".responses['201'].content['application/json'].schema['$ref']").exists()
+                )
+                .andExpect(
+                        jsonPath(issuePath + ".responses['400'].content['application/json'].schema['$ref']")
+                                .value(errorResponseRef)
+                )
+                .andExpect(
+                        jsonPath(issuePath + ".responses['401'].content['application/json'].schema['$ref']")
+                                .value(errorResponseRef)
+                )
+                .andExpect(
+                        jsonPath(issuePath + ".responses['403'].content['application/json'].schema['$ref']")
+                                .value(errorResponseRef)
+                )
+                .andExpect(
+                        jsonPath(issuePath + ".responses['404'].content['application/json'].schema['$ref']")
+                                .value(errorResponseRef)
+                )
+                .andExpect(
+                        jsonPath(issuePath + ".responses['500'].content['application/json'].schema['$ref']")
+                                .value(errorResponseRef)
+                )
+                .andExpect(jsonPath(getPath + ".security[*].accessTokenCookie").exists())
+                .andExpect(jsonPath(getPath + ".responses['200'].content['application/json'].schema['$ref']").exists())
+                .andExpect(
+                        jsonPath(getPath + ".responses['400'].content['application/json'].schema['$ref']")
+                                .value(errorResponseRef)
+                )
+                .andExpect(
+                        jsonPath(getPath + ".responses['401'].content['application/json'].schema['$ref']")
+                                .value(errorResponseRef)
+                )
+                .andExpect(
+                        jsonPath(getPath + ".responses['403'].content['application/json'].schema['$ref']")
+                                .value(errorResponseRef)
+                )
+                .andExpect(
+                        jsonPath(getPath + ".responses['404'].content['application/json'].schema['$ref']")
+                                .value(errorResponseRef)
+                )
+                .andExpect(
+                        jsonPath(getPath + ".responses['500'].content['application/json'].schema['$ref']")
+                                .value(errorResponseRef)
+                )
+                .andExpect(jsonPath(reissuePath + ".security[*].accessTokenCookie").exists())
+                .andExpect(jsonPath(reissuePath + ".parameters[?(@.name == 'X-XSRF-TOKEN')]").exists())
+                .andExpect(jsonPath(reissuePath + ".responses['201'].headers.Location").exists())
+                .andExpect(
+                        jsonPath(reissuePath + ".responses['201'].content['application/json'].schema['$ref']").exists()
+                )
+                .andExpect(
+                        jsonPath(reissuePath + ".responses['400'].content['application/json'].schema['$ref']")
+                                .value(errorResponseRef)
+                )
+                .andExpect(
+                        jsonPath(reissuePath + ".responses['401'].content['application/json'].schema['$ref']")
+                                .value(errorResponseRef)
+                )
+                .andExpect(
+                        jsonPath(reissuePath + ".responses['403'].content['application/json'].schema['$ref']")
+                                .value(errorResponseRef)
+                )
+                .andExpect(
+                        jsonPath(reissuePath + ".responses['404'].content['application/json'].schema['$ref']")
+                                .value(errorResponseRef)
+                )
+                .andExpect(
+                        jsonPath(reissuePath + ".responses['500'].content['application/json'].schema['$ref']")
+                                .value(errorResponseRef)
+                )
+                .andExpect(jsonPath("$.components.schemas.WorkspaceInvitationResponse.properties.code").exists())
+                .andExpect(jsonPath("$.components.schemas.WorkspaceInvitationResponse.properties.linkToken").exists())
+                .andExpect(jsonPath("$.components.schemas.WorkspaceInvitationResponse.properties.expiresAt").exists());
+    }
+
+    @Test
     @DisplayName("Swagger 설정은 외부 validator와 API 실행 기능을 사용하지 않는다")
     void swaggerConfig_success_disablesExternalRequestsAndTryItOut() throws Exception {
         // given

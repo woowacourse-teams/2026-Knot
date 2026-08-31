@@ -54,6 +54,12 @@ public enum WorkspaceErrorCode implements ErrorCode {
             "워크스페이스 초대 코드 해시가 올바르지 않습니다"
     ),
 
+    INVALID_WORKSPACE_INVITATION_SECRET_ENVELOPE(
+            ErrorCategory.INVALID_INPUT,
+            "INVALID_WORKSPACE_INVITATION_SECRET_ENVELOPE",
+            "워크스페이스 초대 암호문이 올바르지 않습니다"
+    ),
+
     INVALID_WORKSPACE_INVITATION_CREATED_AT(
             ErrorCategory.INVALID_INPUT,
             "INVALID_WORKSPACE_INVITATION_CREATED_AT",
@@ -82,6 +88,24 @@ public enum WorkspaceErrorCode implements ErrorCode {
             ErrorCategory.FORBIDDEN,
             "WORKSPACE_ACCESS_DENIED",
             "워크스페이스에 접근할 수 없습니다"
+    ),
+
+    WORKSPACE_INVITATION_NOT_FOUND(
+            ErrorCategory.NOT_FOUND,
+            "WORKSPACE_INVITATION_NOT_FOUND",
+            "활성 워크스페이스 초대를 찾을 수 없습니다"
+    ),
+
+    WORKSPACE_INVITATION_SECRET_RECOVERY_FAILED(
+            ErrorCategory.INTERNAL_SERVER_ERROR,
+            "WORKSPACE_INVITATION_SECRET_RECOVERY_FAILED",
+            "워크스페이스 초대를 복구할 수 없습니다"
+    ),
+
+    WORKSPACE_INVITATION_SECURITY_CONFIGURATION_INVALID(
+            ErrorCategory.INTERNAL_SERVER_ERROR,
+            "WORKSPACE_INVITATION_SECURITY_CONFIGURATION_INVALID",
+            "워크스페이스 초대 보안 설정이 올바르지 않습니다"
     );
 
     private final ErrorCategory category;

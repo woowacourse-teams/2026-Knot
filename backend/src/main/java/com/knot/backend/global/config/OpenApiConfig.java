@@ -1,13 +1,13 @@
 package com.knot.backend.global.config;
 
-import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.Components;
+import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.Operation;
 import io.swagger.v3.oas.models.PathItem;
 import io.swagger.v3.oas.models.Paths;
-import io.swagger.v3.oas.models.media.ArraySchema;
 import io.swagger.v3.oas.models.headers.Header;
 import io.swagger.v3.oas.models.info.Info;
+import io.swagger.v3.oas.models.media.ArraySchema;
 import io.swagger.v3.oas.models.media.Content;
 import io.swagger.v3.oas.models.media.MediaType;
 import io.swagger.v3.oas.models.media.Schema;

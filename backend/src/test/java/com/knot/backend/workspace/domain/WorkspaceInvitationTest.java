@@ -14,6 +14,8 @@ class WorkspaceInvitationTest {
     private static final Instant CREATED_AT_WITH_NANOS = Instant.parse("2026-08-29T00:00:00.123456789Z");
     private static final String LINK_TOKEN_HASH = "link-token-hash";
     private static final String INVITE_CODE_HASH = "invite-code-hash";
+    private static final String LINK_TOKEN_CIPHERTEXT = "link-token-ciphertext";
+    private static final String INVITE_CODE_CIPHERTEXT = "invite-code-ciphertext";
 
     @DisplayName("링크 토큰 해시와 초대 코드 해시로 24시간짜리 워크스페이스 초대를 생성한다")
     @Test
@@ -36,6 +38,50 @@ class WorkspaceInvitationTest {
         assertThat(invitation.getExpiresAt()).isEqualTo(CREATED_AT.plus(WorkspaceInvitation.VALIDITY_PERIOD));
         assertThat(invitation.getInvalidatedAt()).isNull();
         assertThat(invitation.getCreatedAt()).isEqualTo(CREATED_AT);
+    }
+
+    @DisplayName("lookup hash와 암호문으로 복원 가능한 워크스페이스 초대를 생성한다")
+    @Test
+    void create_success_recoverableSecrets() {
+        // given
+        Long workspaceId = 1L;
+
+        // when
+        WorkspaceInvitation invitation = WorkspaceInvitation.create(
+                workspaceId,
+                LINK_TOKEN_HASH,
+                INVITE_CODE_HASH,
+                LINK_TOKEN_CIPHERTEXT,
+                INVITE_CODE_CIPHERTEXT,
+                CREATED_AT
+        );
+
+        // then
+        assertThat(invitation.hasRecoverableSecrets()).isTrue();
+        assertThat(invitation.getLinkTokenCiphertext()).isEqualTo(LINK_TOKEN_CIPHERTEXT);
+        assertThat(invitation.getInviteCodeCiphertext()).isEqualTo(INVITE_CODE_CIPHERTEXT);
+    }
+
+    @DisplayName("링크 토큰과 초대 코드 암호문 중 하나만 있으면 초대 생성을 거부한다")
+    @Test
+    void create_failure_incompleteSecretEnvelopes() {
+        // given
+        String missingInviteCodeCiphertext = null;
+
+        // when
+        ThrowingCallable action = () -> WorkspaceInvitation.create(
+                1L,
+                LINK_TOKEN_HASH,
+                INVITE_CODE_HASH,
+                LINK_TOKEN_CIPHERTEXT,
+                missingInviteCodeCiphertext,
+                CREATED_AT
+        );
+
+        // then
+        assertThatThrownBy(action).isInstanceOf(WorkspaceException.class)
+                .extracting(exception -> ((WorkspaceException) exception).getErrorCode())
+                .isEqualTo(WorkspaceErrorCode.INVALID_WORKSPACE_INVITATION_SECRET_ENVELOPE);
     }
 
     @DisplayName("초대 생성 시각은 PostgreSQL TIMESTAMPTZ와 같은 마이크로초 정밀도로 보정한다")
