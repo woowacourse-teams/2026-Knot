@@ -358,7 +358,9 @@ class KnotApplicationTests {
         );
 
         // then
-        result.andExpect(status().isForbidden());
+        result.andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("FORBIDDEN"))
+                .andExpect(jsonPath("$.message").value("요청 권한이 없습니다"));
     }
 
     @Test

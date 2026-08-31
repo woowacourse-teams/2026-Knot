@@ -4,6 +4,7 @@ import com.knot.backend.auth.domain.AuthErrorCode;
 import com.knot.backend.auth.domain.AuthException;
 import com.knot.backend.auth.infrastructure.github.GithubOAuth2UserService;
 import com.knot.backend.auth.infrastructure.jwt.JwtAuthenticationFilter;
+import com.knot.backend.auth.presentation.handler.AuthAccessDeniedHandler;
 import com.knot.backend.auth.presentation.handler.AuthAuthenticationEntryPoint;
 import com.knot.backend.auth.presentation.handler.JwtLogoutHandler;
 import com.knot.backend.auth.presentation.handler.OAuth2AuthenticationFailureHandler;
@@ -37,6 +38,7 @@ public class SecurityConfig {
     private final OAuth2AuthenticationSuccessHandler successHandler;
     private final OAuth2AuthenticationFailureHandler failureHandler;
     private final AuthAuthenticationEntryPoint authenticationEntryPoint;
+    private final AuthAccessDeniedHandler accessDeniedHandler;
     private final JwtLogoutHandler jwtLogoutHandler;
     private final JwtProperties jwtProperties;
     private final CorsProperties corsProperties;
@@ -109,7 +111,10 @@ public class SecurityConfig {
                             .anyRequest()
                             .authenticated();
                 })
-                .exceptionHandling(exception -> exception.authenticationEntryPoint(authenticationEntryPoint))
+                .exceptionHandling(
+                        exception -> exception.authenticationEntryPoint(authenticationEntryPoint)
+                                .accessDeniedHandler(accessDeniedHandler)
+                )
                 .csrf(
                         csrf -> csrf.csrfTokenRepository(csrfTokenRepository)
                                 .csrfTokenRequestHandler(new CsrfTokenRequestAttributeHandler())

@@ -28,9 +28,9 @@ Knot 백엔드의 실제 HTTP 계약을 프론트엔드가 바로 사용할 수 
 
 ## Request Body
 
-| Field | Type | Required | Description | Example |
-|---|---|---|---|---|
-| 없음 | - | - | Request Body 없음 | - |
+| Field | Type | Required | Nullable | Description | Example |
+|---|---|---|---|---|---|
+| 없음 | - | - | - | Request Body 없음 | - |
 
 ### Request Example
 ```json
@@ -44,7 +44,7 @@ Knot 백엔드의 실제 HTTP 계약을 프론트엔드가 바로 사용할 수 
 
 | Status | Description |
 |---|---|
-| 200 | 성공 |
+| `{status}` | `{description}` |
 
 ### Response Body
 
@@ -140,9 +140,10 @@ Base URL: `{{BASE_URL}}`
 
 ## Request Body
 
-| Field | Type | Required | Description | Example |
-|---|---|---|---|---|
-| ... | ... | ... | ... | ... |
+| Field | Type | Required | Nullable | Description | Example |
+|---|---|---|---|---|---|
+| ... | ... | ... | ... | ... | ... |
+| 없음 | - | - | - | Request Body 없음 | - |
 
 ### Request Example
 ```json
@@ -157,7 +158,7 @@ Base URL: `{{BASE_URL}}`
 
 | Status | Description |
 |---|---|
-| 200 | ... |
+| `{status}` | `{description}` |
 
 ### Response Body
 
@@ -258,7 +259,9 @@ OAuth 로그인은 단순 JSON API와 다르므로 다음 흐름을 명세에 �
 - Response 필드와 nullable 여부가 DTO와 일치하는가
 - cookie/header/redirect/CSRF 동작이 Security 설정과 일치하는가
 - 성공과 실패 상태 코드가 실제 코드·테스트 근거를 갖는가
+- `{status}`, `{description}` 같은 템플릿 placeholder가 전달 문서에 남아 있지 않은가
+- Request Body 표에 실제 필드 행과 `없음` 행이 함께 남아 있지 않은가
 - 미확인 내용을 추측으로 채우지 않았는가
 - Markdown 표, JSON code fence, 마지막 개행이 정상인가
 
-명세 문서 작성만으로는 `npx ph workflow implement`나 테스트를 실행할 필요가 없다. 코드 동작을 변경하거나 API 계약을 구현하는 요청으로 범위가 넓어지면 프로젝트 `AGENTS.md`의 구현 절차를 따른다.
+명세 문서만 작성하면 구현 workflow와 테스트를 실행할 필요가 없다. 코드 동작을 변경하거나 API 계약을 구현하는 요청으로 범위가 넓어지면 프로젝트 `AGENTS.md`의 구현 절차를 따른다.
