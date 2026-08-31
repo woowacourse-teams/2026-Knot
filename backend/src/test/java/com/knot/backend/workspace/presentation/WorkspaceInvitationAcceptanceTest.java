@@ -104,7 +104,7 @@ class WorkspaceInvitationAcceptanceTest {
                 .andExpect(
                         header().string(
                                 HttpHeaders.LOCATION,
-                                "/workspaces/" + fixture.workspaceId() + "/invitation"
+                                "/api/v1/workspaces/" + fixture.workspaceId() + "/invitation"
                         )
                 )
                 .andExpect(jsonPath("$.code").isNotEmpty())
@@ -122,7 +122,7 @@ class WorkspaceInvitationAcceptanceTest {
         // when
         ResultActions result = mockMvc.perform(
                 get(
-                        "/workspaces/{workspaceId}/invitation",
+                        "/api/v1/workspaces/{workspaceId}/invitation",
                         fixture.workspaceId()
                 ).cookie(authenticatedCookie(fixture.member()))
         );
@@ -192,7 +192,7 @@ class WorkspaceInvitationAcceptanceTest {
         // when
         MvcResult result = mockMvc.perform(
                 post(
-                        "/workspaces/{workspaceId}/invitations/reissue",
+                        "/api/v1/workspaces/{workspaceId}/invitations/reissue",
                         fixture.workspaceId()
                 ).cookie(authenticatedCookie(fixture.member()))
                         .with(csrf())
@@ -201,7 +201,7 @@ class WorkspaceInvitationAcceptanceTest {
                 .andExpect(
                         header().string(
                                 HttpHeaders.LOCATION,
-                                "/workspaces/" + fixture.workspaceId() + "/invitation"
+                                "/api/v1/workspaces/" + fixture.workspaceId() + "/invitation"
                         )
                 )
                 .andReturn();
@@ -237,7 +237,7 @@ class WorkspaceInvitationAcceptanceTest {
         // when
         ResultActions result = mockMvc.perform(
                 post(
-                        "/workspaces/{workspaceId}/invitations",
+                        "/api/v1/workspaces/{workspaceId}/invitations",
                         1L
                 ).with(csrf())
         );
@@ -255,7 +255,7 @@ class WorkspaceInvitationAcceptanceTest {
         // when
         ResultActions result = mockMvc.perform(
                 post(
-                        "/workspaces/{workspaceId}/invitations",
+                        "/api/v1/workspaces/{workspaceId}/invitations",
                         1L
                 )
         );
@@ -273,7 +273,7 @@ class WorkspaceInvitationAcceptanceTest {
         // when
         ResultActions result = mockMvc.perform(
                 post(
-                        "/workspaces/{workspaceId}/invitations/reissue",
+                        "/api/v1/workspaces/{workspaceId}/invitations/reissue",
                         1L
                 )
         );
@@ -292,7 +292,7 @@ class WorkspaceInvitationAcceptanceTest {
         // when
         ResultActions result = mockMvc.perform(
                 post(
-                        "/workspaces/{workspaceId}/invitations",
+                        "/api/v1/workspaces/{workspaceId}/invitations",
                         fixture.workspaceId()
                 ).cookie(authenticatedCookie(fixture.member()))
         );
@@ -310,7 +310,7 @@ class WorkspaceInvitationAcceptanceTest {
         // when
         ResultActions result = mockMvc.perform(
                 post(
-                        "/workspaces/{workspaceId}/invitations/reissue",
+                        "/api/v1/workspaces/{workspaceId}/invitations/reissue",
                         1L
                 ).with(csrf())
         );
@@ -329,7 +329,7 @@ class WorkspaceInvitationAcceptanceTest {
         // when
         ResultActions result = mockMvc.perform(
                 post(
-                        "/workspaces/{workspaceId}/invitations/reissue",
+                        "/api/v1/workspaces/{workspaceId}/invitations/reissue",
                         fixture.workspaceId()
                 ).cookie(authenticatedCookie(fixture.member()))
         );
@@ -363,7 +363,7 @@ class WorkspaceInvitationAcceptanceTest {
         // when
         ResultActions result = mockMvc.perform(
                 post(
-                        "/workspaces/{workspaceId}/invitations",
+                        "/api/v1/workspaces/{workspaceId}/invitations",
                         missingWorkspaceId
                 ).cookie(authenticatedCookie(fixture.member()))
                         .with(csrf())
@@ -383,7 +383,7 @@ class WorkspaceInvitationAcceptanceTest {
         // when
         ResultActions result = mockMvc.perform(
                 post(
-                        "/workspaces/{workspaceId}/invitations",
+                        "/api/v1/workspaces/{workspaceId}/invitations",
                         0
                 ).cookie(authenticatedCookie(fixture.member()))
                         .with(csrf())
@@ -403,7 +403,7 @@ class WorkspaceInvitationAcceptanceTest {
         // when
         ResultActions result = mockMvc.perform(
                 get(
-                        "/workspaces/{workspaceId}/invitation",
+                        "/api/v1/workspaces/{workspaceId}/invitation",
                         0
                 ).cookie(authenticatedCookie(fixture.member()))
         );
@@ -421,7 +421,7 @@ class WorkspaceInvitationAcceptanceTest {
         // when
         ResultActions result = mockMvc.perform(
                 get(
-                        "/workspaces/{workspaceId}/invitation",
+                        "/api/v1/workspaces/{workspaceId}/invitation",
                         1L
                 )
         );
@@ -440,7 +440,7 @@ class WorkspaceInvitationAcceptanceTest {
         // when
         ResultActions result = mockMvc.perform(
                 get(
-                        "/workspaces/{workspaceId}/invitation",
+                        "/api/v1/workspaces/{workspaceId}/invitation",
                         fixture.workspaceId()
                 ).cookie(authenticatedCookie(fixture.member()))
         );
@@ -459,7 +459,7 @@ class WorkspaceInvitationAcceptanceTest {
         // when
         ResultActions result = mockMvc.perform(
                 get(
-                        "/workspaces/{workspaceId}/invitation",
+                        "/api/v1/workspaces/{workspaceId}/invitation",
                         Long.MAX_VALUE
                 ).cookie(authenticatedCookie(fixture.member()))
         );
@@ -478,7 +478,7 @@ class WorkspaceInvitationAcceptanceTest {
         // when
         ResultActions result = mockMvc.perform(
                 get(
-                        "/workspaces/{workspaceId}/invitation",
+                        "/api/v1/workspaces/{workspaceId}/invitation",
                         fixture.workspaceId()
                 ).cookie(authenticatedCookie(fixture.member()))
         );
@@ -504,7 +504,7 @@ class WorkspaceInvitationAcceptanceTest {
         // when
         MvcResult result = mockMvc.perform(
                 get(
-                        "/workspaces/{workspaceId}/invitation",
+                        "/api/v1/workspaces/{workspaceId}/invitation",
                         fixture.workspaceId()
                 ).cookie(authenticatedCookie(fixture.member()))
         )
@@ -537,7 +537,7 @@ class WorkspaceInvitationAcceptanceTest {
         // when
         ResultActions result = mockMvc.perform(
                 post(
-                        "/workspaces/{workspaceId}/invitations/reissue",
+                        "/api/v1/workspaces/{workspaceId}/invitations/reissue",
                         fixture.workspaceId()
                 ).cookie(authenticatedCookie(fixture.member()))
                         .with(csrf())
@@ -560,7 +560,7 @@ class WorkspaceInvitationAcceptanceTest {
         // when
         ResultActions result = mockMvc.perform(
                 post(
-                        "/workspaces/{workspaceId}/invitations/reissue",
+                        "/api/v1/workspaces/{workspaceId}/invitations/reissue",
                         0
                 ).cookie(authenticatedCookie(fixture.member()))
                         .with(csrf())
@@ -580,7 +580,7 @@ class WorkspaceInvitationAcceptanceTest {
         // when
         ResultActions result = mockMvc.perform(
                 post(
-                        "/workspaces/{workspaceId}/invitations/reissue",
+                        "/api/v1/workspaces/{workspaceId}/invitations/reissue",
                         fixture.workspaceId()
                 ).cookie(authenticatedCookie(fixture.member()))
                         .with(csrf())
@@ -600,7 +600,7 @@ class WorkspaceInvitationAcceptanceTest {
         // when
         ResultActions result = mockMvc.perform(
                 post(
-                        "/workspaces/{workspaceId}/invitations/reissue",
+                        "/api/v1/workspaces/{workspaceId}/invitations/reissue",
                         Long.MAX_VALUE
                 ).cookie(authenticatedCookie(fixture.member()))
                         .with(csrf())
@@ -623,7 +623,7 @@ class WorkspaceInvitationAcceptanceTest {
         // when
         ResultActions result = mockMvc.perform(
                 post(
-                        "/workspaces/{workspaceId}/invitations/reissue",
+                        "/api/v1/workspaces/{workspaceId}/invitations/reissue",
                         fixture.workspaceId()
                 ).cookie(authenticatedCookie(fixture.member()))
                         .with(csrf())
@@ -647,7 +647,7 @@ class WorkspaceInvitationAcceptanceTest {
         // when
         ResultActions result = mockMvc.perform(
                 get(
-                        "/invitations/{tokenOrCode}",
+                        "/api/v1/invitations/{tokenOrCode}",
                         code
                 ).with(request -> {
                     request.setRemoteAddr(uniqueValue("remote"));
@@ -686,7 +686,7 @@ class WorkspaceInvitationAcceptanceTest {
         // when
         ResultActions result = mockMvc.perform(
                 get(
-                        "/invitations/{tokenOrCode}",
+                        "/api/v1/invitations/{tokenOrCode}",
                         issued.get("linkToken")
                                 .asText()
                 ).with(request -> {
@@ -707,7 +707,7 @@ class WorkspaceInvitationAcceptanceTest {
                 .andExpect(jsonPath("$.workspaceName").value("초대 테스트 팀"));
         mockMvc.perform(
                 get(
-                        "/invitations/{tokenOrCode}",
+                        "/api/v1/invitations/{tokenOrCode}",
                         "ABC1O0"
                 ).with(request -> {
                     request.setRemoteAddr(remoteAddress);
@@ -729,7 +729,7 @@ class WorkspaceInvitationAcceptanceTest {
         // when
         ResultActions result = mockMvc.perform(
                 get(
-                        "/invitations/{tokenOrCode}",
+                        "/api/v1/invitations/{tokenOrCode}",
                         changedLinkToken
                 ).with(request -> {
                     request.setRemoteAddr(uniqueValue("remote"));
@@ -762,7 +762,7 @@ class WorkspaceInvitationAcceptanceTest {
         for (String invalidCode : invalidCodes) {
             ResultActions result = mockMvc.perform(
                     get(
-                            "/invitations/{tokenOrCode}",
+                            "/api/v1/invitations/{tokenOrCode}",
                             invalidCode
                     ).with(request -> {
                         request.setRemoteAddr(uniqueValue("remote"));
@@ -794,7 +794,7 @@ class WorkspaceInvitationAcceptanceTest {
         // when
         ResultActions result = mockMvc.perform(
                 get(
-                        "/invitations/{tokenOrCode}",
+                        "/api/v1/invitations/{tokenOrCode}",
                         code
                 ).with(request -> {
                     request.setRemoteAddr(uniqueValue("remote"));
@@ -824,7 +824,7 @@ class WorkspaceInvitationAcceptanceTest {
         // when
         ResultActions result = mockMvc.perform(
                 get(
-                        "/invitations/{tokenOrCode}",
+                        "/api/v1/invitations/{tokenOrCode}",
                         " " + linkToken + " "
                 ).with(request -> {
                     request.setRemoteAddr(uniqueValue("remote"));
@@ -849,7 +849,7 @@ class WorkspaceInvitationAcceptanceTest {
         // when
         ResultActions result = mockMvc.perform(
                 get(
-                        "/invitations/{tokenOrCode}",
+                        "/api/v1/invitations/{tokenOrCode}",
                         code
                 ).with(request -> {
                     request.setRemoteAddr(uniqueValue("remote"));
@@ -870,7 +870,7 @@ class WorkspaceInvitationAcceptanceTest {
         JsonNode firstIssued = responseBody(performIssue(fixture));
         mockMvc.perform(
                 post(
-                        "/workspaces/{workspaceId}/invitations/reissue",
+                        "/api/v1/workspaces/{workspaceId}/invitations/reissue",
                         fixture.workspaceId()
                 ).cookie(authenticatedCookie(fixture.member()))
                         .with(csrf())
@@ -880,7 +880,7 @@ class WorkspaceInvitationAcceptanceTest {
         // when
         ResultActions result = mockMvc.perform(
                 get(
-                        "/invitations/{tokenOrCode}",
+                        "/api/v1/invitations/{tokenOrCode}",
                         firstIssued.get("code")
                                 .asText()
                 ).with(request -> {
@@ -908,7 +908,7 @@ class WorkspaceInvitationAcceptanceTest {
         // when
         ResultActions result = mockMvc.perform(
                 get(
-                        "/invitations/{tokenOrCode}",
+                        "/api/v1/invitations/{tokenOrCode}",
                         "ABC1O0"
                 ).header(
                         HttpHeaders.ORIGIN,
@@ -952,7 +952,7 @@ class WorkspaceInvitationAcceptanceTest {
         // when
         ResultActions result = mockMvc.perform(
                 get(
-                        "/invitations/{tokenOrCode}",
+                        "/api/v1/invitations/{tokenOrCode}",
                         "ABC1O0"
                 ).with(request -> {
                     request.setRemoteAddr(uniqueValue("remote"));
@@ -976,7 +976,7 @@ class WorkspaceInvitationAcceptanceTest {
         // when
         ResultActions result = mockMvc.perform(
                 get(
-                        "/invitations/{tokenOrCode}",
+                        "/api/v1/invitations/{tokenOrCode}",
                         issued.get("code")
                                 .asText()
                 ).with(request -> {
@@ -1004,7 +1004,7 @@ class WorkspaceInvitationAcceptanceTest {
         // when
         mockMvc.perform(
                 get(
-                        "/invitations/{tokenOrCode}",
+                        "/api/v1/invitations/{tokenOrCode}",
                         code
                 ).with(request -> {
                     request.setRemoteAddr(uniqueValue("remote"));
@@ -1014,7 +1014,7 @@ class WorkspaceInvitationAcceptanceTest {
                 .andExpect(status().isOk());
         mockMvc.perform(
                 get(
-                        "/invitations/{tokenOrCode}",
+                        "/api/v1/invitations/{tokenOrCode}",
                         linkToken
                 ).with(request -> {
                     request.setRemoteAddr(uniqueValue("remote"));
@@ -1068,7 +1068,7 @@ class WorkspaceInvitationAcceptanceTest {
     private ResultActions performIssue(WorkspaceFixture fixture) throws Exception {
         return mockMvc.perform(
                 post(
-                        "/workspaces/{workspaceId}/invitations",
+                        "/api/v1/workspaces/{workspaceId}/invitations",
                         fixture.workspaceId()
                 ).cookie(authenticatedCookie(fixture.member()))
                         .with(csrf())
@@ -1098,7 +1098,7 @@ class WorkspaceInvitationAcceptanceTest {
         for (int attempt = 0; attempt < count; attempt++) {
             mockMvc.perform(
                     get(
-                            "/invitations/{tokenOrCode}",
+                            "/api/v1/invitations/{tokenOrCode}",
                             tokenOrCode
                     ).with(request -> {
                         request.setRemoteAddr(remoteAddress);

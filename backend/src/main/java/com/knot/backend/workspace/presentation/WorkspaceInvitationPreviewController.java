@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/invitations")
+@RequestMapping("/api/v1/invitations")
 public class WorkspaceInvitationPreviewController implements WorkspaceInvitationPreviewApi {
     private final WorkspaceInvitationService workspaceInvitationService;
 

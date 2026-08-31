@@ -11,7 +11,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 @Component
 public class WorkspaceInvitationPreviewCacheControlFilter extends OncePerRequestFilter {
-    private static final String PREVIEW_PATH_PREFIX = "/invitations/";
+    private static final String PREVIEW_PATH_PREFIX = "/api/v1/invitations/";
 
     @Override
     protected void doFilterInternal(
