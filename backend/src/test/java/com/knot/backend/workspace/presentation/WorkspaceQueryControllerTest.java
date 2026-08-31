@@ -154,6 +154,7 @@ class WorkspaceQueryControllerTest {
                 .setAuthentication(memberAuthentication());
         when(workspaceQueryService.findAllByMemberId(10L)).thenReturn(
                 new WorkspaceListResult(
+                        2L,
                         List.of(
                                 new WorkspaceListItemResult(
                                         2L,
@@ -172,6 +173,7 @@ class WorkspaceQueryControllerTest {
 
         // then
         result.andExpect(status().isOk())
+                .andExpect(jsonPath("$.lastViewedWorkspaceId").value(2L))
                 .andExpect(jsonPath("$.workspaces").isArray())
                 .andExpect(jsonPath("$.workspaces.length()").value(2))
                 .andExpect(jsonPath("$.workspaces[0].id").value(2L))

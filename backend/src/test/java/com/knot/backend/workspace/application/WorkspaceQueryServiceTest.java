@@ -13,7 +13,9 @@ import com.knot.backend.workspace.application.dto.result.WorkspaceListResult;
 import com.knot.backend.workspace.domain.Workspace;
 import com.knot.backend.workspace.domain.WorkspaceErrorCode;
 import com.knot.backend.workspace.domain.WorkspaceException;
+import com.knot.backend.workspace.domain.WorkspaceMember;
 import com.knot.backend.workspace.domain.WorkspaceMemberRepository;
+import com.knot.backend.workspace.domain.WorkspaceMemberRole;
 import com.knot.backend.workspace.domain.WorkspaceRepository;
 import java.time.Instant;
 import java.util.List;
@@ -170,11 +172,22 @@ class WorkspaceQueryServiceTest {
                         previousWorkspace
                 )
         );
+        when(workspaceMemberRepository.findLastViewedByMemberId(10L)).thenReturn(
+                Optional.of(
+                        WorkspaceMember.create(
+                                2L,
+                                10L,
+                                WorkspaceMemberRole.MEMBER,
+                                CREATED_AT
+                        )
+                )
+        );
 
         // when
         WorkspaceListResult result = service.findAllByMemberId(10L);
 
         // then
+        assertThat(result.lastViewedWorkspaceId()).isEqualTo(2L);
         assertThat(result.workspaces()).extracting(
                 workspace -> workspace.id(),
                 workspace -> workspace.name()
@@ -190,7 +203,7 @@ class WorkspaceQueryServiceTest {
                         )
                 );
         verify(workspaceRepository).findAllByMemberId(10L);
-        verifyNoInteractions(workspaceMemberRepository);
+        verify(workspaceMemberRepository).findLastViewedByMemberId(10L);
     }
 
     @Test
@@ -204,14 +217,51 @@ class WorkspaceQueryServiceTest {
                 workspaceMemberRepository
         );
         when(workspaceRepository.findAllByMemberId(10L)).thenReturn(List.of());
+        when(workspaceMemberRepository.findLastViewedByMemberId(10L)).thenReturn(Optional.empty());
 
         // when
         WorkspaceListResult result = service.findAllByMemberId(10L);
 
         // then
+        assertThat(result.lastViewedWorkspaceId()).isNull();
         assertThat(result.workspaces()).isEmpty();
         verify(workspaceRepository).findAllByMemberId(10L);
-        verifyNoInteractions(workspaceMemberRepository);
+        verify(workspaceMemberRepository).findLastViewedByMemberId(10L);
+    }
+
+    @Test
+    @DisplayName("마지막 조회 멤버십이 목록에 없으면 포인터를 노출하지 않는다")
+    void findAllByMemberId_success_filtersStaleLastViewedWorkspace() {
+        // given
+        WorkspaceRepository workspaceRepository = mock(WorkspaceRepository.class);
+        WorkspaceMemberRepository workspaceMemberRepository = mock(WorkspaceMemberRepository.class);
+        WorkspaceQueryService service = new WorkspaceQueryService(
+                workspaceRepository,
+                workspaceMemberRepository
+        );
+        Workspace currentWorkspace = workspace(
+                1L,
+                "현재 팀"
+        );
+        when(workspaceRepository.findAllByMemberId(10L)).thenReturn(List.of(currentWorkspace));
+        when(workspaceMemberRepository.findLastViewedByMemberId(10L)).thenReturn(
+                Optional.of(
+                        WorkspaceMember.create(
+                                2L,
+                                10L,
+                                WorkspaceMemberRole.MEMBER,
+                                CREATED_AT
+                        )
+                )
+        );
+
+        // when
+        WorkspaceListResult result = service.findAllByMemberId(10L);
+
+        // then
+        assertThat(result.lastViewedWorkspaceId()).isNull();
+        assertThat(result.workspaces()).extracting(workspace -> workspace.id())
+                .containsExactly(1L);
     }
 
     private Workspace workspace(

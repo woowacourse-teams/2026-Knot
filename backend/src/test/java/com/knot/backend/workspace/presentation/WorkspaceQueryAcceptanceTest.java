@@ -1,6 +1,7 @@
 package com.knot.backend.workspace.presentation;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -239,6 +240,10 @@ class WorkspaceQueryAcceptanceTest {
                 WorkspaceMemberRole.MEMBER,
                 RECENT_JOINED_AT
         );
+        markLastViewed(
+                tiedLowerWorkspaceId,
+                memberId
+        );
         String token = accessToken(memberId);
         List<String> workspaceSnapshot = workspaceSnapshots();
         List<String> workspaceMemberSnapshot = workspaceMemberSnapshots();
@@ -255,6 +260,7 @@ class WorkspaceQueryAcceptanceTest {
 
         // then
         result.andExpect(status().isOk())
+                .andExpect(jsonPath("$.lastViewedWorkspaceId").value(tiedLowerWorkspaceId))
                 .andExpect(jsonPath("$.workspaces").isArray())
                 .andExpect(jsonPath("$.workspaces.length()").value(3))
                 .andExpect(jsonPath("$.workspaces[0].id").value(tiedHigherWorkspaceId))
@@ -289,6 +295,7 @@ class WorkspaceQueryAcceptanceTest {
 
         // then
         result.andExpect(status().isOk())
+                .andExpect(jsonPath("$.lastViewedWorkspaceId").value(nullValue()))
                 .andExpect(jsonPath("$.workspaces").isArray())
                 .andExpect(jsonPath("$.workspaces").isEmpty());
     }
@@ -397,7 +404,7 @@ class WorkspaceQueryAcceptanceTest {
     private List<String> workspaceMemberSnapshots() {
         return jdbcClient.sql("""
                 SELECT id::text || '|' || workspace_id::text || '|' || member_id::text || '|' || role || '|'
-                    || joined_at::text
+                    || joined_at::text || '|' || last_viewed::text
                 FROM workspace_members
                 ORDER BY id
                 """)
@@ -424,7 +431,7 @@ class WorkspaceQueryAcceptanceTest {
             long memberId
     ) {
         return jdbcClient.sql("""
-                SELECT role || '|' || joined_at::text
+                SELECT role || '|' || joined_at::text || '|' || last_viewed::text
                 FROM workspace_members
                 WHERE workspace_id = :workspaceId AND member_id = :memberId
                 """)
@@ -438,6 +445,26 @@ class WorkspaceQueryAcceptanceTest {
                 )
                 .query(String.class)
                 .single();
+    }
+
+    private void markLastViewed(
+            long workspaceId,
+            long memberId
+    ) {
+        jdbcClient.sql("""
+                UPDATE workspace_members
+                SET last_viewed = TRUE
+                WHERE workspace_id = :workspaceId AND member_id = :memberId
+                """)
+                .param(
+                        "workspaceId",
+                        workspaceId
+                )
+                .param(
+                        "memberId",
+                        memberId
+                )
+                .update();
     }
 
     private String accessToken(long memberId) {

@@ -142,6 +142,12 @@ class WorkspaceInvitationAcceptAcceptanceTest {
                         joiningMember.getMemberId()
                 )
         ).isEqualTo("MEMBER");
+        assertThat(
+                findLastViewed(
+                        fixture.workspaceId(),
+                        joiningMember.getMemberId()
+                )
+        ).isFalse();
     }
 
     @DisplayName("원문이 일치하는 링크 토큰으로 참여하면 MEMBER를 만들고 201을 반환한다")
@@ -982,6 +988,28 @@ class WorkspaceInvitationAcceptAcceptanceTest {
                         memberId
                 )
                 .query(String.class)
+                .single();
+    }
+
+    private boolean findLastViewed(
+            Long workspaceId,
+            long memberId
+    ) {
+        return jdbcClient.sql("""
+                SELECT last_viewed
+                FROM workspace_members
+                WHERE workspace_id = :workspaceId
+                  AND member_id = :memberId
+                """)
+                .param(
+                        "workspaceId",
+                        workspaceId
+                )
+                .param(
+                        "memberId",
+                        memberId
+                )
+                .query(Boolean.class)
                 .single();
     }
 
