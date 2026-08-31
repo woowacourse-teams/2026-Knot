@@ -49,11 +49,11 @@ MVP에는 Provider registry나 동적 plugin 구조를 추가하지 않는다. �
 - OAuth state는 256-bit 난수로 발급하고 10분 뒤 만료한다. 원문은 authorization URL과 callback에서만 이동하며, DB에는 HMAC만 저장한다.
 - state는 한 번만 소비한다. 같은 Knot Workspace에서 새 연결을 시작하면 이전 미완료 state를 무효화하고, callback 완료 전 더 최신 흐름이 생기면 이전 결과로 Connection을 교체하지 않는다.
 - access token과 refresh token은 key version을 포함한 AES-GCM envelope로 저장한다. 원문 token은 로그·API 응답·OpenAPI 예시에 노출하지 않는다.
-- authorization, token, callback URI는 HTTPS만 허용하고 로컬 개발 주소에만 HTTP를 허용한다.
+- token URI는 로컬 주소도 HTTPS만 허용한다. authorization·callback URI와 FE redirect base는 로컬 개발 주소에만 HTTP를 허용한다.
 - token 응답의 Notion workspace, bot, owner type·user ID, template, request 식별정보는 infrastructure에서 공급자 중립 필드로 변환해 Connection에 보존한다. owner의 이름·이메일·프로필 이미지는 저장하지 않는다.
 - DB는 `content_source_authorizations`, `content_source_connections`와 `provider` 컬럼을 사용한다. 미완료 인증과 현재 연결의 유일성은 `(workspace_id, provider)` 단위로 보장한다.
 - domain/application에는 Notion HTTP DTO, property, client 구현이 들어가지 않는다. Notion이라는 값은 지원 Provider 식별자와 외부 API 경계에만 남는다.
-- OAuth 취소, 만료, 재사용, OWNER 변경, Notion 오류가 발생하면 기존 Connection과 Import 데이터를 변경하지 않고 고정된 실패 화면으로 보낸다.
+- OAuth 취소, OWNER 변경, Notion 오류는 state에서 복원한 Workspace의 연결 화면으로 보낸다. 만료·재사용처럼 Workspace를 복원할 수 없는 실패는 Workspace 목록 fallback으로 보내며 기존 Connection과 Import 데이터는 변경하지 않는다.
 - OWNER 변경 시 새 승인이 필요하다.
 - 승인된 페이지 범위만 접근한다.
 - 후속 API가 단일 Connection과 tenant 격리를 따른다.
