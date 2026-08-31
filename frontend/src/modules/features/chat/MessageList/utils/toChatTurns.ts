@@ -19,11 +19,13 @@ export const toChatTurns = (messages: ChatMessage[]) => {
   const turns: ChatTurn[] = [];
 
   for (const { id, role, content } of messages) {
+    // 질문을 만났을 때
     if (role === "USER") {
       turns.push({ id, question: content, answer: null, status: "pending" });
       continue;
     }
 
+    // 답변을 만났을 때
     const openedTurn = turns[turns.length - 1];
     if (!openedTurn || openedTurn.status === "done") continue; // 열린 턴이 없는 답변은 버립니다
 
