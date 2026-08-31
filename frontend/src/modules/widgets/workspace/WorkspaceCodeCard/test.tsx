@@ -8,7 +8,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import WorkspaceCodeCard from ".";
 
 const ERROR_MESSAGE = "올바르지 않은 코드예요. 다시 확인해 주세요.";
+const SUCCESS_MESSAGE = "확인됐어요. 곧 다음 단계로 이동해요.";
 const ELSEWHERE_PATH = "/elsewhere";
+const VERIFY_DELAY_MS = 800;
+const SUCCESS_DELAY_MS = 1000;
 // TODO(#243): 미리보기 API 연결 후 msw 응답으로 교체
 const VALID_CODE = "000000";
 const INVALID_CODE = "X35D3@";
@@ -41,6 +44,12 @@ const typeCode = (input: HTMLElement, value: string) => {
 const finishVerification = async () => {
   await act(async () => {
     vi.runAllTimers();
+  });
+};
+
+const advanceTimers = async (ms: number) => {
+  await act(async () => {
+    vi.advanceTimersByTime(ms);
   });
 };
 
@@ -125,6 +134,46 @@ describe("WorkspaceCodeCard", () => {
     typeCode(input, "x35d");
 
     expect(input).toHaveValue("X35D");
+  });
+
+  it("유효한 코드면 검증이 끝난 뒤 성공 메시지와 체크 표시를 보여주고 입력은 잠근 채 둔다", async () => {
+    const { router, input } = renderCard();
+
+    typeCode(input, VALID_CODE);
+    await advanceTimers(VERIFY_DELAY_MS);
+
+    expect(screen.getByText(SUCCESS_MESSAGE)).toBeInTheDocument();
+    expect(input.parentElement?.querySelector("svg")).toBeInTheDocument();
+    expect(input).toHaveAttribute("readonly");
+    expect(input).toHaveAttribute("aria-busy", "false");
+    expect(router.state.location.pathname).toBe(PATH_ROUTE.WORKSPACE_CODE);
+  });
+
+  it("성공 메시지를 1초 동안 보여준 뒤 입장 확인 화면으로 이동한다", async () => {
+    const { router, input } = renderCard();
+
+    typeCode(input, VALID_CODE);
+    await advanceTimers(VERIFY_DELAY_MS);
+    await advanceTimers(SUCCESS_DELAY_MS - 1);
+
+    expect(router.state.location.pathname).toBe(PATH_ROUTE.WORKSPACE_CODE);
+
+    await advanceTimers(1);
+
+    expect(router.state.location.pathname).toBe("/workspace/temp/join");
+  });
+
+  it("성공 메시지를 보여주는 동안 페이지를 벗어나면 이동을 실행하지 않는다", async () => {
+    const { router, input } = renderCard();
+
+    typeCode(input, VALID_CODE);
+    await advanceTimers(VERIFY_DELAY_MS);
+    await act(async () => {
+      await router.navigate(ELSEWHERE_PATH);
+    });
+    await finishVerification();
+
+    expect(router.state.location.pathname).toBe(ELSEWHERE_PATH);
   });
 
   it("로딩 중 페이지를 벗어나면 이동을 실행하지 않는다", async () => {
