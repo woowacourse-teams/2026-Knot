@@ -670,6 +670,38 @@ class WorkspaceInvitationAcceptanceTest {
                 .andExpect(jsonPath("$.expiresAt").doesNotExist());
     }
 
+    @DisplayName("context path가 있어도 초대 미리보기 응답에 no-store를 적용한다")
+    @Test
+    void preview_success_noStoreWithContextPath() throws Exception {
+        // given
+        WorkspaceFixture fixture = createWorkspaceFixture(true);
+        String code = responseBody(performIssue(fixture)).get("code")
+                .asText();
+
+        // when
+        ResultActions result = mockMvc.perform(
+                get(
+                        "/knot/api/v1/invitations/{tokenOrCode}",
+                        code
+                ).contextPath("/knot")
+                        .with(request -> {
+                            request.setRemoteAddr(uniqueValue("remote"));
+                            return request;
+                        })
+        );
+
+        // then
+        result.andExpect(status().isOk())
+                .andExpect(
+                        header().string(
+                                HttpHeaders.CACHE_CONTROL,
+                                "no-store"
+                        )
+                )
+                .andExpect(jsonPath("$.workspaceId").value(fixture.workspaceId()))
+                .andExpect(jsonPath("$.workspaceName").value("초대 테스트 팀"));
+    }
+
     @DisplayName("링크 토큰은 원문 대소문자가 일치할 때만 미리보기에 성공하고 코드 조회 제한을 소비하지 않는다")
     @Test
     void preview_success_exactLinkTokenWithoutRateLimitConsumption() throws Exception {
