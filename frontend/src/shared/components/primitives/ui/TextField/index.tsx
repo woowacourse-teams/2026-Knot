@@ -1,5 +1,5 @@
 import styled from "@emotion/styled";
-import Input from "@primitives/ui/Input";
+import Input, { type InputVariant } from "@primitives/ui/Input";
 import type { InputHTMLAttributes } from "react";
 import { useId } from "react";
 
@@ -8,7 +8,10 @@ interface TextFieldProps extends Omit<
   "value"
 > {
   value: string;
+  variant?: InputVariant;
   errorMessage?: string;
+  /** 우측에 표시할 컴포넌트 */
+  rightComponent?: React.ReactNode;
 }
 
 /**
@@ -25,10 +28,14 @@ interface TextFieldProps extends Omit<
  *
  * @see https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=424-596 Field/TextField 컴포넌트 세트
  * @see https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=432-1325 status=입력 에러 (에러 메시지 포함)
+ * @see https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=627-2967 Field/TextField/Code status=로딩 (`isLoading`)
  */
 export default function TextField({
   value,
+  variant,
   errorMessage,
+  rightComponent,
+  readOnly = false,
   id,
   ...props
 }: TextFieldProps) {
@@ -39,13 +46,20 @@ export default function TextField({
 
   return (
     <Container>
-      <Input
-        id={inputId}
-        value={value}
-        status={isError ? "error" : value.length > 0 ? "filled" : "empty"}
-        aria-describedby={isError ? errorMessageId : undefined}
-        {...props}
-      />
+      <InputWrapper>
+        <Input
+          id={inputId}
+          value={value}
+          variant={variant}
+          status={isError ? "error" : value.length > 0 ? "filled" : "empty"}
+          readOnly={readOnly}
+          aria-describedby={isError ? errorMessageId : undefined}
+          {...props}
+        />
+        {rightComponent && (
+          <RightComponentWrapper>{rightComponent}</RightComponentWrapper>
+        )}
+      </InputWrapper>
       {isError && (
         <ErrorMessage id={errorMessageId}>{errorMessage}</ErrorMessage>
       )}
@@ -58,6 +72,23 @@ const Container = styled.div`
   flex-direction: column;
   gap: 0.5rem;
   width: 100%;
+`;
+
+const InputWrapper = styled.div`
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+`;
+
+const RightComponentWrapper = styled.span`
+  position: absolute;
+  top: 0;
+  right: 0.9375rem; /* 15px */
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  color: ${({ theme }) => theme.neutral[500]};
 `;
 
 const ErrorMessage = styled.p`
