@@ -30,7 +30,7 @@ import org.springframework.web.bind.annotation.RestController;
 @Tag(name = "워크스페이스 초대", description = "워크스페이스 초대 코드와 링크 발급, 조회, 재발급")
 @SecurityRequirement(name = OpenApiConfig.ACCESS_TOKEN_COOKIE)
 @RestController
-@RequestMapping("/workspaces/{workspaceId}")
+@RequestMapping("/api/v1/workspaces/{workspaceId}")
 public class WorkspaceInvitationController {
     private final WorkspaceInvitationService workspaceInvitationService;
 
@@ -272,6 +272,6 @@ public class WorkspaceInvitationController {
     }
 
     private URI invitationUri(Long workspaceId) {
-        return URI.create("/workspaces/" + workspaceId + "/invitation");
+        return URI.create("/api/v1/workspaces/" + workspaceId + "/invitation");
     }
 }
