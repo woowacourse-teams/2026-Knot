@@ -43,6 +43,9 @@ class WorkspaceInvitationPreviewServiceTest {
     private final WorkspaceInvitationSecretGenerator secretGenerator = mock(WorkspaceInvitationSecretGenerator.class);
     private final WorkspaceInvitationSecretProtector secretProtector = mock(WorkspaceInvitationSecretProtector.class);
     private final WorkspaceInvitationPreviewRateLimiter rateLimiter = mock(WorkspaceInvitationPreviewRateLimiter.class);
+    private final WorkspaceInvitationTransactionExecutor transactionExecutor = mock(
+            WorkspaceInvitationTransactionExecutor.class
+    );
     private final WorkspaceInvitationService service = new WorkspaceInvitationService(
             workspaceRepository,
             workspaceMemberRepository,
@@ -50,6 +53,7 @@ class WorkspaceInvitationPreviewServiceTest {
             secretGenerator,
             secretProtector,
             rateLimiter,
+            transactionExecutor,
             Clock.fixed(
                     NOW,
                     ZoneOffset.UTC

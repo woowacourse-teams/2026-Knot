@@ -114,6 +114,7 @@ class ApiDocumentationAcceptanceTest {
                 .andExpect(jsonPath("$.paths['/auth/nickname'].post").exists())
                 .andExpect(jsonPath(createWorkspacePath).exists())
                 .andExpect(jsonPath(detailWorkspacePath).exists())
+                .andExpect(jsonPath(createWorkspacePath + ".summary").value("워크스페이스 생성"))
                 .andExpect(jsonPath(detailWorkspacePath + ".summary").value("워크스페이스 단건 조회"))
                 .andExpect(
                         jsonPath(createWorkspacePath + ".responses['201'].content['application/json'].schema['$ref']")
@@ -173,13 +174,14 @@ class ApiDocumentationAcceptanceTest {
     }
 
     @Test
-    @DisplayName("OpenAPI JSON에 워크스페이스 초대 발급·조회·재발급 계약을 공개한다")
+    @DisplayName("OpenAPI JSON에 워크스페이스 초대 발급·조회·재발급·미리보기 계약을 공개한다")
     void openApi_success_workspaceInvitationContract() throws Exception {
         // given
         String openApiPath = "/v3/api-docs";
         String issuePath = "$.paths['/workspaces/{workspaceId}/invitations'].post";
         String getPath = "$.paths['/workspaces/{workspaceId}/invitation'].get";
         String reissuePath = "$.paths['/workspaces/{workspaceId}/invitations/reissue'].post";
+        String invitationResponseRef = "#/components/schemas/WorkspaceInvitationResponse";
         String previewPath = "$.paths['/invitations/{tokenOrCode}'].get";
         String errorResponseRef = "#/components/schemas/ErrorResponse";
 
@@ -188,14 +190,25 @@ class ApiDocumentationAcceptanceTest {
 
         // then
         result.andExpect(status().isOk())
+                .andExpect(jsonPath(issuePath + ".summary").value("워크스페이스 초대 발급"))
                 .andExpect(jsonPath(issuePath + ".security[*].accessTokenCookie").exists())
                 .andExpect(jsonPath(issuePath + ".parameters[?(@.name == 'X-XSRF-TOKEN')]").exists())
                 .andExpect(
-                        jsonPath(issuePath + ".responses['200'].content['application/json'].schema['$ref']").exists()
+                        jsonPath(issuePath + ".parameters[?(@.name == 'X-XSRF-TOKEN')].required").value(hasItem(true))
+                )
+                .andExpect(
+                        jsonPath(issuePath + ".parameters[?(@.name == 'X-XSRF-TOKEN')].schema.type")
+                                .value(hasItem("string"))
+                )
+                .andExpect(
+                        jsonPath(issuePath + ".responses['200'].content['application/json'].schema['$ref']")
+                                .value(invitationResponseRef)
                 )
                 .andExpect(jsonPath(issuePath + ".responses['201'].headers.Location").exists())
+                .andExpect(jsonPath(issuePath + ".responses['201'].headers.Location.schema.format").value("uri"))
                 .andExpect(
-                        jsonPath(issuePath + ".responses['201'].content['application/json'].schema['$ref']").exists()
+                        jsonPath(issuePath + ".responses['201'].content['application/json'].schema['$ref']")
+                                .value(invitationResponseRef)
                 )
                 .andExpect(
                         jsonPath(issuePath + ".responses['400'].content['application/json'].schema['$ref']")
@@ -217,8 +230,13 @@ class ApiDocumentationAcceptanceTest {
                         jsonPath(issuePath + ".responses['500'].content['application/json'].schema['$ref']")
                                 .value(errorResponseRef)
                 )
+                .andExpect(jsonPath(getPath + ".summary").value("워크스페이스 초대 조회"))
                 .andExpect(jsonPath(getPath + ".security[*].accessTokenCookie").exists())
-                .andExpect(jsonPath(getPath + ".responses['200'].content['application/json'].schema['$ref']").exists())
+                .andExpect(jsonPath(getPath + ".parameters[?(@.name == 'X-XSRF-TOKEN')]").doesNotExist())
+                .andExpect(
+                        jsonPath(getPath + ".responses['200'].content['application/json'].schema['$ref']")
+                                .value(invitationResponseRef)
+                )
                 .andExpect(
                         jsonPath(getPath + ".responses['400'].content['application/json'].schema['$ref']")
                                 .value(errorResponseRef)
@@ -239,11 +257,21 @@ class ApiDocumentationAcceptanceTest {
                         jsonPath(getPath + ".responses['500'].content['application/json'].schema['$ref']")
                                 .value(errorResponseRef)
                 )
+                .andExpect(jsonPath(reissuePath + ".summary").value("워크스페이스 초대 재발급"))
                 .andExpect(jsonPath(reissuePath + ".security[*].accessTokenCookie").exists())
                 .andExpect(jsonPath(reissuePath + ".parameters[?(@.name == 'X-XSRF-TOKEN')]").exists())
-                .andExpect(jsonPath(reissuePath + ".responses['201'].headers.Location").exists())
                 .andExpect(
-                        jsonPath(reissuePath + ".responses['201'].content['application/json'].schema['$ref']").exists()
+                        jsonPath(reissuePath + ".parameters[?(@.name == 'X-XSRF-TOKEN')].required").value(hasItem(true))
+                )
+                .andExpect(
+                        jsonPath(reissuePath + ".parameters[?(@.name == 'X-XSRF-TOKEN')].schema.type")
+                                .value(hasItem("string"))
+                )
+                .andExpect(jsonPath(reissuePath + ".responses['201'].headers.Location").exists())
+                .andExpect(jsonPath(reissuePath + ".responses['201'].headers.Location.schema.format").value("uri"))
+                .andExpect(
+                        jsonPath(reissuePath + ".responses['201'].content['application/json'].schema['$ref']")
+                                .value(invitationResponseRef)
                 )
                 .andExpect(
                         jsonPath(reissuePath + ".responses['400'].content['application/json'].schema['$ref']")

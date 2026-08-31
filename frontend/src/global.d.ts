@@ -1,10 +1,10 @@
 declare module "*.css";
 
-declare const process: {
-  env: {
+declare namespace NodeJS {
+  interface ProcessEnv {
     API_BASE_URL: string;
-  };
-};
+  }
+}
 declare module "*.svg" {
   import type { FunctionComponent, SVGProps } from "react";
   const Component: FunctionComponent<

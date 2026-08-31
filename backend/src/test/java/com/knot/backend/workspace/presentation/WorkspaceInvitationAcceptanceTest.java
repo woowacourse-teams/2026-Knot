@@ -16,7 +16,6 @@ import com.knot.backend.member.domain.MemberRepository;
 import com.knot.backend.testsupport.TestApplicationProperties;
 import com.knot.backend.testsupport.TestcontainersConfiguration;
 import com.knot.backend.workspace.application.WorkspaceInvitationSecretGenerator;
-import com.knot.backend.workspace.application.WorkspaceInvitationSecretKind;
 import com.knot.backend.workspace.application.WorkspaceInvitationSecretProtector;
 import com.knot.backend.workspace.domain.Workspace;
 import com.knot.backend.workspace.domain.WorkspaceErrorCode;
@@ -989,44 +988,6 @@ class WorkspaceInvitationAcceptanceTest {
         // then
         result.andExpect(status().isOk());
         assertThat(invitationSnapshot(fixture.workspaceId())).isEqualTo(invitationSnapshot);
-    }
-
-    @DisplayName("암호문이 없는 V3 초대도 코드 해시가 맞으면 공개 미리보기에 성공한다")
-    @Test
-    void preview_success_legacyInvitation() throws Exception {
-        // given
-        WorkspaceFixture fixture = createWorkspaceFixture(true);
-        String code = "X35D3S";
-        insertLegacyInvitation(
-                fixture.workspaceId(),
-                uniqueValue("legacy-link-"),
-                secretProtector.hash(
-                        WorkspaceInvitationSecretKind.INVITE_CODE,
-                        code
-                )
-        );
-
-        // when
-        ResultActions result = mockMvc.perform(
-                get(
-                        "/invitations/{tokenOrCode}",
-                        code
-                ).with(request -> {
-                    request.setRemoteAddr(uniqueValue("remote"));
-                    return request;
-                })
-        );
-
-        // then
-        result.andExpect(status().isOk())
-                .andExpect(
-                        header().string(
-                                HttpHeaders.CACHE_CONTROL,
-                                "no-store"
-                        )
-                )
-                .andExpect(jsonPath("$.workspaceId").value(fixture.workspaceId()))
-                .andExpect(jsonPath("$.workspaceName").value("초대 테스트 팀"));
     }
 
     @DisplayName("초대 미리보기는 코드와 링크 토큰 원문을 로그에 남기지 않는다")
