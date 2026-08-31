@@ -2,7 +2,6 @@ package com.knot.backend.workspace.application;
 
 import com.knot.backend.workspace.application.dto.result.ContentSourceAuthorizationContext;
 import com.knot.backend.workspace.application.dto.result.AuthorizedContentSource;
-import com.knot.backend.workspace.application.dto.result.ContentSourceCallbackResult;
 import com.knot.backend.workspace.domain.ContentSourceException;
 import com.knot.backend.workspace.domain.ContentSourceProvider;
 import com.knot.backend.workspace.domain.WorkspaceException;
@@ -14,25 +13,20 @@ public class ContentSourceCallbackService {
     private final ContentSourceAuthorizationClient authorizationClient;
     private final ContentSourceConnectionService connectionService;
 
-    public ContentSourceCallbackResult complete(
+    public boolean complete(
             ContentSourceProvider provider,
             String code,
             String state,
             String error
     ) {
-        ContentSourceAuthorizationContext authorization;
         try {
-            authorization = authorizationService.consume(
+            ContentSourceAuthorizationContext authorization = authorizationService.consume(
                     provider,
                     state
             );
-        } catch (ContentSourceException | WorkspaceException exception) {
-            return ContentSourceCallbackResult.failed(null);
-        }
-        if (hasText(error) || !hasText(code)) {
-            return ContentSourceCallbackResult.failed(authorization.workspaceId());
-        }
-        try {
+            if (hasText(error) || !hasText(code)) {
+                return false;
+            }
             AuthorizedContentSource authorizedContentSource = authorizationClient.exchange(
                     provider,
                     code,
@@ -42,9 +36,9 @@ public class ContentSourceCallbackService {
                     authorization,
                     authorizedContentSource
             );
-            return ContentSourceCallbackResult.connected(authorization.workspaceId());
+            return true;
         } catch (ContentSourceException | WorkspaceException exception) {
-            return ContentSourceCallbackResult.failed(authorization.workspaceId());
+            return false;
         }
     }
 

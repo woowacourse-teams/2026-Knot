@@ -144,7 +144,7 @@ public class HttpNotionOAuthClient implements ContentSourceAuthorizationClient {
                     .interrupt();
             throw exchangeFailed(exception);
         } catch (JacksonException exception) {
-            throw exchangeFailed(exception);
+            throw exchangeFailed();
         } catch (IOException exception) {
             throw exchangeFailed(exception);
         }

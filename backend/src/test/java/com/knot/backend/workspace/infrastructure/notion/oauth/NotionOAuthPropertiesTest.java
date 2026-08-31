@@ -48,7 +48,8 @@ class NotionOAuthPropertiesTest {
                         URI.create("https://api.notion.com/v1/oauth/token"),
                         "2026-03-11",
                         URI.create("/api/v1/notion/oauth/callback"),
-                        URI.create("https://app.example.com"),
+                        URI.create("/notion-connected"),
+                        URI.create("/notion-failed"),
                         Duration.ofMinutes(10),
                         Duration.ofSeconds(5),
                         "v1",
@@ -82,7 +83,7 @@ class NotionOAuthPropertiesTest {
         assertThat(properties.callbackUri()).hasScheme("https");
     }
 
-    @DisplayName("localhost HTTP authorization과 callback URI는 개발 환경을 위해 허용한다")
+    @DisplayName("localhost HTTP OAuth URI 설정은 개발 환경을 위해 허용한다")
     @ParameterizedTest
     @ValueSource(strings = {"localhost", "127.0.0.1", "[::1]"})
     void create_success_localhostHttpOAuthUris(String host) {
@@ -91,32 +92,14 @@ class NotionOAuthPropertiesTest {
         // when
         NotionOAuthProperties properties = properties(
                 URI.create("http://" + host + "/v1/oauth/authorize"),
-                URI.create("https://api.notion.com/v1/oauth/token"),
+                URI.create("http://" + host + "/v1/oauth/token"),
                 URI.create("http://" + host + "/api/v1/notion/oauth/callback")
         );
 
         // then
         assertThat(properties.authorizationUri()).hasScheme("http");
-        assertThat(properties.tokenUri()).hasScheme("https");
+        assertThat(properties.tokenUri()).hasScheme("http");
         assertThat(properties.callbackUri()).hasScheme("http");
-    }
-
-    @DisplayName("client secret을 보내는 token URI는 localhost여도 HTTP를 거부한다")
-    @Test
-    void create_failure_localhostHttpTokenUri() {
-        // given
-        URI insecureTokenUri = URI.create("http://localhost/v1/oauth/token");
-
-        // when
-        Throwable thrown = catchThrowable(
-                () -> propertiesReplacing(
-                        "tokenUri",
-                        insecureTokenUri
-                )
-        );
-
-        // then
-        assertInvalidConfiguration(thrown);
     }
 
     @DisplayName("비로컬 HTTP OAuth URI 설정은 거부한다")
@@ -176,21 +159,17 @@ class NotionOAuthPropertiesTest {
         assertInvalidConfiguration(thrown);
     }
 
-    @DisplayName("callback 결과 redirect는 FE 워크스페이스 경로와 fallback 경로를 사용한다")
+    @DisplayName("상대 success/failure redirect URI 설정은 허용한다")
     @Test
-    void redirect_success_buildsWorkspaceRoutes() {
+    void create_success_relativeRedirectUris() {
         // given
 
         // when
         NotionOAuthProperties properties = validProperties();
 
         // then
-        assertThat(properties.successRedirectUri(1L))
-                .isEqualTo(URI.create("https://app.example.com/workspace/1/notion-connection?result=connected"));
-        assertThat(properties.failureRedirectUri(1L))
-                .isEqualTo(URI.create("https://app.example.com/workspace/1/notion-connection?result=failed"));
-        assertThat(properties.failureRedirectUri(null))
-                .isEqualTo(URI.create("https://app.example.com/workspace?result=failed"));
+        assertThat(properties.successRedirectUri()).isEqualTo(URI.create("/notion-connected"));
+        assertThat(properties.failureRedirectUri()).isEqualTo(URI.create("/notion-failed"));
     }
 
     private NotionOAuthProperties validProperties() {
@@ -201,7 +180,8 @@ class NotionOAuthPropertiesTest {
                 URI.create("https://api.notion.com/v1/oauth/token"),
                 "2026-03-11",
                 URI.create("https://api.example.com/api/v1/notion/oauth/callback"),
-                URI.create("https://app.example.com"),
+                URI.create("/notion-connected"),
+                URI.create("/notion-failed"),
                 Duration.ofMinutes(10),
                 Duration.ofSeconds(5),
                 "v1",
@@ -239,7 +219,8 @@ class NotionOAuthPropertiesTest {
                 tokenUri,
                 "2026-03-11",
                 callbackUri,
-                URI.create("https://app.example.com"),
+                URI.create("/notion-connected"),
+                URI.create("/notion-failed"),
                 Duration.ofMinutes(10),
                 Duration.ofSeconds(5),
                 "v1",

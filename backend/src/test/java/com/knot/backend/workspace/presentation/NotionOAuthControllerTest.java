@@ -12,7 +12,6 @@ import com.knot.backend.workspace.application.ContentSourceCallbackService;
 import com.knot.backend.workspace.application.ContentSourceAuthorizationSettings;
 import com.knot.backend.workspace.application.dto.result.ContentSourceConnectionStatusResult;
 import com.knot.backend.workspace.application.dto.result.ContentSourceAuthorizationResult;
-import com.knot.backend.workspace.application.dto.result.ContentSourceCallbackResult;
 import com.knot.backend.workspace.domain.ContentSourceConnectionStatus;
 import com.knot.backend.workspace.domain.ContentSourceProvider;
 import com.knot.backend.workspace.presentation.dto.response.NotionConnectionStatusResponse;
@@ -96,8 +95,8 @@ class NotionOAuthControllerTest {
                         "oauth-state",
                         null
                 )
-        ).thenReturn(ContentSourceCallbackResult.connected(WORKSPACE_ID));
-        when(settings.successRedirectUri(WORKSPACE_ID)).thenReturn(SUCCESS_REDIRECT_URI);
+        ).thenReturn(true);
+        when(settings.successRedirectUri()).thenReturn(SUCCESS_REDIRECT_URI);
 
         // when
         ResponseEntity<Void> response = controller.callback(
@@ -132,8 +131,8 @@ class NotionOAuthControllerTest {
                         "oauth-state",
                         "access_denied"
                 )
-        ).thenReturn(ContentSourceCallbackResult.failed(WORKSPACE_ID));
-        when(settings.failureRedirectUri(WORKSPACE_ID)).thenReturn(FAILURE_REDIRECT_URI);
+        ).thenReturn(false);
+        when(settings.failureRedirectUri()).thenReturn(FAILURE_REDIRECT_URI);
 
         // when
         ResponseEntity<Void> response = controller.callback(
