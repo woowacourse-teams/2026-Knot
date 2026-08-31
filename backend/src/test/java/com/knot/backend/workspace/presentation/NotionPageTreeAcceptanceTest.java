@@ -65,7 +65,8 @@ class NotionPageTreeAcceptanceTest {
     @BeforeEach
     void clearTables() {
         jdbcClient.sql("""
-                TRUNCATE TABLE notion_pages, notion_import_runs, notion_connections, notion_oauth_authorizations,
+                TRUNCATE TABLE notion_page_publications, notion_pages, notion_import_runs, notion_connections,
+                    notion_oauth_authorizations,
                     workspace_members, workspaces, oauth_identities, members
                 RESTART IDENTITY CASCADE
                 """)
@@ -85,8 +86,23 @@ class NotionPageTreeAcceptanceTest {
                 memberId,
                 role
         );
+        long connectionId = saveConnection(
+                workspaceId,
+                memberId
+        );
+        long publishedRunId = saveImportRun(
+                workspaceId,
+                connectionId,
+                memberId,
+                "COMPLETED"
+        );
+        publish(
+                workspaceId,
+                publishedRunId
+        );
         long rootPageId = saveNotionPage(
                 workspaceId,
+                publishedRunId,
                 "root",
                 null,
                 "루트",
@@ -95,6 +111,7 @@ class NotionPageTreeAcceptanceTest {
         );
         long firstChildId = saveNotionPage(
                 workspaceId,
+                publishedRunId,
                 "first-child",
                 rootPageId,
                 "첫 자식",
@@ -103,6 +120,7 @@ class NotionPageTreeAcceptanceTest {
         );
         long secondChildId = saveNotionPage(
                 workspaceId,
+                publishedRunId,
                 "second-child",
                 rootPageId,
                 "둘째 자식",
@@ -213,7 +231,17 @@ class NotionPageTreeAcceptanceTest {
                 workspaceId,
                 memberId
         );
-        long importRunId = saveImportRun(
+        long publishedRunId = saveImportRun(
+                workspaceId,
+                connectionId,
+                memberId,
+                "COMPLETED"
+        );
+        publish(
+                workspaceId,
+                publishedRunId
+        );
+        long laterImportRunId = saveImportRun(
                 workspaceId,
                 connectionId,
                 memberId,
@@ -221,14 +249,24 @@ class NotionPageTreeAcceptanceTest {
         );
         long pageId = saveNotionPage(
                 workspaceId,
+                publishedRunId,
                 "published",
                 null,
                 "기존 발행 Page",
                 "기존 본문",
                 0
         );
+        saveNotionPage(
+                workspaceId,
+                laterImportRunId,
+                "unpublished",
+                null,
+                "노출되면 안 되는 Page",
+                "노출되면 안 되는 본문",
+                0
+        );
         List<String> pageSnapshot = notionPageSnapshots(workspaceId);
-        String importRunSnapshot = importRunSnapshot(importRunId);
+        String importRunSnapshot = importRunSnapshot(laterImportRunId);
 
         // when
         ResultActions result = mockMvc.perform(
@@ -249,7 +287,7 @@ class NotionPageTreeAcceptanceTest {
                 .andExpect(jsonPath("$[0].id").value(pageId))
                 .andExpect(jsonPath("$[0].title").value("기존 발행 Page"));
         assertThat(notionPageSnapshots(workspaceId)).isEqualTo(pageSnapshot);
-        assertThat(importRunSnapshot(importRunId)).isEqualTo(importRunSnapshot);
+        assertThat(importRunSnapshot(laterImportRunId)).isEqualTo(importRunSnapshot);
         verifyNoInteractions(notionOAuthClient);
     }
 
@@ -384,8 +422,23 @@ class NotionPageTreeAcceptanceTest {
                 memberId,
                 "MEMBER"
         );
+        long connectionId = saveConnection(
+                workspaceId,
+                memberId
+        );
+        long publishedRunId = saveImportRun(
+                workspaceId,
+                connectionId,
+                memberId,
+                "COMPLETED"
+        );
+        publish(
+                workspaceId,
+                publishedRunId
+        );
         long firstPageId = saveNotionPage(
                 workspaceId,
+                publishedRunId,
                 "first",
                 null,
                 "첫 Page",
@@ -394,6 +447,7 @@ class NotionPageTreeAcceptanceTest {
         );
         long secondPageId = saveNotionPage(
                 workspaceId,
+                publishedRunId,
                 "second",
                 null,
                 "둘째 Page",
@@ -493,6 +547,7 @@ class NotionPageTreeAcceptanceTest {
 
     private long saveNotionPage(
             long workspaceId,
+            long importRunId,
             String notionPageId,
             Long parentPageId,
             String title,
@@ -502,6 +557,7 @@ class NotionPageTreeAcceptanceTest {
         return jdbcClient.sql("""
                 INSERT INTO notion_pages (
                     workspace_id,
+                    import_run_id,
                     notion_page_id,
                     parent_page_id,
                     title,
@@ -512,6 +568,7 @@ class NotionPageTreeAcceptanceTest {
                     updated_at
                 ) VALUES (
                     :workspaceId,
+                    :importRunId,
                     :notionPageId,
                     :parentPageId,
                     :title,
@@ -526,6 +583,10 @@ class NotionPageTreeAcceptanceTest {
                 .param(
                         "workspaceId",
                         workspaceId
+                )
+                .param(
+                        "importRunId",
+                        importRunId
                 )
                 .param(
                         "notionPageId",
@@ -617,7 +678,8 @@ class NotionPageTreeAcceptanceTest {
             long memberId,
             String status
     ) {
-        boolean failed = status.equals("FAILED");
+        boolean finished = status.equals("COMPLETED") || status.equals("FAILED");
+        boolean completed = status.equals("COMPLETED");
         return jdbcClient.sql("""
                 INSERT INTO notion_import_runs (
                     workspace_id,
@@ -635,7 +697,7 @@ class NotionPageTreeAcceptanceTest {
                     :memberId,
                     :status,
                     2,
-                    1,
+                    :processedPageCount,
                     CAST(:startedAt AS TIMESTAMPTZ),
                     CAST(:completedAt AS TIMESTAMPTZ),
                     CAST(:createdAt AS TIMESTAMPTZ)
@@ -659,13 +721,17 @@ class NotionPageTreeAcceptanceTest {
                         status
                 )
                 .param(
+                        "processedPageCount",
+                        completed ? 2 : 1
+                )
+                .param(
                         "startedAt",
                         CREATED_AT.plusSeconds(1)
                                 .toString()
                 )
                 .param(
                         "completedAt",
-                        failed
+                        finished
                                 ? CREATED_AT.plusSeconds(2)
                                         .toString()
                                 : null
@@ -676,6 +742,30 @@ class NotionPageTreeAcceptanceTest {
                 )
                 .query(Long.class)
                 .single();
+    }
+
+    private void publish(
+            long workspaceId,
+            long importRunId
+    ) {
+        jdbcClient.sql("""
+                INSERT INTO notion_page_publications (workspace_id, published_import_run_id, published_at)
+                VALUES (:workspaceId, :importRunId, CAST(:publishedAt AS TIMESTAMPTZ))
+                """)
+                .param(
+                        "workspaceId",
+                        workspaceId
+                )
+                .param(
+                        "importRunId",
+                        importRunId
+                )
+                .param(
+                        "publishedAt",
+                        CREATED_AT.plusSeconds(3)
+                                .toString()
+                )
+                .update();
     }
 
     private void createCycle(
@@ -706,6 +796,7 @@ class NotionPageTreeAcceptanceTest {
                 SELECT CONCAT_WS(
                     '|',
                     id,
+                    import_run_id,
                     notion_page_id,
                     COALESCE(parent_page_id::text, 'null'),
                     title,

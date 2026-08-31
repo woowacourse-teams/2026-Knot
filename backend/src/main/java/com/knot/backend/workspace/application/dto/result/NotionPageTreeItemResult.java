@@ -1,6 +1,6 @@
 package com.knot.backend.workspace.application.dto.result;
 
-import com.knot.backend.workspace.domain.NotionPage;
+import com.knot.backend.workspace.domain.NotionPageMetadata;
 
 public record NotionPageTreeItemResult(
         long id,
@@ -10,13 +10,13 @@ public record NotionPageTreeItemResult(
         String notionUrl
 ) {
 
-    public static NotionPageTreeItemResult from(NotionPage notionPage) {
+    public static NotionPageTreeItemResult from(NotionPageMetadata notionPage) {
         return new NotionPageTreeItemResult(
-                notionPage.getId(),
-                notionPage.getParentPageId(),
-                notionPage.getTitle(),
-                notionPage.getPosition(),
-                notionPage.getNotionUrl()
+                notionPage.id(),
+                notionPage.parentPageId(),
+                notionPage.title(),
+                notionPage.position(),
+                notionPage.notionUrl()
         );
     }
 }

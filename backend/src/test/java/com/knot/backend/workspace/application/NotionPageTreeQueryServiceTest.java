@@ -10,7 +10,7 @@ import static org.mockito.Mockito.when;
 import com.knot.backend.workspace.application.dto.result.NotionPageTreeItemResult;
 import com.knot.backend.workspace.domain.NotionErrorCode;
 import com.knot.backend.workspace.domain.NotionException;
-import com.knot.backend.workspace.domain.NotionPage;
+import com.knot.backend.workspace.domain.NotionPageMetadata;
 import com.knot.backend.workspace.domain.NotionPageRepository;
 import com.knot.backend.workspace.domain.Workspace;
 import com.knot.backend.workspace.domain.WorkspaceErrorCode;
@@ -45,21 +45,21 @@ class NotionPageTreeQueryServiceTest {
     void findTree_success_mapsPublishedPages() {
         // given
         allowWorkspaceMember();
-        NotionPage rootPage = notionPage(
+        NotionPageMetadata rootPage = notionPage(
                 1L,
                 null,
                 "루트",
                 0,
                 "https://www.notion.so/root"
         );
-        NotionPage childPage = notionPage(
+        NotionPageMetadata childPage = notionPage(
                 2L,
                 1L,
                 "자식",
                 1,
                 "https://www.notion.so/child"
         );
-        when(notionPageRepository.findAllByWorkspaceIdOrderByPositionAscIdAsc(WORKSPACE_ID)).thenReturn(
+        when(notionPageRepository.findPublishedMetadataByWorkspaceIdOrderByPositionAscIdAsc(WORKSPACE_ID)).thenReturn(
                 List.of(
                         rootPage,
                         childPage
@@ -96,7 +96,7 @@ class NotionPageTreeQueryServiceTest {
                                 "https://www.notion.so/child"
                         )
                 );
-        verify(notionPageRepository).findAllByWorkspaceIdOrderByPositionAscIdAsc(WORKSPACE_ID);
+        verify(notionPageRepository).findPublishedMetadataByWorkspaceIdOrderByPositionAscIdAsc(WORKSPACE_ID);
     }
 
     @DisplayName("발행된 Page가 없으면 빈 배열을 반환한다")
@@ -104,7 +104,8 @@ class NotionPageTreeQueryServiceTest {
     void findTree_success_emptyPublishedPages() {
         // given
         allowWorkspaceMember();
-        when(notionPageRepository.findAllByWorkspaceIdOrderByPositionAscIdAsc(WORKSPACE_ID)).thenReturn(List.of());
+        when(notionPageRepository.findPublishedMetadataByWorkspaceIdOrderByPositionAscIdAsc(WORKSPACE_ID))
+                .thenReturn(List.of());
 
         // when
         List<NotionPageTreeItemResult> result = service.findTree(
@@ -197,7 +198,7 @@ class NotionPageTreeQueryServiceTest {
     ) {
         // given
         allowWorkspaceMember();
-        List<NotionPage> notionPages = pageReferences.stream()
+        List<NotionPageMetadata> notionPages = pageReferences.stream()
                 .map(
                         reference -> notionPage(
                                 reference.id(),
@@ -208,7 +209,8 @@ class NotionPageTreeQueryServiceTest {
                         )
                 )
                 .toList();
-        when(notionPageRepository.findAllByWorkspaceIdOrderByPositionAscIdAsc(WORKSPACE_ID)).thenReturn(notionPages);
+        when(notionPageRepository.findPublishedMetadataByWorkspaceIdOrderByPositionAscIdAsc(WORKSPACE_ID))
+                .thenReturn(notionPages);
         ThrowingCallable action = () -> service.findTree(
                 WORKSPACE_ID,
                 MEMBER_ID
@@ -233,21 +235,21 @@ class NotionPageTreeQueryServiceTest {
         ).thenReturn(true);
     }
 
-    private NotionPage notionPage(
+    private NotionPageMetadata notionPage(
             Long id,
             Long parentPageId,
             String title,
             int position,
             String notionUrl
     ) {
-        NotionPage notionPage = mock(NotionPage.class);
-        when(notionPage.getId()).thenReturn(id);
-        when(notionPage.getWorkspaceId()).thenReturn(WORKSPACE_ID);
-        when(notionPage.getParentPageId()).thenReturn(parentPageId);
-        when(notionPage.getTitle()).thenReturn(title);
-        when(notionPage.getPosition()).thenReturn(position);
-        when(notionPage.getNotionUrl()).thenReturn(notionUrl);
-        return notionPage;
+        return new NotionPageMetadata(
+                id,
+                WORKSPACE_ID,
+                parentPageId,
+                title,
+                position,
+                notionUrl
+        );
     }
 
     private static Stream<Arguments> invalidTreeCases() {

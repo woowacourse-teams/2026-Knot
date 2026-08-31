@@ -9,6 +9,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.headers.Header;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -43,13 +44,37 @@ public interface NotionPageTreeApi {
             ),
             @ApiResponse(
                     responseCode = "400",
-                    description = "잘못된 Workspace ID",
+                    description = "잘못된 Workspace ID 값 또는 형식",
                     headers = @Header(
                             name = HttpHeaders.CACHE_CONTROL,
                             description = "오류 응답 캐시 방지",
                             schema = @Schema(type = "string", example = "no-store")
                     ),
-                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+                    content = @Content(
+                            schema = @Schema(implementation = ErrorResponse.class),
+                            examples = {
+                                    @ExampleObject(
+                                            name = "invalidWorkspaceId",
+                                            summary = "Workspace ID 값 오류",
+                                            value = """
+                                                    {
+                                                      "code": "INVALID_WORKSPACE_ID",
+                                                      "message": "워크스페이스 ID가 올바르지 않습니다"
+                                                    }
+                                                    """
+                                    ),
+                                    @ExampleObject(
+                                            name = "invalidParameter",
+                                            summary = "Workspace ID 형식 오류",
+                                            value = """
+                                                    {
+                                                      "code": "INVALID_PARAMETER",
+                                                      "message": "요청 파라미터 형식이 올바르지 않습니다"
+                                                    }
+                                                    """
+                                    )
+                            }
+                    )
             ),
             @ApiResponse(
                     responseCode = "401",
@@ -59,7 +84,19 @@ public interface NotionPageTreeApi {
                             description = "오류 응답 캐시 방지",
                             schema = @Schema(type = "string", example = "no-store")
                     ),
-                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+                    content = @Content(
+                            schema = @Schema(implementation = ErrorResponse.class),
+                            examples = @ExampleObject(
+                                    name = "unauthenticated",
+                                    summary = "인증 필요",
+                                    value = """
+                                            {
+                                              "code": "UNAUTHENTICATED",
+                                              "message": "인증이 필요합니다"
+                                            }
+                                            """
+                            )
+                    )
             ),
             @ApiResponse(
                     responseCode = "403",
@@ -69,7 +106,19 @@ public interface NotionPageTreeApi {
                             description = "오류 응답 캐시 방지",
                             schema = @Schema(type = "string", example = "no-store")
                     ),
-                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+                    content = @Content(
+                            schema = @Schema(implementation = ErrorResponse.class),
+                            examples = @ExampleObject(
+                                    name = "workspaceAccessDenied",
+                                    summary = "Workspace 접근 권한 없음",
+                                    value = """
+                                            {
+                                              "code": "WORKSPACE_ACCESS_DENIED",
+                                              "message": "워크스페이스에 접근할 수 없습니다"
+                                            }
+                                            """
+                            )
+                    )
             ),
             @ApiResponse(
                     responseCode = "404",
@@ -79,7 +128,19 @@ public interface NotionPageTreeApi {
                             description = "오류 응답 캐시 방지",
                             schema = @Schema(type = "string", example = "no-store")
                     ),
-                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+                    content = @Content(
+                            schema = @Schema(implementation = ErrorResponse.class),
+                            examples = @ExampleObject(
+                                    name = "workspaceNotFound",
+                                    summary = "Workspace 없음",
+                                    value = """
+                                            {
+                                              "code": "WORKSPACE_NOT_FOUND",
+                                              "message": "워크스페이스를 찾을 수 없습니다"
+                                            }
+                                            """
+                            )
+                    )
             ),
             @ApiResponse(
                     responseCode = "500",
@@ -89,7 +150,19 @@ public interface NotionPageTreeApi {
                             description = "오류 응답 캐시 방지",
                             schema = @Schema(type = "string", example = "no-store")
                     ),
-                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+                    content = @Content(
+                            schema = @Schema(implementation = ErrorResponse.class),
+                            examples = @ExampleObject(
+                                    name = "notionPageTreeInvalid",
+                                    summary = "Page 계층 데이터 오류",
+                                    value = """
+                                            {
+                                              "code": "NOTION_PAGE_TREE_INVALID",
+                                              "message": "Notion Page Tree를 조회할 수 없습니다"
+                                            }
+                                            """
+                            )
+                    )
             )
     })
     // @formatter:on

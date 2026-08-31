@@ -22,6 +22,9 @@ public class NotionPage {
     @Column(name = "workspace_id", nullable = false, updatable = false)
     private Long workspaceId;
 
+    @Column(name = "import_run_id", nullable = false, updatable = false)
+    private Long importRunId;
+
     @Column(name = "notion_page_id", nullable = false, length = MAX_NOTION_PAGE_ID_LENGTH, updatable = false)
     private String notionPageId;
 
@@ -50,6 +53,7 @@ public class NotionPage {
 
     private NotionPage(
             Long workspaceId,
+            Long importRunId,
             String notionPageId,
             Long parentPageId,
             String title,
@@ -60,6 +64,7 @@ public class NotionPage {
             Instant updatedAt
     ) {
         validateWorkspaceId(workspaceId);
+        validateImportRunId(importRunId);
         validateNotionPageId(notionPageId);
         validateParentPageId(parentPageId);
         validateTitle(title);
@@ -71,6 +76,7 @@ public class NotionPage {
                 updatedAt
         );
         this.workspaceId = workspaceId;
+        this.importRunId = importRunId;
         this.notionPageId = notionPageId;
         this.parentPageId = parentPageId;
         this.title = title;
@@ -83,6 +89,7 @@ public class NotionPage {
 
     public static NotionPage create(
             Long workspaceId,
+            Long importRunId,
             String notionPageId,
             Long parentPageId,
             String title,
@@ -94,6 +101,7 @@ public class NotionPage {
     ) {
         return new NotionPage(
                 workspaceId,
+                importRunId,
                 notionPageId,
                 parentPageId,
                 title,
@@ -107,6 +115,12 @@ public class NotionPage {
 
     private void validateWorkspaceId(Long workspaceId) {
         if (workspaceId == null || workspaceId <= 0) {
+            throw invalidNotionPage();
+        }
+    }
+
+    private void validateImportRunId(Long importRunId) {
+        if (importRunId == null || importRunId <= 0) {
             throw invalidNotionPage();
         }
     }

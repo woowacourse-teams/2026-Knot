@@ -4,5 +4,5 @@ import java.util.List;
 
 public interface NotionPageRepository {
 
-    List<NotionPage> findAllByWorkspaceIdOrderByPositionAscIdAsc(Long workspaceId);
+    List<NotionPageMetadata> findPublishedMetadataByWorkspaceIdOrderByPositionAscIdAsc(Long workspaceId);
 }

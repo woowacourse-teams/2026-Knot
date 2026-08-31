@@ -76,20 +76,92 @@ class NotionPageTreeApiDocumentationAcceptanceTest {
                                 .value(ERROR_RESPONSE_REF)
                 )
                 .andExpect(
+                        jsonPath(
+                                operationPath + ".responses['400'].content['application/json']"
+                                        + ".examples.invalidWorkspaceId.value.code"
+                        ).value("INVALID_WORKSPACE_ID")
+                )
+                .andExpect(
+                        jsonPath(
+                                operationPath + ".responses['400'].content['application/json']"
+                                        + ".examples.invalidWorkspaceId.value.message"
+                        ).value("워크스페이스 ID가 올바르지 않습니다")
+                )
+                .andExpect(
+                        jsonPath(
+                                operationPath + ".responses['400'].content['application/json']"
+                                        + ".examples.invalidParameter.value.code"
+                        ).value("INVALID_PARAMETER")
+                )
+                .andExpect(
+                        jsonPath(
+                                operationPath + ".responses['400'].content['application/json']"
+                                        + ".examples.invalidParameter.value.message"
+                        ).value("요청 파라미터 형식이 올바르지 않습니다")
+                )
+                .andExpect(
                         jsonPath(operationPath + ".responses['401'].content['application/json'].schema['$ref']")
                                 .value(ERROR_RESPONSE_REF)
+                )
+                .andExpect(
+                        jsonPath(
+                                operationPath + ".responses['401'].content['application/json']"
+                                        + ".examples.unauthenticated.value.code"
+                        ).value("UNAUTHENTICATED")
+                )
+                .andExpect(
+                        jsonPath(
+                                operationPath + ".responses['401'].content['application/json']"
+                                        + ".examples.unauthenticated.value.message"
+                        ).value("인증이 필요합니다")
                 )
                 .andExpect(
                         jsonPath(operationPath + ".responses['403'].content['application/json'].schema['$ref']")
                                 .value(ERROR_RESPONSE_REF)
                 )
                 .andExpect(
+                        jsonPath(
+                                operationPath + ".responses['403'].content['application/json']"
+                                        + ".examples.workspaceAccessDenied.value.code"
+                        ).value("WORKSPACE_ACCESS_DENIED")
+                )
+                .andExpect(
+                        jsonPath(
+                                operationPath + ".responses['403'].content['application/json']"
+                                        + ".examples.workspaceAccessDenied.value.message"
+                        ).value("워크스페이스에 접근할 수 없습니다")
+                )
+                .andExpect(
                         jsonPath(operationPath + ".responses['404'].content['application/json'].schema['$ref']")
                                 .value(ERROR_RESPONSE_REF)
                 )
                 .andExpect(
+                        jsonPath(
+                                operationPath + ".responses['404'].content['application/json']"
+                                        + ".examples.workspaceNotFound.value.code"
+                        ).value("WORKSPACE_NOT_FOUND")
+                )
+                .andExpect(
+                        jsonPath(
+                                operationPath + ".responses['404'].content['application/json']"
+                                        + ".examples.workspaceNotFound.value.message"
+                        ).value("워크스페이스를 찾을 수 없습니다")
+                )
+                .andExpect(
                         jsonPath(operationPath + ".responses['500'].content['application/json'].schema['$ref']")
                                 .value(ERROR_RESPONSE_REF)
+                )
+                .andExpect(
+                        jsonPath(
+                                operationPath + ".responses['500'].content['application/json']"
+                                        + ".examples.notionPageTreeInvalid.value.code"
+                        ).value("NOTION_PAGE_TREE_INVALID")
+                )
+                .andExpect(
+                        jsonPath(
+                                operationPath + ".responses['500'].content['application/json']"
+                                        + ".examples.notionPageTreeInvalid.value.message"
+                        ).value("Notion Page Tree를 조회할 수 없습니다")
                 )
                 .andExpect(jsonPath(schemaPath + ".id").exists())
                 .andExpect(

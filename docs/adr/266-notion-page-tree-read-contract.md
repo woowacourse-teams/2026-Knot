@@ -23,6 +23,7 @@ Workspace 멤버가 Import 완료 여부와 무관하게 완성된 Page 계층�
 - 현재 요구를 충족하는 가장 단순한 구현
 - FE와 BE의 책임이 분명한 안정적인 API 계약
 - 진행 중·실패 Import 데이터와 본문의 비노출
+- 마지막 성공 Import를 명시적으로 선택하는 저장 경계
 - 실제 문제가 생기기 전 기술과 복잡도를 추가하지 않음
 
 ## 트레이드 오프
@@ -38,16 +39,23 @@ Page Tree API는 마지막 성공 Page 전체를 parentPageId 기반 평면 배�
 
 현재는 전체 Page 수 문제가 관측되지 않았고 parentPageId 평면 배열이 가장 단순하다. 잘못된 계층은 숨기지 않고 실패시켜 불완전한 탐색 결과를 정상으로 보이지 않게 한다.
 
+`notion_pages`는 `import_run_id`별 Page 집합을 보존하고, `notion_page_publications`는 Workspace마다 마지막으로 발행된 Import Run 하나를 가리킨다. 조회는 publication pointer가 가리키는 `COMPLETED` 실행의 Page metadata만 읽는다. 실행 중이거나 실패한 Import의 Page가 같은 저장소에 있어도 조회 결과에는 포함하지 않는다.
+
+Page 본문은 Tree 응답 계약이 아니므로 조회 Repository는 Entity 전체가 아니라 `id`, `workspaceId`, `parentPageId`, `title`, `position`, `notionUrl` projection만 읽는다. 실제 수집과 publication pointer 전환은 후속 Publish 작업이 같은 transaction에서 처리한다.
+
 ## 결과
 
 - FE는 parentPageId를 사용해 Page 계층을 조립한다.
 - BE는 전체 Page를 한 번에 읽고 계층 유효성을 검사한다.
+- BE는 Workspace의 publication pointer가 가리키는 완료 실행만 공개한다.
+- Tree 조회는 `markdown_content`를 읽지 않는다.
 - 한 Page의 계층 오류가 전체 요청을 실패시킨다.
 - 응답 크기 문제가 실제로 관측되기 전에는 pagination, lazy loading과 cache를 도입하지 않는다.
 
 ## 다시 논의해야 할 조건
 
 - 실제 Workspace에서 Page Tree 응답 크기, 지연 또는 메모리 문제가 관측될 때
+- Import Run별 Page 보존 비용이 운영 한도를 넘거나 정리 정책이 필요할 때
 - 잘못된 계층 데이터로 전체 조회 장애가 반복될 때
 - FE가 서버 중첩 tree 또는 lazy loading 계약을 요구할 때
 

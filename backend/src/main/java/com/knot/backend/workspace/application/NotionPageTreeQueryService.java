@@ -3,7 +3,7 @@ package com.knot.backend.workspace.application;
 import com.knot.backend.workspace.application.dto.result.NotionPageTreeItemResult;
 import com.knot.backend.workspace.domain.NotionErrorCode;
 import com.knot.backend.workspace.domain.NotionException;
-import com.knot.backend.workspace.domain.NotionPage;
+import com.knot.backend.workspace.domain.NotionPageMetadata;
 import com.knot.backend.workspace.domain.NotionPageRepository;
 import com.knot.backend.workspace.domain.WorkspaceErrorCode;
 import com.knot.backend.workspace.domain.WorkspaceException;
@@ -37,7 +37,8 @@ public class NotionPageTreeQueryService {
                 workspaceId,
                 memberId
         );
-        List<NotionPage> notionPages = notionPageRepository.findAllByWorkspaceIdOrderByPositionAscIdAsc(workspaceId);
+        List<NotionPageMetadata> notionPages = notionPageRepository
+                .findPublishedMetadataByWorkspaceIdOrderByPositionAscIdAsc(workspaceId);
         validateTree(
                 workspaceId,
                 notionPages
@@ -74,20 +75,20 @@ public class NotionPageTreeQueryService {
 
     private void validateTree(
             Long workspaceId,
-            List<NotionPage> notionPages
+            List<NotionPageMetadata> notionPages
     ) {
         Map<Long, Long> parentPageIdById = new HashMap<>();
-        for (NotionPage notionPage : notionPages) {
-            Long id = notionPage.getId();
+        for (NotionPageMetadata notionPage : notionPages) {
+            Long id = notionPage.id();
             if (id == null || id <= 0 || !Objects.equals(
-                    notionPage.getWorkspaceId(),
+                    notionPage.workspaceId(),
                     workspaceId
             ) || parentPageIdById.containsKey(id)) {
                 throw invalidTree();
             }
             parentPageIdById.put(
                     id,
-                    notionPage.getParentPageId()
+                    notionPage.parentPageId()
             );
         }
         validateParentReferences(parentPageIdById);
