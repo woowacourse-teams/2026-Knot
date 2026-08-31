@@ -48,6 +48,10 @@ export const router = createBrowserRouter([
         element: <WorkspaceCreatePage />,
       },
       {
+        path: PATH_ROUTE.WORKSPACE_INVITE,
+        element: <WorkspaceInvitePage />,
+      },
+      {
         path: PATH_ROUTE.WORKSPACE_CODE,
         element: <WorkspaceCodePage />,
       },
@@ -69,10 +73,6 @@ export const router = createBrowserRouter([
       {
         path: PATH_ROUTE.WORKSPACE_HOME,
         element: <WorkspaceHomePage />,
-      },
-      {
-        path: PATH_ROUTE.WORKSPACE_INVITE,
-        element: <WorkspaceInvitePage />,
       },
       {
         path: PATH_ROUTE.WORKSPACE_NOTION_CONNECTION,
