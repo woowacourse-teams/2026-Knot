@@ -40,6 +40,24 @@ public enum NotionErrorCode implements ErrorCode {
             ErrorCategory.INTERNAL_SERVER_ERROR,
             "NOTION_OAUTH_SECRET_PROTECTION_FAILED",
             "Notion OAuth 비밀값을 보호할 수 없습니다"
+    ),
+
+    INVALID_NOTION_IMPORT_RUN_ID(
+            ErrorCategory.INVALID_INPUT,
+            "INVALID_NOTION_IMPORT_RUN_ID",
+            "Notion Import 실행 ID가 올바르지 않습니다"
+    ),
+
+    INVALID_NOTION_IMPORT_RUN(
+            ErrorCategory.INVALID_INPUT,
+            "INVALID_NOTION_IMPORT_RUN",
+            "Notion Import 실행 정보가 올바르지 않습니다"
+    ),
+
+    NOTION_IMPORT_RUN_NOT_FOUND(
+            ErrorCategory.NOT_FOUND,
+            "NOTION_IMPORT_RUN_NOT_FOUND",
+            "Notion Import 실행을 찾을 수 없습니다"
     );
 
     private final ErrorCategory category;

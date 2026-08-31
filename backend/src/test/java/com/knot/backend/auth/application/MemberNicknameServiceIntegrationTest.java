@@ -40,7 +40,7 @@ class MemberNicknameServiceIntegrationTest {
     @BeforeEach
     void clearTables() {
         jdbcTemplate.update("""
-                TRUNCATE TABLE notion_connections, notion_oauth_authorizations,
+                TRUNCATE TABLE notion_import_runs, notion_connections, notion_oauth_authorizations,
                     workspace_members, oauth_identities, members
                 RESTART IDENTITY
                 """);
