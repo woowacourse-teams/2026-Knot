@@ -44,8 +44,6 @@ Public OAuth는 수동 secret 전달을 없애고 각 Knot Workspace가 자신�
 
 MVP에는 Provider registry나 동적 plugin 구조를 추가하지 않는다. 현재 필요한 port를 Notion adapter가 구현하고, 두 번째 Provider가 생겨 라우팅 요구가 확인될 때 composition 구조를 다시 판단한다.
 
-Notion은 외부 콘텐츠 공급자의 첫 구현체로 취급한다. Domain과 Application은 `ContentSource` 용어와 공급자 중립 포트만 사용하고, Notion의 HTTP·OAuth 설정·응답 형식·암호화 구현은 `workspace.infrastructure.notion`에 둔다. Notion 전용 URL과 응답 DTO는 Presentation 계약에 남긴다.
-
 ## 결과
 
 - OAuth state는 256-bit 난수로 발급하고 10분 뒤 만료한다. 원문은 authorization URL과 callback에서만 이동하며, DB에는 HMAC만 저장한다.
@@ -55,8 +53,6 @@ Notion은 외부 콘텐츠 공급자의 첫 구현체로 취급한다. Domain과
 - token 응답의 Notion workspace, bot, owner type·user ID, template, request 식별정보는 infrastructure에서 공급자 중립 필드로 변환해 Connection에 보존한다. owner의 이름·이메일·프로필 이미지는 저장하지 않는다.
 - DB는 `content_source_authorizations`, `content_source_connections`와 `provider` 컬럼을 사용한다. 미완료 인증과 현재 연결의 유일성은 `(workspace_id, provider)` 단위로 보장한다.
 - domain/application에는 Notion HTTP DTO, property, client 구현이 들어가지 않는다. Notion이라는 값은 지원 Provider 식별자와 외부 API 경계에만 남는다.
-- 저장 모델과 테이블은 `ContentSourceConnection`, `content_source_connections`처럼 공급자 중립 이름을 사용하고 `provider=NOTION`으로 첫 구현체를 구분한다.
-- 두 번째 공급자가 생기기 전에는 provider registry나 공통 OAuth framework를 만들지 않는다. 공급자별 설정과 Bean 조립은 각 Infrastructure adapter가 맡는다.
 - OAuth 취소, 만료, 재사용, OWNER 변경, Notion 오류가 발생하면 기존 Connection과 Import 데이터를 변경하지 않고 고정된 실패 화면으로 보낸다.
 - OWNER 변경 시 새 승인이 필요하다.
 - 승인된 페이지 범위만 접근한다.
