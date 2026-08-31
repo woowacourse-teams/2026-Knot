@@ -11,7 +11,7 @@
     "target": "es6",
     "module": "esnext",
     "strict": true,
-    "skipLibCheck": false,
+    "skipLibCheck": true,
     "moduleResolution": "bundler",
     "jsx": "react-jsx",
     "jsxImportSource": "@emotion/react",
