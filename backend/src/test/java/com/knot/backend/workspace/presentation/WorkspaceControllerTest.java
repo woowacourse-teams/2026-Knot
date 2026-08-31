@@ -60,7 +60,7 @@ class WorkspaceControllerTest {
 
         // when
         ResultActions result = mockMvc.perform(
-                post("/workspaces").contentType(MediaType.APPLICATION_JSON)
+                post("/api/v1/workspaces").contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"name":"Knot 팀"}
                                 """)
@@ -90,7 +90,7 @@ class WorkspaceControllerTest {
 
         // when
         ResultActions result = mockMvc.perform(
-                post("/workspaces").contentType(MediaType.APPLICATION_JSON)
+                post("/api/v1/workspaces").contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"name":"Knot!"}
                                 """)

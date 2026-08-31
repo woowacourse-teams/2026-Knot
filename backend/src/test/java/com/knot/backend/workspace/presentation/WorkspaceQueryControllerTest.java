@@ -61,7 +61,7 @@ class WorkspaceQueryControllerTest {
         // when
         ResultActions result = mockMvc.perform(
                 get(
-                        "/workspaces/{workspaceId}",
+                        "/api/v1/workspaces/{workspaceId}",
                         1L
                 )
         );
@@ -83,7 +83,7 @@ class WorkspaceQueryControllerTest {
                 .setAuthentication(memberAuthentication());
 
         // when
-        ResultActions result = mockMvc.perform(get("/workspaces/not-a-number"));
+        ResultActions result = mockMvc.perform(get("/api/v1/workspaces/not-a-number"));
 
         // then
         result.andExpect(status().isBadRequest())
@@ -108,7 +108,7 @@ class WorkspaceQueryControllerTest {
         // when
         ResultActions result = mockMvc.perform(
                 get(
-                        "/workspaces/{workspaceId}",
+                        "/api/v1/workspaces/{workspaceId}",
                         1L
                 )
         );
@@ -134,7 +134,7 @@ class WorkspaceQueryControllerTest {
         // when
         ResultActions result = mockMvc.perform(
                 get(
-                        "/workspaces/{workspaceId}",
+                        "/api/v1/workspaces/{workspaceId}",
                         1L
                 )
         );

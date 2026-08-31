@@ -39,7 +39,7 @@ public class OpenApiConfig {
                         .version("1.0.0")
         )
                 .components(securityComponents())
-                .paths(oAuthPaths());
+                .paths(applicationPaths());
     }
 
     @Bean
@@ -226,7 +226,7 @@ public class OpenApiConfig {
                 );
     }
 
-    private Paths oAuthPaths() {
+    private Paths applicationPaths() {
         return new Paths().addPathItem(
                 "/oauth2/authorization/{registrationId}",
                 new PathItem().get(
@@ -251,6 +251,24 @@ public class OpenApiConfig {
                                         )
                                 )
                 )
-        );
+        )
+                .addPathItem(
+                        "/api/v1/auth/logout",
+                        new PathItem().post(
+                                new Operation().operationId("logout")
+                                        .summary("로그아웃")
+                                        .addTagsItem("인증")
+                                        .responses(
+                                                new ApiResponses().addApiResponse(
+                                                        "302",
+                                                        new ApiResponse().description("로그아웃 후 로그인 화면으로 redirect")
+                                                                .addHeaderObject(
+                                                                        "Location",
+                                                                        new Header().description("로그인 화면 URL")
+                                                                )
+                                                )
+                                        )
+                        )
+                );
     }
 }
