@@ -90,6 +90,12 @@ public enum WorkspaceErrorCode implements ErrorCode {
             "워크스페이스에 접근할 수 없습니다"
     ),
 
+    WORKSPACE_OWNER_REQUIRED(
+            ErrorCategory.FORBIDDEN,
+            "WORKSPACE_OWNER_REQUIRED",
+            "워크스페이스 OWNER 권한이 필요합니다"
+    ),
+
     WORKSPACE_INVITATION_NOT_FOUND(
             ErrorCategory.NOT_FOUND,
             "WORKSPACE_INVITATION_NOT_FOUND",
