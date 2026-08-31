@@ -9,8 +9,10 @@ import com.knot.backend.auth.domain.AuthTokenProvider;
 import com.knot.backend.auth.domain.AuthenticatedMember;
 import com.knot.backend.testsupport.TestApplicationProperties;
 import com.knot.backend.testsupport.TestcontainersConfiguration;
+import com.knot.backend.workspace.domain.WorkspaceMemberRole;
 import jakarta.servlet.http.Cookie;
 import java.time.Instant;
+import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
@@ -34,6 +36,7 @@ class WorkspaceQueryAcceptanceTest {
     private static final String JWT_COOKIE_NAME = "KNOT_ACCESS_TOKEN";
     private static final Instant CREATED_AT = Instant.parse("2026-08-29T00:00:00Z");
     private static final Instant JOINED_AT = Instant.parse("2026-08-29T00:01:00Z");
+    private static final Instant RECENT_JOINED_AT = Instant.parse("2026-08-29T00:02:00Z");
 
     private final MockMvc mockMvc;
     private final AuthTokenProvider authTokenProvider;
@@ -76,7 +79,7 @@ class WorkspaceQueryAcceptanceTest {
         // when
         ResultActions result = mockMvc.perform(
                 get(
-                        "/workspaces/{workspaceId}",
+                        "/api/v1/workspaces/{workspaceId}",
                         workspaceId
                 ).cookie(
                         new Cookie(
@@ -108,7 +111,7 @@ class WorkspaceQueryAcceptanceTest {
         // when
         ResultActions result = mockMvc.perform(
                 get(
-                        "/workspaces/{workspaceId}",
+                        "/api/v1/workspaces/{workspaceId}",
                         0
                 ).cookie(
                         new Cookie(
@@ -133,7 +136,7 @@ class WorkspaceQueryAcceptanceTest {
         // when
         ResultActions result = mockMvc.perform(
                 get(
-                        "/workspaces/{workspaceId}",
+                        "/api/v1/workspaces/{workspaceId}",
                         workspaceId
                 )
         );
@@ -160,7 +163,7 @@ class WorkspaceQueryAcceptanceTest {
         // when
         ResultActions result = mockMvc.perform(
                 get(
-                        "/workspaces/{workspaceId}",
+                        "/api/v1/workspaces/{workspaceId}",
                         workspaceId
                 ).cookie(
                         new Cookie(
@@ -186,7 +189,7 @@ class WorkspaceQueryAcceptanceTest {
         // when
         ResultActions result = mockMvc.perform(
                 get(
-                        "/workspaces/{workspaceId}",
+                        "/api/v1/workspaces/{workspaceId}",
                         Long.MAX_VALUE
                 ).cookie(
                         new Cookie(
@@ -202,7 +205,113 @@ class WorkspaceQueryAcceptanceTest {
                 .andExpect(jsonPath("$.message").value("워크스페이스를 찾을 수 없습니다"));
     }
 
+    @Test
+    @DisplayName("인증된 멤버의 OWNER·MEMBER 워크스페이스만 결정적 순서로 반환하고 데이터를 변경하지 않는다")
+    void list_success_filtersSortsAndDoesNotModifyData() throws Exception {
+        // given
+        long memberId = saveMember();
+        long otherMemberId = saveMember("other-member");
+        long olderWorkspaceId = saveWorkspace("이전 팀");
+        long tiedLowerWorkspaceId = saveWorkspace("최근 한 팀");
+        long tiedHigherWorkspaceId = saveWorkspace("최근 두 팀");
+        long otherWorkspaceId = saveWorkspace("다른 팀");
+        saveWorkspaceMember(
+                olderWorkspaceId,
+                memberId,
+                WorkspaceMemberRole.OWNER,
+                JOINED_AT
+        );
+        saveWorkspaceMember(
+                tiedLowerWorkspaceId,
+                memberId,
+                WorkspaceMemberRole.MEMBER,
+                RECENT_JOINED_AT
+        );
+        saveWorkspaceMember(
+                tiedHigherWorkspaceId,
+                memberId,
+                WorkspaceMemberRole.OWNER,
+                RECENT_JOINED_AT
+        );
+        saveWorkspaceMember(
+                otherWorkspaceId,
+                otherMemberId,
+                WorkspaceMemberRole.MEMBER,
+                RECENT_JOINED_AT
+        );
+        String token = accessToken(memberId);
+        List<String> workspaceSnapshot = workspaceSnapshots();
+        List<String> workspaceMemberSnapshot = workspaceMemberSnapshots();
+
+        // when
+        ResultActions result = mockMvc.perform(
+                get("/api/v1/workspaces").cookie(
+                        new Cookie(
+                                JWT_COOKIE_NAME,
+                                token
+                        )
+                )
+        );
+
+        // then
+        result.andExpect(status().isOk())
+                .andExpect(jsonPath("$.workspaces").isArray())
+                .andExpect(jsonPath("$.workspaces.length()").value(3))
+                .andExpect(jsonPath("$.workspaces[0].id").value(tiedHigherWorkspaceId))
+                .andExpect(jsonPath("$.workspaces[0].name").value("최근 두 팀"))
+                .andExpect(jsonPath("$.workspaces[0].role").doesNotExist())
+                .andExpect(jsonPath("$.workspaces[0].joinedAt").doesNotExist())
+                .andExpect(jsonPath("$.workspaces[0].createdAt").doesNotExist())
+                .andExpect(jsonPath("$.workspaces[1].id").value(tiedLowerWorkspaceId))
+                .andExpect(jsonPath("$.workspaces[1].name").value("최근 한 팀"))
+                .andExpect(jsonPath("$.workspaces[2].id").value(olderWorkspaceId))
+                .andExpect(jsonPath("$.workspaces[2].name").value("이전 팀"));
+        assertThat(workspaceSnapshots()).isEqualTo(workspaceSnapshot);
+        assertThat(workspaceMemberSnapshots()).isEqualTo(workspaceMemberSnapshot);
+    }
+
+    @Test
+    @DisplayName("소속 워크스페이스가 없는 인증된 멤버는 빈 목록을 반환받는다")
+    void list_success_emptyMemberships() throws Exception {
+        // given
+        long memberId = saveMember();
+        String token = accessToken(memberId);
+
+        // when
+        ResultActions result = mockMvc.perform(
+                get("/api/v1/workspaces").cookie(
+                        new Cookie(
+                                JWT_COOKIE_NAME,
+                                token
+                        )
+                )
+        );
+
+        // then
+        result.andExpect(status().isOk())
+                .andExpect(jsonPath("$.workspaces").isArray())
+                .andExpect(jsonPath("$.workspaces").isEmpty());
+    }
+
+    @Test
+    @DisplayName("인증되지 않은 워크스페이스 목록 조회 요청은 401을 반환한다")
+    void list_failure_unauthenticated() throws Exception {
+        // given
+
+        // when
+        ResultActions result = mockMvc.perform(get("/api/v1/workspaces"));
+
+        // then
+        result.andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("UNAUTHENTICATED"))
+                .andExpect(jsonPath("$.message").value("인증이 필요합니다"));
+    }
+
     private long saveMember() {
+        return saveMember("hyunsung");
+    }
+
+    private long saveMember(String nickname) {
         return jdbcClient.sql("""
                 INSERT INTO members (nickname, profile_image_url)
                 VALUES (:nickname, NULL)
@@ -210,7 +319,7 @@ class WorkspaceQueryAcceptanceTest {
                 """)
                 .param(
                         "nickname",
-                        "hyunsung"
+                        nickname
                 )
                 .query(Long.class)
                 .single();
@@ -238,9 +347,23 @@ class WorkspaceQueryAcceptanceTest {
             long workspaceId,
             long memberId
     ) {
+        saveWorkspaceMember(
+                workspaceId,
+                memberId,
+                WorkspaceMemberRole.MEMBER,
+                JOINED_AT
+        );
+    }
+
+    private void saveWorkspaceMember(
+            long workspaceId,
+            long memberId,
+            WorkspaceMemberRole role,
+            Instant joinedAt
+    ) {
         jdbcClient.sql("""
                 INSERT INTO workspace_members (workspace_id, member_id, role, joined_at)
-                VALUES (:workspaceId, :memberId, 'MEMBER', CAST(:joinedAt AS TIMESTAMPTZ))
+                VALUES (:workspaceId, :memberId, :role, CAST(:joinedAt AS TIMESTAMPTZ))
                 """)
                 .param(
                         "workspaceId",
@@ -251,10 +374,35 @@ class WorkspaceQueryAcceptanceTest {
                         memberId
                 )
                 .param(
+                        "role",
+                        role.name()
+                )
+                .param(
                         "joinedAt",
-                        JOINED_AT.toString()
+                        joinedAt.toString()
                 )
                 .update();
+    }
+
+    private List<String> workspaceSnapshots() {
+        return jdbcClient.sql("""
+                SELECT id::text || '|' || name || '|' || created_at::text
+                FROM workspaces
+                ORDER BY id
+                """)
+                .query(String.class)
+                .list();
+    }
+
+    private List<String> workspaceMemberSnapshots() {
+        return jdbcClient.sql("""
+                SELECT id::text || '|' || workspace_id::text || '|' || member_id::text || '|' || role || '|'
+                    || joined_at::text
+                FROM workspace_members
+                ORDER BY id
+                """)
+                .query(String.class)
+                .list();
     }
 
     private String workspaceSnapshot(long workspaceId) {

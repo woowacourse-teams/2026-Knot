@@ -47,7 +47,7 @@ public class SecurityConfig {
     @Bean
     public UrlBasedCorsConfigurationSource corsConfigurationSource() {
         String allowedOrigin = corsProperties.getAllowedOrigin();
-        if (allowedOrigin == null || allowedOrigin.isBlank() || "*".equals(allowedOrigin)) {
+        if (isInvalidCorsOrigin(allowedOrigin)) {
             throw new AuthException(AuthErrorCode.OAUTH_CONFIGURATION_INVALID);
         }
 
@@ -66,6 +66,7 @@ public class SecurityConfig {
                         "X-XSRF-TOKEN"
                 )
         );
+        configuration.setExposedHeaders(List.of(HttpHeaders.RETRY_AFTER));
         configuration.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
@@ -74,6 +75,10 @@ public class SecurityConfig {
                 configuration
         );
         return source;
+    }
+
+    private boolean isInvalidCorsOrigin(String origin) {
+        return origin == null || origin.isBlank() || "*".equals(origin);
     }
 
     @Bean
@@ -102,15 +107,16 @@ public class SecurityConfig {
                     auth.requestMatchers(
                             "/oauth2/**",
                             "/login/**",
-                            "/auth/nickname",
-                            "/auth/csrf",
+                            "/api/v1/auth/nickname",
+                            "/api/v1/auth/csrf",
                             "/actuator/health",
                             "/error"
                     )
                             .permitAll()
                             .requestMatchers(
                                     HttpMethod.GET,
-                                    "/notion/oauth/callback"
+                                    "/api/v1/invitations/*",
+                                    "/api/v1/notion/oauth/callback"
                             )
                             .permitAll()
                             .anyRequest()
@@ -130,7 +136,10 @@ public class SecurityConfig {
                                 .successHandler(successHandler)
                                 .failureHandler(failureHandler)
                 )
-                .logout(logout -> logout.addLogoutHandler(jwtLogoutHandler))
+                .logout(
+                        logout -> logout.logoutUrl("/api/v1/auth/logout")
+                                .addLogoutHandler(jwtLogoutHandler)
+                )
                 .addFilterBefore(
                         jwtAuthenticationFilter,
                         UsernamePasswordAuthenticationFilter.class

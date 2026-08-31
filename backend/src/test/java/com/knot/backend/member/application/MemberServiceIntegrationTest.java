@@ -35,11 +35,7 @@ class MemberServiceIntegrationTest {
 
     @BeforeEach
     void clearMembers() {
-        jdbcTemplate.update("""
-                TRUNCATE TABLE notion_import_runs, notion_connections, notion_oauth_authorizations,
-                    workspace_members, oauth_identities, members
-                RESTART IDENTITY
-                """);
+        jdbcTemplate.update("TRUNCATE TABLE workspace_members, oauth_identities, members RESTART IDENTITY CASCADE");
     }
 
     @Test

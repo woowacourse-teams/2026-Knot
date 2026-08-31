@@ -17,7 +17,7 @@ import org.springframework.http.ResponseEntity;
 class WorkspaceInvitationControllerTest {
     private static final Long WORKSPACE_ID = 1L;
     private static final long MEMBER_ID = 2L;
-    private static final String CODE = "ABCDEFGH";
+    private static final String CODE = "X35D3S";
     private static final String LINK_TOKEN = "link-token";
     private static final Instant EXPIRES_AT = Instant.parse("2026-08-30T00:00:00Z");
 
@@ -54,7 +54,7 @@ class WorkspaceInvitationControllerTest {
         assertThat(
                 response.getHeaders()
                         .getFirst(HttpHeaders.LOCATION)
-        ).isEqualTo("/workspaces/1/invitation");
+        ).isEqualTo("/api/v1/workspaces/1/invitation");
         assertThat(response.getBody()).isEqualTo(expectedResponse());
     }
 
@@ -133,7 +133,7 @@ class WorkspaceInvitationControllerTest {
         assertThat(
                 response.getHeaders()
                         .getFirst(HttpHeaders.LOCATION)
-        ).isEqualTo("/workspaces/1/invitation");
+        ).isEqualTo("/api/v1/workspaces/1/invitation");
         assertThat(response.getBody()).isEqualTo(expectedResponse());
     }
 
