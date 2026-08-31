@@ -8,8 +8,8 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.knot.backend.workspace.application.dto.result.NotionPageTreeItemResult;
-import com.knot.backend.workspace.domain.NotionErrorCode;
-import com.knot.backend.workspace.domain.NotionException;
+import com.knot.backend.workspace.domain.NotionPageErrorCode;
+import com.knot.backend.workspace.domain.NotionPageException;
 import com.knot.backend.workspace.domain.NotionPageMetadata;
 import com.knot.backend.workspace.domain.NotionPageRepository;
 import com.knot.backend.workspace.domain.Workspace;
@@ -220,9 +220,9 @@ class NotionPageTreeQueryServiceTest {
         Throwable thrown = org.assertj.core.api.Assertions.catchThrowable(action);
 
         // then
-        assertThat(thrown).isInstanceOf(NotionException.class)
-                .extracting(exception -> ((NotionException) exception).getErrorCode())
-                .isEqualTo(NotionErrorCode.NOTION_PAGE_TREE_INVALID);
+        assertThat(thrown).isInstanceOf(NotionPageException.class)
+                .extracting(exception -> ((NotionPageException) exception).getErrorCode())
+                .isEqualTo(NotionPageErrorCode.NOTION_PAGE_TREE_INVALID);
     }
 
     private void allowWorkspaceMember() {

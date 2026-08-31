@@ -1,8 +1,8 @@
 package com.knot.backend.workspace.application;
 
 import com.knot.backend.workspace.application.dto.result.NotionPageTreeItemResult;
-import com.knot.backend.workspace.domain.NotionErrorCode;
-import com.knot.backend.workspace.domain.NotionException;
+import com.knot.backend.workspace.domain.NotionPageErrorCode;
+import com.knot.backend.workspace.domain.NotionPageException;
 import com.knot.backend.workspace.domain.NotionPageMetadata;
 import com.knot.backend.workspace.domain.NotionPageRepository;
 import com.knot.backend.workspace.domain.WorkspaceErrorCode;
@@ -120,7 +120,7 @@ public class NotionPageTreeQueryService {
         }
     }
 
-    private NotionException invalidTree() {
-        return new NotionException(NotionErrorCode.NOTION_PAGE_TREE_INVALID);
+    private NotionPageException invalidTree() {
+        return new NotionPageException(NotionPageErrorCode.NOTION_PAGE_TREE_INVALID);
     }
 }

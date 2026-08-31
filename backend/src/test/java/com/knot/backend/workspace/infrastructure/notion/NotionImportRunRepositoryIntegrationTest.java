@@ -105,7 +105,7 @@ class NotionImportRunRepositoryIntegrationTest {
         assertThat(missingResult).isEmpty();
     }
 
-    @DisplayName("Import Run의 Workspace와 Notion Connection의 Workspace가 다르면 저장할 수 없다")
+    @DisplayName("Import Run과 콘텐츠 소스 연결의 Workspace가 다르면 저장할 수 없다")
     @Test
     void save_failure_connectionTenantMismatch() {
         // given
@@ -148,7 +148,7 @@ class NotionImportRunRepositoryIntegrationTest {
         assertThatThrownBy(action).isInstanceOf(DataIntegrityViolationException.class);
     }
 
-    @DisplayName("같은 Notion Connection에는 대기 또는 실행 중인 Import Run을 하나만 저장한다")
+    @DisplayName("같은 콘텐츠 소스 연결에는 대기 또는 실행 중인 Import Run을 하나만 저장한다")
     @Test
     void save_failure_duplicateActiveRun() {
         // given
@@ -220,7 +220,7 @@ class NotionImportRunRepositoryIntegrationTest {
         ThrowingCallable action = () -> jdbcClient.sql("""
                 INSERT INTO notion_import_runs (
                     workspace_id,
-                    notion_connection_id,
+                    content_source_connection_id,
                     requested_by_member_id,
                     status,
                     total_page_count,
@@ -404,31 +404,33 @@ class NotionImportRunRepositoryIntegrationTest {
             long authorizingMemberId
     ) {
         return jdbcClient.sql("""
-                INSERT INTO notion_connections (
+                INSERT INTO content_source_connections (
                     workspace_id,
-                    access_token_ciphertext,
-                    refresh_token_ciphertext,
-                    notion_workspace_id,
-                    notion_workspace_name,
-                    notion_workspace_icon,
-                    bot_id,
-                    owner_type,
-                    owner_user_id,
-                    duplicated_template_id,
-                    request_id,
+                    provider,
+                    access_credential_ciphertext,
+                    refresh_credential_ciphertext,
+                    external_source_id,
+                    external_source_name,
+                    external_source_icon,
+                    provider_connection_id,
+                    authorization_owner_type,
+                    authorization_owner_id,
+                    external_template_id,
+                    provider_request_id,
                     authorizing_member_id,
                     created_at,
                     updated_at,
                     version
                 ) VALUES (
                     :workspaceId,
+                    'NOTION',
                     'encrypted-access-token',
                     NULL,
                     :notionWorkspaceId,
                     NULL,
                     NULL,
                     :botId,
-                    'workspace',
+                    'WORKSPACE',
                     NULL,
                     NULL,
                     NULL,

@@ -462,22 +462,24 @@ class NotionPageRepositoryIntegrationTest {
             long authorizingMemberId
     ) {
         return jdbcClient.sql("""
-                INSERT INTO notion_connections (
+                INSERT INTO content_source_connections (
                     workspace_id,
-                    access_token_ciphertext,
-                    notion_workspace_id,
-                    bot_id,
-                    owner_type,
+                    provider,
+                    access_credential_ciphertext,
+                    external_source_id,
+                    provider_connection_id,
+                    authorization_owner_type,
                     authorizing_member_id,
                     created_at,
                     updated_at,
                     version
                 ) VALUES (
                     :workspaceId,
+                    'NOTION',
                     'encrypted-access-token',
                     :notionWorkspaceId,
                     :botId,
-                    'workspace',
+                    'WORKSPACE',
                     :authorizingMemberId,
                     CAST(:createdAt AS TIMESTAMPTZ),
                     CAST(:createdAt AS TIMESTAMPTZ),
@@ -518,7 +520,7 @@ class NotionPageRepositoryIntegrationTest {
         return jdbcClient.sql("""
                 INSERT INTO notion_import_runs (
                     workspace_id,
-                    notion_connection_id,
+                    content_source_connection_id,
                     requested_by_member_id,
                     status,
                     total_page_count,

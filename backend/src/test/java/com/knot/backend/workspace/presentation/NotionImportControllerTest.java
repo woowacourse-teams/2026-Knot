@@ -13,8 +13,8 @@ import com.knot.backend.auth.domain.AuthenticatedMember;
 import com.knot.backend.global.exception.GlobalExceptionHandler;
 import com.knot.backend.workspace.application.NotionImportQueryService;
 import com.knot.backend.workspace.application.dto.result.NotionImportStatusResult;
-import com.knot.backend.workspace.domain.NotionErrorCode;
-import com.knot.backend.workspace.domain.NotionException;
+import com.knot.backend.workspace.domain.NotionImportErrorCode;
+import com.knot.backend.workspace.domain.NotionImportException;
 import com.knot.backend.workspace.domain.NotionImportStatus;
 import java.time.Instant;
 import java.util.List;
@@ -135,7 +135,7 @@ class NotionImportControllerTest {
                         1L,
                         10L
                 )
-        ).thenThrow(new NotionException(NotionErrorCode.NOTION_IMPORT_RUN_NOT_FOUND));
+        ).thenThrow(new NotionImportException(NotionImportErrorCode.NOTION_IMPORT_RUN_NOT_FOUND));
 
         // when
         ResultActions result = mockMvc.perform(

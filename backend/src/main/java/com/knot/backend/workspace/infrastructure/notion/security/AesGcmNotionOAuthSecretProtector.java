@@ -1,9 +1,10 @@
 package com.knot.backend.workspace.infrastructure.notion.security;
 
-import com.knot.backend.workspace.application.NotionOAuthCredentialKind;
-import com.knot.backend.workspace.application.NotionOAuthSecretProtector;
-import com.knot.backend.workspace.domain.NotionErrorCode;
-import com.knot.backend.workspace.domain.NotionException;
+import com.knot.backend.workspace.application.ContentSourceCredentialKind;
+import com.knot.backend.workspace.application.ContentSourceSecretProtector;
+import com.knot.backend.workspace.domain.ContentSourceErrorCode;
+import com.knot.backend.workspace.domain.ContentSourceException;
+import com.knot.backend.workspace.domain.ContentSourceProvider;
 import com.knot.backend.workspace.infrastructure.notion.oauth.NotionOAuthProperties;
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
@@ -18,7 +19,7 @@ import javax.crypto.Mac;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
-public class AesGcmNotionOAuthSecretProtector implements NotionOAuthSecretProtector {
+public class AesGcmNotionOAuthSecretProtector implements ContentSourceSecretProtector {
     private static final String CIPHER_TRANSFORMATION = "AES/GCM/NoPadding";
     private static final String ENCRYPTION_ALGORITHM = "AES";
     private static final String HASH_ALGORITHM = "HmacSHA256";
@@ -63,14 +64,23 @@ public class AesGcmNotionOAuthSecretProtector implements NotionOAuthSecretProtec
     }
 
     @Override
-    public String hashState(String state) {
+    public String hashState(
+            ContentSourceProvider provider,
+            String state
+    ) {
+        validateProvider(provider);
         if (state == null || state.isBlank()) {
-            throw new NotionException(NotionErrorCode.INVALID_NOTION_OAUTH_STATE);
+            throw new ContentSourceException(ContentSourceErrorCode.INVALID_CONTENT_SOURCE_AUTHORIZATION);
         }
         try {
             Mac mac = Mac.getInstance(HASH_ALGORITHM);
             mac.init(stateHashKey);
-            return encode(mac.doFinal(("notion-oauth-state:" + state).getBytes(StandardCharsets.UTF_8)));
+            return encode(
+                    mac.doFinal(
+                            ("content-source-authorization:" + provider.name() + ":" + state)
+                                    .getBytes(StandardCharsets.UTF_8)
+                    )
+            );
         } catch (GeneralSecurityException exception) {
             throw protectionFailed(exception);
         }
@@ -79,11 +89,13 @@ public class AesGcmNotionOAuthSecretProtector implements NotionOAuthSecretProtec
     @Override
     public String encrypt(
             Long workspaceId,
-            NotionOAuthCredentialKind kind,
+            ContentSourceProvider provider,
+            ContentSourceCredentialKind kind,
             String secret
     ) {
         validateCredentialContext(
                 workspaceId,
+                provider,
                 kind,
                 secret
         );
@@ -102,6 +114,7 @@ public class AesGcmNotionOAuthSecretProtector implements NotionOAuthSecretProtec
             cipher.updateAAD(
                     context(
                             workspaceId,
+                            provider,
                             kind
                     )
             );
@@ -121,10 +134,12 @@ public class AesGcmNotionOAuthSecretProtector implements NotionOAuthSecretProtec
     @Override
     public String decrypt(
             Long workspaceId,
-            NotionOAuthCredentialKind kind,
+            ContentSourceProvider provider,
+            ContentSourceCredentialKind kind,
             String envelope
     ) {
-        if (workspaceId == null || workspaceId <= 0 || kind == null || envelope == null || envelope.isBlank()) {
+        if (workspaceId == null || workspaceId <= 0 || provider == null || kind == null || envelope == null
+                || envelope.isBlank()) {
             throw protectionFailed();
         }
         String[] parts = envelope.split(
@@ -156,6 +171,7 @@ public class AesGcmNotionOAuthSecretProtector implements NotionOAuthSecretProtec
             cipher.updateAAD(
                     context(
                             workspaceId,
+                            provider,
                             kind
                     )
             );
@@ -171,6 +187,12 @@ public class AesGcmNotionOAuthSecretProtector implements NotionOAuthSecretProtec
     private void validateProperties(NotionOAuthProperties properties) {
         if (properties == null) {
             throw configurationInvalid();
+        }
+    }
+
+    private void validateProvider(ContentSourceProvider provider) {
+        if (provider == null) {
+            throw new ContentSourceException(ContentSourceErrorCode.INVALID_CONTENT_SOURCE_AUTHORIZATION);
         }
     }
 
@@ -225,8 +247,8 @@ public class AesGcmNotionOAuthSecretProtector implements NotionOAuthSecretProtec
             }
             return key;
         } catch (IllegalArgumentException exception) {
-            throw new NotionException(
-                    NotionErrorCode.NOTION_OAUTH_CONFIGURATION_INVALID,
+            throw new ContentSourceException(
+                    ContentSourceErrorCode.CONTENT_SOURCE_CONFIGURATION_INVALID,
                     exception
             );
         }
@@ -249,19 +271,22 @@ public class AesGcmNotionOAuthSecretProtector implements NotionOAuthSecretProtec
 
     private void validateCredentialContext(
             Long workspaceId,
-            NotionOAuthCredentialKind kind,
+            ContentSourceProvider provider,
+            ContentSourceCredentialKind kind,
             String secret
     ) {
-        if (workspaceId == null || workspaceId <= 0 || kind == null || secret == null || secret.isBlank()) {
+        if (workspaceId == null || workspaceId <= 0 || provider == null || kind == null || secret == null
+                || secret.isBlank()) {
             throw protectionFailed();
         }
     }
 
     private byte[] context(
             Long workspaceId,
-            NotionOAuthCredentialKind kind
+            ContentSourceProvider provider,
+            ContentSourceCredentialKind kind
     ) {
-        return (workspaceId + ":" + kind.context()).getBytes(StandardCharsets.UTF_8);
+        return (workspaceId + ":" + provider.name() + ":" + kind.context()).getBytes(StandardCharsets.UTF_8);
     }
 
     private String encode(byte[] value) {
@@ -275,17 +300,17 @@ public class AesGcmNotionOAuthSecretProtector implements NotionOAuthSecretProtec
                 .decode(value);
     }
 
-    private NotionException configurationInvalid() {
-        return new NotionException(NotionErrorCode.NOTION_OAUTH_CONFIGURATION_INVALID);
+    private ContentSourceException configurationInvalid() {
+        return new ContentSourceException(ContentSourceErrorCode.CONTENT_SOURCE_CONFIGURATION_INVALID);
     }
 
-    private NotionException protectionFailed() {
-        return new NotionException(NotionErrorCode.NOTION_OAUTH_SECRET_PROTECTION_FAILED);
+    private ContentSourceException protectionFailed() {
+        return new ContentSourceException(ContentSourceErrorCode.CONTENT_SOURCE_SECRET_PROTECTION_FAILED);
     }
 
-    private NotionException protectionFailed(Throwable cause) {
-        return new NotionException(
-                NotionErrorCode.NOTION_OAUTH_SECRET_PROTECTION_FAILED,
+    private ContentSourceException protectionFailed(Throwable cause) {
+        return new ContentSourceException(
+                ContentSourceErrorCode.CONTENT_SOURCE_SECRET_PROTECTION_FAILED,
                 cause
         );
     }

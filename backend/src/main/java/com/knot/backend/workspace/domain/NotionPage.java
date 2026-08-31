@@ -170,7 +170,7 @@ public class NotionPage {
         }
     }
 
-    private NotionException invalidNotionPage() {
-        return new NotionException(NotionErrorCode.INVALID_NOTION_PAGE);
+    private NotionPageException invalidNotionPage() {
+        return new NotionPageException(NotionPageErrorCode.INVALID_NOTION_PAGE);
     }
 }

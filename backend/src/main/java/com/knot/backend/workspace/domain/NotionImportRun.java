@@ -24,8 +24,8 @@ public class NotionImportRun {
     @Column(name = "workspace_id", nullable = false, updatable = false)
     private Long workspaceId;
 
-    @Column(name = "notion_connection_id", nullable = false, updatable = false)
-    private Long notionConnectionId;
+    @Column(name = "content_source_connection_id", nullable = false, updatable = false)
+    private Long contentSourceConnectionId;
 
     @Column(name = "requested_by_member_id", nullable = false, updatable = false)
     private Long requestedByMemberId;
@@ -53,7 +53,7 @@ public class NotionImportRun {
 
     private NotionImportRun(
             Long workspaceId,
-            Long notionConnectionId,
+            Long contentSourceConnectionId,
             Long requestedByMemberId,
             NotionImportStatus status,
             Integer totalPageCount,
@@ -63,7 +63,7 @@ public class NotionImportRun {
             Instant createdAt
     ) {
         validateId(workspaceId);
-        validateId(notionConnectionId);
+        validateId(contentSourceConnectionId);
         validateId(requestedByMemberId);
         validateStatus(status);
         validatePageCounts(
@@ -77,7 +77,7 @@ public class NotionImportRun {
         );
         validateCreatedAt(createdAt);
         this.workspaceId = workspaceId;
-        this.notionConnectionId = notionConnectionId;
+        this.contentSourceConnectionId = contentSourceConnectionId;
         this.requestedByMemberId = requestedByMemberId;
         this.status = status;
         this.totalPageCount = totalPageCount;
@@ -89,7 +89,7 @@ public class NotionImportRun {
 
     public static NotionImportRun create(
             Long workspaceId,
-            Long notionConnectionId,
+            Long contentSourceConnectionId,
             Long requestedByMemberId,
             NotionImportStatus status,
             Integer totalPageCount,
@@ -100,7 +100,7 @@ public class NotionImportRun {
     ) {
         return new NotionImportRun(
                 workspaceId,
-                notionConnectionId,
+                contentSourceConnectionId,
                 requestedByMemberId,
                 status,
                 totalPageCount,
@@ -163,7 +163,7 @@ public class NotionImportRun {
         }
     }
 
-    private NotionException invalidImportRun() {
-        return new NotionException(NotionErrorCode.INVALID_NOTION_IMPORT_RUN);
+    private NotionImportException invalidImportRun() {
+        return new NotionImportException(NotionImportErrorCode.INVALID_NOTION_IMPORT_RUN);
     }
 }

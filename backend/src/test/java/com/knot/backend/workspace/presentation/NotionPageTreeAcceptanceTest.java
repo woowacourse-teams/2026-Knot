@@ -13,7 +13,7 @@ import com.knot.backend.auth.domain.AuthTokenProvider;
 import com.knot.backend.auth.domain.AuthenticatedMember;
 import com.knot.backend.testsupport.TestApplicationProperties;
 import com.knot.backend.testsupport.TestcontainersConfiguration;
-import com.knot.backend.workspace.application.NotionOAuthClient;
+import com.knot.backend.workspace.application.ContentSourceAuthorizationClient;
 import jakarta.servlet.http.Cookie;
 import java.time.Instant;
 import java.util.List;
@@ -36,7 +36,8 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 
 @Tag("acceptance")
-@Import({TestcontainersConfiguration.class, NotionPageTreeAcceptanceTest.NotionOAuthClientTestConfiguration.class})
+@Import({TestcontainersConfiguration.class,
+        NotionPageTreeAcceptanceTest.ContentSourceAuthorizationClientTestConfiguration.class})
 @TestApplicationProperties
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -48,30 +49,30 @@ class NotionPageTreeAcceptanceTest {
     private final MockMvc mockMvc;
     private final AuthTokenProvider authTokenProvider;
     private final JdbcClient jdbcClient;
-    private final NotionOAuthClient notionOAuthClient;
+    private final ContentSourceAuthorizationClient contentSourceAuthorizationClient;
 
     NotionPageTreeAcceptanceTest(
             MockMvc mockMvc,
             AuthTokenProvider authTokenProvider,
             JdbcClient jdbcClient,
-            NotionOAuthClient notionOAuthClient
+            ContentSourceAuthorizationClient contentSourceAuthorizationClient
     ) {
         this.mockMvc = mockMvc;
         this.authTokenProvider = authTokenProvider;
         this.jdbcClient = jdbcClient;
-        this.notionOAuthClient = notionOAuthClient;
+        this.contentSourceAuthorizationClient = contentSourceAuthorizationClient;
     }
 
     @BeforeEach
     void clearTables() {
         jdbcClient.sql("""
-                TRUNCATE TABLE notion_page_publications, notion_pages, notion_import_runs, notion_connections,
-                    notion_oauth_authorizations,
+                TRUNCATE TABLE notion_page_publications, notion_pages, notion_import_runs,
+                    content_source_connections, content_source_authorizations,
                     workspace_members, workspaces, oauth_identities, members
                 RESTART IDENTITY CASCADE
                 """)
                 .update();
-        reset(notionOAuthClient);
+        reset(contentSourceAuthorizationClient);
     }
 
     @DisplayName("OWNER와 MEMBER는 발행된 Page Tree를 같은 계약으로 조회하고 데이터를 변경하지 않는다")
@@ -174,7 +175,7 @@ class NotionPageTreeAcceptanceTest {
                         memberId
                 )
         ).isEqualTo(membershipSnapshot);
-        verifyNoInteractions(notionOAuthClient);
+        verifyNoInteractions(contentSourceAuthorizationClient);
     }
 
     @DisplayName("발행된 Page가 없으면 빈 배열과 no-store를 반환한다")
@@ -212,7 +213,7 @@ class NotionPageTreeAcceptanceTest {
                 )
                 .andExpect(jsonPath("$").isArray())
                 .andExpect(jsonPath("$.length()").value(0));
-        verifyNoInteractions(notionOAuthClient);
+        verifyNoInteractions(contentSourceAuthorizationClient);
     }
 
     @DisplayName("후속 Import가 실행 중이거나 실패해도 기존에 발행된 Page를 반환한다")
@@ -288,7 +289,7 @@ class NotionPageTreeAcceptanceTest {
                 .andExpect(jsonPath("$[0].title").value("기존 발행 Page"));
         assertThat(notionPageSnapshots(workspaceId)).isEqualTo(pageSnapshot);
         assertThat(importRunSnapshot(laterImportRunId)).isEqualTo(importRunSnapshot);
-        verifyNoInteractions(notionOAuthClient);
+        verifyNoInteractions(contentSourceAuthorizationClient);
     }
 
     @DisplayName("인증되지 않은 Page Tree 조회는 no-store와 401을 반환한다")
@@ -314,7 +315,7 @@ class NotionPageTreeAcceptanceTest {
                         )
                 )
                 .andExpect(jsonPath("$.code").value("UNAUTHENTICATED"));
-        verifyNoInteractions(notionOAuthClient);
+        verifyNoInteractions(contentSourceAuthorizationClient);
     }
 
     @DisplayName("Workspace ID가 양수가 아니면 no-store와 400을 반환한다")
@@ -345,7 +346,7 @@ class NotionPageTreeAcceptanceTest {
                         )
                 )
                 .andExpect(jsonPath("$.code").value("INVALID_WORKSPACE_ID"));
-        verifyNoInteractions(notionOAuthClient);
+        verifyNoInteractions(contentSourceAuthorizationClient);
     }
 
     @DisplayName("존재하지 않는 Workspace는 no-store와 404를 반환한다")
@@ -376,7 +377,7 @@ class NotionPageTreeAcceptanceTest {
                         )
                 )
                 .andExpect(jsonPath("$.code").value("WORKSPACE_NOT_FOUND"));
-        verifyNoInteractions(notionOAuthClient);
+        verifyNoInteractions(contentSourceAuthorizationClient);
     }
 
     @DisplayName("Workspace 멤버가 아니면 no-store와 403을 반환한다")
@@ -408,7 +409,7 @@ class NotionPageTreeAcceptanceTest {
                         )
                 )
                 .andExpect(jsonPath("$.code").value("WORKSPACE_ACCESS_DENIED"));
-        verifyNoInteractions(notionOAuthClient);
+        verifyNoInteractions(contentSourceAuthorizationClient);
     }
 
     @DisplayName("Page 계층에 순환 참조가 있으면 부분 응답 없이 no-store와 500을 반환한다")
@@ -482,7 +483,7 @@ class NotionPageTreeAcceptanceTest {
                 )
                 .andExpect(jsonPath("$.code").value("NOTION_PAGE_TREE_INVALID"))
                 .andExpect(jsonPath("$.message").value("Notion Page Tree를 조회할 수 없습니다"));
-        verifyNoInteractions(notionOAuthClient);
+        verifyNoInteractions(contentSourceAuthorizationClient);
     }
 
     private long saveMember(String nickname) {
@@ -625,22 +626,24 @@ class NotionPageTreeAcceptanceTest {
             long authorizingMemberId
     ) {
         return jdbcClient.sql("""
-                INSERT INTO notion_connections (
+                INSERT INTO content_source_connections (
                     workspace_id,
-                    access_token_ciphertext,
-                    notion_workspace_id,
-                    bot_id,
-                    owner_type,
+                    provider,
+                    access_credential_ciphertext,
+                    external_source_id,
+                    provider_connection_id,
+                    authorization_owner_type,
                     authorizing_member_id,
                     created_at,
                     updated_at,
                     version
                 ) VALUES (
                     :workspaceId,
+                    'NOTION',
                     'encrypted-access-token',
                     :notionWorkspaceId,
                     :botId,
-                    'workspace',
+                    'WORKSPACE',
                     :authorizingMemberId,
                     CAST(:createdAt AS TIMESTAMPTZ),
                     CAST(:createdAt AS TIMESTAMPTZ),
@@ -683,7 +686,7 @@ class NotionPageTreeAcceptanceTest {
         return jdbcClient.sql("""
                 INSERT INTO notion_import_runs (
                     workspace_id,
-                    notion_connection_id,
+                    content_source_connection_id,
                     requested_by_member_id,
                     status,
                     total_page_count,
@@ -858,7 +861,7 @@ class NotionPageTreeAcceptanceTest {
                 SELECT CONCAT_WS(
                     '|',
                     workspace_id,
-                    notion_connection_id,
+                    content_source_connection_id,
                     requested_by_member_id,
                     status,
                     total_page_count,
@@ -896,12 +899,12 @@ class NotionPageTreeAcceptanceTest {
     }
 
     @TestConfiguration(proxyBeanMethods = false)
-    static class NotionOAuthClientTestConfiguration {
+    static class ContentSourceAuthorizationClientTestConfiguration {
 
         @Bean("notionPageTreeNoCallClient")
         @Primary
-        NotionOAuthClient notionPageTreeNoCallClient() {
-            return mock(NotionOAuthClient.class);
+        ContentSourceAuthorizationClient notionPageTreeNoCallClient() {
+            return mock(ContentSourceAuthorizationClient.class);
         }
     }
 }

@@ -14,8 +14,8 @@ import com.knot.backend.auth.domain.AuthenticatedMember;
 import com.knot.backend.global.exception.GlobalExceptionHandler;
 import com.knot.backend.workspace.application.NotionPageTreeQueryService;
 import com.knot.backend.workspace.application.dto.result.NotionPageTreeItemResult;
-import com.knot.backend.workspace.domain.NotionErrorCode;
-import com.knot.backend.workspace.domain.NotionException;
+import com.knot.backend.workspace.domain.NotionPageErrorCode;
+import com.knot.backend.workspace.domain.NotionPageException;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -144,7 +144,7 @@ class NotionPageTreeControllerTest {
                         1L,
                         10L
                 )
-        ).thenThrow(new NotionException(NotionErrorCode.NOTION_PAGE_TREE_INVALID));
+        ).thenThrow(new NotionPageException(NotionPageErrorCode.NOTION_PAGE_TREE_INVALID));
 
         // when
         ResultActions result = mockMvc.perform(

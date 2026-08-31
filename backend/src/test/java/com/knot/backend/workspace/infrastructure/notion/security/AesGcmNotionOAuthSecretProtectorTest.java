@@ -3,9 +3,10 @@ package com.knot.backend.workspace.infrastructure.notion.security;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
 
-import com.knot.backend.workspace.application.NotionOAuthCredentialKind;
-import com.knot.backend.workspace.domain.NotionErrorCode;
-import com.knot.backend.workspace.domain.NotionException;
+import com.knot.backend.workspace.application.ContentSourceCredentialKind;
+import com.knot.backend.workspace.domain.ContentSourceErrorCode;
+import com.knot.backend.workspace.domain.ContentSourceException;
+import com.knot.backend.workspace.domain.ContentSourceProvider;
 import com.knot.backend.workspace.infrastructure.notion.oauth.NotionOAuthProperties;
 import java.net.URI;
 import java.time.Duration;
@@ -31,10 +32,16 @@ class AesGcmNotionOAuthSecretProtectorTest {
                         ENCRYPTION_KEY_V1
                 )
         );
-        String firstHash = protector.hashState("oauth-state");
+        String firstHash = protector.hashState(
+                ContentSourceProvider.NOTION,
+                "oauth-state"
+        );
 
         // when
-        String secondHash = protector.hashState("oauth-state");
+        String secondHash = protector.hashState(
+                ContentSourceProvider.NOTION,
+                "oauth-state"
+        );
 
         // then
         assertThat(secondHash).isEqualTo(firstHash)
@@ -56,14 +63,16 @@ class AesGcmNotionOAuthSecretProtectorTest {
         );
         String envelope = protector.encrypt(
                 WORKSPACE_ID,
-                NotionOAuthCredentialKind.ACCESS_TOKEN,
+                ContentSourceProvider.NOTION,
+                ContentSourceCredentialKind.ACCESS_CREDENTIAL,
                 SECRET
         );
 
         // when
         String decrypted = protector.decrypt(
                 WORKSPACE_ID,
-                NotionOAuthCredentialKind.ACCESS_TOKEN,
+                ContentSourceProvider.NOTION,
+                ContentSourceCredentialKind.ACCESS_CREDENTIAL,
                 envelope
         );
 
@@ -87,7 +96,8 @@ class AesGcmNotionOAuthSecretProtectorTest {
                 keyRing
         ).encrypt(
                 WORKSPACE_ID,
-                NotionOAuthCredentialKind.REFRESH_TOKEN,
+                ContentSourceProvider.NOTION,
+                ContentSourceCredentialKind.REFRESH_CREDENTIAL,
                 SECRET
         );
         AesGcmNotionOAuthSecretProtector rotatedProtector = protector(
@@ -98,7 +108,8 @@ class AesGcmNotionOAuthSecretProtectorTest {
         // when
         String decrypted = rotatedProtector.decrypt(
                 WORKSPACE_ID,
-                NotionOAuthCredentialKind.REFRESH_TOKEN,
+                ContentSourceProvider.NOTION,
+                ContentSourceCredentialKind.REFRESH_CREDENTIAL,
                 previousEnvelope
         );
 
@@ -120,7 +131,8 @@ class AesGcmNotionOAuthSecretProtectorTest {
         );
         String envelope = protector.encrypt(
                 WORKSPACE_ID,
-                NotionOAuthCredentialKind.ACCESS_TOKEN,
+                ContentSourceProvider.NOTION,
+                ContentSourceCredentialKind.ACCESS_CREDENTIAL,
                 SECRET
         );
 
@@ -128,16 +140,17 @@ class AesGcmNotionOAuthSecretProtectorTest {
         Throwable thrown = catchThrowable(
                 () -> protector.decrypt(
                         2L,
-                        NotionOAuthCredentialKind.ACCESS_TOKEN,
+                        ContentSourceProvider.NOTION,
+                        ContentSourceCredentialKind.ACCESS_CREDENTIAL,
                         envelope
                 )
         );
 
         // then
         assertThat(thrown).isInstanceOfSatisfying(
-                NotionException.class,
+                ContentSourceException.class,
                 exception -> assertThat(exception.getErrorCode())
-                        .isEqualTo(NotionErrorCode.NOTION_OAUTH_SECRET_PROTECTION_FAILED)
+                        .isEqualTo(ContentSourceErrorCode.CONTENT_SOURCE_SECRET_PROTECTION_FAILED)
         );
     }
 
@@ -158,9 +171,9 @@ class AesGcmNotionOAuthSecretProtectorTest {
 
         // then
         assertThat(thrown).isInstanceOfSatisfying(
-                NotionException.class,
+                ContentSourceException.class,
                 exception -> assertThat(exception.getErrorCode())
-                        .isEqualTo(NotionErrorCode.NOTION_OAUTH_CONFIGURATION_INVALID)
+                        .isEqualTo(ContentSourceErrorCode.CONTENT_SOURCE_CONFIGURATION_INVALID)
         );
     }
 
@@ -187,8 +200,7 @@ class AesGcmNotionOAuthSecretProtectorTest {
                 URI.create("https://api.notion.com/v1/oauth/token"),
                 "2026-03-11",
                 URI.create("https://api.example.com/api/v1/notion/oauth/callback"),
-                URI.create("https://app.example.com/notion-connected"),
-                URI.create("https://app.example.com/notion-failed"),
+                URI.create("https://app.example.com"),
                 Duration.ofMinutes(10),
                 Duration.ofSeconds(5),
                 activeKeyVersion,

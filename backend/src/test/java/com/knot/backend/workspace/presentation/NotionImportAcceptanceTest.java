@@ -13,7 +13,7 @@ import com.knot.backend.auth.domain.AuthTokenProvider;
 import com.knot.backend.auth.domain.AuthenticatedMember;
 import com.knot.backend.testsupport.TestApplicationProperties;
 import com.knot.backend.testsupport.TestcontainersConfiguration;
-import com.knot.backend.workspace.application.NotionOAuthClient;
+import com.knot.backend.workspace.application.ContentSourceAuthorizationClient;
 import jakarta.servlet.http.Cookie;
 import java.time.Instant;
 import java.util.stream.Stream;
@@ -40,7 +40,8 @@ import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.ResultActions;
 
 @Tag("acceptance")
-@Import({TestcontainersConfiguration.class, NotionImportAcceptanceTest.NotionOAuthClientTestConfiguration.class})
+@Import({TestcontainersConfiguration.class,
+        NotionImportAcceptanceTest.ContentSourceAuthorizationClientTestConfiguration.class})
 @TestApplicationProperties
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -52,29 +53,29 @@ class NotionImportAcceptanceTest {
     private final MockMvc mockMvc;
     private final AuthTokenProvider authTokenProvider;
     private final JdbcClient jdbcClient;
-    private final NotionOAuthClient notionOAuthClient;
+    private final ContentSourceAuthorizationClient contentSourceAuthorizationClient;
 
     NotionImportAcceptanceTest(
             MockMvc mockMvc,
             AuthTokenProvider authTokenProvider,
             JdbcClient jdbcClient,
-            NotionOAuthClient notionOAuthClient
+            ContentSourceAuthorizationClient contentSourceAuthorizationClient
     ) {
         this.mockMvc = mockMvc;
         this.authTokenProvider = authTokenProvider;
         this.jdbcClient = jdbcClient;
-        this.notionOAuthClient = notionOAuthClient;
+        this.contentSourceAuthorizationClient = contentSourceAuthorizationClient;
     }
 
     @BeforeEach
     void clearTables() {
         jdbcClient.sql("""
-                TRUNCATE TABLE notion_import_runs, notion_connections, notion_oauth_authorizations,
+                TRUNCATE TABLE notion_import_runs, content_source_connections, content_source_authorizations,
                     workspace_members, workspaces, oauth_identities, members
                 RESTART IDENTITY CASCADE
                 """)
                 .update();
-        reset(notionOAuthClient);
+        reset(contentSourceAuthorizationClient);
     }
 
     @DisplayName("MEMBER는 네 Import 상태를 조회해도 데이터를 변경하지 않는다")
@@ -161,7 +162,7 @@ class NotionImportAcceptanceTest {
                         context.memberId()
                 )
         ).isEqualTo(membershipSnapshot);
-        verifyNoInteractions(notionOAuthClient);
+        verifyNoInteractions(contentSourceAuthorizationClient);
     }
 
     @DisplayName("현재 Workspace의 OWNER와 MEMBER는 역할 차이 없이 Import 상태를 조회한다")
@@ -218,7 +219,7 @@ class NotionImportAcceptanceTest {
         result.andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("UNAUTHENTICATED"))
                 .andExpect(jsonPath("$.message").value("인증이 필요합니다"));
-        verifyNoInteractions(notionOAuthClient);
+        verifyNoInteractions(contentSourceAuthorizationClient);
     }
 
     @DisplayName("Import Run ID가 양수가 아니면 400을 반환한다")
@@ -244,7 +245,7 @@ class NotionImportAcceptanceTest {
         result.andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("INVALID_NOTION_IMPORT_RUN_ID"))
                 .andExpect(jsonPath("$.message").value("Notion Import 실행 ID가 올바르지 않습니다"));
-        verifyNoInteractions(notionOAuthClient);
+        verifyNoInteractions(contentSourceAuthorizationClient);
     }
 
     @DisplayName("미존재 Import와 다른 Workspace의 Import는 같은 404를 반환한다")
@@ -305,7 +306,7 @@ class NotionImportAcceptanceTest {
                 "NOTION_IMPORT_RUN_NOT_FOUND",
                 "Notion Import 실행을 찾을 수 없습니다"
         );
-        verifyNoInteractions(notionOAuthClient);
+        verifyNoInteractions(contentSourceAuthorizationClient);
     }
 
     private void expectNullableValue(
@@ -411,22 +412,24 @@ class NotionImportAcceptanceTest {
             long authorizingMemberId
     ) {
         return jdbcClient.sql("""
-                INSERT INTO notion_connections (
+                INSERT INTO content_source_connections (
                     workspace_id,
-                    access_token_ciphertext,
-                    notion_workspace_id,
-                    bot_id,
-                    owner_type,
+                    provider,
+                    access_credential_ciphertext,
+                    external_source_id,
+                    provider_connection_id,
+                    authorization_owner_type,
                     authorizing_member_id,
                     created_at,
                     updated_at,
                     version
                 ) VALUES (
                     :workspaceId,
+                    'NOTION',
                     'encrypted-access-token',
                     :notionWorkspaceId,
                     :botId,
-                    'workspace',
+                    'WORKSPACE',
                     :authorizingMemberId,
                     CAST(:createdAt AS TIMESTAMPTZ),
                     CAST(:createdAt AS TIMESTAMPTZ),
@@ -469,7 +472,7 @@ class NotionImportAcceptanceTest {
         return jdbcClient.sql("""
                 INSERT INTO notion_import_runs (
                     workspace_id,
-                    notion_connection_id,
+                    content_source_connection_id,
                     requested_by_member_id,
                     status,
                     total_page_count,
@@ -535,7 +538,7 @@ class NotionImportAcceptanceTest {
                 SELECT CONCAT_WS(
                     '|',
                     workspace_id,
-                    notion_connection_id,
+                    content_source_connection_id,
                     requested_by_member_id,
                     status,
                     COALESCE(total_page_count::text, 'null'),
@@ -560,13 +563,13 @@ class NotionImportAcceptanceTest {
                 SELECT CONCAT_WS(
                     '|',
                     workspace_id,
-                    notion_workspace_id,
-                    bot_id,
+                    external_source_id,
+                    provider_connection_id,
                     authorizing_member_id,
                     updated_at::text,
                     version
                 )
-                FROM notion_connections
+                FROM content_source_connections
                 WHERE id = :connectionId
                 """)
                 .param(
@@ -653,12 +656,12 @@ class NotionImportAcceptanceTest {
     }
 
     @TestConfiguration(proxyBeanMethods = false)
-    static class NotionOAuthClientTestConfiguration {
+    static class ContentSourceAuthorizationClientTestConfiguration {
 
         @Bean("notionImportNoCallClient")
         @Primary
-        NotionOAuthClient notionImportNoCallClient() {
-            return mock(NotionOAuthClient.class);
+        ContentSourceAuthorizationClient notionImportNoCallClient() {
+            return mock(ContentSourceAuthorizationClient.class);
         }
     }
 

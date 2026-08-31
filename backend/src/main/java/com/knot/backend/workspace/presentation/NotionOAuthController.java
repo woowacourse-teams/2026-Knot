@@ -1,11 +1,13 @@
 package com.knot.backend.workspace.presentation;
 
 import com.knot.backend.auth.domain.AuthenticatedMember;
-import com.knot.backend.workspace.application.NotionConnectionQueryService;
-import com.knot.backend.workspace.application.NotionOAuthAuthorizationService;
-import com.knot.backend.workspace.application.NotionOAuthCallbackService;
-import com.knot.backend.workspace.application.NotionOAuthSettings;
-import com.knot.backend.workspace.application.dto.result.NotionOAuthAuthorizationResult;
+import com.knot.backend.workspace.application.ContentSourceConnectionQueryService;
+import com.knot.backend.workspace.application.ContentSourceAuthorizationService;
+import com.knot.backend.workspace.application.ContentSourceCallbackService;
+import com.knot.backend.workspace.application.ContentSourceAuthorizationSettings;
+import com.knot.backend.workspace.application.dto.result.ContentSourceAuthorizationResult;
+import com.knot.backend.workspace.application.dto.result.ContentSourceCallbackResult;
+import com.knot.backend.workspace.domain.ContentSourceProvider;
 import com.knot.backend.workspace.presentation.dto.response.NotionConnectionStatusResponse;
 import com.knot.backend.workspace.presentation.dto.response.NotionOAuthAuthorizationResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -29,16 +31,16 @@ public class NotionOAuthController {
     private static final String AUTHORIZATION_PATH = "/api/v1/workspaces/{workspaceId}/notion-oauth-authorizations";
     private static final String CONNECTION_PATH = "/api/v1/workspaces/{workspaceId}/notion-connection";
 
-    private final NotionOAuthAuthorizationService authorizationService;
-    private final NotionOAuthCallbackService callbackService;
-    private final NotionConnectionQueryService connectionQueryService;
-    private final NotionOAuthSettings settings;
+    private final ContentSourceAuthorizationService authorizationService;
+    private final ContentSourceCallbackService callbackService;
+    private final ContentSourceConnectionQueryService connectionQueryService;
+    private final ContentSourceAuthorizationSettings settings;
 
     public NotionOAuthController(
-            NotionOAuthAuthorizationService authorizationService,
-            NotionOAuthCallbackService callbackService,
-            NotionConnectionQueryService connectionQueryService,
-            NotionOAuthSettings settings
+            ContentSourceAuthorizationService authorizationService,
+            ContentSourceCallbackService callbackService,
+            ContentSourceConnectionQueryService connectionQueryService,
+            ContentSourceAuthorizationSettings settings
     ) {
         this.authorizationService = authorizationService;
         this.callbackService = callbackService;
@@ -51,9 +53,10 @@ public class NotionOAuthController {
             @PathVariable Long workspaceId,
             @AuthenticationPrincipal AuthenticatedMember authenticatedMember
     ) {
-        NotionOAuthAuthorizationResult result = authorizationService.start(
+        ContentSourceAuthorizationResult result = authorizationService.start(
                 workspaceId,
-                authenticatedMember.getMemberId()
+                authenticatedMember.getMemberId(),
+                ContentSourceProvider.NOTION
         );
         return ResponseEntity.status(HttpStatus.CREATED)
                 .cacheControl(CacheControl.noStore())
@@ -66,12 +69,15 @@ public class NotionOAuthController {
             @RequestParam(required = false) String state,
             @RequestParam(required = false) String error
     ) {
-        boolean connected = callbackService.complete(
+        ContentSourceCallbackResult result = callbackService.complete(
+                ContentSourceProvider.NOTION,
                 code,
                 state,
                 error
         );
-        URI redirectUri = connected ? settings.successRedirectUri() : settings.failureRedirectUri();
+        URI redirectUri = result.connected()
+                ? settings.successRedirectUri(result.workspaceId())
+                : settings.failureRedirectUri(result.workspaceId());
         return ResponseEntity.status(HttpStatus.SEE_OTHER)
                 .cacheControl(CacheControl.noStore())
                 .location(redirectUri)
@@ -86,7 +92,8 @@ public class NotionOAuthController {
         return NotionConnectionStatusResponse.from(
                 connectionQueryService.findStatus(
                         workspaceId,
-                        authenticatedMember.getMemberId()
+                        authenticatedMember.getMemberId(),
+                        ContentSourceProvider.NOTION
                 )
         );
     }
