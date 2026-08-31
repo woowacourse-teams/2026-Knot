@@ -10,6 +10,7 @@ import com.knot.backend.workspace.presentation.dto.response.NotionConnectionStat
 import com.knot.backend.workspace.presentation.dto.response.NotionOAuthAuthorizationResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.net.URI;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -23,6 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @Tag(name = "Notion 연결", description = "워크스페이스 Notion OAuth 연결과 상태 조회")
 @RestController
+@ConditionalOnProperty(prefix = "notion.oauth", name = "enabled", havingValue = "true")
 public class NotionOAuthController {
     private static final String AUTHORIZATION_PATH = "/api/v1/workspaces/{workspaceId}/notion-oauth-authorizations";
 

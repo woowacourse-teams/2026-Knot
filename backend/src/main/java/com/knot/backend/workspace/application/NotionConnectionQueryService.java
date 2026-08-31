@@ -10,10 +10,12 @@ import com.knot.backend.workspace.domain.WorkspaceMemberRepository;
 import com.knot.backend.workspace.domain.WorkspaceMemberRole;
 import com.knot.backend.workspace.domain.WorkspaceRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@ConditionalOnProperty(prefix = "notion.oauth", name = "enabled", havingValue = "true")
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class NotionConnectionQueryService {

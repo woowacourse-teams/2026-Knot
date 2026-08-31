@@ -17,10 +17,12 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import lombok.RequiredArgsConstructor;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@ConditionalOnProperty(prefix = "notion.oauth", name = "enabled", havingValue = "true")
 @RequiredArgsConstructor
 public class NotionOAuthAuthorizationService {
     private final WorkspaceRepository workspaceRepository;

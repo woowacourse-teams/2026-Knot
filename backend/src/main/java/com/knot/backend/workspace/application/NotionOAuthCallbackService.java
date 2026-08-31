@@ -5,9 +5,11 @@ import com.knot.backend.workspace.application.dto.result.NotionOAuthToken;
 import com.knot.backend.workspace.domain.NotionException;
 import com.knot.backend.workspace.domain.WorkspaceException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
 @Service
+@ConditionalOnProperty(prefix = "notion.oauth", name = "enabled", havingValue = "true")
 @RequiredArgsConstructor
 public class NotionOAuthCallbackService {
     private final NotionOAuthAuthorizationService authorizationService;

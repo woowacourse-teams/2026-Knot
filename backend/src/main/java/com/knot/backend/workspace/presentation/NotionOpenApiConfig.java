@@ -13,11 +13,13 @@ import io.swagger.v3.oas.models.responses.ApiResponses;
 import io.swagger.v3.oas.models.security.SecurityRequirement;
 import java.util.List;
 import org.springdoc.core.customizers.OperationCustomizer;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpHeaders;
 
 @Configuration(proxyBeanMethods = false)
+@ConditionalOnProperty(prefix = "notion.oauth", name = "enabled", havingValue = "true")
 public class NotionOpenApiConfig {
     private static final String CONTROLLER = "com.knot.backend.workspace.presentation.NotionOAuthController";
     private static final String AUTHORIZATION_RESPONSE_SCHEMA = "NotionOAuthAuthorizationResponse";

@@ -15,12 +15,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.knot.backend.auth.domain.AuthTokenProvider;
 import com.knot.backend.auth.domain.AuthenticatedMember;
+import com.knot.backend.testsupport.NotionOAuthTestProperties;
+import com.knot.backend.testsupport.TestApplicationProperties;
+import com.knot.backend.testsupport.TestcontainersConfiguration;
 import com.knot.backend.workspace.application.NotionOAuthClient;
 import com.knot.backend.workspace.application.dto.result.NotionOAuthToken;
 import com.knot.backend.workspace.domain.NotionErrorCode;
 import com.knot.backend.workspace.domain.NotionException;
-import com.knot.backend.testsupport.TestApplicationProperties;
-import com.knot.backend.testsupport.TestcontainersConfiguration;
 import jakarta.servlet.http.Cookie;
 import java.net.URI;
 import java.time.OffsetDateTime;
@@ -46,6 +47,7 @@ import tools.jackson.databind.ObjectMapper;
 @Tag("acceptance")
 @Import({TestcontainersConfiguration.class, NotionOAuthAcceptanceTest.NotionOAuthClientTestConfiguration.class})
 @TestApplicationProperties
+@NotionOAuthTestProperties
 @SpringBootTest
 @AutoConfigureMockMvc
 @TestConstructor(autowireMode = TestConstructor.AutowireMode.ALL)
