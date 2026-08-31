@@ -30,7 +30,7 @@ import org.springframework.jdbc.core.simple.JdbcClient;
         NotionOAuthAuthorizationRepositoryAdapter.class, NotionConnectionRepositoryAdapter.class})
 @DataJpaTest
 class NotionOAuthRepositoryIntegrationTest {
-    private static final URI CALLBACK_URI = URI.create("https://api.knot.test/notion/oauth/callback");
+    private static final URI CALLBACK_URI = URI.create("https://api.knot.test/api/v1/notion/oauth/callback");
     private static final Instant CREATED_AT = Instant.parse("2026-08-31T00:00:00Z");
     private static final Instant CREATED_AT_WITH_NANOS = Instant.parse("2026-08-31T00:00:00.123456789Z");
     private static final Instant EXPIRES_AT = Instant.parse("2026-08-31T00:10:00Z");

@@ -106,7 +106,7 @@ class NotionOAuthAcceptanceTest {
         // when
         ResultActions result = mockMvc.perform(
                 post(
-                        "/workspaces/{workspaceId}/notion-oauth-authorizations",
+                        "/api/v1/workspaces/{workspaceId}/notion-oauth-authorizations",
                         workspaceId
                 ).cookie(
                         accessTokenCookie(
@@ -145,7 +145,7 @@ class NotionOAuthAcceptanceTest {
         // when
         ResultActions result = mockMvc.perform(
                 post(
-                        "/workspaces/{workspaceId}/notion-oauth-authorizations",
+                        "/api/v1/workspaces/{workspaceId}/notion-oauth-authorizations",
                         1L
                 ).cookie(csrfCredentials.cookie())
                         .header(
@@ -173,7 +173,7 @@ class NotionOAuthAcceptanceTest {
         // when
         ResultActions result = mockMvc.perform(
                 post(
-                        "/workspaces/{workspaceId}/notion-oauth-authorizations",
+                        "/api/v1/workspaces/{workspaceId}/notion-oauth-authorizations",
                         workspaceId
                 ).cookie(
                         accessTokenCookie(
@@ -204,7 +204,7 @@ class NotionOAuthAcceptanceTest {
         // when
         ResultActions result = mockMvc.perform(
                 post(
-                        "/workspaces/{workspaceId}/notion-oauth-authorizations",
+                        "/api/v1/workspaces/{workspaceId}/notion-oauth-authorizations",
                         workspaceId
                 ).cookie(
                         accessTokenCookie(
@@ -249,7 +249,7 @@ class NotionOAuthAcceptanceTest {
 
         // when
         ResultActions result = mockMvc.perform(
-                get("/notion/oauth/callback").param(
+                get("/api/v1/notion/oauth/callback").param(
                         "code",
                         OAUTH_CODE
                 )
@@ -317,7 +317,7 @@ class NotionOAuthAcceptanceTest {
 
         // when
         ResultActions result = mockMvc.perform(
-                get("/notion/oauth/callback").param(
+                get("/api/v1/notion/oauth/callback").param(
                         "state",
                         state
                 )
@@ -368,7 +368,7 @@ class NotionOAuthAcceptanceTest {
 
         // when
         ResultActions result = mockMvc.perform(
-                get("/notion/oauth/callback").param(
+                get("/api/v1/notion/oauth/callback").param(
                         "code",
                         OAUTH_CODE
                 )
@@ -428,7 +428,7 @@ class NotionOAuthAcceptanceTest {
 
         // when
         ResultActions result = mockMvc.perform(
-                get("/notion/oauth/callback").param(
+                get("/api/v1/notion/oauth/callback").param(
                         "code",
                         OAUTH_CODE
                 )
@@ -489,7 +489,7 @@ class NotionOAuthAcceptanceTest {
 
         // when
         ResultActions result = mockMvc.perform(
-                get("/notion/oauth/callback").param(
+                get("/api/v1/notion/oauth/callback").param(
                         "code",
                         OAUTH_CODE
                 )
@@ -547,7 +547,7 @@ class NotionOAuthAcceptanceTest {
         // when
         ResultActions result = mockMvc.perform(
                 get(
-                        "/workspaces/{workspaceId}/notion-connection",
+                        "/api/v1/workspaces/{workspaceId}/notion-connection",
                         workspaceId
                 ).cookie(
                         accessTokenCookie(
@@ -576,7 +576,7 @@ class NotionOAuthAcceptanceTest {
         // when
         ResultActions result = mockMvc.perform(
                 get(
-                        "/workspaces/{workspaceId}/notion-connection",
+                        "/api/v1/workspaces/{workspaceId}/notion-connection",
                         workspaceId
                 ).cookie(
                         accessTokenCookie(
@@ -610,7 +610,7 @@ class NotionOAuthAcceptanceTest {
         // when
         ResultActions result = mockMvc.perform(
                 get(
-                        "/workspaces/{workspaceId}/notion-connection",
+                        "/api/v1/workspaces/{workspaceId}/notion-connection",
                         workspaceId
                 ).cookie(
                         accessTokenCookie(
@@ -644,7 +644,7 @@ class NotionOAuthAcceptanceTest {
         // when
         ResultActions result = mockMvc.perform(
                 get(
-                        "/workspaces/{workspaceId}/notion-connection",
+                        "/api/v1/workspaces/{workspaceId}/notion-connection",
                         workspaceId
                 ).cookie(
                         accessTokenCookie(
@@ -679,7 +679,7 @@ class NotionOAuthAcceptanceTest {
         // when
         ResultActions result = mockMvc.perform(
                 get(
-                        "/workspaces/{workspaceId}/notion-connection",
+                        "/api/v1/workspaces/{workspaceId}/notion-connection",
                         workspaceId
                 ).cookie(
                         accessTokenCookie(
@@ -704,7 +704,7 @@ class NotionOAuthAcceptanceTest {
         stubAuthorizationUri();
         MvcResult result = mockMvc.perform(
                 post(
-                        "/workspaces/{workspaceId}/notion-oauth-authorizations",
+                        "/api/v1/workspaces/{workspaceId}/notion-oauth-authorizations",
                         workspaceId
                 ).cookie(
                         accessTokenCookie(
@@ -737,7 +737,7 @@ class NotionOAuthAcceptanceTest {
             String state
     ) throws Exception {
         mockMvc.perform(
-                get("/notion/oauth/callback").param(
+                get("/api/v1/notion/oauth/callback").param(
                         "code",
                         code
                 )
@@ -797,7 +797,7 @@ class NotionOAuthAcceptanceTest {
     }
 
     private CsrfCredentials csrfCredentials() throws Exception {
-        MvcResult result = mockMvc.perform(get("/auth/csrf"))
+        MvcResult result = mockMvc.perform(get("/api/v1/auth/csrf"))
                 .andExpect(status().isOk())
                 .andReturn();
         Cookie cookie = result.getResponse()

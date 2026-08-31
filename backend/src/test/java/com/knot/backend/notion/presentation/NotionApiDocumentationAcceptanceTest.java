@@ -44,7 +44,7 @@ class NotionApiDocumentationAcceptanceTest {
     void openApi_success_notionOAuthStartContract() throws Exception {
         // given
         String openApiPath = "/v3/api-docs";
-        String startPath = "$.paths['/workspaces/{workspaceId}/notion-oauth-authorizations'].post";
+        String startPath = "$.paths['/api/v1/workspaces/{workspaceId}/notion-oauth-authorizations'].post";
 
         // when
         ResultActions result = mockMvc.perform(get(openApiPath));
@@ -91,7 +91,7 @@ class NotionApiDocumentationAcceptanceTest {
     void openApi_success_notionOAuthCallbackContract() throws Exception {
         // given
         String openApiPath = "/v3/api-docs";
-        String callbackPath = "$.paths['/notion/oauth/callback'].get";
+        String callbackPath = "$.paths['/api/v1/notion/oauth/callback'].get";
 
         // when
         ResultActions result = mockMvc.perform(get(openApiPath));
@@ -116,7 +116,7 @@ class NotionApiDocumentationAcceptanceTest {
     void openApi_success_notionConnectionStatusContract() throws Exception {
         // given
         String openApiPath = "/v3/api-docs";
-        String statusPath = "$.paths['/workspaces/{workspaceId}/notion-connection'].get";
+        String statusPath = "$.paths['/api/v1/workspaces/{workspaceId}/notion-connection'].get";
 
         // when
         ResultActions result = mockMvc.perform(get(openApiPath));

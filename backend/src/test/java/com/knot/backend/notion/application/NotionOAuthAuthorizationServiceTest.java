@@ -39,7 +39,7 @@ class NotionOAuthAuthorizationServiceTest {
     private static final Instant NOW = Instant.parse("2026-08-31T00:00:00.123456789Z");
     private static final Instant CURRENT_TIME = NOW.truncatedTo(ChronoUnit.MICROS);
     private static final Duration STATE_TTL = Duration.ofMinutes(10);
-    private static final URI CALLBACK_URI = URI.create("https://api.knot.test/notion/oauth/callback");
+    private static final URI CALLBACK_URI = URI.create("https://api.knot.test/api/v1/notion/oauth/callback");
     private static final URI AUTHORIZATION_URI = URI
             .create("https://api.notion.com/v1/oauth/authorize?state=raw-state");
     private static final String RAW_STATE = "raw-state";

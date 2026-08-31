@@ -13,7 +13,7 @@ import org.springframework.test.context.TestPropertySource;
         "workspace.invitation.lookup-hash-key=ZmVkY2JhOTg3NjU0MzIxMGZlZGNiYTk4NzY1NDMyMTA",
         "workspace.invitation.encryption-key=MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY",
         "notion.oauth.client-id=test-notion-client-id", "notion.oauth.client-secret=test-notion-client-secret",
-        "notion.oauth.callback-uri=https://api.example.com/notion/oauth/callback",
+        "notion.oauth.callback-uri=https://api.example.com/api/v1/notion/oauth/callback",
         "notion.oauth.success-redirect-uri=https://app.example.com/notion-connection?result=connected",
         "notion.oauth.failure-redirect-uri=https://app.example.com/notion-connection?result=failed",
         "notion.oauth.state-hash-key=bm90aW9uLXN0YXRlLWhhc2gta2V5LTAwMDAwMDAwMDA",

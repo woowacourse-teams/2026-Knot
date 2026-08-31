@@ -47,7 +47,7 @@ class NotionOAuthPropertiesTest {
                         URI.create("https://api.notion.com/v1/oauth/authorize"),
                         URI.create("https://api.notion.com/v1/oauth/token"),
                         "2026-03-11",
-                        URI.create("/notion/oauth/callback"),
+                        URI.create("/api/v1/notion/oauth/callback"),
                         URI.create("/notion-connected"),
                         URI.create("/notion-failed"),
                         Duration.ofMinutes(10),
@@ -93,7 +93,7 @@ class NotionOAuthPropertiesTest {
         NotionOAuthProperties properties = properties(
                 URI.create("http://" + host + "/v1/oauth/authorize"),
                 URI.create("http://" + host + "/v1/oauth/token"),
-                URI.create("http://" + host + "/notion/oauth/callback")
+                URI.create("http://" + host + "/api/v1/notion/oauth/callback")
         );
 
         // then
@@ -179,7 +179,7 @@ class NotionOAuthPropertiesTest {
                 URI.create("https://api.notion.com/v1/oauth/authorize"),
                 URI.create("https://api.notion.com/v1/oauth/token"),
                 "2026-03-11",
-                URI.create("https://api.example.com/notion/oauth/callback"),
+                URI.create("https://api.example.com/api/v1/notion/oauth/callback"),
                 URI.create("/notion-connected"),
                 URI.create("/notion-failed"),
                 Duration.ofMinutes(10),
@@ -199,7 +199,7 @@ class NotionOAuthPropertiesTest {
     ) {
         URI authorizationUri = URI.create("https://api.notion.com/v1/oauth/authorize");
         URI tokenUri = URI.create("https://api.notion.com/v1/oauth/token");
-        URI callbackUri = URI.create("https://api.example.com/notion/oauth/callback");
+        URI callbackUri = URI.create("https://api.example.com/api/v1/notion/oauth/callback");
         return properties(
                 "authorizationUri".equals(target) ? uri : authorizationUri,
                 "tokenUri".equals(target) ? uri : tokenUri,

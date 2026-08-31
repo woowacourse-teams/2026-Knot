@@ -29,7 +29,7 @@ import tools.jackson.databind.ObjectMapper;
 class HttpNotionOAuthClientTest {
     private static final String STATE_HASH_KEY = "bm90aW9uLXN0YXRlLWhhc2gta2V5LTAwMDAwMDAwMDA";
     private static final String ENCRYPTION_KEY = "bm90aW9uLWVuY3J5cHRpb24ta2V5LTAwMDAwMDAwMDA";
-    private static final URI CALLBACK_URI = URI.create("https://api.example.com/notion/oauth/callback");
+    private static final URI CALLBACK_URI = URI.create("https://api.example.com/api/v1/notion/oauth/callback");
 
     private final ObjectMapper objectMapper = new ObjectMapper();
     private HttpServer server;

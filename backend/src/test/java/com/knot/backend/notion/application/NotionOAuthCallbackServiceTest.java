@@ -18,7 +18,7 @@ import org.junit.jupiter.api.Test;
 class NotionOAuthCallbackServiceTest {
     private static final String CODE = "oauth-code";
     private static final String STATE = "oauth-state";
-    private static final URI CALLBACK_URI = URI.create("https://api.knot.test/notion/oauth/callback");
+    private static final URI CALLBACK_URI = URI.create("https://api.knot.test/api/v1/notion/oauth/callback");
     private static final NotionOAuthAuthorizationContext AUTHORIZATION = new NotionOAuthAuthorizationContext(
             7L,
             1L,

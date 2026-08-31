@@ -14,7 +14,7 @@ class NotionOAuthAuthorizationTest {
     private static final Long WORKSPACE_ID = 1L;
     private static final Long AUTHORIZING_MEMBER_ID = 2L;
     private static final String STATE_HASH = "state-hash";
-    private static final URI CALLBACK_URI = URI.create("https://api.knot.test/notion/oauth/callback");
+    private static final URI CALLBACK_URI = URI.create("https://api.knot.test/api/v1/notion/oauth/callback");
     private static final Instant CREATED_AT = Instant.parse("2026-08-31T00:00:00Z");
     private static final Instant EXPIRES_AT = Instant.parse("2026-08-31T00:10:00Z");
     private static final Instant CREATED_AT_WITH_NANOS = Instant.parse("2026-08-31T00:00:00.123456789Z");

@@ -24,7 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
 @Tag(name = "Notion 연결", description = "워크스페이스 Notion OAuth 연결과 상태 조회")
 @RestController
 public class NotionOAuthController {
-    private static final String AUTHORIZATION_PATH = "/workspaces/{workspaceId}/notion-oauth-authorizations";
+    private static final String AUTHORIZATION_PATH = "/api/v1/workspaces/{workspaceId}/notion-oauth-authorizations";
 
     private final NotionOAuthAuthorizationService authorizationService;
     private final NotionOAuthCallbackService callbackService;
@@ -57,7 +57,7 @@ public class NotionOAuthController {
                 .body(NotionOAuthAuthorizationResponse.from(result));
     }
 
-    @GetMapping("/notion/oauth/callback")
+    @GetMapping("/api/v1/notion/oauth/callback")
     public ResponseEntity<Void> callback(
             @RequestParam(required = false) String code,
             @RequestParam(required = false) String state,
@@ -75,7 +75,7 @@ public class NotionOAuthController {
                 .build();
     }
 
-    @GetMapping(value = "/workspaces/{workspaceId}/notion-connection", produces = MediaType.APPLICATION_JSON_VALUE)
+    @GetMapping(value = "/api/v1/workspaces/{workspaceId}/notion-connection", produces = MediaType.APPLICATION_JSON_VALUE)
     public NotionConnectionStatusResponse status(
             @PathVariable Long workspaceId,
             @AuthenticationPrincipal AuthenticatedMember authenticatedMember

@@ -37,7 +37,7 @@ class NotionConnectionServiceTest {
     private static final Long AUTHORIZATION_ID = 7L;
     private static final Long WORKSPACE_ID = 1L;
     private static final Long MEMBER_ID = 2L;
-    private static final URI CALLBACK_URI = URI.create("https://api.knot.test/notion/oauth/callback");
+    private static final URI CALLBACK_URI = URI.create("https://api.knot.test/api/v1/notion/oauth/callback");
     private static final Instant NOW = Instant.parse("2026-08-31T00:00:00.123456789Z");
     private static final Instant CURRENT_TIME = NOW.truncatedTo(ChronoUnit.MICROS);
     private static final String ACCESS_TOKEN = "access-token";

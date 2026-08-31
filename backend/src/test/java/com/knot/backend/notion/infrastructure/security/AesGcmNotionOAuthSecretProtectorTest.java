@@ -186,7 +186,7 @@ class AesGcmNotionOAuthSecretProtectorTest {
                 URI.create("https://api.notion.com/v1/oauth/authorize"),
                 URI.create("https://api.notion.com/v1/oauth/token"),
                 "2026-03-11",
-                URI.create("https://api.example.com/notion/oauth/callback"),
+                URI.create("https://api.example.com/api/v1/notion/oauth/callback"),
                 URI.create("https://app.example.com/notion-connected"),
                 URI.create("https://app.example.com/notion-failed"),
                 Duration.ofMinutes(10),
