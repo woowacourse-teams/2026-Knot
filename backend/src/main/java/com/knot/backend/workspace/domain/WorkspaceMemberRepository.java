@@ -12,4 +12,10 @@ public interface WorkspaceMemberRepository {
             Long workspaceId,
             Long memberId
     );
+
+    boolean existsByWorkspaceIdAndMemberIdAndRole(
+            Long workspaceId,
+            Long memberId,
+            WorkspaceMemberRole role
+    );
 }

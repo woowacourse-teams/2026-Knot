@@ -91,6 +91,20 @@ class WorkspaceRepositoryIntegrationTest {
                         memberId
                 )
         ).isTrue();
+        assertThat(
+                workspaceMemberRepository.existsByWorkspaceIdAndMemberIdAndRole(
+                        workspace.getId(),
+                        memberId,
+                        WorkspaceMemberRole.OWNER
+                )
+        ).isTrue();
+        assertThat(
+                workspaceMemberRepository.existsByWorkspaceIdAndMemberIdAndRole(
+                        workspace.getId(),
+                        memberId,
+                        WorkspaceMemberRole.MEMBER
+                )
+        ).isFalse();
     }
 
     @DisplayName("같은 워크스페이스와 멤버 조합은 중복 저장할 수 없다")
