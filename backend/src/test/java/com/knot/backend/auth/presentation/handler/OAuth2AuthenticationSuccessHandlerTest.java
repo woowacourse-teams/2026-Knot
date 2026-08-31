@@ -47,7 +47,7 @@ class OAuth2AuthenticationSuccessHandlerTest {
         AuthService authService = mock(AuthService.class);
         JwtProperties jwtProperties = jwtProperties();
         OAuth2LoginProperties loginProperties = new OAuth2LoginProperties();
-        loginProperties.setSuccessRedirectUri("/auth/me");
+        loginProperties.setSuccessRedirectUri("/api/v1/auth/me");
         OAuth2AuthenticationSuccessHandler handler = new OAuth2AuthenticationSuccessHandler(
                 authService,
                 loginProperties,
@@ -88,7 +88,7 @@ class OAuth2AuthenticationSuccessHandlerTest {
         );
 
         // then
-        assertThat(response.getRedirectedUrl()).isEqualTo("/auth/me");
+        assertThat(response.getRedirectedUrl()).isEqualTo("/api/v1/auth/me");
         Cookie cookie = response.getCookie("KNOT_ACCESS_TOKEN");
         assertThat(cookie).isNotNull();
         assertThat(cookie.getValue()).isEqualTo("jwt-token");

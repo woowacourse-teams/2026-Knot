@@ -109,7 +109,7 @@ class KnotApplicationTests {
 
         // when
         ResultActions result = mockMvc.perform(
-                get("/auth/me").cookie(
+                get("/api/v1/auth/me").cookie(
                         new Cookie(
                                 JWT_COOKIE_NAME,
                                 token
@@ -130,7 +130,7 @@ class KnotApplicationTests {
         // given
 
         // when
-        ResultActions result = mockMvc.perform(get("/auth/me"));
+        ResultActions result = mockMvc.perform(get("/api/v1/auth/me"));
 
         // then
         result.andExpect(status().isUnauthorized())
@@ -145,7 +145,7 @@ class KnotApplicationTests {
 
         // when
         ResultActions result = mockMvc.perform(
-                get("/auth/me").cookie(
+                get("/api/v1/auth/me").cookie(
                         new Cookie(
                                 JWT_COOKIE_NAME,
                                 "invalid-token"
@@ -166,7 +166,7 @@ class KnotApplicationTests {
 
         // when
         ResultActions result = mockMvc.perform(
-                get("/auth/me").cookie(
+                get("/api/v1/auth/me").cookie(
                         new Cookie(
                                 JWT_COOKIE_NAME,
                                 expiredToken
@@ -193,7 +193,7 @@ class KnotApplicationTests {
 
         // when
         ResultActions result = mockMvc.perform(
-                get("/auth/me").cookie(
+                get("/api/v1/auth/me").cookie(
                         new Cookie(
                                 JWT_COOKIE_NAME,
                                 nicknameToken
@@ -213,7 +213,7 @@ class KnotApplicationTests {
 
         // when
         ResultActions result = mockMvc.perform(
-                options("/auth/nickname").header(
+                options("/api/v1/auth/nickname").header(
                         HttpHeaders.ORIGIN,
                         FRONTEND_ORIGIN
                 )
@@ -250,7 +250,7 @@ class KnotApplicationTests {
 
         // when
         ResultActions result = mockMvc.perform(
-                options("/auth/nickname").header(
+                options("/api/v1/auth/nickname").header(
                         HttpHeaders.ORIGIN,
                         UNALLOWED_ORIGIN
                 )
@@ -270,7 +270,7 @@ class KnotApplicationTests {
         // given
 
         // when
-        MvcResult result = mockMvc.perform(get("/auth/csrf"))
+        MvcResult result = mockMvc.perform(get("/api/v1/auth/csrf"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.token").isNotEmpty())
                 .andReturn();
@@ -293,7 +293,7 @@ class KnotApplicationTests {
     @DisplayName("CSRF 토큰 조회 API에서 받은 토큰으로 닉네임 설정을 완료한다")
     void completeNicknameSetup_success_withCsrfTokenEndpoint() throws Exception {
         // given
-        MvcResult csrfResult = mockMvc.perform(get("/auth/csrf"))
+        MvcResult csrfResult = mockMvc.perform(get("/api/v1/auth/csrf"))
                 .andExpect(status().isOk())
                 .andReturn();
         Cookie csrfCookie = csrfResult.getResponse()
@@ -311,7 +311,7 @@ class KnotApplicationTests {
 
         // when
         ResultActions result = mockMvc.perform(
-                post("/auth/nickname").cookie(
+                post("/api/v1/auth/nickname").cookie(
                         new Cookie(
                                 NICKNAME_COOKIE_NAME,
                                 nicknameToken
@@ -347,7 +347,7 @@ class KnotApplicationTests {
 
         // when
         ResultActions result = mockMvc.perform(
-                post("/auth/nickname").cookie(
+                post("/api/v1/auth/nickname").cookie(
                         new Cookie(
                                 NICKNAME_COOKIE_NAME,
                                 nicknameToken
@@ -371,7 +371,7 @@ class KnotApplicationTests {
                 null
         );
         String token = authTokenProvider.issue(member);
-        MvcResult csrfResult = mockMvc.perform(get("/auth/csrf"))
+        MvcResult csrfResult = mockMvc.perform(get("/api/v1/auth/csrf"))
                 .andExpect(status().isOk())
                 .andReturn();
         Cookie csrfCookie = csrfResult.getResponse()
@@ -381,7 +381,7 @@ class KnotApplicationTests {
 
         // when
         ResultActions result = mockMvc.perform(
-                post("/logout").cookie(
+                post("/api/v1/auth/logout").cookie(
                         new Cookie(
                                 JWT_COOKIE_NAME,
                                 token
