@@ -54,6 +54,9 @@ public class OpenApiConfig {
             if (isWorkspaceDetailOperation(handlerMethod)) {
                 customizeWorkspaceDetailOperation(operation);
             }
+            if (isWorkspaceListOperation(handlerMethod)) {
+                customizeWorkspaceListOperation(operation);
+            }
             return operation;
         };
     }
@@ -72,6 +75,12 @@ public class OpenApiConfig {
     private void customizeWorkspaceDetailOperation(Operation operation) {
         operation.summary("워크스페이스 단건 조회")
                 .responses(workspaceDetailResponses());
+        operation.security(List.of(new SecurityRequirement().addList(ACCESS_TOKEN_COOKIE)));
+    }
+
+    private void customizeWorkspaceListOperation(Operation operation) {
+        operation.summary("내 워크스페이스 목록 조회")
+                .responses(workspaceListResponses());
         operation.security(List.of(new SecurityRequirement().addList(ACCESS_TOKEN_COOKIE)));
     }
 
@@ -144,6 +153,23 @@ public class OpenApiConfig {
                 );
     }
 
+    private ApiResponses workspaceListResponses() {
+        return new ApiResponses().addApiResponse(
+                "200",
+                jsonResponse(
+                        "워크스페이스 목록 조회 성공",
+                        "WorkspaceListResponse"
+                )
+        )
+                .addApiResponse(
+                        "401",
+                        jsonResponse(
+                                "인증되지 않은 요청",
+                                "ErrorResponse"
+                        )
+                );
+    }
+
     private ApiResponse jsonResponse(
             String description,
             String schemaName
@@ -171,6 +197,15 @@ public class OpenApiConfig {
                 handlerMethod.getBeanType()
                         .getName()
         ) && "detail".equals(handlerMethod.getMethod()
+                .getName()
+        );
+    }
+
+    private boolean isWorkspaceListOperation(HandlerMethod handlerMethod) {
+        return WORKSPACE_QUERY_CONTROLLER.equals(
+                handlerMethod.getBeanType()
+                        .getName()
+        ) && "list".equals(handlerMethod.getMethod()
                 .getName()
         );
     }

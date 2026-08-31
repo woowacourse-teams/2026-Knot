@@ -1,11 +1,13 @@
 package com.knot.backend.workspace.application;
 
 import com.knot.backend.workspace.application.dto.result.WorkspaceDetailResult;
+import com.knot.backend.workspace.application.dto.result.WorkspaceListResult;
 import com.knot.backend.workspace.domain.Workspace;
 import com.knot.backend.workspace.domain.WorkspaceErrorCode;
 import com.knot.backend.workspace.domain.WorkspaceException;
 import com.knot.backend.workspace.domain.WorkspaceMemberRepository;
 import com.knot.backend.workspace.domain.WorkspaceRepository;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,6 +31,11 @@ public class WorkspaceQueryService {
                 memberId
         );
         return WorkspaceDetailResult.from(workspace);
+    }
+
+    public WorkspaceListResult findAllByMemberId(long memberId) {
+        List<Workspace> workspaces = workspaceRepository.findAllByMemberId(memberId);
+        return WorkspaceListResult.from(workspaces);
     }
 
     private void validateWorkspaceId(Long workspaceId) {
