@@ -34,7 +34,7 @@ export default (env, argv) => {
       port: 3000,
       historyApiFallback: true, // SPA 라우팅을 위해 추가
       client: {
-        overlay: true, // 빌드 오류 시 브라우저에 오버레이 표시
+        overlay: { errors: true, warnings: false }, // 빌드 오류만 브라우저에 오버레이 표시 (경고는 숨김)
       },
     },
     module: {
@@ -52,6 +52,7 @@ export default (env, argv) => {
                     {
                       runtime: "automatic",
                       importSource: "@emotion/react", // css prop을 위해 emotion의 jsx로 변환해요
+                      development: isDev, // 프로덕션 빌드에서는 jsxDEV 대신 jsx를 사용해요
                     },
                   ],
                   "@babel/preset-typescript", // 타입스크립트를 변환해요

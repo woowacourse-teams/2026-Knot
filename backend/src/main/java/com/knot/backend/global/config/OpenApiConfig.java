@@ -27,6 +27,7 @@ import org.springframework.web.method.HandlerMethod;
 public class OpenApiConfig {
     public static final String ACCESS_TOKEN_COOKIE = "accessTokenCookie";
     public static final String CSRF_TOKEN_HEADER = "csrfTokenHeader";
+    public static final String CSRF_TOKEN_HEADER_NAME = "X-XSRF-TOKEN";
     private static final String WORKSPACE_PACKAGE = "com.knot.backend.workspace.presentation.";
     private static final String WORKSPACE_CONTROLLER = WORKSPACE_PACKAGE + "WorkspaceController";
     private static final String WORKSPACE_QUERY_CONTROLLER = WORKSPACE_PACKAGE + "WorkspaceQueryController";
@@ -185,7 +186,7 @@ public class OpenApiConfig {
                         CSRF_TOKEN_HEADER,
                         new SecurityScheme().type(SecurityScheme.Type.APIKEY)
                                 .in(SecurityScheme.In.HEADER)
-                                .name("X-XSRF-TOKEN")
+                                .name(CSRF_TOKEN_HEADER_NAME)
                 )
                 .addSchemas(
                         "ErrorResponse",

@@ -25,7 +25,7 @@ const GlobalStyle = () => {
 
         body {
           margin: 0;
-          background-color: ${theme.neutral[0]};
+          background-color: ${theme.neutral[50]};
           color: ${theme.neutral[900]};
           font-family:
             "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont,
