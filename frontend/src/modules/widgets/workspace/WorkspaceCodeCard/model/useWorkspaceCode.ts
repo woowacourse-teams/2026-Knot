@@ -21,7 +21,7 @@ export const useWorkspaceCode = () => {
     callback: () => {
       // TODO(#243): API 응답의 workspaceId로 교체
       const TEMP_WORKSPACE_ID = "temp";
-      navigateToWorkspaceJoin(TEMP_WORKSPACE_ID);
+      navigateToWorkspaceJoin({ workspaceId: TEMP_WORKSPACE_ID });
     },
   });
 
