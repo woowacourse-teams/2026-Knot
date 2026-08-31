@@ -1,8 +1,8 @@
 package com.knot.backend.workspace.infrastructure.notion.oauth;
 
-import com.knot.backend.workspace.application.NotionOAuthSettings;
-import com.knot.backend.workspace.domain.NotionErrorCode;
-import com.knot.backend.workspace.domain.NotionException;
+import com.knot.backend.workspace.application.ContentSourceAuthorizationSettings;
+import com.knot.backend.workspace.domain.ContentSourceErrorCode;
+import com.knot.backend.workspace.domain.ContentSourceException;
 import java.net.URI;
 import java.time.Duration;
 import java.util.Map;
@@ -23,7 +23,7 @@ public record NotionOAuthProperties(
         String activeEncryptionKeyVersion,
         String stateHashKey,
         Map<String, String> encryptionKeys
-) implements NotionOAuthSettings {
+) implements ContentSourceAuthorizationSettings {
 
     public NotionOAuthProperties {
         if (isBlank(clientId) || isBlank(clientSecret) || isBlank(apiVersion) || !isSecureOAuthUri(authorizationUri)
@@ -31,7 +31,7 @@ public record NotionOAuthProperties(
                 || !isUsableRedirect(successRedirectUri) || !isUsableRedirect(failureRedirectUri)
                 || !isPositive(stateTtl) || !isPositive(requestTimeout) || isBlank(activeEncryptionKeyVersion)
                 || isBlank(stateHashKey) || encryptionKeys == null || encryptionKeys.isEmpty()) {
-            throw new NotionException(NotionErrorCode.NOTION_OAUTH_CONFIGURATION_INVALID);
+            throw new ContentSourceException(ContentSourceErrorCode.CONTENT_SOURCE_CONFIGURATION_INVALID);
         }
         encryptionKeys = Map.copyOf(encryptionKeys);
     }

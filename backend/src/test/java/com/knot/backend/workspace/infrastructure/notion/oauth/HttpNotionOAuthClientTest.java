@@ -3,9 +3,11 @@ package com.knot.backend.workspace.infrastructure.notion.oauth;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
 
-import com.knot.backend.workspace.application.dto.result.NotionOAuthToken;
-import com.knot.backend.workspace.domain.NotionErrorCode;
-import com.knot.backend.workspace.domain.NotionException;
+import com.knot.backend.workspace.application.dto.result.AuthorizedContentSource;
+import com.knot.backend.workspace.domain.ContentSourceAuthorizationOwnerType;
+import com.knot.backend.workspace.domain.ContentSourceErrorCode;
+import com.knot.backend.workspace.domain.ContentSourceException;
+import com.knot.backend.workspace.domain.ContentSourceProvider;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import java.io.IOException;
@@ -52,6 +54,7 @@ class HttpNotionOAuthClientTest {
 
         // when
         URI authorizationUri = client.createAuthorizationUri(
+                ContentSourceProvider.NOTION,
                 "raw-state",
                 CALLBACK_URI
         );
@@ -60,6 +63,7 @@ class HttpNotionOAuthClientTest {
         MultiValueMap<String, String> query = UriComponentsBuilder.fromUri(authorizationUri)
                 .build()
                 .getQueryParams();
+        assertThat(client.provider()).isEqualTo(ContentSourceProvider.NOTION);
         assertThat(authorizationUri.getPath()).isEqualTo("/v1/oauth/authorize");
         assertThat(query.getFirst("client_id")).isEqualTo("client-id");
         assertThat(query.getFirst("response_type")).isEqualTo("code");
@@ -126,7 +130,8 @@ class HttpNotionOAuthClientTest {
         );
 
         // when
-        NotionOAuthToken token = client.exchange(
+        AuthorizedContentSource token = client.exchange(
+                ContentSourceProvider.NOTION,
                 "authorization-code",
                 CALLBACK_URI
         );
@@ -150,14 +155,15 @@ class HttpNotionOAuthClientTest {
                         .asString()
         ).isEqualTo(CALLBACK_URI.toString());
         assertThat(token).isEqualTo(
-                new NotionOAuthToken(
+                new AuthorizedContentSource(
+                        ContentSourceProvider.NOTION,
                         "access-secret",
                         "refresh-secret",
                         "notion-workspace",
                         "Knot Notion",
                         "https://static.notion.test/icon.png",
                         "bot-id",
-                        "user",
+                        ContentSourceAuthorizationOwnerType.USER,
                         "notion-owner-user-id",
                         "template-id",
                         "request-id"
@@ -195,21 +201,23 @@ class HttpNotionOAuthClientTest {
         );
 
         // when
-        NotionOAuthToken token = client.exchange(
+        AuthorizedContentSource token = client.exchange(
+                ContentSourceProvider.NOTION,
                 "authorization-code",
                 CALLBACK_URI
         );
 
         // then
         assertThat(token).isEqualTo(
-                new NotionOAuthToken(
+                new AuthorizedContentSource(
+                        ContentSourceProvider.NOTION,
                         "access-secret",
                         null,
                         "notion-workspace",
                         null,
                         null,
                         "bot-id",
-                        "workspace",
+                        ContentSourceAuthorizationOwnerType.WORKSPACE,
                         null,
                         null,
                         null
@@ -236,6 +244,7 @@ class HttpNotionOAuthClientTest {
         // when
         Throwable thrown = catchThrowable(
                 () -> client.exchange(
+                        ContentSourceProvider.NOTION,
                         "sensitive-code",
                         CALLBACK_URI
                 )
@@ -243,9 +252,10 @@ class HttpNotionOAuthClientTest {
 
         // then
         assertThat(thrown).isInstanceOfSatisfying(
-                NotionException.class,
+                ContentSourceException.class,
                 exception -> {
-                    assertThat(exception.getErrorCode()).isEqualTo(NotionErrorCode.NOTION_OAUTH_TOKEN_EXCHANGE_FAILED);
+                    assertThat(exception.getErrorCode())
+                            .isEqualTo(ContentSourceErrorCode.CONTENT_SOURCE_AUTHORIZATION_FAILED);
                     assertThat(exception.getMessage()).doesNotContain(
                             "sensitive-code",
                             "provider-secret"
@@ -273,6 +283,7 @@ class HttpNotionOAuthClientTest {
         // when
         Throwable thrown = catchThrowable(
                 () -> client.exchange(
+                        ContentSourceProvider.NOTION,
                         "sensitive-code",
                         CALLBACK_URI
                 )
@@ -280,9 +291,10 @@ class HttpNotionOAuthClientTest {
 
         // then
         assertThat(thrown).isInstanceOfSatisfying(
-                NotionException.class,
+                ContentSourceException.class,
                 exception -> {
-                    assertThat(exception.getErrorCode()).isEqualTo(NotionErrorCode.NOTION_OAUTH_TOKEN_EXCHANGE_FAILED);
+                    assertThat(exception.getErrorCode())
+                            .isEqualTo(ContentSourceErrorCode.CONTENT_SOURCE_AUTHORIZATION_FAILED);
                     assertThat(exception.getMessage()).doesNotContain(
                             "sensitive-code",
                             "provider-secret"
@@ -316,6 +328,7 @@ class HttpNotionOAuthClientTest {
         // when
         Throwable thrown = catchThrowable(
                 () -> client.exchange(
+                        ContentSourceProvider.NOTION,
                         "authorization-code",
                         CALLBACK_URI
                 )
@@ -323,9 +336,9 @@ class HttpNotionOAuthClientTest {
 
         // then
         assertThat(thrown).isInstanceOfSatisfying(
-                NotionException.class,
+                ContentSourceException.class,
                 exception -> assertThat(exception.getErrorCode())
-                        .isEqualTo(NotionErrorCode.NOTION_OAUTH_TOKEN_EXCHANGE_FAILED)
+                        .isEqualTo(ContentSourceErrorCode.CONTENT_SOURCE_AUTHORIZATION_FAILED)
         );
     }
 
@@ -348,6 +361,7 @@ class HttpNotionOAuthClientTest {
         // when
         Throwable thrown = catchThrowable(
                 () -> client.exchange(
+                        ContentSourceProvider.NOTION,
                         "authorization-code",
                         CALLBACK_URI
                 )
@@ -355,9 +369,9 @@ class HttpNotionOAuthClientTest {
 
         // then
         assertThat(thrown).isInstanceOfSatisfying(
-                NotionException.class,
+                ContentSourceException.class,
                 exception -> assertThat(exception.getErrorCode())
-                        .isEqualTo(NotionErrorCode.NOTION_OAUTH_TOKEN_EXCHANGE_FAILED)
+                        .isEqualTo(ContentSourceErrorCode.CONTENT_SOURCE_AUTHORIZATION_FAILED)
         );
     }
 
@@ -395,6 +409,7 @@ class HttpNotionOAuthClientTest {
         // when
         Throwable thrown = catchThrowable(
                 () -> client.exchange(
+                        ContentSourceProvider.NOTION,
                         "authorization-code",
                         CALLBACK_URI
                 )
@@ -402,9 +417,9 @@ class HttpNotionOAuthClientTest {
 
         // then
         assertThat(thrown).isInstanceOfSatisfying(
-                NotionException.class,
+                ContentSourceException.class,
                 exception -> assertThat(exception.getErrorCode())
-                        .isEqualTo(NotionErrorCode.NOTION_OAUTH_TOKEN_EXCHANGE_FAILED)
+                        .isEqualTo(ContentSourceErrorCode.CONTENT_SOURCE_AUTHORIZATION_FAILED)
         );
     }
 

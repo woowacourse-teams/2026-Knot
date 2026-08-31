@@ -1,9 +1,11 @@
 package com.knot.backend.workspace.infrastructure.notion.oauth;
 
-import com.knot.backend.workspace.application.NotionOAuthClient;
-import com.knot.backend.workspace.application.dto.result.NotionOAuthToken;
-import com.knot.backend.workspace.domain.NotionErrorCode;
-import com.knot.backend.workspace.domain.NotionException;
+import com.knot.backend.workspace.application.ContentSourceAuthorizationClient;
+import com.knot.backend.workspace.application.dto.result.AuthorizedContentSource;
+import com.knot.backend.workspace.domain.ContentSourceAuthorizationOwnerType;
+import com.knot.backend.workspace.domain.ContentSourceErrorCode;
+import com.knot.backend.workspace.domain.ContentSourceException;
+import com.knot.backend.workspace.domain.ContentSourceProvider;
 import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -21,7 +23,7 @@ import tools.jackson.core.JacksonException;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
-public class HttpNotionOAuthClient implements NotionOAuthClient {
+public class HttpNotionOAuthClient implements ContentSourceAuthorizationClient {
     private static final String AUTHORIZATION_CODE_GRANT = "authorization_code";
     private static final String USER_OWNER_TYPE = "user";
     private static final String WORKSPACE_OWNER_TYPE = "workspace";
@@ -51,12 +53,19 @@ public class HttpNotionOAuthClient implements NotionOAuthClient {
     }
 
     @Override
+    public ContentSourceProvider provider() {
+        return ContentSourceProvider.NOTION;
+    }
+
+    @Override
     public URI createAuthorizationUri(
+            ContentSourceProvider provider,
             String state,
             URI callbackUri
     ) {
+        validateSupportedProvider(provider);
         if (state == null || state.isBlank() || callbackUri == null) {
-            throw new NotionException(NotionErrorCode.INVALID_NOTION_OAUTH_STATE);
+            throw new ContentSourceException(ContentSourceErrorCode.INVALID_CONTENT_SOURCE_AUTHORIZATION);
         }
         return UriComponentsBuilder.fromUri(properties.authorizationUri())
                 .queryParam(
@@ -85,10 +94,12 @@ public class HttpNotionOAuthClient implements NotionOAuthClient {
     }
 
     @Override
-    public NotionOAuthToken exchange(
+    public AuthorizedContentSource exchange(
+            ContentSourceProvider provider,
             String code,
             URI callbackUri
     ) {
+        validateSupportedProvider(provider);
         if (code == null || code.isBlank() || callbackUri == null) {
             throw exchangeFailed();
         }
@@ -159,7 +170,7 @@ public class HttpNotionOAuthClient implements NotionOAuthClient {
         return objectMapper.writeValueAsString(request);
     }
 
-    private NotionOAuthToken parseToken(String responseBody) throws JacksonException {
+    private AuthorizedContentSource parseToken(String responseBody) throws JacksonException {
         JsonNode response = objectMapper.readTree(responseBody);
         if (!"bearer".equalsIgnoreCase(
                 requiredText(
@@ -170,7 +181,8 @@ public class HttpNotionOAuthClient implements NotionOAuthClient {
             throw exchangeFailed();
         }
         Owner owner = parseOwner(response);
-        return new NotionOAuthToken(
+        return new AuthorizedContentSource(
+                ContentSourceProvider.NOTION,
                 requiredText(
                         response,
                         "access_token"
@@ -196,7 +208,7 @@ public class HttpNotionOAuthClient implements NotionOAuthClient {
                         "bot_id"
                 ),
                 owner.type(),
-                owner.userId(),
+                owner.id(),
                 optionalNullableText(
                         response,
                         "duplicated_template_id"
@@ -223,7 +235,7 @@ public class HttpNotionOAuthClient implements NotionOAuthClient {
                 throw exchangeFailed();
             }
             return new Owner(
-                    ownerType,
+                    ContentSourceAuthorizationOwnerType.USER,
                     requiredText(
                             user,
                             "id"
@@ -232,7 +244,7 @@ public class HttpNotionOAuthClient implements NotionOAuthClient {
         }
         if (WORKSPACE_OWNER_TYPE.equals(ownerType)) {
             return new Owner(
-                    ownerType,
+                    ContentSourceAuthorizationOwnerType.WORKSPACE,
                     null
             );
         }
@@ -305,7 +317,7 @@ public class HttpNotionOAuthClient implements NotionOAuthClient {
                 || isBlank(properties.clientSecret()) || properties.authorizationUri() == null
                 || properties.tokenUri() == null || properties.requestTimeout() == null
                 || !isPositive(properties.requestTimeout())) {
-            throw new NotionException(NotionErrorCode.NOTION_OAUTH_CONFIGURATION_INVALID);
+            throw new ContentSourceException(ContentSourceErrorCode.CONTENT_SOURCE_CONFIGURATION_INVALID);
         }
     }
 
@@ -317,6 +329,12 @@ public class HttpNotionOAuthClient implements NotionOAuthClient {
         return value == null || value.isBlank();
     }
 
+    private void validateSupportedProvider(ContentSourceProvider provider) {
+        if (provider != ContentSourceProvider.NOTION) {
+            throw new ContentSourceException(ContentSourceErrorCode.CONTENT_SOURCE_PROVIDER_MISMATCH);
+        }
+    }
+
     private String basicAuthorization(
             String clientId,
             String clientSecret
@@ -326,20 +344,20 @@ public class HttpNotionOAuthClient implements NotionOAuthClient {
                 .encodeToString(credentials.getBytes(StandardCharsets.UTF_8));
     }
 
-    private NotionException exchangeFailed() {
-        return new NotionException(NotionErrorCode.NOTION_OAUTH_TOKEN_EXCHANGE_FAILED);
+    private ContentSourceException exchangeFailed() {
+        return new ContentSourceException(ContentSourceErrorCode.CONTENT_SOURCE_AUTHORIZATION_FAILED);
     }
 
-    private NotionException exchangeFailed(Throwable cause) {
-        return new NotionException(
-                NotionErrorCode.NOTION_OAUTH_TOKEN_EXCHANGE_FAILED,
+    private ContentSourceException exchangeFailed(Throwable cause) {
+        return new ContentSourceException(
+                ContentSourceErrorCode.CONTENT_SOURCE_AUTHORIZATION_FAILED,
                 cause
         );
     }
 
     private record Owner(
-            String type,
-            String userId
+            ContentSourceAuthorizationOwnerType type,
+            String id
     ) {
     }
 }

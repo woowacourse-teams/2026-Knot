@@ -1,10 +1,10 @@
 package com.knot.backend.workspace.infrastructure.notion.security;
 
-import com.knot.backend.workspace.application.NotionOAuthStateGenerator;
+import com.knot.backend.workspace.application.ContentSourceStateGenerator;
 import java.security.SecureRandom;
 import java.util.Base64;
 
-public class SecureNotionOAuthStateGenerator implements NotionOAuthStateGenerator {
+public class SecureNotionOAuthStateGenerator implements ContentSourceStateGenerator {
     private static final int STATE_BYTES = 32;
 
     private final SecureRandom secureRandom;

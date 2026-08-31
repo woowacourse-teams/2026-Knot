@@ -3,8 +3,8 @@ package com.knot.backend.workspace.infrastructure.notion.oauth;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
 
-import com.knot.backend.workspace.domain.NotionErrorCode;
-import com.knot.backend.workspace.domain.NotionException;
+import com.knot.backend.workspace.domain.ContentSourceErrorCode;
+import com.knot.backend.workspace.domain.ContentSourceException;
 import java.net.URI;
 import java.time.Duration;
 import java.util.Map;
@@ -63,9 +63,9 @@ class NotionOAuthPropertiesTest {
 
         // then
         assertThat(thrown).isInstanceOfSatisfying(
-                NotionException.class,
+                ContentSourceException.class,
                 exception -> assertThat(exception.getErrorCode())
-                        .isEqualTo(NotionErrorCode.NOTION_OAUTH_CONFIGURATION_INVALID)
+                        .isEqualTo(ContentSourceErrorCode.CONTENT_SOURCE_CONFIGURATION_INVALID)
         );
     }
 
@@ -234,9 +234,9 @@ class NotionOAuthPropertiesTest {
 
     private void assertInvalidConfiguration(Throwable thrown) {
         assertThat(thrown).isInstanceOfSatisfying(
-                NotionException.class,
+                ContentSourceException.class,
                 exception -> assertThat(exception.getErrorCode())
-                        .isEqualTo(NotionErrorCode.NOTION_OAUTH_CONFIGURATION_INVALID)
+                        .isEqualTo(ContentSourceErrorCode.CONTENT_SOURCE_CONFIGURATION_INVALID)
         );
     }
 }

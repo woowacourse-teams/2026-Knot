@@ -18,10 +18,12 @@ import com.knot.backend.auth.domain.AuthenticatedMember;
 import com.knot.backend.testsupport.NotionOAuthTestProperties;
 import com.knot.backend.testsupport.TestApplicationProperties;
 import com.knot.backend.testsupport.TestcontainersConfiguration;
-import com.knot.backend.workspace.application.NotionOAuthClient;
-import com.knot.backend.workspace.application.dto.result.NotionOAuthToken;
-import com.knot.backend.workspace.domain.NotionErrorCode;
-import com.knot.backend.workspace.domain.NotionException;
+import com.knot.backend.workspace.application.ContentSourceAuthorizationClient;
+import com.knot.backend.workspace.application.dto.result.AuthorizedContentSource;
+import com.knot.backend.workspace.domain.ContentSourceAuthorizationOwnerType;
+import com.knot.backend.workspace.domain.ContentSourceErrorCode;
+import com.knot.backend.workspace.domain.ContentSourceException;
+import com.knot.backend.workspace.domain.ContentSourceProvider;
 import jakarta.servlet.http.Cookie;
 import java.net.URI;
 import java.time.OffsetDateTime;
@@ -45,7 +47,8 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
 @Tag("acceptance")
-@Import({TestcontainersConfiguration.class, NotionOAuthAcceptanceTest.NotionOAuthClientTestConfiguration.class})
+@Import({TestcontainersConfiguration.class,
+        NotionOAuthAcceptanceTest.ContentSourceAuthorizationClientTestConfiguration.class})
 @TestApplicationProperties
 @NotionOAuthTestProperties
 @SpringBootTest
@@ -57,22 +60,22 @@ class NotionOAuthAcceptanceTest {
     private static final String SUCCESS_REDIRECT_URI = "https://app.example.com/notion-connection?result=connected";
     private static final String FAILURE_REDIRECT_URI = "https://app.example.com/notion-connection?result=failed";
     private static final String OAUTH_CODE = "oauth-code";
-    private static final String ACCESS_TOKEN = "notion-access-token";
-    private static final String REFRESH_TOKEN = "notion-refresh-token";
+    private static final String ACCESS_CREDENTIAL = "notion-access-token";
+    private static final String REFRESH_CREDENTIAL = "notion-refresh-token";
     private static final String CREATED_AT_VALUE = "2026-08-31T00:00:00Z";
 
     private final MockMvc mockMvc;
     private final ObjectMapper objectMapper;
     private final AuthTokenProvider authTokenProvider;
     private final JdbcClient jdbcClient;
-    private final NotionOAuthClient notionOAuthClient;
+    private final ContentSourceAuthorizationClient notionOAuthClient;
 
     NotionOAuthAcceptanceTest(
             MockMvc mockMvc,
             ObjectMapper objectMapper,
             AuthTokenProvider authTokenProvider,
             JdbcClient jdbcClient,
-            NotionOAuthClient notionOAuthClient
+            ContentSourceAuthorizationClient notionOAuthClient
     ) {
         this.mockMvc = mockMvc;
         this.objectMapper = objectMapper;
@@ -84,12 +87,13 @@ class NotionOAuthAcceptanceTest {
     @BeforeEach
     void clearTables() {
         jdbcClient.sql("""
-                TRUNCATE TABLE notion_connections, notion_oauth_authorizations,
+                TRUNCATE TABLE content_source_connections, content_source_authorizations,
                     workspace_members, workspaces, oauth_identities, members
                 RESTART IDENTITY CASCADE
                 """)
                 .update();
         reset(notionOAuthClient);
+        when(notionOAuthClient.provider()).thenReturn(ContentSourceProvider.NOTION);
     }
 
     @DisplayName("OWNER가 CSRF 토큰으로 Notion OAuth를 시작하면 201과 authorization URL을 반환한다")
@@ -135,7 +139,7 @@ class NotionOAuthAcceptanceTest {
                         jsonPath("$.authorizationUrl")
                                 .value(org.hamcrest.Matchers.startsWith("https://api.notion.test/oauth?state="))
                 );
-        assertThat(countRows("notion_oauth_authorizations")).isEqualTo(1);
+        assertThat(countRows("content_source_authorizations")).isEqualTo(1);
     }
 
     @DisplayName("인증되지 않은 Notion OAuth 시작 요청은 401을 반환한다")
@@ -188,7 +192,7 @@ class NotionOAuthAcceptanceTest {
         // then
         result.andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value("FORBIDDEN"));
-        assertThat(countRows("notion_oauth_authorizations")).isZero();
+        assertThat(countRows("content_source_authorizations")).isZero();
     }
 
     @DisplayName("MEMBER의 Notion OAuth 시작 요청은 403을 반환한다")
@@ -224,7 +228,7 @@ class NotionOAuthAcceptanceTest {
         // then
         result.andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value("WORKSPACE_OWNER_REQUIRED"));
-        assertThat(countRows("notion_oauth_authorizations")).isZero();
+        assertThat(countRows("content_source_authorizations")).isZero();
     }
 
     @DisplayName("Notion OAuth callback 성공은 connection을 저장하고 성공 화면으로 redirect한다")
@@ -244,6 +248,7 @@ class NotionOAuthAcceptanceTest {
         );
         when(
                 notionOAuthClient.exchange(
+                        eq(ContentSourceProvider.NOTION),
                         eq(OAUTH_CODE),
                         any(URI.class)
                 )
@@ -275,22 +280,22 @@ class NotionOAuthAcceptanceTest {
                                 "no-store"
                         )
                 );
-        assertThat(countRows("notion_connections")).isEqualTo(1);
+        assertThat(countRows("content_source_connections")).isEqualTo(1);
         assertThat(
                 singleText(
-                        "notion_connections",
-                        "access_token_ciphertext"
+                        "content_source_connections",
+                        "access_credential_ciphertext"
                 )
-        ).doesNotContain(ACCESS_TOKEN);
+        ).doesNotContain(ACCESS_CREDENTIAL);
         assertThat(
                 singleText(
-                        "notion_connections",
-                        "refresh_token_ciphertext"
+                        "content_source_connections",
+                        "refresh_credential_ciphertext"
                 )
-        ).doesNotContain(REFRESH_TOKEN);
+        ).doesNotContain(REFRESH_CREDENTIAL);
         assertThat(
                 singleText(
-                        "notion_oauth_authorizations",
+                        "content_source_authorizations",
                         "state_hash"
                 )
         ).doesNotContain(state);
@@ -345,8 +350,8 @@ class NotionOAuthAcceptanceTest {
                 );
         assertThat(
                 singleText(
-                        "notion_connections",
-                        "notion_workspace_id"
+                        "content_source_connections",
+                        "external_source_id"
                 )
         ).isEqualTo("existing-notion-workspace");
         assertThat(countConsumedAuthorizations()).isOne();
@@ -396,8 +401,8 @@ class NotionOAuthAcceptanceTest {
                 );
         assertThat(
                 singleText(
-                        "notion_connections",
-                        "notion_workspace_id"
+                        "content_source_connections",
+                        "external_source_id"
                 )
         ).isEqualTo("existing-notion-workspace");
     }
@@ -419,6 +424,7 @@ class NotionOAuthAcceptanceTest {
         );
         when(
                 notionOAuthClient.exchange(
+                        eq(ContentSourceProvider.NOTION),
                         eq(OAUTH_CODE),
                         any(URI.class)
                 )
@@ -456,8 +462,8 @@ class NotionOAuthAcceptanceTest {
                 );
         assertThat(
                 singleText(
-                        "notion_connections",
-                        "notion_workspace_id"
+                        "content_source_connections",
+                        "external_source_id"
                 )
         ).isEqualTo("first-notion-workspace");
     }
@@ -484,10 +490,11 @@ class NotionOAuthAcceptanceTest {
         );
         when(
                 notionOAuthClient.exchange(
+                        eq(ContentSourceProvider.NOTION),
                         eq(OAUTH_CODE),
                         any(URI.class)
                 )
-        ).thenThrow(new NotionException(NotionErrorCode.NOTION_OAUTH_TOKEN_EXCHANGE_FAILED));
+        ).thenThrow(new ContentSourceException(ContentSourceErrorCode.CONTENT_SOURCE_AUTHORIZATION_FAILED));
 
         // when
         ResultActions result = mockMvc.perform(
@@ -517,8 +524,8 @@ class NotionOAuthAcceptanceTest {
                 );
         assertThat(
                 singleText(
-                        "notion_connections",
-                        "notion_workspace_id"
+                        "content_source_connections",
+                        "external_source_id"
                 )
         ).isEqualTo("existing-notion-workspace");
         assertThat(countConsumedAuthorizations()).isOne();
@@ -760,21 +767,23 @@ class NotionOAuthAcceptanceTest {
     private void stubAuthorizationUri() {
         when(
                 notionOAuthClient.createAuthorizationUri(
+                        eq(ContentSourceProvider.NOTION),
                         anyString(),
                         any(URI.class)
                 )
-        ).thenAnswer(invocation -> URI.create("https://api.notion.test/oauth?state=" + invocation.getArgument(0)));
+        ).thenAnswer(invocation -> URI.create("https://api.notion.test/oauth?state=" + invocation.getArgument(1)));
     }
 
-    private NotionOAuthToken token(String notionWorkspaceId) {
-        return new NotionOAuthToken(
-                ACCESS_TOKEN,
-                REFRESH_TOKEN,
+    private AuthorizedContentSource token(String notionWorkspaceId) {
+        return new AuthorizedContentSource(
+                ContentSourceProvider.NOTION,
+                ACCESS_CREDENTIAL,
+                REFRESH_CREDENTIAL,
                 notionWorkspaceId,
                 "Knot Notion",
                 null,
                 "bot-id",
-                "user",
+                ContentSourceAuthorizationOwnerType.USER,
                 "notion-owner-user-id",
                 null,
                 null
@@ -891,18 +900,21 @@ class NotionOAuthAcceptanceTest {
             long authorizingMemberId,
             String notionWorkspaceId
     ) {
-        jdbcClient.sql("""
-                INSERT INTO notion_connections (
-                    workspace_id, access_token_ciphertext, refresh_token_ciphertext,
-                    notion_workspace_id, notion_workspace_name, bot_id, owner_type, owner_user_id,
-                    authorizing_member_id, created_at, updated_at
+        jdbcClient
+                .sql(
+                        """
+                                INSERT INTO content_source_connections (
+                                    workspace_id, provider, access_credential_ciphertext, refresh_credential_ciphertext,
+                                    external_source_id, external_source_name, provider_connection_id, authorization_owner_type, authorization_owner_id,
+                                    authorizing_member_id, created_at, updated_at
+                                )
+                                VALUES (
+                                    :workspaceId, 'NOTION', 'existing-access-ciphertext', 'existing-refresh-ciphertext',
+                                    :notionWorkspaceId, 'Existing Notion', 'existing-bot-id', 'USER', 'notion-owner-user-id',
+                                    :authorizingMemberId, :createdAt, :createdAt
+                                )
+                                """
                 )
-                VALUES (
-                    :workspaceId, 'existing-access-ciphertext', 'existing-refresh-ciphertext',
-                    :notionWorkspaceId, 'Existing Notion', 'existing-bot-id', 'user', 'notion-owner-user-id',
-                    :authorizingMemberId, :createdAt, :createdAt
-                )
-                """)
                 .param(
                         "workspaceId",
                         workspaceId
@@ -942,7 +954,7 @@ class NotionOAuthAcceptanceTest {
     }
 
     private int countConsumedAuthorizations() {
-        return jdbcClient.sql("SELECT COUNT(*) FROM notion_oauth_authorizations WHERE consumed_at IS NOT NULL")
+        return jdbcClient.sql("SELECT COUNT(*) FROM content_source_authorizations WHERE consumed_at IS NOT NULL")
                 .query(Integer.class)
                 .single();
     }
@@ -954,12 +966,12 @@ class NotionOAuthAcceptanceTest {
     }
 
     @TestConfiguration(proxyBeanMethods = false)
-    static class NotionOAuthClientTestConfiguration {
+    static class ContentSourceAuthorizationClientTestConfiguration {
 
         @Bean
         @Primary
-        NotionOAuthClient testNotionOAuthClient() {
-            return mock(NotionOAuthClient.class);
+        ContentSourceAuthorizationClient testContentSourceAuthorizationClient() {
+            return mock(ContentSourceAuthorizationClient.class);
         }
     }
 }

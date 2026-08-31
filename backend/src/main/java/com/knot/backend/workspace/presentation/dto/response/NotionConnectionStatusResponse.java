@@ -1,11 +1,11 @@
 package com.knot.backend.workspace.presentation.dto.response;
 
-import com.knot.backend.workspace.application.dto.result.NotionConnectionStatusResult;
-import com.knot.backend.workspace.domain.NotionConnectionStatus;
+import com.knot.backend.workspace.application.dto.result.ContentSourceConnectionStatusResult;
+import com.knot.backend.workspace.domain.ContentSourceConnectionStatus;
 
-public record NotionConnectionStatusResponse(NotionConnectionStatus status) {
+public record NotionConnectionStatusResponse(ContentSourceConnectionStatus status) {
 
-    public static NotionConnectionStatusResponse from(NotionConnectionStatusResult result) {
+    public static NotionConnectionStatusResponse from(ContentSourceConnectionStatusResult result) {
         return new NotionConnectionStatusResponse(result.status());
     }
 }
