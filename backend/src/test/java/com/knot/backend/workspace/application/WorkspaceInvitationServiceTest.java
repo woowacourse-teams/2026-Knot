@@ -31,7 +31,7 @@ class WorkspaceInvitationServiceTest {
     private static final long MEMBER_ID = 2L;
     private static final Instant NOW = Instant.parse("2026-08-29T00:00:00.123456789Z");
     private static final Instant CURRENT_TIME = NOW.truncatedTo(ChronoUnit.MICROS);
-    private static final String CODE = "ABCDEFGH";
+    private static final String CODE = "ABC234";
     private static final String LINK_TOKEN = "link-token";
     private static final String CODE_HASH = "code-hash";
     private static final String LINK_TOKEN_HASH = "link-token-hash";
@@ -45,12 +45,16 @@ class WorkspaceInvitationServiceTest {
     );
     private final WorkspaceInvitationSecretGenerator secretGenerator = mock(WorkspaceInvitationSecretGenerator.class);
     private final WorkspaceInvitationSecretProtector secretProtector = mock(WorkspaceInvitationSecretProtector.class);
+    private final WorkspaceInvitationPreviewRateLimiter previewRateLimiter = mock(
+            WorkspaceInvitationPreviewRateLimiter.class
+    );
     private final WorkspaceInvitationService service = new WorkspaceInvitationService(
             workspaceRepository,
             workspaceMemberRepository,
             workspaceInvitationRepository,
             secretGenerator,
             secretProtector,
+            previewRateLimiter,
             Clock.fixed(
                     NOW,
                     ZoneOffset.UTC

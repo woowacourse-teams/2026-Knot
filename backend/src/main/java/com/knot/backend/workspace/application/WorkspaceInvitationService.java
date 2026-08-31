@@ -1,7 +1,9 @@
 package com.knot.backend.workspace.application;
 
 import com.knot.backend.workspace.application.dto.result.WorkspaceInvitationResult;
+import com.knot.backend.workspace.application.dto.result.WorkspaceInvitationPreviewResult;
 import com.knot.backend.workspace.application.dto.result.WorkspaceInvitationSecrets;
+import com.knot.backend.workspace.domain.Workspace;
 import com.knot.backend.workspace.domain.WorkspaceErrorCode;
 import com.knot.backend.workspace.domain.WorkspaceException;
 import com.knot.backend.workspace.domain.WorkspaceInvitation;
@@ -11,6 +13,7 @@ import com.knot.backend.workspace.domain.WorkspaceRepository;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.Optional;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,6 +25,7 @@ public class WorkspaceInvitationService {
     private final WorkspaceInvitationRepository workspaceInvitationRepository;
     private final WorkspaceInvitationSecretGenerator secretGenerator;
     private final WorkspaceInvitationSecretProtector secretProtector;
+    private final WorkspaceInvitationPreviewRateLimiter previewRateLimiter;
     private final Clock clock;
 
     public WorkspaceInvitationService(
@@ -30,6 +34,7 @@ public class WorkspaceInvitationService {
             WorkspaceInvitationRepository workspaceInvitationRepository,
             WorkspaceInvitationSecretGenerator secretGenerator,
             WorkspaceInvitationSecretProtector secretProtector,
+            WorkspaceInvitationPreviewRateLimiter previewRateLimiter,
             Clock clock
     ) {
         this.workspaceRepository = workspaceRepository;
@@ -37,6 +42,7 @@ public class WorkspaceInvitationService {
         this.workspaceInvitationRepository = workspaceInvitationRepository;
         this.secretGenerator = secretGenerator;
         this.secretProtector = secretProtector;
+        this.previewRateLimiter = previewRateLimiter;
         this.clock = clock;
     }
 
@@ -85,6 +91,25 @@ public class WorkspaceInvitationService {
         return existingInvitationResult(invitation);
     }
 
+    public WorkspaceInvitationPreviewResult preview(
+            String tokenOrCode,
+            String remoteAddress
+    ) {
+        WorkspaceInvitationCredential credential = WorkspaceInvitationCredential.from(tokenOrCode);
+        if (credential.rateLimited()) {
+            previewRateLimiter.consume(remoteAddress);
+            credential.validate();
+        }
+
+        WorkspaceInvitation invitation = findValidPreviewInvitation(credential);
+        Workspace workspace = workspaceRepository.findById(invitation.getWorkspaceId())
+                .orElseThrow(this::previewNotFound);
+        return new WorkspaceInvitationPreviewResult(
+                invitation.getWorkspaceId(),
+                workspace.getName()
+        );
+    }
+
     @Transactional
     public WorkspaceInvitationResult reissue(
             Long workspaceId,
@@ -107,6 +132,28 @@ public class WorkspaceInvitationService {
                     workspaceInvitationRepository.save(invitation);
                 });
         return savePreparedInvitation(preparedInvitation);
+    }
+
+    private WorkspaceInvitation findValidPreviewInvitation(WorkspaceInvitationCredential credential) {
+        String secretHash = secretProtector.hash(
+                credential.kind(),
+                credential.secret()
+        );
+        return findPreviewInvitation(
+                credential,
+                secretHash
+        ).filter(invitation -> invitation.isValidAt(currentTime()))
+                .orElseThrow(this::previewNotFound);
+    }
+
+    private Optional<WorkspaceInvitation> findPreviewInvitation(
+            WorkspaceInvitationCredential credential,
+            String secretHash
+    ) {
+        if (credential.kind() == WorkspaceInvitationSecretKind.INVITE_CODE) {
+            return workspaceInvitationRepository.findByInviteCodeHash(secretHash);
+        }
+        return workspaceInvitationRepository.findByLinkTokenHash(secretHash);
     }
 
     private WorkspaceInvitationResult issueWithExistingInvitation(
@@ -280,6 +327,10 @@ public class WorkspaceInvitationService {
 
     private WorkspaceException secretRecoveryFailed() {
         return new WorkspaceException(WorkspaceErrorCode.WORKSPACE_INVITATION_SECRET_RECOVERY_FAILED);
+    }
+
+    private WorkspaceException previewNotFound() {
+        return new WorkspaceException(WorkspaceErrorCode.WORKSPACE_INVITATION_PREVIEW_NOT_FOUND);
     }
 
     private record PreparedInvitation(

@@ -180,6 +180,7 @@ class ApiDocumentationAcceptanceTest {
         String issuePath = "$.paths['/workspaces/{workspaceId}/invitations'].post";
         String getPath = "$.paths['/workspaces/{workspaceId}/invitation'].get";
         String reissuePath = "$.paths['/workspaces/{workspaceId}/invitations/reissue'].post";
+        String previewPath = "$.paths['/invitations/{tokenOrCode}'].get";
         String errorResponseRef = "#/components/schemas/ErrorResponse";
 
         // when
@@ -264,9 +265,38 @@ class ApiDocumentationAcceptanceTest {
                         jsonPath(reissuePath + ".responses['500'].content['application/json'].schema['$ref']")
                                 .value(errorResponseRef)
                 )
+                .andExpect(jsonPath(previewPath + ".security").doesNotExist())
+                .andExpect(
+                        jsonPath(previewPath + ".responses['200'].content['application/json'].schema['$ref']").exists()
+                )
+                .andExpect(
+                        jsonPath(previewPath + ".responses['404'].content['application/json'].schema['$ref']")
+                                .value(errorResponseRef)
+                )
+                .andExpect(jsonPath(previewPath + ".responses['429'].headers.Retry-After").exists())
+                .andExpect(
+                        jsonPath(previewPath + ".responses['429'].content['application/json'].schema['$ref']")
+                                .value(errorResponseRef)
+                )
                 .andExpect(jsonPath("$.components.schemas.WorkspaceInvitationResponse.properties.code").exists())
                 .andExpect(jsonPath("$.components.schemas.WorkspaceInvitationResponse.properties.linkToken").exists())
-                .andExpect(jsonPath("$.components.schemas.WorkspaceInvitationResponse.properties.expiresAt").exists());
+                .andExpect(jsonPath("$.components.schemas.WorkspaceInvitationResponse.properties.expiresAt").exists())
+                .andExpect(
+                        jsonPath("$.components.schemas.WorkspaceInvitationPreviewResponse.properties.workspaceId")
+                                .exists()
+                )
+                .andExpect(
+                        jsonPath("$.components.schemas.WorkspaceInvitationPreviewResponse.properties.workspaceName")
+                                .exists()
+                )
+                .andExpect(
+                        jsonPath("$.components.schemas.WorkspaceInvitationPreviewResponse.properties.code")
+                                .doesNotExist()
+                )
+                .andExpect(
+                        jsonPath("$.components.schemas.WorkspaceInvitationPreviewResponse.properties.linkToken")
+                                .doesNotExist()
+                );
     }
 
     @Test

@@ -18,7 +18,7 @@ class SecureWorkspaceInvitationSecretGeneratorTest {
         WorkspaceInvitationSecrets secrets = generator.generate();
 
         // then
-        assertThat(secrets.code()).matches("[A-HJ-NP-Z2-9]{8}");
+        assertThat(secrets.code()).matches("[A-HJ-NP-Z2-9]{6}");
         assertThat(secrets.linkToken()).hasSize(43)
                 .matches("[A-Za-z0-9_-]+");
     }

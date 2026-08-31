@@ -6,7 +6,7 @@ import java.security.SecureRandom;
 import java.util.Base64;
 
 public class SecureWorkspaceInvitationSecretGenerator implements WorkspaceInvitationSecretGenerator {
-    static final int CODE_LENGTH = 8;
+    static final int CODE_LENGTH = 6;
     static final int LINK_TOKEN_BYTES = 32;
     private static final char[] CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789".toCharArray();
 
