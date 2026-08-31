@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -17,6 +18,10 @@ import com.knot.backend.chat.domain.ChatSessionRepository;
 import com.knot.backend.workspace.domain.WorkspaceMemberRepository;
 import java.util.List;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -238,5 +243,118 @@ class ChatMessageServiceTest {
         // then
         assertThat(handle.cancel()).isTrue();
         assertThat(registry.tryAcquire(10L)).isTrue();
+    }
+
+    @Test
+    @DisplayName("블로킹 중인 LLM 스트림을 취소하면 스트림을 닫고 활성 스트림 점유를 해제한다")
+    void sendMessage_cancelWhileStreamBlocks_closesStreamAndReleasesRegistry() throws Exception {
+        // given
+        ChatSessionRepository chatSessionRepository = mock(ChatSessionRepository.class);
+        WorkspaceMemberRepository workspaceMemberRepository = mock(WorkspaceMemberRepository.class);
+        ChatSession session = mock(ChatSession.class);
+        when(session.getMemberId()).thenReturn(2L);
+        when(session.getWorkspaceId()).thenReturn(1L);
+        when(chatSessionRepository.findById(10L)).thenReturn(java.util.Optional.of(session));
+        when(
+                workspaceMemberRepository.existsByWorkspaceIdAndMemberId(
+                        1L,
+                        2L
+                )
+        ).thenReturn(true);
+        ChatMessagePersistenceService persistenceService = mock(ChatMessagePersistenceService.class);
+        when(
+                persistenceService.saveMessage(
+                        anyLong(),
+                        any(),
+                        any(),
+                        any()
+                )
+        ).thenReturn(mock(ChatMessage.class));
+        ChatMessageRepository chatMessageRepository = mock(ChatMessageRepository.class);
+        when(chatMessageRepository.findAllBySessionId(10L)).thenReturn(List.of());
+        LlmClient llmClient = mock(LlmClient.class);
+        LlmStream llmStream = mock(LlmStream.class);
+        CountDownLatch hasNextEntered = new CountDownLatch(1);
+        CountDownLatch allowHasNextExit = new CountDownLatch(1);
+        CountDownLatch closeCalled = new CountDownLatch(1);
+        when(llmClient.start(any())).thenReturn(llmStream);
+        when(llmStream.hasNext()).thenAnswer(invocation -> {
+            hasNextEntered.countDown();
+            while (allowHasNextExit.getCount() > 0) {
+                try {
+                    allowHasNextExit.await(
+                            100,
+                            TimeUnit.MILLISECONDS
+                    );
+                } catch (InterruptedException exception) {
+                    continue;
+                }
+            }
+            return false;
+        });
+        doAnswer(invocation -> {
+            closeCalled.countDown();
+            return null;
+        }).when(llmStream)
+                .close();
+        ActiveChatStreamRegistry registry = new ActiveChatStreamRegistry();
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        ChatMessageService service = new ChatMessageService(
+                new ChatSessionAccessPolicy(
+                        chatSessionRepository,
+                        workspaceMemberRepository
+                ),
+                persistenceService,
+                chatMessageRepository,
+                llmClient,
+                registry,
+                executor
+        );
+
+        try {
+            // when
+            ChatStreamHandle handle = service.sendMessage(
+                    10L,
+                    2L,
+                    "질문",
+                    mock(ChatStreamListener.class)
+            );
+            assertThat(
+                    hasNextEntered.await(
+                            5,
+                            TimeUnit.SECONDS
+                    )
+            ).isTrue();
+            boolean cancelled = handle.cancel();
+
+            // then
+            assertThat(cancelled).isTrue();
+            assertThat(
+                    closeCalled.await(
+                            5,
+                            TimeUnit.SECONDS
+                    )
+            ).isTrue();
+            assertThat(registry.tryAcquire(10L)).isTrue();
+            verify(
+                    persistenceService,
+                    never()
+            ).saveMessage(
+                    anyLong(),
+                    org.mockito.ArgumentMatchers.eq(ChatMessageRole.ASSISTANT),
+                    any(),
+                    any()
+            );
+        } finally {
+            allowHasNextExit.countDown();
+            executor.shutdown();
+            assertThat(
+                    executor.awaitTermination(
+                            5,
+                            TimeUnit.SECONDS
+                    )
+            ).isTrue();
+            verify(llmStream).close();
+        }
     }
 }
