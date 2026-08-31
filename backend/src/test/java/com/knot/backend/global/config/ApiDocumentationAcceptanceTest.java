@@ -173,6 +173,43 @@ class ApiDocumentationAcceptanceTest {
     }
 
     @Test
+    @DisplayName("OpenAPI JSON에 내 워크스페이스 목록 조회 계약을 공개한다")
+    void openApi_success_workspaceListContract() throws Exception {
+        // given
+        String openApiPath = "/v3/api-docs";
+        String listPath = "$.paths['/workspaces'].get";
+        String listResponseRef = "#/components/schemas/WorkspaceListResponse";
+        String listItemResponseRef = "#/components/schemas/WorkspaceListItemResponse";
+        String errorResponseRef = "#/components/schemas/ErrorResponse";
+        String workspacesSchemaPath = "$.components.schemas.WorkspaceListResponse.properties.workspaces";
+        String itemSchemaPath = "$.components.schemas.WorkspaceListItemResponse.properties";
+
+        // when
+        ResultActions result = mockMvc.perform(get(openApiPath));
+
+        // then
+        result.andExpect(status().isOk())
+                .andExpect(jsonPath(listPath).exists())
+                .andExpect(jsonPath(listPath + ".summary").value("내 워크스페이스 목록 조회"))
+                .andExpect(
+                        jsonPath(listPath + ".responses['200'].content['application/json'].schema['$ref']")
+                                .value(listResponseRef)
+                )
+                .andExpect(
+                        jsonPath(listPath + ".responses['401'].content['application/json'].schema['$ref']")
+                                .value(errorResponseRef)
+                )
+                .andExpect(jsonPath(listPath + ".security[*].accessTokenCookie").exists())
+                .andExpect(jsonPath(workspacesSchemaPath + ".type").value("array"))
+                .andExpect(jsonPath(workspacesSchemaPath + ".items['$ref']").value(listItemResponseRef))
+                .andExpect(jsonPath(itemSchemaPath + ".id").exists())
+                .andExpect(jsonPath(itemSchemaPath + ".name").exists())
+                .andExpect(jsonPath(itemSchemaPath + ".role").doesNotExist())
+                .andExpect(jsonPath(itemSchemaPath + ".joinedAt").doesNotExist())
+                .andExpect(jsonPath(itemSchemaPath + ".createdAt").doesNotExist());
+    }
+
+    @Test
     @DisplayName("OpenAPI JSON에 워크스페이스 초대 발급·조회·재발급 계약을 공개한다")
     void openApi_success_workspaceInvitationContract() throws Exception {
         // given
