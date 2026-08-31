@@ -51,7 +51,7 @@ class ChatSessionControllerTest {
         assertThat(
                 result.getHeaders()
                         .getLocation()
-        ).hasToString("/api/conversations/10");
+        ).hasToString("/api/v1/conversations/10");
         assertThat(result.getBody()).extracting(ChatSessionResponse::title)
                 .isEqualTo("새 대화");
     }
