@@ -7,4 +7,6 @@ public interface WorkspaceRepository {
     Workspace save(Workspace workspace);
 
     Optional<Workspace> findById(Long workspaceId);
+
+    Optional<Workspace> findByIdForUpdate(Long workspaceId);
 }
