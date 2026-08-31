@@ -72,7 +72,7 @@ class WorkspaceAcceptanceTest {
 
         // when
         ResultActions result = mockMvc.perform(
-                post("/workspaces").cookie(
+                post("/api/v1/workspaces").cookie(
                         accessTokenCookie,
                         csrfCredentials.cookie()
                 )
@@ -115,7 +115,7 @@ class WorkspaceAcceptanceTest {
 
         // when
         ResultActions result = mockMvc.perform(
-                post("/workspaces").cookie(
+                post("/api/v1/workspaces").cookie(
                         accessTokenCookie,
                         csrfCredentials.cookie()
                 )
@@ -144,7 +144,7 @@ class WorkspaceAcceptanceTest {
 
         // when
         ResultActions result = mockMvc.perform(
-                post("/workspaces").cookie(csrfCredentials.cookie())
+                post("/api/v1/workspaces").cookie(csrfCredentials.cookie())
                         .header(
                                 "X-XSRF-TOKEN",
                                 csrfCredentials.token()
@@ -172,7 +172,7 @@ class WorkspaceAcceptanceTest {
 
         // when
         ResultActions result = mockMvc.perform(
-                post("/workspaces").cookie(accessTokenCookie)
+                post("/api/v1/workspaces").cookie(accessTokenCookie)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"name":"Knot 팀"}
@@ -197,7 +197,7 @@ class WorkspaceAcceptanceTest {
 
         // when
         ResultActions result = mockMvc.perform(
-                post("/workspaces").contentType(MediaType.APPLICATION_JSON)
+                post("/api/v1/workspaces").contentType(MediaType.APPLICATION_JSON)
                         .content(requestBody)
         );
 
@@ -224,7 +224,7 @@ class WorkspaceAcceptanceTest {
     }
 
     private CsrfCredentials csrfCredentials() throws Exception {
-        MvcResult result = mockMvc.perform(get("/auth/csrf"))
+        MvcResult result = mockMvc.perform(get("/api/v1/auth/csrf"))
                 .andExpect(status().isOk())
                 .andReturn();
         Cookie cookie = result.getResponse()
