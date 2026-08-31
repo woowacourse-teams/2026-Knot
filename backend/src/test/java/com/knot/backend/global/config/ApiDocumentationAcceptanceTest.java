@@ -46,6 +46,13 @@ class ApiDocumentationAcceptanceTest {
     }
 
     @Test
+    @DisplayName("OAuth 성공 redirect 기본값은 v1 인증 API 경로로 바인딩된다")
+    void oauth2LoginProperties_success_bindsVersionedApiRedirect() {
+        // when & then
+        assertThat(oauth2LoginProperties.getSuccessRedirectUri()).isEqualTo("/api/v1/auth/me");
+    }
+
+    @Test
     @DisplayName("개발 프로파일에서는 Swagger UI를 공개한다")
     void swaggerUi_success_developmentProfile() throws Exception {
         // when & then
@@ -68,9 +75,17 @@ class ApiDocumentationAcceptanceTest {
                 .andExpect(content().contentTypeCompatibleWith("application/json"))
                 .andExpect(jsonPath("$.tags[0].name").value("인증"))
                 .andExpect(jsonPath("$.tags[0].description").value("회원가입, 로그인, 리프레쉬, 로그아웃, 확인"))
-                .andExpect(jsonPath("$.paths['/auth/me'].get").exists())
-                .andExpect(jsonPath("$.paths['/auth/csrf'].get").exists())
-                .andExpect(jsonPath("$.paths['/auth/nickname'].post").exists())
+                .andExpect(jsonPath("$.paths['/api/v1/auth/me'].get").exists())
+                .andExpect(jsonPath("$.paths['/api/v1/auth/csrf'].get").exists())
+                .andExpect(jsonPath("$.paths['/api/v1/auth/nickname'].post").exists())
+                .andExpect(jsonPath("$.paths['/api/v1/auth/logout'].post").exists())
+                .andExpect(jsonPath("$.paths['/api/v1/workspaces/{workspaceId}/conversations'].post").exists())
+                .andExpect(jsonPath("$.paths['/api/v1/workspaces/{workspaceId}/conversations'].get").exists())
+                .andExpect(jsonPath("$.paths['/api/v1/conversations/{sessionId}'].get").exists())
+                .andExpect(jsonPath("$.paths['/api/v1/conversations/{sessionId}/messages'].post").exists())
+                .andExpect(jsonPath("$.paths['/auth/me']").doesNotExist())
+                .andExpect(jsonPath("$.paths['/logout']").doesNotExist())
+                .andExpect(jsonPath("$.paths['/api/conversations/{sessionId}']").doesNotExist())
                 .andExpect(
                         jsonPath(
                                 "$.paths['/oauth2/authorization/{registrationId}'].get.responses['302'].headers.Location"
