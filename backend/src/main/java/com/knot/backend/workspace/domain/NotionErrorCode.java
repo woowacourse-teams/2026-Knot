@@ -54,10 +54,22 @@ public enum NotionErrorCode implements ErrorCode {
             "Notion Import 실행 정보가 올바르지 않습니다"
     ),
 
+    INVALID_NOTION_PAGE(
+            ErrorCategory.INVALID_INPUT,
+            "INVALID_NOTION_PAGE",
+            "Notion Page 정보가 올바르지 않습니다"
+    ),
+
     NOTION_IMPORT_RUN_NOT_FOUND(
             ErrorCategory.NOT_FOUND,
             "NOTION_IMPORT_RUN_NOT_FOUND",
             "Notion Import 실행을 찾을 수 없습니다"
+    ),
+
+    NOTION_PAGE_TREE_INVALID(
+            ErrorCategory.INTERNAL_SERVER_ERROR,
+            "NOTION_PAGE_TREE_INVALID",
+            "Notion Page Tree를 조회할 수 없습니다"
     );
 
     private final ErrorCategory category;
