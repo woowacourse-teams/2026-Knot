@@ -1,5 +1,4 @@
 import CenteredLayout from "@pages/_layout/CenteredLayout";
-import ChatLayout from "@pages/_layout/ChatLayout";
 import WorkspaceLayout from "@pages/_layout/WorkspaceLayout";
 import JoinErrorPage from "@pages/join-error";
 import LoginPage from "@pages/login";
@@ -78,20 +77,13 @@ export const router = createBrowserRouter([
         path: PATH_ROUTE.WORKSPACE_NOTION_CONNECTION,
         element: <WorkspaceNotionConnectionPage />,
       },
-
-      // 탐색 — 좌측 채팅 / 우측 결과 2단 분할
       {
-        element: <ChatLayout />,
-        children: [
-          {
-            path: PATH_ROUTE.CHAT,
-            element: <ChatPage />,
-          },
-          {
-            path: PATH_ROUTE.CHAT_SESSION,
-            element: <ChatPage />,
-          },
-        ],
+        path: PATH_ROUTE.CHAT,
+        element: <ChatPage />,
+      },
+      {
+        path: PATH_ROUTE.CHAT_SESSION,
+        element: <ChatPage />,
       },
     ],
   },
