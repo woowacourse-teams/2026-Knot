@@ -77,13 +77,20 @@ public class ChatMessageService {
             );
             List<ChatMessage> history = chatMessageRepository.findAllBySessionId(sessionId);
             AtomicReference<Future<?>> futureReference = new AtomicReference<>();
+            AtomicReference<LlmStream> streamReference = new AtomicReference<>();
             ChatStreamHandle handle = new ChatStreamHandle(() -> {
-                cancel(futureReference);
-                if (streamStarted.compareAndSet(
+                streamStarted.compareAndSet(
                         false,
                         true
-                )) {
-                    releaseStream.run();
+                );
+                try {
+                    closeStream(streamReference);
+                } finally {
+                    try {
+                        cancel(futureReference);
+                    } finally {
+                        releaseStream.run();
+                    }
                 }
             });
             FutureTask<Void> task = new FutureTask<>(() -> {
@@ -98,7 +105,8 @@ public class ChatMessageService {
                             sessionId,
                             history,
                             listener,
-                            handle
+                            handle,
+                            streamReference
                     );
                 } finally {
                     releaseStream.run();
@@ -124,10 +132,16 @@ public class ChatMessageService {
             long sessionId,
             List<ChatMessage> history,
             ChatStreamListener listener,
-            ChatStreamHandle handle
+            ChatStreamHandle handle,
+            AtomicReference<LlmStream> streamReference
     ) {
         StringBuilder answer = new StringBuilder();
-        try (LlmStream stream = llmClient.start(toLlmRequest(history))) {
+        try {
+            LlmStream stream = llmClient.start(toLlmRequest(history));
+            streamReference.set(stream);
+            if (handle.isCancelled()) {
+                return;
+            }
             while (stream.hasNext()) {
                 checkCancellation(handle);
                 String delta = stream.next();
@@ -161,6 +175,8 @@ public class ChatMessageService {
             if (!handle.isCancelled()) {
                 listener.onError(ChatErrorCode.LLM_STREAM_FAILED);
             }
+        } finally {
+            closeStream(streamReference);
         }
     }
 
@@ -188,6 +204,13 @@ public class ChatMessageService {
         Future<?> future = futureReference.get();
         if (future != null) {
             future.cancel(true);
+        }
+    }
+
+    private void closeStream(AtomicReference<LlmStream> streamReference) {
+        LlmStream stream = streamReference.getAndSet(null);
+        if (stream != null) {
+            stream.close();
         }
     }
 }
