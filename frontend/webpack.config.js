@@ -52,6 +52,7 @@ export default (env, argv) => {
                     {
                       runtime: "automatic",
                       importSource: "@emotion/react", // css prop을 위해 emotion의 jsx로 변환해요
+                      development: isDev, // 프로덕션 빌드에서는 jsxDEV 대신 jsx를 사용해요
                     },
                   ],
                   "@babel/preset-typescript", // 타입스크립트를 변환해요
