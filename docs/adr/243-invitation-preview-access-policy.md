@@ -10,7 +10,7 @@ Proposed
 
 ## 한 줄 요약
 
-초대 미리보기는 `GET /invitations/{tokenOrCode}` 하나로 제공하고, 모든 유효한 초대 코드를 6자리로 통일하며 주소별 JVM 호출 제한을 적용한다.
+초대 미리보기는 `GET /api/v1/invitations/{tokenOrCode}` 하나로 제공하고, 모든 유효한 초대 코드를 6자리로 통일하며 주소별 JVM 호출 제한을 적용한다.
 
 ## 왜 이 결정이 필요했나
 
@@ -39,7 +39,7 @@ Proposed
 
 ## 무엇을 결정했나
 
-- 초대 미리보기는 인증 없이 호출 가능한 `GET /invitations/{tokenOrCode}`로 제공한다.
+- 초대 미리보기는 인증 없이 호출 가능한 `GET /api/v1/invitations/{tokenOrCode}`로 제공한다.
 - 입력을 `strip()`한 뒤 길이가 6이면 초대 코드 후보로 본다.
 - 초대 코드는 `Locale.ROOT` 기준 대문자로 정규화하고, 혼동 문자를 제외한 알파벳 `ABCDEFGHJKLMNPQRSTUVWXYZ23456789`만 허용한다.
 - 그 외 nonblank 입력은 링크 토큰으로 보고 원문 그대로, 대소문자를 구분해 조회한다.
