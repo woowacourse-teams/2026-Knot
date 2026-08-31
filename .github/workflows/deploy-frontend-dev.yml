@@ -17,7 +17,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  API_BASE_URL: ${{ vars.API_BASE_URL }}
+  API_BASE_URL: ${{ vars.API_BASE_URL_DEV }}
 
 jobs:
   deploy:
@@ -50,7 +50,7 @@ jobs:
       - name: Check API_BASE_URL
         run: |
           if [ -z "$API_BASE_URL" ]; then
-            echo "::warning::Repository variable API_BASE_URL is not set; the bundle will call the API with an undefined base URL."
+            echo "::warning::Repository variable API_BASE_URL_DEV is not set; the bundle will call the API with an undefined base URL."
           fi
 
       - name: Build
@@ -63,3 +63,4 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: frontend
           packageManager: pnpm
+          environment: dev
