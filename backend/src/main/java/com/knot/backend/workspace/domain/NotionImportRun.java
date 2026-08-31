@@ -70,6 +70,11 @@ public class NotionImportRun {
                 totalPageCount,
                 processedPageCount
         );
+        validateStatusTimestamps(
+                status,
+                startedAt,
+                completedAt
+        );
         validateCreatedAt(createdAt);
         this.workspaceId = workspaceId;
         this.notionConnectionId = notionConnectionId;
@@ -133,6 +138,21 @@ public class NotionImportRun {
             throw invalidImportRun();
         }
         if (processedPageCount < 0 || totalPageCount != null && processedPageCount > totalPageCount) {
+            throw invalidImportRun();
+        }
+    }
+
+    private void validateStatusTimestamps(
+            NotionImportStatus status,
+            Instant startedAt,
+            Instant completedAt
+    ) {
+        boolean valid = switch (status) {
+            case PENDING -> startedAt == null && completedAt == null;
+            case RUNNING -> startedAt != null && completedAt == null;
+            case COMPLETED, FAILED -> startedAt != null && completedAt != null;
+        };
+        if (!valid) {
             throw invalidImportRun();
         }
     }
