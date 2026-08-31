@@ -85,8 +85,8 @@ class ApiDocumentationAcceptanceTest {
     void openApi_success_developmentProfile() throws Exception {
         // given
         String openApiPath = "/v3/api-docs";
-        String createWorkspacePath = "$.paths['/workspaces'].post";
-        String detailWorkspacePath = "$.paths['/workspaces/{workspaceId}'].get";
+        String createWorkspacePath = "$.paths['/api/v1/workspaces'].post";
+        String detailWorkspacePath = "$.paths['/api/v1/workspaces/{workspaceId}'].get";
         String authDescriptionPath = "$.tags[?(@.name == '인증')].description";
         String workspaceDescriptionPath = "$.tags[?(@.name == '워크스페이스')].description";
         String workspaceTagsPath = createWorkspacePath + ".tags";
@@ -127,6 +127,8 @@ class ApiDocumentationAcceptanceTest {
                 .andExpect(jsonPath("$.paths['/auth/me']").doesNotExist())
                 .andExpect(jsonPath("$.paths['/logout']").doesNotExist())
                 .andExpect(jsonPath("$.paths['/api/conversations/{sessionId}']").doesNotExist())
+                .andExpect(jsonPath("$.paths['/workspaces']").doesNotExist())
+                .andExpect(jsonPath("$.paths['/workspaces/{workspaceId}']").doesNotExist())
                 .andExpect(jsonPath(createWorkspacePath).exists())
                 .andExpect(jsonPath(detailWorkspacePath).exists())
                 .andExpect(jsonPath(detailWorkspacePath + ".summary").value("워크스페이스 단건 조회"))
@@ -192,9 +194,9 @@ class ApiDocumentationAcceptanceTest {
     void openApi_success_workspaceInvitationContract() throws Exception {
         // given
         String openApiPath = "/v3/api-docs";
-        String issuePath = "$.paths['/workspaces/{workspaceId}/invitations'].post";
-        String getPath = "$.paths['/workspaces/{workspaceId}/invitation'].get";
-        String reissuePath = "$.paths['/workspaces/{workspaceId}/invitations/reissue'].post";
+        String issuePath = "$.paths['/api/v1/workspaces/{workspaceId}/invitations'].post";
+        String getPath = "$.paths['/api/v1/workspaces/{workspaceId}/invitation'].get";
+        String reissuePath = "$.paths['/api/v1/workspaces/{workspaceId}/invitations/reissue'].post";
         String errorResponseRef = "#/components/schemas/ErrorResponse";
 
         // when
@@ -279,6 +281,8 @@ class ApiDocumentationAcceptanceTest {
                         jsonPath(reissuePath + ".responses['500'].content['application/json'].schema['$ref']")
                                 .value(errorResponseRef)
                 )
+                .andExpect(jsonPath("$.paths['/workspaces/{workspaceId}/invitations']").doesNotExist())
+                .andExpect(jsonPath("$.paths['/workspaces/{workspaceId}/invitation']").doesNotExist())
                 .andExpect(jsonPath("$.components.schemas.WorkspaceInvitationResponse.properties.code").exists())
                 .andExpect(jsonPath("$.components.schemas.WorkspaceInvitationResponse.properties.linkToken").exists())
                 .andExpect(jsonPath("$.components.schemas.WorkspaceInvitationResponse.properties.expiresAt").exists());
