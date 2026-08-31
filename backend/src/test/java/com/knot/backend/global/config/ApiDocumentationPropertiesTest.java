@@ -12,7 +12,10 @@ class ApiDocumentationPropertiesTest {
         // given
         ApiDocumentationProperties properties = new ApiDocumentationProperties();
 
-        // when & then
-        assertThat(properties.isEnabled()).isFalse();
+        // when
+        boolean enabled = properties.isEnabled();
+
+        // then
+        assertThat(enabled).isFalse();
     }
 }
