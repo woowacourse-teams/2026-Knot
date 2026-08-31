@@ -34,7 +34,7 @@ export default (env, argv) => {
       port: 3000,
       historyApiFallback: true, // SPA 라우팅을 위해 추가
       client: {
-        overlay: true, // 빌드 오류 시 브라우저에 오버레이 표시
+        overlay: { errors: true, warnings: false }, // 빌드 오류만 브라우저에 오버레이 표시 (경고는 숨김)
       },
     },
     module: {
