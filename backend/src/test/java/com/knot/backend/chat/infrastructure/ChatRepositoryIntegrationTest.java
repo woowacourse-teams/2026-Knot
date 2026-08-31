@@ -15,6 +15,8 @@ import com.knot.backend.testsupport.TestApplicationProperties;
 import com.knot.backend.testsupport.TestcontainersConfiguration;
 import jakarta.persistence.EntityManager;
 import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
 import org.junit.jupiter.api.BeforeEach;
@@ -36,6 +38,7 @@ import org.springframework.transaction.annotation.Transactional;
 @TestConstructor(autowireMode = AutowireMode.ALL)
 class ChatRepositoryIntegrationTest {
     private static final Instant CREATED_AT = Instant.parse("2026-08-30T00:00:00Z");
+    private static final OffsetDateTime CREATED_AT_OFFSET = CREATED_AT.atOffset(ZoneOffset.UTC);
 
     private final ChatSessionRepository chatSessionRepository;
     private final ChatMessageRepository chatMessageRepository;
@@ -214,7 +217,7 @@ class ChatRepositoryIntegrationTest {
                 )
                 .param(
                         "createdAt",
-                        CREATED_AT
+                        CREATED_AT_OFFSET
                 )
                 .query(Long.class)
                 .single();
@@ -232,7 +235,7 @@ class ChatRepositoryIntegrationTest {
                 )
                 .param(
                         "joinedAt",
-                        CREATED_AT
+                        CREATED_AT_OFFSET
                 )
                 .update();
         return new long[]{workspaceId, memberId};
