@@ -1,15 +1,19 @@
-import { PATH_ROUTE } from "@routes/PATH_ROUTE";
+import { getRouterPath } from "@routes/PATH_ROUTE";
 
 /**
- * 참여 코드로 팀원에게 보낼 초대 링크를 만들어요.
+ * linkToken으로 팀원에게 보낼 초대 링크를 만들어요.
  *
- * 링크를 열면 초대 코드 입력 화면(`/workspace/code`)에 `?code=`가 채워진 채로 들어갑니다.
- * 이 형식은 UI 단계의 임시 결정이라, 초대 API를 붙일 때 BE linkToken 사용 여부와 함께 다시 정해요.
+ * 링크를 열면 초대 링크 진입 화면(`/invite/:token`)이 토큰을 판정한 뒤
+ * 입장 확인이나 초대 링크 오류 화면으로 보내요.
+ * 링크에는 BE 발급 응답의 `linkToken`만 넣고 6자 참여 코드는 노출하지 않아요.
  *
  * `displayInviteLink`는 화면에 보여줄 경로, `inviteLink`는 클립보드에 복사할 전체 주소예요.
  */
-export const getInviteLink = (code: string) => {
-  const displayInviteLink = `${PATH_ROUTE.WORKSPACE_CODE}?code=${encodeURIComponent(code)}`;
+export const getInviteLink = (linkToken: string) => {
+  const displayInviteLink = getRouterPath({
+    routeKey: "INVITE",
+    params: { token: linkToken },
+  });
 
   return {
     displayInviteLink,
