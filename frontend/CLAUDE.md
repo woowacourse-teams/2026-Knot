@@ -4,36 +4,19 @@
 
 ---
 
-## 개발 관련 정보
+### 작업 절차
 
-### 항상 지킬 핵심 규칙
+코드 구현 시 아래 순서를 따라야 한다.
 
-- 모든 컴포넌트는 도메인 로직 포함 여부에 따라 `modules/`(widgets · features) 또는 `shared/components/`(composites · primitives)에 둡니다.
-- 추상화 레벨은 `modules` > `composites` > `primitives` 순이며, 자신보다 상위 레벨의 컴포넌트는 임포트할 수 없습니다.
-- 모든 컴포넌트는 자신의 폴더를 가지며 `index.tsx`로만 외부에 공개합니다(콜로케이션). 단, 세그먼트 내부에서는 폴더 + `index.ts`를 다시 쓰지 않고 구현체 이름의 플랫 파일로 둡니다.
-- 동일 레벨 참조는 금지합니다. widgets는 widgets를, features는 features를 임포트할 수 없습니다. 도메인이 겹치면 컴포넌트 재사용 대신 도메인 훅을 `shared/hooks/domain`으로 내려 재사용합니다.
+1. **대상 파일을 먼저 특정한다.** 요구사항을 보고 어떤 파일을 새로 만들거나 고쳐야 하는지 정한다. 위치·역할 판단의 근거는 `project-structure` 스킬이다.
+2. **대상 파일과 그 주변을 읽는다.** 고칠 파일, 같은 폴더의 기존 파일, 참고할 유사 구현을 먼저 읽는다. 새 파일이라면 들어갈 폴더의 기존 파일을 읽는다.
+3. **주입된 규칙을 확인한 뒤 구현한다.** 규칙이 주입되지 않았다면 아직 대상 영역의 파일을 읽지 않은 것이므로 2단계로 돌아간다.
 
-### 작업 전에 반드시 읽을 문서
+영역별로 주입되는 규칙:
 
-컴포넌트를 **새로 만들거나, 수정·리팩토링하거나, 코드리뷰할 때**는 작업 전에 아래 문서를 반드시 읽으세요.
-
-- `.claude/rules/component-abstract-pattern.md` — 컴포넌트를 어느 위치(추상화 레벨)에 둘 것인가
-- `.claude/rules/component-colocation-pattern.md` — 컴포넌트 폴더를 어떻게 구성할 것인가
-
-컴포넌트 폴더 내부 세그먼트(`ui` / `model` / `utils` / `types` / `constants` / `context`) 코드를 **만들거나 배치·이동할 때**는 아래 문서를 반드시 읽으세요.
-
-- `.claude/rules/segment-pattern.md` — 세그먼트 정의와 배치·의존 규칙
-
-파일·폴더를 **새로 만들거나 위치를 판단할 때**는 아래 문서를 반드시 읽으세요.
-
-- `.claude/rules/project-structure.md` — 전체 폴더 구조와 레이어별 역할, 네이밍·운영 원칙
-
-**테스트 코드를 작성·배치할 때**는 아래 문서를 반드시 읽으세요.
-
-- `.claude/rules/test-strategy.md` — 단위·통합·E2E 테스트의 위치와 대상
-
-**API·훅 코드를 작성할 때**는 아래 문서를 반드시 읽으세요.
-
-- `.claude/rules/api-guide.md` — `shared/api` 구조와 fetch 함수 작성 규칙
-- `.claude/rules/query-hooks.md` — 쿼리/뮤테이션 훅 작성 규칙
-- `.claude/rules/hook-guide.md` — `shared/hooks`(common/domain) 작성 규칙
+- `src/modules/**`, `src/shared/components/**` → `component-colocation-pattern.md`, `segment-pattern.md`
+- `src/shared/**` → `shared-layer.md`
+- `src/shared/hooks/**` → `hook-guide.md`
+- `src/shared/api/**` → `api-guide.md`, `query-hooks.md`
+- `src/**/test.ts(x)`, `src/**/*.test.ts`, `src/__test__/**` → `test-strategy.md`
+- `src/**/*.ts(x)` 전체 → `general-code-convention.md`
