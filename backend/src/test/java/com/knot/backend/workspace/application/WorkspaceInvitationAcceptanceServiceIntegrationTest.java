@@ -30,6 +30,7 @@ import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.test.context.TestConstructor;
 
@@ -254,7 +255,7 @@ class WorkspaceInvitationAcceptanceServiceIntegrationTest {
         );
 
         // then
-        assertThat(thrown).isNotNull();
+        assertThat(thrown).isInstanceOf(DataIntegrityViolationException.class);
         assertThat(countAllMemberships(fixture.workspaceId())).isEqualTo(membershipCount);
         assertThat(invitationSnapshot(fixture.workspaceId())).isEqualTo(invitationSnapshot);
     }
