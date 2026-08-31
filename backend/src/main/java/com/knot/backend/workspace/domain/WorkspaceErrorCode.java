@@ -42,6 +42,36 @@ public enum WorkspaceErrorCode implements ErrorCode {
             "워크스페이스 참여 시각이 올바르지 않습니다"
     ),
 
+    INVALID_WORKSPACE_INVITATION_LINK_TOKEN_HASH(
+            ErrorCategory.INVALID_INPUT,
+            "INVALID_WORKSPACE_INVITATION_LINK_TOKEN_HASH",
+            "워크스페이스 초대 링크 토큰 해시가 올바르지 않습니다"
+    ),
+
+    INVALID_WORKSPACE_INVITATION_CODE_HASH(
+            ErrorCategory.INVALID_INPUT,
+            "INVALID_WORKSPACE_INVITATION_CODE_HASH",
+            "워크스페이스 초대 코드 해시가 올바르지 않습니다"
+    ),
+
+    INVALID_WORKSPACE_INVITATION_CREATED_AT(
+            ErrorCategory.INVALID_INPUT,
+            "INVALID_WORKSPACE_INVITATION_CREATED_AT",
+            "워크스페이스 초대 생성 시각이 올바르지 않습니다"
+    ),
+
+    INVALID_WORKSPACE_INVITATION_POINT_IN_TIME(
+            ErrorCategory.INVALID_INPUT,
+            "INVALID_WORKSPACE_INVITATION_POINT_IN_TIME",
+            "워크스페이스 초대 확인 시각이 올바르지 않습니다"
+    ),
+
+    INVALID_WORKSPACE_INVITATION_INVALIDATED_AT(
+            ErrorCategory.INVALID_INPUT,
+            "INVALID_WORKSPACE_INVITATION_INVALIDATED_AT",
+            "워크스페이스 초대 무효화 시각이 올바르지 않습니다"
+    ),
+
     WORKSPACE_NOT_FOUND(
             ErrorCategory.NOT_FOUND,
             "WORKSPACE_NOT_FOUND",
