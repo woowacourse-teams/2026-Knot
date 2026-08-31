@@ -108,6 +108,11 @@ public class SecurityConfig {
                             "/error"
                     )
                             .permitAll()
+                            .requestMatchers(
+                                    HttpMethod.GET,
+                                    "/notion/oauth/callback"
+                            )
+                            .permitAll()
                             .anyRequest()
                             .authenticated();
                 })
