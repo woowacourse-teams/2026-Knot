@@ -15,7 +15,7 @@ export const useWorkspaceCode = () => {
 
   const { navigateToWorkspaceJoin } = useNavigateToWorkspaceJoin();
 
-  /** 검증을 통과하면 1초 동안 성공 상태를 보여준 뒤 입장 확인 화면으로 이동. */
+  /** 검증을 통과하면 1.5초 동안 성공 상태를 보여준 뒤 입장 확인 화면으로 이동. */
   const { isTimedOut: isVerified, start: showSuccess } = useTimeout({
     timeout: SUCCESS_DISPLAY_MS,
     callback: () => {

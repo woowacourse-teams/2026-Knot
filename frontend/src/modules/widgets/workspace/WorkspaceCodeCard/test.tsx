@@ -11,7 +11,7 @@ const ERROR_MESSAGE = "올바르지 않은 코드예요. 다시 확인해 주세
 const SUCCESS_MESSAGE = "확인됐어요. 곧 다음 단계로 이동해요.";
 const ELSEWHERE_PATH = "/elsewhere";
 const VERIFY_DELAY_MS = 800;
-const SUCCESS_DELAY_MS = 1000;
+const SUCCESS_DELAY_MS = 1500;
 // TODO(#243): 미리보기 API 연결 후 msw 응답으로 교체
 const VALID_CODE = "000000";
 const INVALID_CODE = "X35D3@";
@@ -149,7 +149,7 @@ describe("WorkspaceCodeCard", () => {
     expect(router.state.location.pathname).toBe(PATH_ROUTE.WORKSPACE_CODE);
   });
 
-  it("성공 메시지를 1초 동안 보여준 뒤 입장 확인 화면으로 이동한다", async () => {
+  it("성공 메시지를 1.5초 동안 보여준 뒤 입장 확인 화면으로 이동한다", async () => {
     const { router, input } = renderCard();
 
     typeCode(input, VALID_CODE);
