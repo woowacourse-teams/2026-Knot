@@ -114,6 +114,7 @@ class ApiDocumentationAcceptanceTest {
                 .andExpect(jsonPath("$.paths['/auth/nickname'].post").exists())
                 .andExpect(jsonPath(createWorkspacePath).exists())
                 .andExpect(jsonPath(detailWorkspacePath).exists())
+                .andExpect(jsonPath(detailWorkspacePath + ".summary").value("워크스페이스 단건 조회"))
                 .andExpect(
                         jsonPath(createWorkspacePath + ".responses['201'].content['application/json'].schema['$ref']")
                                 .value(createWorkspaceResponseRef)
