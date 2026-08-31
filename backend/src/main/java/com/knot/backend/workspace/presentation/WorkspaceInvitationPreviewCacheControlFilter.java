@@ -35,7 +35,11 @@ public class WorkspaceInvitationPreviewCacheControlFilter extends OncePerRequest
     }
 
     private boolean isPreviewPath(HttpServletRequest request) {
-        return request.getRequestURI()
-                .startsWith(PREVIEW_PATH_PREFIX);
+        String applicationPath = request.getRequestURI()
+                .substring(
+                        request.getContextPath()
+                                .length()
+                );
+        return applicationPath.startsWith(PREVIEW_PATH_PREFIX);
     }
 }

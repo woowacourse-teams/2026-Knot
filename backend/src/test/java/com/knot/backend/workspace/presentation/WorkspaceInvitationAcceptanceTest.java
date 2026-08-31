@@ -671,6 +671,37 @@ class WorkspaceInvitationAcceptanceTest {
                 .andExpect(jsonPath("$.expiresAt").doesNotExist());
     }
 
+    @DisplayName("루트가 아닌 context path에서도 초대 미리보기 응답을 캐시하지 않는다")
+    @Test
+    void preview_success_nonRootContextPathDisablesCaching() throws Exception {
+        // given
+        WorkspaceFixture fixture = createWorkspaceFixture(true);
+        String code = responseBody(performIssue(fixture)).get("code")
+                .asText();
+        String contextPath = "/knot";
+
+        // when
+        ResultActions result = mockMvc.perform(
+                get(
+                        contextPath + "/invitations/{tokenOrCode}",
+                        code
+                ).contextPath(contextPath)
+                        .with(request -> {
+                            request.setRemoteAddr(uniqueValue("remote"));
+                            return request;
+                        })
+        );
+
+        // then
+        result.andExpect(status().isOk())
+                .andExpect(
+                        header().string(
+                                HttpHeaders.CACHE_CONTROL,
+                                "no-store"
+                        )
+                );
+    }
+
     @DisplayName("링크 토큰은 원문 대소문자가 일치할 때만 미리보기에 성공하고 코드 조회 제한을 소비하지 않는다")
     @Test
     void preview_success_exactLinkTokenWithoutRateLimitConsumption() throws Exception {
