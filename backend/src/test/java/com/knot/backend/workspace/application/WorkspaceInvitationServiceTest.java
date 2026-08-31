@@ -3,8 +3,10 @@ package com.knot.backend.workspace.application;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -15,6 +17,7 @@ import com.knot.backend.workspace.domain.WorkspaceErrorCode;
 import com.knot.backend.workspace.domain.WorkspaceException;
 import com.knot.backend.workspace.domain.WorkspaceInvitation;
 import com.knot.backend.workspace.domain.WorkspaceInvitationRepository;
+import com.knot.backend.workspace.domain.WorkspaceInvitationSecretCollisionException;
 import com.knot.backend.workspace.domain.WorkspaceMemberRepository;
 import com.knot.backend.workspace.domain.WorkspaceRepository;
 import java.time.Clock;
@@ -22,16 +25,18 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.Optional;
+import java.util.function.Supplier;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.springframework.dao.DataIntegrityViolationException;
 
 class WorkspaceInvitationServiceTest {
     private static final Long WORKSPACE_ID = 1L;
     private static final long MEMBER_ID = 2L;
     private static final Instant NOW = Instant.parse("2026-08-29T00:00:00.123456789Z");
     private static final Instant CURRENT_TIME = NOW.truncatedTo(ChronoUnit.MICROS);
-    private static final String CODE = "ABCDEFGH";
+    private static final String CODE = "ABC234";
     private static final String LINK_TOKEN = "link-token";
     private static final String CODE_HASH = "code-hash";
     private static final String LINK_TOKEN_HASH = "link-token-hash";
@@ -45,17 +50,32 @@ class WorkspaceInvitationServiceTest {
     );
     private final WorkspaceInvitationSecretGenerator secretGenerator = mock(WorkspaceInvitationSecretGenerator.class);
     private final WorkspaceInvitationSecretProtector secretProtector = mock(WorkspaceInvitationSecretProtector.class);
+    private final WorkspaceInvitationPreviewRateLimiter previewRateLimiter = mock(
+            WorkspaceInvitationPreviewRateLimiter.class
+    );
+    private final WorkspaceInvitationTransactionExecutor transactionExecutor = mock(
+            WorkspaceInvitationTransactionExecutor.class
+    );
     private final WorkspaceInvitationService service = new WorkspaceInvitationService(
             workspaceRepository,
             workspaceMemberRepository,
             workspaceInvitationRepository,
             secretGenerator,
             secretProtector,
+            previewRateLimiter,
+            transactionExecutor,
             Clock.fixed(
                     NOW,
                     ZoneOffset.UTC
             )
     );
+
+    WorkspaceInvitationServiceTest() {
+        when(transactionExecutor.execute(any())).thenAnswer(
+                invocation -> invocation.<Supplier<WorkspaceInvitationResult>>getArgument(0)
+                        .get()
+        );
+    }
 
     @DisplayName("활성 초대가 없으면 새 초대를 발급한다")
     @Test
@@ -86,6 +106,86 @@ class WorkspaceInvitationServiceTest {
                 invitationCaptor.getValue()
                         .getLinkTokenHash()
         ).isEqualTo(LINK_TOKEN_HASH);
+    }
+
+    @DisplayName("초대 secret 충돌이 발생하면 새 트랜잭션으로 다시 시도한다")
+    @Test
+    void issue_success_retriesSecretCollision() {
+        // given
+        WorkspaceInvitationSecretCollisionException collision = new WorkspaceInvitationSecretCollisionException(
+                new DataIntegrityViolationException("secret collision")
+        );
+        doThrow(collision).doAnswer(
+                invocation -> invocation.<Supplier<WorkspaceInvitationResult>>getArgument(0)
+                        .get()
+        )
+                .when(transactionExecutor)
+                .execute(any());
+        allowMemberWithLock();
+        when(workspaceInvitationRepository.findUninvalidatedByWorkspaceId(WORKSPACE_ID)).thenReturn(Optional.empty());
+        prepareNewInvitation();
+
+        // when
+        WorkspaceInvitationResult result = service.issue(
+                WORKSPACE_ID,
+                MEMBER_ID
+        );
+
+        // then
+        assertThat(result.created()).isTrue();
+        verify(
+                transactionExecutor,
+                times(2)
+        ).execute(any());
+    }
+
+    @DisplayName("초대 secret 충돌은 최대 세 번까지만 시도한다")
+    @Test
+    void issue_failure_stopsAfterSecretCollisionRetryLimit() {
+        // given
+        WorkspaceInvitationSecretCollisionException collision = new WorkspaceInvitationSecretCollisionException(
+                new DataIntegrityViolationException("secret collision")
+        );
+        doThrow(collision).when(transactionExecutor)
+                .execute(any());
+
+        // when
+        Throwable thrown = catchThrowable(
+                () -> service.issue(
+                        WORKSPACE_ID,
+                        MEMBER_ID
+                )
+        );
+
+        // then
+        assertThat(thrown).isSameAs(collision);
+        verify(
+                transactionExecutor,
+                times(WorkspaceInvitationService.MAX_SECRET_GENERATION_ATTEMPTS)
+        ).execute(any());
+    }
+
+    @DisplayName("secret 충돌이 아닌 무결성 오류는 재시도하지 않는다")
+    @Test
+    void issue_failure_doesNotRetryOtherIntegrityViolation() {
+        // given
+        DataIntegrityViolationException integrityViolation = new DataIntegrityViolationException(
+                "foreign key violation"
+        );
+        doThrow(integrityViolation).when(transactionExecutor)
+                .execute(any());
+
+        // when
+        Throwable thrown = catchThrowable(
+                () -> service.issue(
+                        WORKSPACE_ID,
+                        MEMBER_ID
+                )
+        );
+
+        // then
+        assertThat(thrown).isSameAs(integrityViolation);
+        verify(transactionExecutor).execute(any());
     }
 
     @DisplayName("유효한 활성 초대가 있으면 새로 만들지 않고 같은 원문을 반환한다")

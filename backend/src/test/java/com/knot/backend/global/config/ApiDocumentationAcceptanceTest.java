@@ -55,6 +55,19 @@ class ApiDocumentationAcceptanceTest {
     }
 
     @Test
+    @DisplayName("OAuth 성공 redirect 기본값은 v1 인증 API 경로로 바인딩된다")
+    void oauth2LoginProperties_success_bindsVersionedApiRedirect() {
+        // given
+        String expectedRedirectUri = "/api/v1/auth/me";
+
+        // when
+        String actualRedirectUri = oauth2LoginProperties.getSuccessRedirectUri();
+
+        // then
+        assertThat(actualRedirectUri).isEqualTo(expectedRedirectUri);
+    }
+
+    @Test
     @DisplayName("개발 프로파일에서는 Swagger UI를 공개한다")
     void swaggerUi_success_developmentProfile() throws Exception {
         // given
@@ -78,8 +91,8 @@ class ApiDocumentationAcceptanceTest {
     void openApi_success_developmentProfile() throws Exception {
         // given
         String openApiPath = "/v3/api-docs";
-        String createWorkspacePath = "$.paths['/workspaces'].post";
-        String detailWorkspacePath = "$.paths['/workspaces/{workspaceId}'].get";
+        String createWorkspacePath = "$.paths['/api/v1/workspaces'].post";
+        String detailWorkspacePath = "$.paths['/api/v1/workspaces/{workspaceId}'].get";
         String authDescriptionPath = "$.tags[?(@.name == '인증')].description";
         String workspaceDescriptionPath = "$.tags[?(@.name == '워크스페이스')].description";
         String workspaceTagsPath = createWorkspacePath + ".tags";
@@ -109,9 +122,19 @@ class ApiDocumentationAcceptanceTest {
                 )
                 .andExpect(jsonPath(authDescriptionPath).value(hasItem(authDescription)))
                 .andExpect(jsonPath(workspaceDescriptionPath).value(hasItem(workspaceDescription)))
-                .andExpect(jsonPath("$.paths['/auth/me'].get").exists())
-                .andExpect(jsonPath("$.paths['/auth/csrf'].get").exists())
-                .andExpect(jsonPath("$.paths['/auth/nickname'].post").exists())
+                .andExpect(jsonPath("$.paths['/api/v1/auth/me'].get").exists())
+                .andExpect(jsonPath("$.paths['/api/v1/auth/csrf'].get").exists())
+                .andExpect(jsonPath("$.paths['/api/v1/auth/nickname'].post").exists())
+                .andExpect(jsonPath("$.paths['/api/v1/auth/logout'].post").exists())
+                .andExpect(jsonPath("$.paths['/api/v1/workspaces/{workspaceId}/conversations'].post").exists())
+                .andExpect(jsonPath("$.paths['/api/v1/workspaces/{workspaceId}/conversations'].get").exists())
+                .andExpect(jsonPath("$.paths['/api/v1/conversations/{sessionId}'].get").exists())
+                .andExpect(jsonPath("$.paths['/api/v1/conversations/{sessionId}/messages'].post").exists())
+                .andExpect(jsonPath("$.paths['/auth/me']").doesNotExist())
+                .andExpect(jsonPath("$.paths['/logout']").doesNotExist())
+                .andExpect(jsonPath("$.paths['/api/conversations/{sessionId}']").doesNotExist())
+                .andExpect(jsonPath("$.paths['/workspaces']").doesNotExist())
+                .andExpect(jsonPath("$.paths['/workspaces/{workspaceId}']").doesNotExist())
                 .andExpect(jsonPath(createWorkspacePath).exists())
                 .andExpect(jsonPath(detailWorkspacePath).exists())
                 .andExpect(jsonPath(createWorkspacePath + ".summary").value("워크스페이스 생성"))
@@ -174,14 +197,53 @@ class ApiDocumentationAcceptanceTest {
     }
 
     @Test
-    @DisplayName("OpenAPI JSON에 워크스페이스 초대 발급·조회·재발급 계약을 공개한다")
+    @DisplayName("OpenAPI JSON에 내 워크스페이스 목록 조회 계약을 공개한다")
+    void openApi_success_workspaceListContract() throws Exception {
+        // given
+        String openApiPath = "/v3/api-docs";
+        String listPath = "$.paths['/api/v1/workspaces'].get";
+        String listResponseRef = "#/components/schemas/WorkspaceListResponse";
+        String listItemResponseRef = "#/components/schemas/WorkspaceListItemResponse";
+        String errorResponseRef = "#/components/schemas/ErrorResponse";
+        String workspacesSchemaPath = "$.components.schemas.WorkspaceListResponse.properties.workspaces";
+        String itemSchemaPath = "$.components.schemas.WorkspaceListItemResponse.properties";
+
+        // when
+        ResultActions result = mockMvc.perform(get(openApiPath));
+
+        // then
+        result.andExpect(status().isOk())
+                .andExpect(jsonPath(listPath).exists())
+                .andExpect(jsonPath(listPath + ".summary").value("내 워크스페이스 목록 조회"))
+                .andExpect(
+                        jsonPath(listPath + ".responses['200'].content['application/json'].schema['$ref']")
+                                .value(listResponseRef)
+                )
+                .andExpect(
+                        jsonPath(listPath + ".responses['401'].content['application/json'].schema['$ref']")
+                                .value(errorResponseRef)
+                )
+                .andExpect(jsonPath(listPath + ".security[*].accessTokenCookie").exists())
+                .andExpect(jsonPath(workspacesSchemaPath + ".type").value("array"))
+                .andExpect(jsonPath(workspacesSchemaPath + ".items['$ref']").value(listItemResponseRef))
+                .andExpect(jsonPath(itemSchemaPath + ".id").exists())
+                .andExpect(jsonPath(itemSchemaPath + ".name").exists())
+                .andExpect(jsonPath(itemSchemaPath + ".role").doesNotExist())
+                .andExpect(jsonPath(itemSchemaPath + ".joinedAt").doesNotExist())
+                .andExpect(jsonPath(itemSchemaPath + ".createdAt").doesNotExist());
+    }
+
+    @Test
+    @DisplayName("OpenAPI JSON에 워크스페이스 초대 발급·조회·재발급·미리보기·참여 계약을 공개한다")
     void openApi_success_workspaceInvitationContract() throws Exception {
         // given
         String openApiPath = "/v3/api-docs";
-        String issuePath = "$.paths['/workspaces/{workspaceId}/invitations'].post";
-        String getPath = "$.paths['/workspaces/{workspaceId}/invitation'].get";
-        String reissuePath = "$.paths['/workspaces/{workspaceId}/invitations/reissue'].post";
+        String issuePath = "$.paths['/api/v1/workspaces/{workspaceId}/invitations'].post";
+        String getPath = "$.paths['/api/v1/workspaces/{workspaceId}/invitation'].get";
+        String reissuePath = "$.paths['/api/v1/workspaces/{workspaceId}/invitations/reissue'].post";
         String invitationResponseRef = "#/components/schemas/WorkspaceInvitationResponse";
+        String previewPath = "$.paths['/api/v1/invitations/{tokenOrCode}'].get";
+        String acceptPath = "$.paths['/api/v1/invitations/accept'].post";
         String errorResponseRef = "#/components/schemas/ErrorResponse";
 
         // when
@@ -292,9 +354,101 @@ class ApiDocumentationAcceptanceTest {
                         jsonPath(reissuePath + ".responses['500'].content['application/json'].schema['$ref']")
                                 .value(errorResponseRef)
                 )
+                .andExpect(jsonPath(previewPath + ".security").doesNotExist())
+                .andExpect(
+                        jsonPath(previewPath + ".responses['200'].content['application/json'].schema['$ref']").exists()
+                )
+                .andExpect(
+                        jsonPath(previewPath + ".responses['404'].content['application/json'].schema['$ref']")
+                                .value(errorResponseRef)
+                )
+                .andExpect(jsonPath(previewPath + ".responses['429'].headers.Retry-After").exists())
+                .andExpect(
+                        jsonPath(previewPath + ".responses['429'].content['application/json'].schema['$ref']")
+                                .value(errorResponseRef)
+                )
+                .andExpect(jsonPath(acceptPath + ".security[*].accessTokenCookie").exists())
+                .andExpect(jsonPath(acceptPath + ".parameters[?(@.name == 'X-XSRF-TOKEN')]").exists())
+                .andExpect(
+                        jsonPath(acceptPath + ".requestBody.content['application/json'].schema['$ref']")
+                                .value("#/components/schemas/WorkspaceInvitationAcceptanceRequest")
+                )
+                .andExpect(
+                        jsonPath(acceptPath + ".responses['200'].content['application/json'].schema['$ref']")
+                                .value("#/components/schemas/WorkspaceInvitationAcceptanceResponse")
+                )
+                .andExpect(
+                        jsonPath(acceptPath + ".responses['201'].content['application/json'].schema['$ref']")
+                                .value("#/components/schemas/WorkspaceInvitationAcceptanceResponse")
+                )
+                .andExpect(
+                        jsonPath(acceptPath + ".responses['400'].content['application/json'].schema['$ref']")
+                                .value(errorResponseRef)
+                )
+                .andExpect(
+                        jsonPath(acceptPath + ".responses['401'].content['application/json'].schema['$ref']")
+                                .value(errorResponseRef)
+                )
+                .andExpect(
+                        jsonPath(acceptPath + ".responses['403'].content['application/json'].schema['$ref']")
+                                .value(errorResponseRef)
+                )
+                .andExpect(
+                        jsonPath(acceptPath + ".responses['404'].content['application/json'].schema['$ref']")
+                                .value(errorResponseRef)
+                )
+                .andExpect(jsonPath(acceptPath + ".responses['429'].headers.Retry-After").exists())
+                .andExpect(
+                        jsonPath(acceptPath + ".responses['429'].content['application/json'].schema['$ref']")
+                                .value(errorResponseRef)
+                )
+                .andExpect(jsonPath("$.paths['/workspaces/{workspaceId}/invitations']").doesNotExist())
+                .andExpect(jsonPath("$.paths['/workspaces/{workspaceId}/invitation']").doesNotExist())
+                .andExpect(jsonPath("$.paths['/invitations/{tokenOrCode}']").doesNotExist())
+                .andExpect(jsonPath("$.paths['/invitations/accept']").doesNotExist())
                 .andExpect(jsonPath("$.components.schemas.WorkspaceInvitationResponse.properties.code").exists())
                 .andExpect(jsonPath("$.components.schemas.WorkspaceInvitationResponse.properties.linkToken").exists())
-                .andExpect(jsonPath("$.components.schemas.WorkspaceInvitationResponse.properties.expiresAt").exists());
+                .andExpect(jsonPath("$.components.schemas.WorkspaceInvitationResponse.properties.expiresAt").exists())
+                .andExpect(
+                        jsonPath("$.components.schemas.WorkspaceInvitationPreviewResponse.properties.workspaceId")
+                                .exists()
+                )
+                .andExpect(
+                        jsonPath("$.components.schemas.WorkspaceInvitationPreviewResponse.properties.workspaceName")
+                                .exists()
+                )
+                .andExpect(
+                        jsonPath("$.components.schemas.WorkspaceInvitationPreviewResponse.properties.code")
+                                .doesNotExist()
+                )
+                .andExpect(
+                        jsonPath("$.components.schemas.WorkspaceInvitationPreviewResponse.properties.linkToken")
+                                .doesNotExist()
+                )
+                .andExpect(
+                        jsonPath("$.components.schemas.WorkspaceInvitationAcceptanceRequest.required")
+                                .value(hasItem("credential"))
+                )
+                .andExpect(
+                        jsonPath("$.components.schemas.WorkspaceInvitationAcceptanceResponse.properties.workspaceId")
+                                .exists()
+                )
+                .andExpect(
+                        jsonPath("$.components.schemas.WorkspaceInvitationAcceptanceResponse.properties.workspaceName")
+                                .exists()
+                )
+                .andExpect(
+                        jsonPath("$.components.schemas.WorkspaceInvitationAcceptanceResponse.properties.code")
+                                .doesNotExist()
+                )
+                .andExpect(
+                        jsonPath("$.components.schemas.WorkspaceInvitationAcceptanceResponse.properties.linkToken")
+                                .doesNotExist()
+                )
+                .andExpect(
+                        jsonPath("$.components.schemas.WorkspaceInvitationAcceptanceResponse.properties.expiresAt")
+                                .doesNotExist()
+                );
     }
 
     @Test

@@ -102,6 +102,18 @@ public enum WorkspaceErrorCode implements ErrorCode {
             "활성 워크스페이스 초대를 찾을 수 없습니다"
     ),
 
+    WORKSPACE_INVITATION_PREVIEW_NOT_FOUND(
+            ErrorCategory.NOT_FOUND,
+            "WORKSPACE_INVITATION_PREVIEW_NOT_FOUND",
+            "워크스페이스 초대를 찾을 수 없습니다"
+    ),
+
+    WORKSPACE_INVITATION_PREVIEW_RATE_LIMIT_EXCEEDED(
+            ErrorCategory.TOO_MANY_REQUESTS,
+            "WORKSPACE_INVITATION_PREVIEW_RATE_LIMIT_EXCEEDED",
+            "워크스페이스 초대 코드 조회 요청이 너무 많습니다"
+    ),
+
     WORKSPACE_INVITATION_SECRET_RECOVERY_FAILED(
             ErrorCategory.INTERNAL_SERVER_ERROR,
             "WORKSPACE_INVITATION_SECRET_RECOVERY_FAILED",
