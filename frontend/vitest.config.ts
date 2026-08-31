@@ -1,4 +1,4 @@
-import { defineConfig } from "vitest/config";
+import { configDefaults, defineConfig } from "vitest/config";
 import svgr from "vite-plugin-svgr";
 
 const fromRoot = (path: string) => new URL(path, import.meta.url).pathname;
@@ -55,5 +55,7 @@ ${exports}
     environment: "jsdom",
     setupFiles: ["./vitest.setup.ts"],
     include: ["src/**/*.test.{ts,tsx}", "src/**/test.{ts,tsx}"],
+    // src/__test__는 Playwright E2E 전용이라 vitest에서 제외해요
+    exclude: [...configDefaults.exclude, "src/__test__/**"],
   },
 });
