@@ -9,7 +9,7 @@ public interface ContentSourceAuthorizationSettings {
 
     URI callbackUri();
 
-    URI successRedirectUri();
+    URI successRedirectUri(Long workspaceId);
 
-    URI failureRedirectUri();
+    URI failureRedirectUri(Long workspaceId);
 }

@@ -57,8 +57,8 @@ import tools.jackson.databind.ObjectMapper;
 class NotionOAuthAcceptanceTest {
     private static final String JWT_COOKIE_NAME = "KNOT_ACCESS_TOKEN";
     private static final String CSRF_COOKIE_NAME = "XSRF-TOKEN";
-    private static final String SUCCESS_REDIRECT_URI = "https://app.example.com/notion-connection?result=connected";
-    private static final String FAILURE_REDIRECT_URI = "https://app.example.com/notion-connection?result=failed";
+    private static final String REDIRECT_BASE_URI = "https://knoted.kr";
+    private static final String FAILURE_FALLBACK_URI = REDIRECT_BASE_URI + "/workspace?result=failed";
     private static final String OAUTH_CODE = "oauth-code";
     private static final String ACCESS_CREDENTIAL = "notion-access-token";
     private static final String REFRESH_CREDENTIAL = "notion-refresh-token";
@@ -271,7 +271,7 @@ class NotionOAuthAcceptanceTest {
                 .andExpect(
                         header().string(
                                 HttpHeaders.LOCATION,
-                                SUCCESS_REDIRECT_URI
+                                successRedirectUri(workspaceId)
                         )
                 )
                 .andExpect(
@@ -339,7 +339,7 @@ class NotionOAuthAcceptanceTest {
                 .andExpect(
                         header().string(
                                 HttpHeaders.LOCATION,
-                                FAILURE_REDIRECT_URI
+                                failureRedirectUri(workspaceId)
                         )
                 )
                 .andExpect(
@@ -390,7 +390,7 @@ class NotionOAuthAcceptanceTest {
                 .andExpect(
                         header().string(
                                 HttpHeaders.LOCATION,
-                                FAILURE_REDIRECT_URI
+                                FAILURE_FALLBACK_URI
                         )
                 )
                 .andExpect(
@@ -431,7 +431,8 @@ class NotionOAuthAcceptanceTest {
         ).thenReturn(token("first-notion-workspace"));
         completeCallback(
                 OAUTH_CODE,
-                state
+                state,
+                workspaceId
         );
 
         // when
@@ -451,7 +452,7 @@ class NotionOAuthAcceptanceTest {
                 .andExpect(
                         header().string(
                                 HttpHeaders.LOCATION,
-                                FAILURE_REDIRECT_URI
+                                FAILURE_FALLBACK_URI
                         )
                 )
                 .andExpect(
@@ -513,7 +514,7 @@ class NotionOAuthAcceptanceTest {
                 .andExpect(
                         header().string(
                                 HttpHeaders.LOCATION,
-                                FAILURE_REDIRECT_URI
+                                failureRedirectUri(workspaceId)
                         )
                 )
                 .andExpect(
@@ -743,7 +744,8 @@ class NotionOAuthAcceptanceTest {
 
     private void completeCallback(
             String code,
-            String state
+            String state,
+            long workspaceId
     ) throws Exception {
         mockMvc.perform(
                 get("/api/v1/notion/oauth/callback").param(
@@ -759,9 +761,17 @@ class NotionOAuthAcceptanceTest {
                 .andExpect(
                         header().string(
                                 HttpHeaders.LOCATION,
-                                SUCCESS_REDIRECT_URI
+                                successRedirectUri(workspaceId)
                         )
                 );
+    }
+
+    private String successRedirectUri(long workspaceId) {
+        return REDIRECT_BASE_URI + "/workspace/" + workspaceId + "/notion-connection?result=connected";
+    }
+
+    private String failureRedirectUri(long workspaceId) {
+        return REDIRECT_BASE_URI + "/workspace/" + workspaceId + "/notion-connection?result=failed";
     }
 
     private void stubAuthorizationUri() {

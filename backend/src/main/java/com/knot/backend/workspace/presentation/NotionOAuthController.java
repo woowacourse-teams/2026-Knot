@@ -6,6 +6,7 @@ import com.knot.backend.workspace.application.ContentSourceAuthorizationService;
 import com.knot.backend.workspace.application.ContentSourceCallbackService;
 import com.knot.backend.workspace.application.ContentSourceAuthorizationSettings;
 import com.knot.backend.workspace.application.dto.result.ContentSourceAuthorizationResult;
+import com.knot.backend.workspace.application.dto.result.ContentSourceCallbackResult;
 import com.knot.backend.workspace.domain.ContentSourceProvider;
 import com.knot.backend.workspace.presentation.dto.response.NotionConnectionStatusResponse;
 import com.knot.backend.workspace.presentation.dto.response.NotionOAuthAuthorizationResponse;
@@ -68,13 +69,15 @@ public class NotionOAuthController {
             @RequestParam(required = false) String state,
             @RequestParam(required = false) String error
     ) {
-        boolean connected = callbackService.complete(
+        ContentSourceCallbackResult result = callbackService.complete(
                 ContentSourceProvider.NOTION,
                 code,
                 state,
                 error
         );
-        URI redirectUri = connected ? settings.successRedirectUri() : settings.failureRedirectUri();
+        URI redirectUri = result.connected()
+                ? settings.successRedirectUri(result.workspaceId())
+                : settings.failureRedirectUri(result.workspaceId());
         return ResponseEntity.status(HttpStatus.SEE_OTHER)
                 .cacheControl(CacheControl.noStore())
                 .location(redirectUri)
