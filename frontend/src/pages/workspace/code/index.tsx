@@ -7,8 +7,7 @@ import WorkspaceCodeCard from "@widgets/workspace/WorkspaceCodeCard";
  * 입력 전 / 로딩 / 입력 에러(만료·오타 등 유효하지 않은 코드) 상태를 한 화면에서 다룬다.
  * 코드가 유효하면 워크스페이스 입장 확인(`/workspace/:workspaceId/join`)으로 이동한다.
  *
- * 초대 링크(`?code=` 쿼리 등)로 들어오는 진입은 이 화면의 범위가 아니며,
- * 링크 형식과 함께 링크 입장 페이지 Issue(#192 하위)에서 다룬다.
+ * 초대 링크로 들어오는 진입은 이 화면이 아니라 링크 진입 라우트(`/invite/:token`)가 맡는다.
  *
  * 로고와 중앙 배치는 `CenteredLayout`이 담당하고, 이 페이지는 카드를 놓기만 한다.
  *
