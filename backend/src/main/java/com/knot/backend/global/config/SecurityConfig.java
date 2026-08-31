@@ -57,6 +57,7 @@ public class SecurityConfig {
                 List.of(
                         HttpMethod.GET.name(),
                         HttpMethod.POST.name(),
+                        HttpMethod.PUT.name(),
                         HttpMethod.OPTIONS.name()
                 )
         );
