@@ -97,21 +97,11 @@ jobs:
           NCP_DEV_KNOWN_HOSTS: ${{ secrets.NCP_DEV_KNOWN_HOSTS }}
           WORKSPACE_INVITATION_LOOKUP_HASH_KEY: ${{ secrets.WORKSPACE_INVITATION_LOOKUP_HASH_KEY }}
           WORKSPACE_INVITATION_ENCRYPTION_KEY: ${{ secrets.WORKSPACE_INVITATION_ENCRYPTION_KEY }}
-          NOTION_OAUTH_CLIENT_ID: ${{ secrets.NOTION_OAUTH_CLIENT_ID }}
-          NOTION_OAUTH_CLIENT_SECRET: ${{ secrets.NOTION_OAUTH_CLIENT_SECRET }}
-          NOTION_OAUTH_CALLBACK_URI: ${{ secrets.NOTION_OAUTH_CALLBACK_URI }}
-          NOTION_OAUTH_STATE_HASH_KEY: ${{ secrets.NOTION_OAUTH_STATE_HASH_KEY }}
-          NOTION_OAUTH_ENCRYPTION_KEY_V1: ${{ secrets.NOTION_OAUTH_ENCRYPTION_KEY_V1 }}
         run: |
           set -Eeuo pipefail
 
           : "${WORKSPACE_INVITATION_LOOKUP_HASH_KEY:?WORKSPACE_INVITATION_LOOKUP_HASH_KEY secret is required}"
           : "${WORKSPACE_INVITATION_ENCRYPTION_KEY:?WORKSPACE_INVITATION_ENCRYPTION_KEY secret is required}"
-          : "${NOTION_OAUTH_CLIENT_ID:?NOTION_OAUTH_CLIENT_ID secret is required}"
-          : "${NOTION_OAUTH_CLIENT_SECRET:?NOTION_OAUTH_CLIENT_SECRET secret is required}"
-          : "${NOTION_OAUTH_CALLBACK_URI:?NOTION_OAUTH_CALLBACK_URI secret is required}"
-          : "${NOTION_OAUTH_STATE_HASH_KEY:?NOTION_OAUTH_STATE_HASH_KEY secret is required}"
-          : "${NOTION_OAUTH_ENCRYPTION_KEY_V1:?NOTION_OAUTH_ENCRYPTION_KEY_V1 secret is required}"
 
           install -d -m 700 "$HOME/.ssh"
           umask 077
@@ -123,17 +113,11 @@ jobs:
           env_file="$RUNNER_TEMP/knot-backend-dev.env"
           printf 'WORKSPACE_INVITATION_LOOKUP_HASH_KEY=%s\n' "$WORKSPACE_INVITATION_LOOKUP_HASH_KEY" > "$env_file"
           printf 'WORKSPACE_INVITATION_ENCRYPTION_KEY=%s\n' "$WORKSPACE_INVITATION_ENCRYPTION_KEY" >> "$env_file"
-          printf 'NOTION_OAUTH_CLIENT_ID=%s\n' "$NOTION_OAUTH_CLIENT_ID" >> "$env_file"
-          printf 'NOTION_OAUTH_CLIENT_SECRET=%s\n' "$NOTION_OAUTH_CLIENT_SECRET" >> "$env_file"
-          printf 'NOTION_OAUTH_CALLBACK_URI=%s\n' "$NOTION_OAUTH_CALLBACK_URI" >> "$env_file"
-          printf 'NOTION_OAUTH_STATE_HASH_KEY=%s\n' "$NOTION_OAUTH_STATE_HASH_KEY" >> "$env_file"
-          printf 'NOTION_OAUTH_ENCRYPTION_KEY_V1=%s\n' "$NOTION_OAUTH_ENCRYPTION_KEY_V1" >> "$env_file"
           chmod 600 "$env_file"
 
           python3 - "$env_file" <<'PY'
           import base64
           import sys
-          from urllib.parse import urlparse
 
           values = {}
           decoded_values = {}
@@ -161,35 +145,6 @@ jobs:
               == decoded_values["WORKSPACE_INVITATION_ENCRYPTION_KEY"]
           ):
               sys.exit("workspace invitation keys must be different")
-
-          for name in (
-              "NOTION_OAUTH_CLIENT_ID",
-              "NOTION_OAUTH_CLIENT_SECRET",
-              "NOTION_OAUTH_CALLBACK_URI",
-          ):
-              if not values.get(name, "").strip():
-                  sys.exit(f"{name} must not be blank")
-
-          callback_uri = urlparse(values["NOTION_OAUTH_CALLBACK_URI"])
-          if callback_uri.scheme != "https" or not callback_uri.netloc:
-              sys.exit("NOTION_OAUTH_CALLBACK_URI must be an absolute HTTPS URI")
-
-          for name in ("NOTION_OAUTH_STATE_HASH_KEY", "NOTION_OAUTH_ENCRYPTION_KEY_V1"):
-              value = values.get(name, "")
-              try:
-                  decoded = base64.b64decode(
-                      value + "=" * (-len(value) % 4),
-                      altchars=b"-_",
-                      validate=True,
-                  )
-              except Exception:
-                  sys.exit(f"{name} must be URL-safe base64")
-              if len(decoded) != 32:
-                  sys.exit(f"{name} must decode to 32 bytes")
-              decoded_values[name] = decoded
-
-          if decoded_values["NOTION_OAUTH_STATE_HASH_KEY"] == decoded_values["NOTION_OAUTH_ENCRYPTION_KEY_V1"]:
-              sys.exit("Notion OAuth keys must be different")
           PY
 
           scp \
