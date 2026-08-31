@@ -76,7 +76,7 @@ class WorkspaceQueryAcceptanceTest {
         // when
         ResultActions result = mockMvc.perform(
                 get(
-                        "/workspaces/{workspaceId}",
+                        "/api/v1/workspaces/{workspaceId}",
                         workspaceId
                 ).cookie(
                         new Cookie(
@@ -108,7 +108,7 @@ class WorkspaceQueryAcceptanceTest {
         // when
         ResultActions result = mockMvc.perform(
                 get(
-                        "/workspaces/{workspaceId}",
+                        "/api/v1/workspaces/{workspaceId}",
                         0
                 ).cookie(
                         new Cookie(
@@ -133,7 +133,7 @@ class WorkspaceQueryAcceptanceTest {
         // when
         ResultActions result = mockMvc.perform(
                 get(
-                        "/workspaces/{workspaceId}",
+                        "/api/v1/workspaces/{workspaceId}",
                         workspaceId
                 )
         );
@@ -160,7 +160,7 @@ class WorkspaceQueryAcceptanceTest {
         // when
         ResultActions result = mockMvc.perform(
                 get(
-                        "/workspaces/{workspaceId}",
+                        "/api/v1/workspaces/{workspaceId}",
                         workspaceId
                 ).cookie(
                         new Cookie(
@@ -186,7 +186,7 @@ class WorkspaceQueryAcceptanceTest {
         // when
         ResultActions result = mockMvc.perform(
                 get(
-                        "/workspaces/{workspaceId}",
+                        "/api/v1/workspaces/{workspaceId}",
                         Long.MAX_VALUE
                 ).cookie(
                         new Cookie(
