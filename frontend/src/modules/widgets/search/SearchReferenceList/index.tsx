@@ -1,17 +1,23 @@
 import styled from "@emotion/styled";
 import SearchReferenceCard from "@primitives/ui/SearchReferenceCard";
 import { useSearchReferenceList } from "./model/useSearchReferenceList";
+import EmptyHint from "./ui/EmptyHint";
 import LinkTo from "@/shared/components/primitives/ui/LinkTo";
 
 /**
  * AI 탐색 답변의 근거가 된 문서 리스트를 보여주는 List UI.
  *
+ * 답변의 근거 버튼을 눌러 문서를 펼치기 전까지는 목록 대신 안내 문구를 보여줍니다.
+ *
  * @see https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=506-7219&t=NtCKbgE8RjHqh556-11
  * @see https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=606-2921&t=NtCKbgE8RjHqh556-11
+ * @see https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=1158-5469&t=NtCKbgE8RjHqh556-11 안내 문구
  */
 
 export default function SearchReferenceList() {
-  const { references } = useSearchReferenceList();
+  const { references, isOpened } = useSearchReferenceList();
+
+  if (!isOpened) return <EmptyHint />;
 
   return (
     <Container>
