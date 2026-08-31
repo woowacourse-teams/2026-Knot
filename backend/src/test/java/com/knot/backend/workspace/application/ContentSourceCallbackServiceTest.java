@@ -9,6 +9,7 @@ import static org.mockito.Mockito.when;
 
 import com.knot.backend.workspace.application.dto.result.ContentSourceAuthorizationContext;
 import com.knot.backend.workspace.application.dto.result.AuthorizedContentSource;
+import com.knot.backend.workspace.application.dto.result.ContentSourceCallbackResult;
 import com.knot.backend.workspace.domain.ContentSourceAuthorizationOwnerType;
 import com.knot.backend.workspace.domain.ContentSourceErrorCode;
 import com.knot.backend.workspace.domain.ContentSourceException;
@@ -71,7 +72,7 @@ class ContentSourceCallbackServiceTest {
         ).thenReturn(TOKEN);
 
         // when
-        boolean completed = service.complete(
+        ContentSourceCallbackResult result = service.complete(
                 ContentSourceProvider.NOTION,
                 CODE,
                 STATE,
@@ -79,7 +80,7 @@ class ContentSourceCallbackServiceTest {
         );
 
         // then
-        assertThat(completed).isTrue();
+        assertThat(result).isEqualTo(ContentSourceCallbackResult.connected(AUTHORIZATION.workspaceId()));
         verify(connectionService).connect(
                 AUTHORIZATION,
                 TOKEN
@@ -98,7 +99,7 @@ class ContentSourceCallbackServiceTest {
         ).thenReturn(AUTHORIZATION);
 
         // when
-        boolean completed = service.complete(
+        ContentSourceCallbackResult result = service.complete(
                 ContentSourceProvider.NOTION,
                 CODE,
                 STATE,
@@ -106,7 +107,7 @@ class ContentSourceCallbackServiceTest {
         );
 
         // then
-        assertThat(completed).isFalse();
+        assertThat(result).isEqualTo(ContentSourceCallbackResult.failed(AUTHORIZATION.workspaceId()));
         verify(authorizationService).consume(
                 ContentSourceProvider.NOTION,
                 STATE
@@ -140,7 +141,7 @@ class ContentSourceCallbackServiceTest {
         ).thenThrow(new ContentSourceException(ContentSourceErrorCode.CONTENT_SOURCE_AUTHORIZATION_FAILED));
 
         // when
-        boolean completed = service.complete(
+        ContentSourceCallbackResult result = service.complete(
                 ContentSourceProvider.NOTION,
                 CODE,
                 STATE,
@@ -148,7 +149,7 @@ class ContentSourceCallbackServiceTest {
         );
 
         // then
-        assertThat(completed).isFalse();
+        assertThat(result).isEqualTo(ContentSourceCallbackResult.failed(AUTHORIZATION.workspaceId()));
         verify(authorizationService).consume(
                 ContentSourceProvider.NOTION,
                 STATE
@@ -174,7 +175,7 @@ class ContentSourceCallbackServiceTest {
         ).thenThrow(new ContentSourceException(ContentSourceErrorCode.INVALID_CONTENT_SOURCE_AUTHORIZATION));
 
         // when
-        boolean completed = service.complete(
+        ContentSourceCallbackResult result = service.complete(
                 ContentSourceProvider.NOTION,
                 CODE,
                 STATE,
@@ -182,7 +183,7 @@ class ContentSourceCallbackServiceTest {
         );
 
         // then
-        assertThat(completed).isFalse();
+        assertThat(result).isEqualTo(ContentSourceCallbackResult.failed(null));
         verifyNoInteractions(
                 oAuthClient,
                 connectionService
