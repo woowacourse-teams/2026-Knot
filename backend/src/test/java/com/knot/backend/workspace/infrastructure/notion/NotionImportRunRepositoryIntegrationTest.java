@@ -202,14 +202,16 @@ class NotionImportRunRepositoryIntegrationTest {
         assertThat(failureReasonColumnExists).isFalse();
     }
 
-    @DisplayName("Import Run의 상태와 Page 수 DB 제약을 지킨다")
+    @DisplayName("Import Run의 상태, Page 수와 시작·완료 시각 DB 제약을 지킨다")
     @MethodSource("invalidConstraintCases")
     @ParameterizedTest(name = "{0}")
     void save_failure_databaseConstraints(
             String caseName,
             String status,
             Integer totalPageCount,
-            int processedPageCount
+            int processedPageCount,
+            String startedAt,
+            String completedAt
     ) {
         // given
         TestContext context = saveContext(caseName);
@@ -223,6 +225,8 @@ class NotionImportRunRepositoryIntegrationTest {
                     status,
                     total_page_count,
                     processed_page_count,
+                    started_at,
+                    completed_at,
                     created_at
                 ) VALUES (
                     :workspaceId,
@@ -231,6 +235,8 @@ class NotionImportRunRepositoryIntegrationTest {
                     :status,
                     :totalPageCount,
                     :processedPageCount,
+                    CAST(:startedAt AS TIMESTAMPTZ),
+                    CAST(:completedAt AS TIMESTAMPTZ),
                     CAST(:createdAt AS TIMESTAMPTZ)
                 )
                 """)
@@ -257,6 +263,14 @@ class NotionImportRunRepositoryIntegrationTest {
                 .param(
                         "processedPageCount",
                         processedPageCount
+                )
+                .param(
+                        "startedAt",
+                        startedAt
+                )
+                .param(
+                        "completedAt",
+                        completedAt
                 )
                 .param(
                         "createdAt",
@@ -455,13 +469,90 @@ class NotionImportRunRepositoryIntegrationTest {
                         "unknown-status",
                         "UNKNOWN",
                         10,
-                        0
+                        0,
+                        null,
+                        null
                 ),
                 Arguments.of(
                         "invalid-page-count",
                         "RUNNING",
                         10,
-                        11
+                        11,
+                        CREATED_AT.plusSeconds(1)
+                                .toString(),
+                        null
+                ),
+                Arguments.of(
+                        "pending-with-started-at",
+                        "PENDING",
+                        null,
+                        0,
+                        CREATED_AT.plusSeconds(1)
+                                .toString(),
+                        null
+                ),
+                Arguments.of(
+                        "pending-with-completed-at",
+                        "PENDING",
+                        null,
+                        0,
+                        null,
+                        CREATED_AT.plusSeconds(2)
+                                .toString()
+                ),
+                Arguments.of(
+                        "running-without-started-at",
+                        "RUNNING",
+                        null,
+                        0,
+                        null,
+                        null
+                ),
+                Arguments.of(
+                        "running-with-completed-at",
+                        "RUNNING",
+                        null,
+                        0,
+                        CREATED_AT.plusSeconds(1)
+                                .toString(),
+                        CREATED_AT.plusSeconds(2)
+                                .toString()
+                ),
+                Arguments.of(
+                        "completed-without-started-at",
+                        "COMPLETED",
+                        10,
+                        10,
+                        null,
+                        CREATED_AT.plusSeconds(2)
+                                .toString()
+                ),
+                Arguments.of(
+                        "completed-without-completed-at",
+                        "COMPLETED",
+                        10,
+                        10,
+                        CREATED_AT.plusSeconds(1)
+                                .toString(),
+                        null
+                ),
+                Arguments.of(
+                        "failed-without-started-at",
+                        "FAILED",
+                        10,
+                        4,
+                        null,
+                        CREATED_AT.plusSeconds(2)
+                                .toString()
+                ),
+                Arguments.of(
+                        "failed-without-completed-at",
+                        "FAILED",
+                        10,
+                        4,
+                        CREATED_AT.plusSeconds(1)
+                                .toString(),
+                        null
                 )
         );
     }

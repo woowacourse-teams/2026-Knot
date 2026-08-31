@@ -23,6 +23,12 @@ CREATE TABLE notion_import_runs (
         ON DELETE RESTRICT,
     CONSTRAINT chk_notion_import_runs_status
         CHECK (status IN ('PENDING', 'RUNNING', 'COMPLETED', 'FAILED')),
+    CONSTRAINT chk_notion_import_runs_status_timestamps
+        CHECK (
+            (status = 'PENDING' AND started_at IS NULL AND completed_at IS NULL)
+            OR (status = 'RUNNING' AND started_at IS NOT NULL AND completed_at IS NULL)
+            OR (status IN ('COMPLETED', 'FAILED') AND started_at IS NOT NULL AND completed_at IS NOT NULL)
+        ),
     CONSTRAINT chk_notion_import_runs_total_page_count
         CHECK (total_page_count IS NULL OR total_page_count >= 0),
     CONSTRAINT chk_notion_import_runs_processed_page_count
