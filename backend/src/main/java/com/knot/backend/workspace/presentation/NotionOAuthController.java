@@ -27,6 +27,7 @@ import org.springframework.web.bind.annotation.RestController;
 @ConditionalOnProperty(prefix = "notion.oauth", name = "enabled", havingValue = "true")
 public class NotionOAuthController {
     private static final String AUTHORIZATION_PATH = "/api/v1/workspaces/{workspaceId}/notion-oauth-authorizations";
+    private static final String CONNECTION_PATH = "/api/v1/workspaces/{workspaceId}/notion-connection";
 
     private final NotionOAuthAuthorizationService authorizationService;
     private final NotionOAuthCallbackService callbackService;
@@ -77,7 +78,7 @@ public class NotionOAuthController {
                 .build();
     }
 
-    @GetMapping(value = "/api/v1/workspaces/{workspaceId}/notion-connection", produces = MediaType.APPLICATION_JSON_VALUE)
+    @GetMapping(value = CONNECTION_PATH, produces = MediaType.APPLICATION_JSON_VALUE)
     public NotionConnectionStatusResponse status(
             @PathVariable Long workspaceId,
             @AuthenticationPrincipal AuthenticatedMember authenticatedMember

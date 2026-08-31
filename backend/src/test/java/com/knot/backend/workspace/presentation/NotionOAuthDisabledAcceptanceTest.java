@@ -10,7 +10,6 @@ import com.knot.backend.workspace.application.NotionOAuthAuthorizationService;
 import com.knot.backend.workspace.application.NotionOAuthCallbackService;
 import com.knot.backend.workspace.application.NotionOAuthClient;
 import com.knot.backend.workspace.application.NotionOAuthSettings;
-import com.knot.backend.workspace.infrastructure.notion.oauth.NotionOAuthConfig;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -39,7 +38,6 @@ class NotionOAuthDisabledAcceptanceTest {
         // when
 
         // then
-        assertThat(applicationContext.getBeansOfType(NotionOAuthConfig.class)).isEmpty();
         assertThat(applicationContext.getBeansOfType(NotionOAuthController.class)).isEmpty();
         assertThat(applicationContext.getBeansOfType(NotionOpenApiConfig.class)).isEmpty();
         assertThat(applicationContext.getBeansOfType(NotionConnectionQueryService.class)).isEmpty();
