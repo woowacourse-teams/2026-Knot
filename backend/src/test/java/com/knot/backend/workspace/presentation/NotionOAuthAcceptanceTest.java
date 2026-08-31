@@ -900,21 +900,20 @@ class NotionOAuthAcceptanceTest {
             long authorizingMemberId,
             String notionWorkspaceId
     ) {
-        jdbcClient
-                .sql(
-                        """
-                                INSERT INTO content_source_connections (
-                                    workspace_id, provider, access_credential_ciphertext, refresh_credential_ciphertext,
-                                    external_source_id, external_source_name, provider_connection_id, authorization_owner_type, authorization_owner_id,
-                                    authorizing_member_id, created_at, updated_at
-                                )
-                                VALUES (
-                                    :workspaceId, 'NOTION', 'existing-access-ciphertext', 'existing-refresh-ciphertext',
-                                    :notionWorkspaceId, 'Existing Notion', 'existing-bot-id', 'USER', 'notion-owner-user-id',
-                                    :authorizingMemberId, :createdAt, :createdAt
-                                )
-                                """
+        jdbcClient.sql("""
+                INSERT INTO content_source_connections (
+                    workspace_id, provider, access_credential_ciphertext, refresh_credential_ciphertext,
+                    external_source_id, external_source_name, provider_connection_id,
+                    authorization_owner_type, authorization_owner_id,
+                    authorizing_member_id, created_at, updated_at
                 )
+                VALUES (
+                    :workspaceId, 'NOTION', 'existing-access-ciphertext', 'existing-refresh-ciphertext',
+                    :notionWorkspaceId, 'Existing Notion', 'existing-bot-id',
+                    'USER', 'notion-owner-user-id',
+                    :authorizingMemberId, :createdAt, :createdAt
+                )
+                """)
                 .param(
                         "workspaceId",
                         workspaceId
