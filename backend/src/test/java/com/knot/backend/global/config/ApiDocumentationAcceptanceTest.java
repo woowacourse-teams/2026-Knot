@@ -79,6 +79,7 @@ class ApiDocumentationAcceptanceTest {
         // given
         String openApiPath = "/v3/api-docs";
         String createWorkspacePath = "$.paths['/workspaces'].post";
+        String detailWorkspacePath = "$.paths['/workspaces/{workspaceId}'].get";
         String authDescriptionPath = "$.tags[?(@.name == '인증')].description";
         String workspaceDescriptionPath = "$.tags[?(@.name == '워크스페이스')].description";
         String workspaceTagsPath = createWorkspacePath + ".tags";
@@ -88,7 +89,8 @@ class ApiDocumentationAcceptanceTest {
         String oauthLocationPath = oauthAuthorizationPath + ".get.responses['302'].headers.Location";
         String workspaceRequestSchemaPath = "$.components.schemas.WorkspaceCreateRequest";
         String workspaceNameSchemaPath = workspaceRequestSchemaPath + ".properties.name";
-        String workspaceResponseRef = "#/components/schemas/WorkspaceCreateResponse";
+        String createWorkspaceResponseRef = "#/components/schemas/WorkspaceCreateResponse";
+        String detailWorkspaceResponseRef = "#/components/schemas/WorkspaceDetailResponse";
         String errorResponseRef = "#/components/schemas/ErrorResponse";
 
         // when
@@ -111,9 +113,11 @@ class ApiDocumentationAcceptanceTest {
                 .andExpect(jsonPath("$.paths['/auth/csrf'].get").exists())
                 .andExpect(jsonPath("$.paths['/auth/nickname'].post").exists())
                 .andExpect(jsonPath(createWorkspacePath).exists())
+                .andExpect(jsonPath(detailWorkspacePath).exists())
+                .andExpect(jsonPath(detailWorkspacePath + ".summary").value("워크스페이스 단건 조회"))
                 .andExpect(
                         jsonPath(createWorkspacePath + ".responses['201'].content['application/json'].schema['$ref']")
-                                .value(workspaceResponseRef)
+                                .value(createWorkspaceResponseRef)
                 )
                 .andExpect(
                         jsonPath(createWorkspacePath + ".responses['400'].content['application/json'].schema['$ref']")
@@ -142,6 +146,28 @@ class ApiDocumentationAcceptanceTest {
                 .andExpect(jsonPath(workspaceNameSchemaPath + ".maxLength").value(20))
                 .andExpect(jsonPath(workspaceNameSchemaPath + ".pattern").value("^(?=.*[가-힣A-Za-z])[가-힣A-Za-z ]+$"))
                 .andExpect(jsonPath("$.components.schemas.WorkspaceCreateResponse").exists())
+                .andExpect(
+                        jsonPath(detailWorkspacePath + ".responses['200'].content['application/json'].schema['$ref']")
+                                .value(detailWorkspaceResponseRef)
+                )
+                .andExpect(
+                        jsonPath(detailWorkspacePath + ".responses['400'].content['application/json'].schema['$ref']")
+                                .value(errorResponseRef)
+                )
+                .andExpect(
+                        jsonPath(detailWorkspacePath + ".responses['401'].content['application/json'].schema['$ref']")
+                                .value(errorResponseRef)
+                )
+                .andExpect(
+                        jsonPath(detailWorkspacePath + ".responses['403'].content['application/json'].schema['$ref']")
+                                .value(errorResponseRef)
+                )
+                .andExpect(
+                        jsonPath(detailWorkspacePath + ".responses['404'].content['application/json'].schema['$ref']")
+                                .value(errorResponseRef)
+                )
+                .andExpect(jsonPath(detailWorkspacePath + ".security[*].accessTokenCookie").exists())
+                .andExpect(jsonPath("$.components.schemas.WorkspaceDetailResponse").exists())
                 .andExpect(jsonPath("$.components.schemas.ErrorResponse").exists())
                 .andExpect(jsonPath(oauthLocationPath).exists());
     }

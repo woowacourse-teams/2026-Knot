@@ -1,10 +1,10 @@
 package com.knot.backend.global.config;
 
 import io.swagger.v3.oas.models.OpenAPI;
+import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.Operation;
 import io.swagger.v3.oas.models.PathItem;
 import io.swagger.v3.oas.models.Paths;
-import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.media.ArraySchema;
 import io.swagger.v3.oas.models.headers.Header;
 import io.swagger.v3.oas.models.info.Info;
@@ -27,7 +27,9 @@ import org.springframework.web.method.HandlerMethod;
 public class OpenApiConfig {
     public static final String ACCESS_TOKEN_COOKIE = "accessTokenCookie";
     public static final String CSRF_TOKEN_HEADER = "csrfTokenHeader";
-    private static final String WORKSPACE_CONTROLLER = "com.knot.backend.workspace.presentation.WorkspaceController";
+    private static final String WORKSPACE_PACKAGE = "com.knot.backend.workspace.presentation.";
+    private static final String WORKSPACE_CONTROLLER = WORKSPACE_PACKAGE + "WorkspaceController";
+    private static final String WORKSPACE_QUERY_CONTROLLER = WORKSPACE_PACKAGE + "WorkspaceQueryController";
 
     @Bean
     public OpenAPI knotOpenAPI() {
@@ -40,23 +42,36 @@ public class OpenApiConfig {
     }
 
     @Bean
-    public OperationCustomizer workspaceSecurityOperationCustomizer() {
+    public OperationCustomizer workspaceOperationCustomizer() {
         return (
                 operation,
                 handlerMethod
         ) -> {
             if (isWorkspaceCreateOperation(handlerMethod)) {
-                operation.summary("워크스페이스 생성")
-                        .responses(workspaceCreateResponses());
-                operation.security(
-                        List.of(
-                                new SecurityRequirement().addList(ACCESS_TOKEN_COOKIE)
-                                        .addList(CSRF_TOKEN_HEADER)
-                        )
-                );
+                customizeWorkspaceCreateOperation(operation);
+            }
+            if (isWorkspaceDetailOperation(handlerMethod)) {
+                customizeWorkspaceDetailOperation(operation);
             }
             return operation;
         };
+    }
+
+    private void customizeWorkspaceCreateOperation(Operation operation) {
+        operation.summary("워크스페이스 생성")
+                .responses(workspaceCreateResponses());
+        operation.security(
+                List.of(
+                        new SecurityRequirement().addList(ACCESS_TOKEN_COOKIE)
+                                .addList(CSRF_TOKEN_HEADER)
+                )
+        );
+    }
+
+    private void customizeWorkspaceDetailOperation(Operation operation) {
+        operation.summary("워크스페이스 단건 조회")
+                .responses(workspaceDetailResponses());
+        operation.security(List.of(new SecurityRequirement().addList(ACCESS_TOKEN_COOKIE)));
     }
 
     private ApiResponses workspaceCreateResponses() {
@@ -90,6 +105,44 @@ public class OpenApiConfig {
                 );
     }
 
+    private ApiResponses workspaceDetailResponses() {
+        return new ApiResponses().addApiResponse(
+                "200",
+                jsonResponse(
+                        "워크스페이스 조회 성공",
+                        "WorkspaceDetailResponse"
+                )
+        )
+                .addApiResponse(
+                        "400",
+                        jsonResponse(
+                                "워크스페이스 ID 형식 오류",
+                                "ErrorResponse"
+                        )
+                )
+                .addApiResponse(
+                        "401",
+                        jsonResponse(
+                                "인증되지 않은 요청",
+                                "ErrorResponse"
+                        )
+                )
+                .addApiResponse(
+                        "403",
+                        jsonResponse(
+                                "워크스페이스 접근 권한 없음",
+                                "ErrorResponse"
+                        )
+                )
+                .addApiResponse(
+                        "404",
+                        jsonResponse(
+                                "워크스페이스를 찾을 수 없음",
+                                "ErrorResponse"
+                        )
+                );
+    }
+
     private ApiResponse jsonResponse(
             String description,
             String schemaName
@@ -108,6 +161,15 @@ public class OpenApiConfig {
                 handlerMethod.getBeanType()
                         .getName()
         ) && "create".equals(handlerMethod.getMethod()
+                .getName()
+        );
+    }
+
+    private boolean isWorkspaceDetailOperation(HandlerMethod handlerMethod) {
+        return WORKSPACE_QUERY_CONTROLLER.equals(
+                handlerMethod.getBeanType()
+                        .getName()
+        ) && "detail".equals(handlerMethod.getMethod()
                 .getName()
         );
     }
