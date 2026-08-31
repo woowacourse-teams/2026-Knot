@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/workspaces")
+@RequestMapping("/api/v1/workspaces")
 @RequiredArgsConstructor
 @Tag(name = "워크스페이스", description = "워크스페이스 생성 및 조회")
 public class WorkspaceQueryController {
