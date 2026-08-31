@@ -168,7 +168,7 @@ class WorkspaceQueryControllerTest {
         );
 
         // when
-        ResultActions result = mockMvc.perform(get("/workspaces"));
+        ResultActions result = mockMvc.perform(get("/api/v1/workspaces"));
 
         // then
         result.andExpect(status().isOk())

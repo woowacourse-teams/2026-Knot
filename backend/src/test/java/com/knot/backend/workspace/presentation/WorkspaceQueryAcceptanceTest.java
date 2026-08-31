@@ -245,7 +245,7 @@ class WorkspaceQueryAcceptanceTest {
 
         // when
         ResultActions result = mockMvc.perform(
-                get("/workspaces").cookie(
+                get("/api/v1/workspaces").cookie(
                         new Cookie(
                                 JWT_COOKIE_NAME,
                                 token
@@ -279,7 +279,7 @@ class WorkspaceQueryAcceptanceTest {
 
         // when
         ResultActions result = mockMvc.perform(
-                get("/workspaces").cookie(
+                get("/api/v1/workspaces").cookie(
                         new Cookie(
                                 JWT_COOKIE_NAME,
                                 token
@@ -299,7 +299,7 @@ class WorkspaceQueryAcceptanceTest {
         // given
 
         // when
-        ResultActions result = mockMvc.perform(get("/workspaces"));
+        ResultActions result = mockMvc.perform(get("/api/v1/workspaces"));
 
         // then
         result.andExpect(status().isUnauthorized())

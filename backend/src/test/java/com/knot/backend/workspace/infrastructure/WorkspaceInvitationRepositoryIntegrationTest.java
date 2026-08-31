@@ -7,6 +7,7 @@ import com.knot.backend.testsupport.TestcontainersConfiguration;
 import com.knot.backend.workspace.domain.Workspace;
 import com.knot.backend.workspace.domain.WorkspaceInvitation;
 import com.knot.backend.workspace.domain.WorkspaceInvitationRepository;
+import com.knot.backend.workspace.domain.WorkspaceInvitationSecretCollisionException;
 import com.knot.backend.workspace.domain.WorkspaceRepository;
 import jakarta.persistence.EntityManager;
 import java.time.Instant;
@@ -177,7 +178,7 @@ class WorkspaceInvitationRepositoryIntegrationTest {
         ThrowingCallable action = () -> saveAndFlush(duplicate);
 
         // then
-        assertThatThrownBy(action).isInstanceOf(DataIntegrityViolationException.class);
+        assertThatThrownBy(action).isInstanceOf(WorkspaceInvitationSecretCollisionException.class);
     }
 
     @DisplayName("같은 초대 코드 해시는 서로 다른 워크스페이스에서도 중복 저장할 수 없다")
@@ -215,7 +216,7 @@ class WorkspaceInvitationRepositoryIntegrationTest {
         ThrowingCallable action = () -> saveAndFlush(duplicate);
 
         // then
-        assertThatThrownBy(action).isInstanceOf(DataIntegrityViolationException.class);
+        assertThatThrownBy(action).isInstanceOf(WorkspaceInvitationSecretCollisionException.class);
     }
 
     @DisplayName("한 워크스페이스에는 미무효화 초대를 두 개 저장할 수 없다")
@@ -604,7 +605,7 @@ class WorkspaceInvitationRepositoryIntegrationTest {
         });
 
         // then
-        assertThatThrownBy(action).isInstanceOf(DataIntegrityViolationException.class);
+        assertThatThrownBy(action).isInstanceOf(WorkspaceInvitationSecretCollisionException.class);
         assertThat(workspaceInvitationRepository.findUninvalidatedByWorkspaceId(targetWorkspaceId)).get()
                 .extracting(WorkspaceInvitation::getInvalidatedAt)
                 .isNull();

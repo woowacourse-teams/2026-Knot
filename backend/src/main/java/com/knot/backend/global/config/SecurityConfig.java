@@ -47,7 +47,7 @@ public class SecurityConfig {
     @Bean
     public UrlBasedCorsConfigurationSource corsConfigurationSource() {
         String allowedOrigin = corsProperties.getAllowedOrigin();
-        if (allowedOrigin == null || allowedOrigin.isBlank() || "*".equals(allowedOrigin)) {
+        if (isInvalidCorsOrigin(allowedOrigin)) {
             throw new AuthException(AuthErrorCode.OAUTH_CONFIGURATION_INVALID);
         }
 
@@ -66,6 +66,7 @@ public class SecurityConfig {
                         "X-XSRF-TOKEN"
                 )
         );
+        configuration.setExposedHeaders(List.of(HttpHeaders.RETRY_AFTER));
         configuration.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
@@ -74,6 +75,10 @@ public class SecurityConfig {
                 configuration
         );
         return source;
+    }
+
+    private boolean isInvalidCorsOrigin(String origin) {
+        return origin == null || origin.isBlank() || "*".equals(origin);
     }
 
     @Bean
@@ -107,6 +112,11 @@ public class SecurityConfig {
                             "/actuator/health",
                             "/error"
                     )
+                            .permitAll()
+                            .requestMatchers(
+                                    HttpMethod.GET,
+                                    "/api/v1/invitations/*"
+                            )
                             .permitAll()
                             .anyRequest()
                             .authenticated();

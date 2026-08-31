@@ -13,7 +13,7 @@ class AesGcmWorkspaceInvitationSecretProtectorTest {
     private static final String LOOKUP_HASH_KEY = "ZmVkY2JhOTg3NjU0MzIxMGZlZGNiYTk4NzY1NDMyMTA";
     private static final String ENCRYPTION_KEY = "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY";
     private static final Long WORKSPACE_ID = 1L;
-    private static final String SECRET = "ABCDEFGH";
+    private static final String SECRET = "secret-value";
 
     @DisplayName("같은 종류와 원문의 lookup hash는 항상 같다")
     @Test
@@ -109,10 +109,12 @@ class AesGcmWorkspaceInvitationSecretProtectorTest {
                 WorkspaceInvitationSecretKind.INVITE_CODE,
                 SECRET
         );
+        int ciphertextStart = envelope.lastIndexOf(':') + 1;
+        char ciphertextFirstCharacter = envelope.charAt(ciphertextStart);
         String tamperedEnvelope = envelope.substring(
                 0,
-                envelope.length() - 1
-        ) + (envelope.endsWith("A") ? "B" : "A");
+                ciphertextStart
+        ) + (ciphertextFirstCharacter == 'A' ? "B" : "A") + envelope.substring(ciphertextStart + 1);
 
         // when
         Throwable thrown = catchThrowable(
