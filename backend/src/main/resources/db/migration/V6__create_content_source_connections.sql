@@ -20,6 +20,10 @@ CREATE TABLE content_source_authorizations (
         FOREIGN KEY (authorizing_member_id)
         REFERENCES members (id)
         ON DELETE RESTRICT,
+    CONSTRAINT fk_content_source_authorizations_workspace_member
+        FOREIGN KEY (workspace_id, authorizing_member_id)
+        REFERENCES workspace_members (workspace_id, member_id)
+        ON DELETE RESTRICT,
     CONSTRAINT chk_content_source_authorizations_provider
         CHECK (provider IN ('NOTION')),
     CONSTRAINT chk_content_source_authorizations_state_hash
@@ -69,6 +73,10 @@ CREATE TABLE content_source_connections (
     CONSTRAINT fk_content_source_connections_member
         FOREIGN KEY (authorizing_member_id)
         REFERENCES members (id)
+        ON DELETE RESTRICT,
+    CONSTRAINT fk_content_source_connections_workspace_member
+        FOREIGN KEY (workspace_id, authorizing_member_id)
+        REFERENCES workspace_members (workspace_id, member_id)
         ON DELETE RESTRICT,
     CONSTRAINT chk_content_source_connections_provider
         CHECK (provider IN ('NOTION')),

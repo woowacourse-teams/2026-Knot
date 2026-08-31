@@ -226,6 +226,32 @@ class ContentSourceRepositoryIntegrationTest {
         assertThatThrownBy(action).isInstanceOf(DataIntegrityViolationException.class);
     }
 
+    @DisplayName("OAuth authorization은 다른 워크스페이스의 멤버를 승인자로 저장할 수 없다")
+    @Test
+    void saveAuthorization_failure_crossWorkspaceAuthorizingMember() {
+        // given
+        TestWorkspaceContext firstContext = saveWorkspaceContext(
+                "첫 팀",
+                7L
+        );
+        TestWorkspaceContext secondContext = saveWorkspaceContext(
+                "둘째 팀",
+                8L
+        );
+        ContentSourceAuthorization authorization = createAuthorization(
+                firstContext.workspaceId(),
+                secondContext.memberId(),
+                "cross-workspace-state-hash",
+                CREATED_AT
+        );
+
+        // when
+        ThrowingCallable action = () -> saveAndFlush(authorization);
+
+        // then
+        assertThatThrownBy(action).isInstanceOf(DataIntegrityViolationException.class);
+    }
+
     @DisplayName("Connection을 저장하고 workspace ID로 조회한다")
     @Test
     void saveConnection_success() {
@@ -357,6 +383,32 @@ class ContentSourceRepositoryIntegrationTest {
         assertThatThrownBy(action).isInstanceOf(DataIntegrityViolationException.class);
     }
 
+    @DisplayName("Connection은 다른 워크스페이스의 멤버를 승인자로 저장할 수 없다")
+    @Test
+    void saveConnection_failure_crossWorkspaceAuthorizingMember() {
+        // given
+        TestWorkspaceContext firstContext = saveWorkspaceContext(
+                "첫 팀",
+                13L
+        );
+        TestWorkspaceContext secondContext = saveWorkspaceContext(
+                "둘째 팀",
+                14L
+        );
+        ContentSourceConnection connection = createConnection(
+                firstContext.workspaceId(),
+                secondContext.memberId(),
+                "cross-workspace-notion-id",
+                CREATED_AT
+        );
+
+        // when
+        ThrowingCallable action = () -> saveAndFlush(connection);
+
+        // then
+        assertThatThrownBy(action).isInstanceOf(DataIntegrityViolationException.class);
+    }
+
     @DisplayName("Connection은 다른 Notion workspace 정보로 교체할 수 있다")
     @Test
     void replaceConnection_success_differentNotionWorkspace() {
@@ -439,10 +491,33 @@ class ContentSourceRepositoryIntegrationTest {
                         CREATED_AT
                 )
         );
+        saveWorkspaceMember(
+                workspace.getId(),
+                memberId
+        );
         return new TestWorkspaceContext(
                 workspace.getId(),
                 memberId
         );
+    }
+
+    private void saveWorkspaceMember(
+            Long workspaceId,
+            Long memberId
+    ) {
+        jdbcClient.sql("""
+                INSERT INTO workspace_members (workspace_id, member_id, role, joined_at)
+                VALUES (:workspaceId, :memberId, 'OWNER', TIMESTAMPTZ '2026-08-31 00:00:00+00')
+                """)
+                .param(
+                        "workspaceId",
+                        workspaceId
+                )
+                .param(
+                        "memberId",
+                        memberId
+                )
+                .update();
     }
 
     private long saveMember(long memberNumber) {
