@@ -1,0 +1,44 @@
+name: Issue Harness
+
+on:
+  pull_request:
+    paths:
+      - ".agents/**"
+      - ".claude/**"
+      - ".github/ISSUE_TEMPLATE/**"
+      - ".github/knot-conventions.yml"
+      - ".github/workflows/issue-harness.yml"
+      - "AGENTS.md"
+      - "CLAUDE.md"
+      - "docs/adr/**"
+      - "docs/harness/**"
+      - "harness/**"
+
+  push:
+    branches:
+      - main
+    paths:
+      - ".agents/**"
+      - ".claude/**"
+      - ".github/ISSUE_TEMPLATE/**"
+      - ".github/knot-conventions.yml"
+      - ".github/workflows/issue-harness.yml"
+      - "AGENTS.md"
+      - "CLAUDE.md"
+      - "docs/adr/**"
+      - "docs/harness/**"
+      - "harness/**"
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Test Issue harness
+        run: python3 -m unittest discover harness/tests -p 'test_*.py' -v

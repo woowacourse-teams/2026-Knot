@@ -1,0 +1,25 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      java: corretto25
+
+  pre_build:
+    commands:
+      - chmod +x backend/gradlew
+
+  build:
+    commands:
+      - ./backend/gradlew -p backend clean build
+      - JAR_FILE=$(find backend/build/libs -maxdepth 1 -type f -name '*.jar' ! -name '*-plain.jar' | head -n 1)
+      - cp "$JAR_FILE" app.jar
+      - cp backend/appspec.yml appspec.yml
+      - cp -R backend/scripts scripts
+
+artifacts:
+  files:
+    - app.jar
+    - appspec.yml
+    - scripts/**/*
+  discard-paths: no

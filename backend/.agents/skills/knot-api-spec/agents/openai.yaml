@@ -1,0 +1,4 @@
+interface:
+  display_name: "Knot API Spec"
+  short_description: "Create frontend-facing Knot API specs"
+  default_prompt: "Use $knot-api-spec to inspect the backend and write a Request, Response Body, and Status Code API specification."

@@ -1,6 +1,6 @@
 import CenteredLayout from "@pages/_layout/CenteredLayout";
-import ChatLayout from "@pages/_layout/ChatLayout";
 import WorkspaceLayout from "@pages/_layout/WorkspaceLayout";
+import InvitePage from "@pages/invite/[token]";
 import JoinErrorPage from "@pages/join-error";
 import LoginPage from "@pages/login";
 import OnboardingPage from "@pages/onboarding";
@@ -48,8 +48,16 @@ export const router = createBrowserRouter([
         element: <WorkspaceCreatePage />,
       },
       {
+        path: PATH_ROUTE.WORKSPACE_INVITE,
+        element: <WorkspaceInvitePage />,
+      },
+      {
         path: PATH_ROUTE.WORKSPACE_CODE,
         element: <WorkspaceCodePage />,
+      },
+      {
+        path: PATH_ROUTE.INVITE,
+        element: <InvitePage />,
       },
       {
         path: PATH_ROUTE.WORKSPACE_JOIN,
@@ -71,27 +79,16 @@ export const router = createBrowserRouter([
         element: <WorkspaceHomePage />,
       },
       {
-        path: PATH_ROUTE.WORKSPACE_INVITE,
-        element: <WorkspaceInvitePage />,
-      },
-      {
         path: PATH_ROUTE.WORKSPACE_NOTION_CONNECTION,
         element: <WorkspaceNotionConnectionPage />,
       },
-
-      // 탐색 — 좌측 채팅 / 우측 결과 2단 분할
       {
-        element: <ChatLayout />,
-        children: [
-          {
-            path: PATH_ROUTE.CHAT,
-            element: <ChatPage />,
-          },
-          {
-            path: PATH_ROUTE.CHAT_SESSION,
-            element: <ChatPage />,
-          },
-        ],
+        path: PATH_ROUTE.CHAT,
+        element: <ChatPage />,
+      },
+      {
+        path: PATH_ROUTE.CHAT_SESSION,
+        element: <ChatPage />,
       },
     ],
   },

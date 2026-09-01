@@ -1,0 +1,4 @@
+interface:
+  display_name: "Knot Issue Planning"
+  short_description: "Knot Issue 계약을 검증하고 dry-run 본문 생성"
+  default_prompt: "Use $knot-issue-planning to turn this Knot task into a validated dry-run GitHub Issue."

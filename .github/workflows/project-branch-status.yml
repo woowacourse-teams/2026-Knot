@@ -1,0 +1,146 @@
+name: 브랜치 생성 → In Progress
+
+on:
+  create:
+
+jobs:
+  update-project-status:
+    if: github.event.ref_type == 'branch'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 이슈 번호 추출
+        id: issue
+        shell: bash
+        env:
+          BRANCH_NAME: ${{ github.event.ref }}
+        run: |
+          echo "생성된 브랜치: $BRANCH_NAME"
+
+          if [[ "$BRANCH_NAME" =~ \#([0-9]+) ]]; then
+            ISSUE_NUMBER="${BASH_REMATCH[1]}"
+            echo "number=$ISSUE_NUMBER" >> "$GITHUB_OUTPUT"
+            echo "Issue #$ISSUE_NUMBER 감지"
+          else
+            echo "이슈 번호가 없는 브랜치입니다."
+            echo "예: be/feat/#13"
+          fi
+
+      - name: Project 및 Issue 정보 조회
+        if: steps.issue.outputs.number != ''
+        env:
+          GH_TOKEN: ${{ secrets.KNOT_PROJECT_AUTOMATION }}
+          ISSUE_NUMBER: ${{ steps.issue.outputs.number }}
+        shell: bash
+        run: |
+          gh api graphql \
+            -f query='
+              query(
+                $org: String!,
+                $repo: String!,
+                $issueNumber: Int!,
+                $projectNumber: Int!
+              ) {
+                organization(login: $org) {
+                  projectV2(number: $projectNumber) {
+                    id
+                    fields(first: 100) {
+                      nodes {
+                        ... on ProjectV2SingleSelectField {
+                          id
+                          name
+                          options {
+                            id
+                            name
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+
+                repository(owner: $org, name: $repo) {
+                  issue(number: $issueNumber) {
+                    projectItems(first: 20) {
+                      nodes {
+                        id
+                      }
+                    }
+                  }
+                }
+              }
+            ' \
+            -f org="woowacourse-teams" \
+            -f repo="2026-Knot" \
+            -F issueNumber="$ISSUE_NUMBER" \
+            -F projectNumber=137 \
+            > result.json
+
+          PROJECT_ID=$(jq -r \
+            '.data.organization.projectV2.id' \
+            result.json)
+
+          STATUS_FIELD_ID=$(jq -r '
+            .data.organization.projectV2.fields.nodes[]
+            | select(.name == "Status")
+            | .id
+          ' result.json)
+
+          IN_PROGRESS_ID=$(jq -r '
+            .data.organization.projectV2.fields.nodes[]
+            | select(.name == "Status")
+            | .options[]
+            | select(.name == "In Progress")
+            | .id
+          ' result.json)
+
+          ITEM_ID=$(jq -r \
+            '.data.repository.issue.projectItems.nodes[0].id' \
+            result.json)
+
+          if [[ -z "$ITEM_ID" || "$ITEM_ID" == "null" ]]; then
+            echo "Project에서 Issue #$ISSUE_NUMBER를 찾지 못했습니다."
+            exit 1
+          fi
+
+          echo "PROJECT_ID=$PROJECT_ID" >> "$GITHUB_ENV"
+          echo "STATUS_FIELD_ID=$STATUS_FIELD_ID" >> "$GITHUB_ENV"
+          echo "IN_PROGRESS_ID=$IN_PROGRESS_ID" >> "$GITHUB_ENV"
+          echo "ITEM_ID=$ITEM_ID" >> "$GITHUB_ENV"
+
+      - name: Status를 In Progress로 변경
+        if: steps.issue.outputs.number != ''
+        env:
+          GH_TOKEN: ${{ secrets.KNOT_PROJECT_AUTOMATION }}
+        shell: bash
+        run: |
+          gh api graphql \
+            -f query='
+              mutation(
+                $projectId: ID!,
+                $itemId: ID!,
+                $fieldId: ID!,
+                $optionId: String!
+              ) {
+                updateProjectV2ItemFieldValue(
+                  input: {
+                    projectId: $projectId
+                    itemId: $itemId
+                    fieldId: $fieldId
+                    value: {
+                      singleSelectOptionId: $optionId
+                    }
+                  }
+                ) {
+                  projectV2Item {
+                    id
+                  }
+                }
+              }
+            ' \
+            -f projectId="$PROJECT_ID" \
+            -f itemId="$ITEM_ID" \
+            -f fieldId="$STATUS_FIELD_ID" \
+            -f optionId="$IN_PROGRESS_ID"
+
+          echo "Status → In Progress 변경 완료"
