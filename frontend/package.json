@@ -13,7 +13,8 @@
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:report": "playwright show-report",
-    "review": "node scripts/review.mjs"
+    "review": "node scripts/review.mjs",
+    "pr-content": "node scripts/create-pr-content.mjs"
   },
   "devDependencies": {
     "@emotion/babel-plugin": "^11.13.5",
