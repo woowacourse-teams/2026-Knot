@@ -17,7 +17,7 @@ export default defineConfig({
           focusable: "false",
           "aria-hidden": "true",
         },
-        // webpack 설정과 같이 size prop을 만들어요. 플러그인이 jsx로 변환하므로 타입 표기는 넣지 않아요
+        // webpack의 svgr 설정과 같은 size prop을 만들어야 아이콘이 테스트에서도 그려집니다
         template: ({ componentName, jsx, exports }, { tpl }) => tpl`
 const ${componentName} = ({ size = 24, ...props }) => (
   ${jsx}

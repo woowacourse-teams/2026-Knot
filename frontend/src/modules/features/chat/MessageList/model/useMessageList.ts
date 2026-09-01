@@ -1,17 +1,18 @@
-import { useState } from "react";
+import useOpenedSourceMessage from "@hooks/domain/chat/useOpenedSourceMessage";
 import { mockMessages, mockSourceCounts } from "../mock";
 import type { ChatTurnView } from "../types/chatTurn";
 import { formatSourceLabel } from "../utils/formatSourceLabel";
 import { toChatTurns } from "../utils/toChatTurns";
 
 /**
- * 대화를 화면에 그릴 모양으로 만듭니다.
+ * 메시지 목록을 질문 1개 + 답변 1개인 턴으로 묶고, 각 턴에 근거 문구를 붙입니다.
  *
- * 메시지에 근거 문구를 붙인 뒤 질문·답변 한 쌍씩 턴으로 접습니다.
- * 어느 턴의 근거 문서를 열어 두었는지는 화면에만 있는 상태라 여기서 들고 있습니다.
+ * 열어 둔 근거 문서는 useState 대신 URL 쿼리 파라미터에 둡니다.
+ * 문서 목록을 그리는 SearchReferenceList가 다른 컴포넌트 트리에 있어 state를 공유할 수 없고,
+ * URL은 두 곳에서 모두 읽을 수 있기 때문입니다.
  */
 export const useMessageList = () => {
-  const [openedTurnId, setOpenedTurnId] = useState<number | null>(null);
+  const { openedMessageId, openSourceMessage } = useOpenedSourceMessage();
 
   // TODO: mock 데이터 교체 필요
   const turns: ChatTurnView[] = toChatTurns(mockMessages).map((turn) => {
@@ -23,7 +24,12 @@ export const useMessageList = () => {
 
   const hasAnsweredTurn = turns.some(({ status }) => status === "done");
 
-  const handleOpenSource = (turnId: number) => setOpenedTurnId(turnId);
+  const handleOpenSource = (turnId: number) => openSourceMessage(turnId);
 
-  return { turns, openedTurnId, hasAnsweredTurn, handleOpenSource };
+  return {
+    turns,
+    openedTurnId: openedMessageId,
+    hasAnsweredTurn,
+    handleOpenSource,
+  };
 };
