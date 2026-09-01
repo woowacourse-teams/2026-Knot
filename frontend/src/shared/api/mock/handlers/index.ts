@@ -2,6 +2,7 @@ import { authCsrfHandlers } from "./api/v1/auth/csrf";
 import { authMeHandlers } from "./api/v1/auth/me";
 import { authNicknameHandlers } from "./api/v1/auth/nickname";
 import { chatMessagesHandlers } from "./api/v1/conversations/[sessionId]";
+import { sendChatMessageHandlers } from "./api/v1/conversations/[sessionId]/messages";
 import { invitationPreviewHandlers } from "./api/v1/invitations/[tokenOrCode]";
 import { invitationAcceptHandlers } from "./api/v1/invitations/accept";
 import { lastViewedWorkspaceHandlers } from "./api/v1/members/me/lastViewedWorkspace";
@@ -13,7 +14,7 @@ import { workspaceInvitationsHandlers } from "./api/v1/workspaces/[workspaceId]/
 import { workspaceInvitationReissueHandlers } from "./api/v1/workspaces/[workspaceId]/invitations/reissue";
 import { workspaceNotionOAuthAuthorizationsHandlers } from "./api/v1/workspaces/[workspaceId]/notionOauthAuthorizations";
 
-// 리다이렉트 엔드포인트(OAuth 시작·로그아웃)와 SSE 메시지 전송은 XHR 응답이 아니라 두지 않아요
+// 리다이렉트 엔드포인트(OAuth 시작·로그아웃)는 XHR 응답이 아니라 두지 않아요
 export const handlers = [
   ...authMeHandlers,
   ...authCsrfHandlers,
@@ -29,4 +30,5 @@ export const handlers = [
   ...invitationAcceptHandlers,
   ...invitationPreviewHandlers,
   ...chatMessagesHandlers,
+  ...sendChatMessageHandlers,
 ];
