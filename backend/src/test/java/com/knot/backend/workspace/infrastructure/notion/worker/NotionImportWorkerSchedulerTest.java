@@ -5,10 +5,10 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.knot.backend.workspace.application.NotionImportStaleRecoveryService;
-import com.knot.backend.workspace.application.NotionImportWorker;
-import com.knot.backend.workspace.application.NotionImportWorkerObserver;
-import com.knot.backend.workspace.application.dto.result.NotionImportRecoveryResult;
+import com.knot.backend.workspace.application.ContentImportStaleRecoveryService;
+import com.knot.backend.workspace.application.ContentImportWorker;
+import com.knot.backend.workspace.application.ContentImportWorkerObserver;
+import com.knot.backend.workspace.application.dto.result.ContentImportRecoveryResult;
 import java.time.Duration;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -18,9 +18,11 @@ class NotionImportWorkerSchedulerTest {
     private static final Duration RUNNING_TIMEOUT = Duration.ofHours(1);
     private static final int RECOVERY_BATCH_SIZE = 100;
 
-    private final NotionImportStaleRecoveryService staleRecoveryService = mock(NotionImportStaleRecoveryService.class);
-    private final NotionImportWorker worker = mock(NotionImportWorker.class);
-    private final NotionImportWorkerObserver observer = mock(NotionImportWorkerObserver.class);
+    private final ContentImportStaleRecoveryService staleRecoveryService = mock(
+            ContentImportStaleRecoveryService.class
+    );
+    private final ContentImportWorker worker = mock(ContentImportWorker.class);
+    private final ContentImportWorkerObserver observer = mock(ContentImportWorkerObserver.class);
     private final NotionImportWorkerScheduler scheduler = new NotionImportWorkerScheduler(
             staleRecoveryService,
             worker,
@@ -42,7 +44,7 @@ class NotionImportWorkerSchedulerTest {
                         RUNNING_TIMEOUT,
                         RECOVERY_BATCH_SIZE
                 )
-        ).thenReturn(new NotionImportRecoveryResult(1));
+        ).thenReturn(new ContentImportRecoveryResult(1));
 
         // when
         scheduler.poll();

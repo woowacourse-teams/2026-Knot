@@ -2,7 +2,7 @@ package com.knot.backend.workspace.infrastructure.notion;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.knot.backend.workspace.application.NotionImportFailureCategory;
+import com.knot.backend.workspace.application.ContentImportFailureCategory;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -29,7 +29,7 @@ class MicrometerNotionImportWorkerObserverTest {
         observer.failed(
                 4L,
                 2L,
-                NotionImportFailureCategory.COLLECTION
+                ContentImportFailureCategory.COLLECTION
         );
         observer.staleRecovered(1);
         observer.heartbeatFailed(

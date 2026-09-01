@@ -18,16 +18,16 @@ import com.knot.backend.testsupport.TestcontainersConfiguration;
 import com.knot.backend.workspace.application.ContentSourceAuthorizationClient;
 import com.knot.backend.workspace.application.ContentSourceCredentialKind;
 import com.knot.backend.workspace.application.ContentSourceSecretProtector;
-import com.knot.backend.workspace.application.NotionContentCollector;
-import com.knot.backend.workspace.application.NotionImportFailureCategory;
-import com.knot.backend.workspace.application.NotionImportHeartbeatLease;
-import com.knot.backend.workspace.application.NotionImportPublicationService;
-import com.knot.backend.workspace.application.NotionImportRunLifecycleService;
-import com.knot.backend.workspace.application.NotionImportSnapshotStagingService;
-import com.knot.backend.workspace.application.NotionImportWorker;
-import com.knot.backend.workspace.application.NotionImportWorkerObserver;
-import com.knot.backend.workspace.application.dto.result.CollectedNotionPage;
-import com.knot.backend.workspace.application.dto.result.NotionCollectionResult;
+import com.knot.backend.workspace.application.ContentSourceCollector;
+import com.knot.backend.workspace.application.ContentImportFailureCategory;
+import com.knot.backend.workspace.application.ContentImportHeartbeatLease;
+import com.knot.backend.workspace.application.ContentImportPublicationService;
+import com.knot.backend.workspace.application.ContentImportRunLifecycleService;
+import com.knot.backend.workspace.application.ContentImportSnapshotStagingService;
+import com.knot.backend.workspace.application.ContentImportWorker;
+import com.knot.backend.workspace.application.ContentImportWorkerObserver;
+import com.knot.backend.workspace.application.dto.result.CollectedPage;
+import com.knot.backend.workspace.application.dto.result.ContentCollectionResult;
 import com.knot.backend.workspace.domain.ContentSourceConnectionRepository;
 import com.knot.backend.workspace.domain.ContentSourceProvider;
 import jakarta.servlet.http.Cookie;
@@ -68,9 +68,9 @@ class NotionPageTreeAcceptanceTest {
     private final JdbcClient jdbcClient;
     private final ContentSourceAuthorizationClient contentSourceAuthorizationClient;
     private final ContentSourceSecretProtector secretProtector;
-    private final NotionContentCollector contentCollector;
-    private final NotionImportWorkerObserver workerObserver;
-    private final NotionImportWorker importWorker;
+    private final ContentSourceCollector contentCollector;
+    private final ContentImportWorkerObserver workerObserver;
+    private final ContentImportWorker importWorker;
 
     NotionPageTreeAcceptanceTest(
             MockMvc mockMvc,
@@ -78,9 +78,9 @@ class NotionPageTreeAcceptanceTest {
             JdbcClient jdbcClient,
             ContentSourceAuthorizationClient contentSourceAuthorizationClient,
             ContentSourceSecretProtector secretProtector,
-            NotionContentCollector contentCollector,
-            NotionImportWorkerObserver workerObserver,
-            NotionImportWorker importWorker
+            ContentSourceCollector contentCollector,
+            ContentImportWorkerObserver workerObserver,
+            ContentImportWorker importWorker
     ) {
         this.mockMvc = mockMvc;
         this.authTokenProvider = authTokenProvider;
@@ -332,7 +332,7 @@ class NotionPageTreeAcceptanceTest {
         // given
         WorkerFixture fixture = saveWorkerFixture();
         allowWorkerCredential(fixture.workspaceId());
-        NotionCollectionResult collectionResult = new NotionCollectionResult(
+        ContentCollectionResult collectionResult = new ContentCollectionResult(
                 List.of(
                         collectedPage(
                                 "new-root",
@@ -395,7 +395,7 @@ class NotionPageTreeAcceptanceTest {
         // given
         WorkerFixture fixture = saveWorkerFixture();
         allowWorkerCredential(fixture.workspaceId());
-        when(contentCollector.collect("worker-access-credential")).thenReturn(new NotionCollectionResult(List.of()));
+        when(contentCollector.collect("worker-access-credential")).thenReturn(new ContentCollectionResult(List.of()));
 
         // when
         boolean processed = importWorker.processNext();
@@ -418,7 +418,7 @@ class NotionPageTreeAcceptanceTest {
         verify(workerObserver).failed(
                 fixture.pendingImportRunId(),
                 fixture.workspaceId(),
-                NotionImportFailureCategory.EMPTY_RESULT
+                ContentImportFailureCategory.EMPTY_RESULT
         );
         verifyNoInteractions(contentSourceAuthorizationClient);
     }
@@ -439,7 +439,7 @@ class NotionPageTreeAcceptanceTest {
         );
         allowWorkerCredential(fixture.workspaceId());
         when(contentCollector.collect("worker-access-credential")).thenReturn(
-                new NotionCollectionResult(
+                new ContentCollectionResult(
                         List.of(
                                 collectedPage(
                                         "partial-root",
@@ -480,7 +480,7 @@ class NotionPageTreeAcceptanceTest {
         verify(workerObserver).failed(
                 fixture.pendingImportRunId(),
                 fixture.workspaceId(),
-                NotionImportFailureCategory.STORAGE
+                ContentImportFailureCategory.STORAGE
         );
         verifyNoInteractions(contentSourceAuthorizationClient);
     }
@@ -739,14 +739,14 @@ class NotionPageTreeAcceptanceTest {
         });
     }
 
-    private CollectedNotionPage collectedPage(
+    private CollectedPage collectedPage(
             String notionPageId,
             String parentNotionPageId,
             String title,
             String markdownContent,
             int position
     ) {
-        return new CollectedNotionPage(
+        return new CollectedPage(
                 notionPageId,
                 parentNotionPageId,
                 title,
@@ -773,7 +773,7 @@ class NotionPageTreeAcceptanceTest {
     private String importRunStatus(long importRunId) {
         return jdbcClient.sql("""
                 SELECT status
-                FROM notion_import_runs
+                FROM content_import_runs
                 WHERE id = :importRunId
                 """)
                 .param(
@@ -787,7 +787,7 @@ class NotionPageTreeAcceptanceTest {
     private ImportRunPageCounts importRunPageCounts(long importRunId) {
         return jdbcClient.sql("""
                 SELECT total_page_count, processed_page_count
-                FROM notion_import_runs
+                FROM content_import_runs
                 WHERE id = :importRunId
                 """)
                 .param(
@@ -812,7 +812,7 @@ class NotionPageTreeAcceptanceTest {
     private long publishedImportRunId(long workspaceId) {
         return jdbcClient.sql("""
                 SELECT published_import_run_id
-                FROM notion_page_publications
+                FROM imported_page_publications
                 WHERE workspace_id = :workspaceId
                 """)
                 .param(
@@ -826,7 +826,7 @@ class NotionPageTreeAcceptanceTest {
     private long countNotionPages(long importRunId) {
         return jdbcClient.sql("""
                 SELECT COUNT(*)
-                FROM notion_pages
+                FROM imported_pages
                 WHERE import_run_id = :importRunId
                 """)
                 .param(
@@ -843,9 +843,9 @@ class NotionPageTreeAcceptanceTest {
     ) {
         return jdbcClient.sql("""
                 SELECT id
-                FROM notion_pages
+                FROM imported_pages
                 WHERE import_run_id = :importRunId
-                    AND notion_page_id = :notionPageId
+                    AND external_page_id = :notionPageId
                 """)
                 .param(
                         "importRunId",
@@ -865,7 +865,7 @@ class NotionPageTreeAcceptanceTest {
             long memberId
     ) {
         return jdbcClient.sql("""
-                INSERT INTO notion_import_runs (
+                INSERT INTO content_import_runs (
                     workspace_id,
                     content_source_connection_id,
                     requested_by_member_id,
@@ -1371,23 +1371,23 @@ class NotionPageTreeAcceptanceTest {
 
         @Bean
         @Primary
-        NotionContentCollector notionPageTreeContentCollector() {
-            return mock(NotionContentCollector.class);
+        ContentSourceCollector notionPageTreeContentCollector() {
+            return mock(ContentSourceCollector.class);
         }
 
         @Bean
         @Primary
-        NotionImportWorkerObserver notionPageTreeWorkerObserver() {
-            return mock(NotionImportWorkerObserver.class);
+        ContentImportWorkerObserver notionPageTreeWorkerObserver() {
+            return mock(ContentImportWorkerObserver.class);
         }
 
         @Bean
         @Primary
-        NotionImportHeartbeatLease notionPageTreeHeartbeatLease() {
+        ContentImportHeartbeatLease notionPageTreeHeartbeatLease() {
             return (
                     importRunId,
                     workspaceId
-            ) -> new NotionImportHeartbeatLease.Handle() {
+            ) -> new ContentImportHeartbeatLease.Handle() {
                 @Override
                 public boolean isActive() {
                     return true;
@@ -1399,17 +1399,17 @@ class NotionPageTreeAcceptanceTest {
         }
 
         @Bean
-        NotionImportWorker notionPageTreeImportWorker(
-                NotionImportRunLifecycleService lifecycleService,
+        ContentImportWorker notionPageTreeImportWorker(
+                ContentImportRunLifecycleService lifecycleService,
                 ContentSourceConnectionRepository connectionRepository,
                 ContentSourceSecretProtector secretProtector,
-                NotionContentCollector contentCollector,
-                NotionImportSnapshotStagingService stagingService,
-                NotionImportPublicationService publicationService,
-                NotionImportWorkerObserver observer,
-                NotionImportHeartbeatLease heartbeatLease
+                ContentSourceCollector contentCollector,
+                ContentImportSnapshotStagingService stagingService,
+                ContentImportPublicationService publicationService,
+                ContentImportWorkerObserver observer,
+                ContentImportHeartbeatLease heartbeatLease
         ) {
-            return new NotionImportWorker(
+            return new ContentImportWorker(
                     lifecycleService,
                     connectionRepository,
                     secretProtector,

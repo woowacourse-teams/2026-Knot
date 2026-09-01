@@ -1,12 +1,12 @@
 package com.knot.backend.workspace.application;
 
-import com.knot.backend.workspace.domain.NotionImportErrorCode;
-import com.knot.backend.workspace.domain.NotionImportException;
-import com.knot.backend.workspace.domain.NotionImportRun;
-import com.knot.backend.workspace.domain.NotionImportRunRepository;
-import com.knot.backend.workspace.domain.NotionImportStatus;
-import com.knot.backend.workspace.domain.NotionPage;
-import com.knot.backend.workspace.domain.NotionPageRepository;
+import com.knot.backend.workspace.domain.ContentImportErrorCode;
+import com.knot.backend.workspace.domain.ContentImportException;
+import com.knot.backend.workspace.domain.ContentImportRun;
+import com.knot.backend.workspace.domain.ContentImportRunRepository;
+import com.knot.backend.workspace.domain.ContentImportStatus;
+import com.knot.backend.workspace.domain.ImportedPage;
+import com.knot.backend.workspace.domain.ImportedPageRepository;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -17,9 +17,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
-public class NotionImportSnapshotStagingService {
-    private final NotionImportRunRepository importRunRepository;
-    private final NotionPageRepository notionPageRepository;
+public class ContentImportSnapshotStagingService {
+    private final ContentImportRunRepository importRunRepository;
+    private final ImportedPageRepository importedPageRepository;
     private final Clock clock;
 
     @Transactional
@@ -28,7 +28,7 @@ public class NotionImportSnapshotStagingService {
             Long workspaceId,
             int totalPageCount
     ) {
-        NotionImportRun importRun = findRunningImportRun(
+        ContentImportRun importRun = findRunningImportRun(
                 importRunId,
                 workspaceId
         );
@@ -40,46 +40,46 @@ public class NotionImportSnapshotStagingService {
     public Long stagePage(
             Long importRunId,
             Long workspaceId,
-            String notionPageId,
-            Long parentPageId,
+            String externalPageId,
+            String parentExternalPageId,
             String title,
             String markdownContent,
             int position,
-            String notionUrl
+            String sourceUrl
     ) {
-        NotionImportRun importRun = findRunningImportRun(
+        ContentImportRun importRun = findRunningImportRun(
                 importRunId,
                 workspaceId
         );
         Instant stagedAt = currentTime();
-        NotionPage notionPage = NotionPage.create(
+        ImportedPage importedPage = ImportedPage.create(
                 workspaceId,
                 importRunId,
-                notionPageId,
-                parentPageId,
+                externalPageId,
+                parentExternalPageId,
                 title,
                 markdownContent,
                 position,
-                notionUrl,
+                sourceUrl,
                 stagedAt,
                 stagedAt
         );
-        NotionPage savedPage = notionPageRepository.save(notionPage);
+        ImportedPage savedPage = importedPageRepository.save(importedPage);
         importRun.recordProcessedPage();
         importRunRepository.save(importRun);
         return savedPage.getId();
     }
 
-    private NotionImportRun findRunningImportRun(
+    private ContentImportRun findRunningImportRun(
             Long importRunId,
             Long workspaceId
     ) {
-        NotionImportRun importRun = importRunRepository.findByIdForUpdate(importRunId)
+        ContentImportRun importRun = importRunRepository.findByIdForUpdate(importRunId)
                 .orElseThrow(this::invalidImportRun);
         if (!Objects.equals(
                 importRun.getWorkspaceId(),
                 workspaceId
-        ) || importRun.getStatus() != NotionImportStatus.RUNNING) {
+        ) || importRun.getStatus() != ContentImportStatus.RUNNING) {
             throw invalidImportRun();
         }
         return importRun;
@@ -90,7 +90,7 @@ public class NotionImportSnapshotStagingService {
                 .truncatedTo(ChronoUnit.MICROS);
     }
 
-    private NotionImportException invalidImportRun() {
-        return new NotionImportException(NotionImportErrorCode.INVALID_NOTION_IMPORT_RUN);
+    private ContentImportException invalidImportRun() {
+        return new ContentImportException(ContentImportErrorCode.INVALID_CONTENT_IMPORT_RUN);
     }
 }

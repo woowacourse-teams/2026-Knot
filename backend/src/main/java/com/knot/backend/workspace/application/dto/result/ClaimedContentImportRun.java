@@ -1,15 +1,15 @@
 package com.knot.backend.workspace.application.dto.result;
 
-import com.knot.backend.workspace.domain.NotionImportRun;
+import com.knot.backend.workspace.domain.ContentImportRun;
 
-public record ClaimedNotionImportRun(
+public record ClaimedContentImportRun(
         Long importRunId,
         Long workspaceId,
         Long contentSourceConnectionId
 ) {
 
-    public static ClaimedNotionImportRun from(NotionImportRun importRun) {
-        return new ClaimedNotionImportRun(
+    public static ClaimedContentImportRun from(ContentImportRun importRun) {
+        return new ClaimedContentImportRun(
                 importRun.getId(),
                 importRun.getWorkspaceId(),
                 importRun.getContentSourceConnectionId()

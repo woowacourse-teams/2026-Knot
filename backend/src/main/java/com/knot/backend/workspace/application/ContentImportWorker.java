@@ -1,42 +1,39 @@
 package com.knot.backend.workspace.application;
 
-import com.knot.backend.workspace.application.dto.result.ClaimedNotionImportRun;
-import com.knot.backend.workspace.application.dto.result.CollectedNotionPage;
-import com.knot.backend.workspace.application.dto.result.NotionCollectionResult;
+import com.knot.backend.workspace.application.dto.result.ClaimedContentImportRun;
+import com.knot.backend.workspace.application.dto.result.CollectedPage;
+import com.knot.backend.workspace.application.dto.result.ContentCollectionResult;
 import com.knot.backend.workspace.domain.ContentSourceConnection;
 import com.knot.backend.workspace.domain.ContentSourceConnectionRepository;
-import com.knot.backend.workspace.domain.ContentSourceProvider;
-import com.knot.backend.workspace.domain.NotionPage;
-import java.util.HashMap;
+import com.knot.backend.workspace.domain.ImportedPage;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 
 @RequiredArgsConstructor
-public class NotionImportWorker {
-    private final NotionImportRunLifecycleService lifecycleService;
+public class ContentImportWorker {
+    private final ContentImportRunLifecycleService lifecycleService;
     private final ContentSourceConnectionRepository connectionRepository;
     private final ContentSourceSecretProtector secretProtector;
-    private final NotionContentCollector contentCollector;
-    private final NotionImportSnapshotStagingService stagingService;
-    private final NotionImportPublicationService publicationService;
-    private final NotionImportWorkerObserver observer;
-    private final NotionImportHeartbeatLease heartbeatLease;
+    private final ContentSourceCollector contentCollector;
+    private final ContentImportSnapshotStagingService stagingService;
+    private final ContentImportPublicationService publicationService;
+    private final ContentImportWorkerObserver observer;
+    private final ContentImportHeartbeatLease heartbeatLease;
 
     public boolean processNext() {
-        Optional<ClaimedNotionImportRun> claimedImportRun = lifecycleService.claimNext();
+        Optional<ClaimedContentImportRun> claimedImportRun = lifecycleService.claimNext();
         if (claimedImportRun.isEmpty()) {
             return false;
         }
-        ClaimedNotionImportRun importRun = claimedImportRun.orElseThrow();
+        ClaimedContentImportRun importRun = claimedImportRun.orElseThrow();
         observer.claimed(
                 importRun.importRunId(),
                 importRun.workspaceId()
         );
-        NotionImportHeartbeatLease.Handle heartbeatHandle;
+        ContentImportHeartbeatLease.Handle heartbeatHandle;
         try {
             heartbeatHandle = heartbeatLease.start(
                     importRun.importRunId(),
@@ -45,7 +42,7 @@ public class NotionImportWorker {
         } catch (RuntimeException ignored) {
             fail(
                     importRun,
-                    NotionImportFailureCategory.STORAGE
+                    ContentImportFailureCategory.STORAGE
             );
             return true;
         }
@@ -57,15 +54,15 @@ public class NotionImportWorker {
         } catch (RuntimeException ignored) {
             fail(
                     importRun,
-                    NotionImportFailureCategory.STORAGE
+                    ContentImportFailureCategory.STORAGE
             );
         }
         return true;
     }
 
     private void process(
-            ClaimedNotionImportRun importRun,
-            NotionImportHeartbeatLease.Handle heartbeatHandle
+            ClaimedContentImportRun importRun,
+            ContentImportHeartbeatLease.Handle heartbeatHandle
     ) {
         ContentSourceConnection connection;
         try {
@@ -77,14 +74,14 @@ public class NotionImportWorker {
         } catch (RuntimeException ignored) {
             fail(
                     importRun,
-                    NotionImportFailureCategory.STORAGE
+                    ContentImportFailureCategory.STORAGE
             );
             return;
         }
-        if (connection == null || connection.getProvider() != ContentSourceProvider.NOTION) {
+        if (connection == null) {
             fail(
                     importRun,
-                    NotionImportFailureCategory.CREDENTIAL
+                    ContentImportFailureCategory.CREDENTIAL
             );
             return;
         }
@@ -93,25 +90,25 @@ public class NotionImportWorker {
         try {
             accessCredential = secretProtector.decrypt(
                     importRun.workspaceId(),
-                    ContentSourceProvider.NOTION,
+                    connection.getProvider(),
                     ContentSourceCredentialKind.ACCESS_CREDENTIAL,
                     connection.getAccessCredentialCiphertext()
             );
         } catch (RuntimeException ignored) {
             fail(
                     importRun,
-                    NotionImportFailureCategory.CREDENTIAL
+                    ContentImportFailureCategory.CREDENTIAL
             );
             return;
         }
 
-        NotionCollectionResult collectionResult;
+        ContentCollectionResult collectionResult;
         try {
             collectionResult = contentCollector.collect(accessCredential);
         } catch (RuntimeException ignored) {
             fail(
                     importRun,
-                    NotionImportFailureCategory.COLLECTION
+                    ContentImportFailureCategory.COLLECTION
             );
             return;
         }
@@ -124,15 +121,15 @@ public class NotionImportWorker {
                 || !isValidCollection(collectionResult.pages())) {
             fail(
                     importRun,
-                    NotionImportFailureCategory.COLLECTION
+                    ContentImportFailureCategory.COLLECTION
             );
             return;
         }
-        List<CollectedNotionPage> pages = collectionResult.pages();
+        List<CollectedPage> pages = collectionResult.pages();
         if (pages.isEmpty()) {
             fail(
                     importRun,
-                    NotionImportFailureCategory.EMPTY_RESULT
+                    ContentImportFailureCategory.EMPTY_RESULT
             );
             return;
         }
@@ -145,7 +142,7 @@ public class NotionImportWorker {
         } catch (RuntimeException ignored) {
             fail(
                     importRun,
-                    NotionImportFailureCategory.STORAGE
+                    ContentImportFailureCategory.STORAGE
             );
             return;
         }
@@ -155,7 +152,7 @@ public class NotionImportWorker {
         } catch (RuntimeException ignored) {
             fail(
                     importRun,
-                    NotionImportFailureCategory.PUBLICATION
+                    ContentImportFailureCategory.PUBLICATION
             );
             return;
         }
@@ -166,10 +163,10 @@ public class NotionImportWorker {
         );
     }
 
-    private boolean isValidCollection(List<CollectedNotionPage> pages) {
+    private boolean isValidCollection(List<CollectedPage> pages) {
         Set<String> visitedPageIds = new HashSet<>();
         for (int index = 0; index < pages.size(); index++) {
-            CollectedNotionPage page = pages.get(index);
+            CollectedPage page = pages.get(index);
             if (!isValidPage(
                     page,
                     index,
@@ -177,66 +174,61 @@ public class NotionImportWorker {
             )) {
                 return false;
             }
-            visitedPageIds.add(page.notionPageId());
+            visitedPageIds.add(page.externalPageId());
         }
         return true;
     }
 
     private boolean isValidPage(
-            CollectedNotionPage page,
+            CollectedPage page,
             int expectedPosition,
             Set<String> visitedPageIds
     ) {
-        if (page == null || isInvalidExternalId(page.notionPageId()) || page.title() == null
-                || page.markdownContent() == null || page.position() != expectedPosition || page.notionUrl() == null
-                || page.notionUrl()
+        if (page == null || isInvalidExternalId(page.externalPageId()) || page.title() == null
+                || page.markdownContent() == null || page.position() != expectedPosition || page.sourceUrl() == null
+                || page.sourceUrl()
                         .isBlank()
-                || visitedPageIds.contains(page.notionPageId())) {
+                || visitedPageIds.contains(page.externalPageId())) {
             return false;
         }
-        String parentPageId = page.parentNotionPageId();
+        String parentPageId = page.parentExternalPageId();
         return parentPageId == null || !isInvalidExternalId(parentPageId) && visitedPageIds.contains(parentPageId);
     }
 
     private boolean isInvalidExternalId(String externalId) {
-        return externalId == null || externalId.isBlank() || externalId.length() > NotionPage.MAX_NOTION_PAGE_ID_LENGTH;
+        return externalId == null || externalId.isBlank()
+                || externalId.length() > ImportedPage.MAX_EXTERNAL_PAGE_ID_LENGTH;
     }
 
     private void stage(
-            ClaimedNotionImportRun importRun,
-            List<CollectedNotionPage> pages
+            ClaimedContentImportRun importRun,
+            List<CollectedPage> pages
     ) {
         stagingService.prepare(
                 importRun.importRunId(),
                 importRun.workspaceId(),
                 pages.size()
         );
-        Map<String, Long> storedPageIds = new HashMap<>();
-        for (CollectedNotionPage page : pages) {
-            Long parentPageId = storedPageIds.get(page.parentNotionPageId());
+        for (CollectedPage page : pages) {
             Long storedPageId = stagingService.stagePage(
                     importRun.importRunId(),
                     importRun.workspaceId(),
-                    page.notionPageId(),
-                    parentPageId,
+                    page.externalPageId(),
+                    page.parentExternalPageId(),
                     page.title(),
                     page.markdownContent(),
                     page.position(),
-                    page.notionUrl()
+                    page.sourceUrl()
             );
             if (storedPageId == null || storedPageId <= 0) {
-                throw new IllegalStateException("Notion Page staging 결과가 올바르지 않습니다");
+                throw new IllegalStateException("가져온 Page staging 결과가 올바르지 않습니다");
             }
-            storedPageIds.put(
-                    page.notionPageId(),
-                    storedPageId
-            );
         }
     }
 
     private void fail(
-            ClaimedNotionImportRun importRun,
-            NotionImportFailureCategory category
+            ClaimedContentImportRun importRun,
+            ContentImportFailureCategory category
     ) {
         boolean failed = lifecycleService.fail(importRun.importRunId());
         if (failed) {

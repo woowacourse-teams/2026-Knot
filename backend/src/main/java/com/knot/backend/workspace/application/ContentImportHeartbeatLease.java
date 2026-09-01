@@ -1,6 +1,6 @@
 package com.knot.backend.workspace.application;
 
-public interface NotionImportHeartbeatLease {
+public interface ContentImportHeartbeatLease {
 
     Handle start(
             Long importRunId,

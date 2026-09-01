@@ -1,10 +1,10 @@
 package com.knot.backend.workspace.application;
 
-import com.knot.backend.workspace.domain.NotionImportErrorCode;
-import com.knot.backend.workspace.domain.NotionImportException;
-import com.knot.backend.workspace.domain.NotionImportRun;
-import com.knot.backend.workspace.domain.NotionImportRunRepository;
-import com.knot.backend.workspace.domain.NotionPageRepository;
+import com.knot.backend.workspace.domain.ContentImportErrorCode;
+import com.knot.backend.workspace.domain.ContentImportException;
+import com.knot.backend.workspace.domain.ContentImportRun;
+import com.knot.backend.workspace.domain.ContentImportRunRepository;
+import com.knot.backend.workspace.domain.ImportedPageRepository;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -14,16 +14,16 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
-public class NotionImportPublicationService {
-    private final NotionImportRunRepository importRunRepository;
-    private final NotionPageRepository notionPageRepository;
+public class ContentImportPublicationService {
+    private final ContentImportRunRepository importRunRepository;
+    private final ImportedPageRepository importedPageRepository;
     private final Clock clock;
 
     @Transactional
     public void publish(Long importRunId) {
-        NotionImportRun importRun = importRunRepository.findByIdForUpdate(importRunId)
+        ContentImportRun importRun = importRunRepository.findByIdForUpdate(importRunId)
                 .orElseThrow(this::invalidImportRun);
-        long storedPageCount = notionPageRepository.countByWorkspaceIdAndImportRunId(
+        long storedPageCount = importedPageRepository.countByWorkspaceIdAndImportRunId(
                 importRun.getWorkspaceId(),
                 importRun.getId()
         );
@@ -34,7 +34,7 @@ public class NotionImportPublicationService {
         Instant publishedAt = currentTime();
         importRun.complete(publishedAt);
         importRunRepository.save(importRun);
-        notionPageRepository.publish(
+        importedPageRepository.publish(
                 importRun.getWorkspaceId(),
                 importRun.getId(),
                 publishedAt
@@ -46,7 +46,7 @@ public class NotionImportPublicationService {
                 .truncatedTo(ChronoUnit.MICROS);
     }
 
-    private NotionImportException invalidImportRun() {
-        return new NotionImportException(NotionImportErrorCode.INVALID_NOTION_IMPORT_RUN);
+    private ContentImportException invalidImportRun() {
+        return new ContentImportException(ContentImportErrorCode.INVALID_CONTENT_IMPORT_RUN);
     }
 }

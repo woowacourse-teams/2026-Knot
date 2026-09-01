@@ -1,14 +1,14 @@
 package com.knot.backend.workspace.infrastructure.notion;
 
-import com.knot.backend.workspace.application.NotionImportFailureCategory;
-import com.knot.backend.workspace.application.NotionImportWorkerObserver;
+import com.knot.backend.workspace.application.ContentImportFailureCategory;
+import com.knot.backend.workspace.application.ContentImportWorkerObserver;
 import io.micrometer.core.instrument.MeterRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 @Component
-public class MicrometerNotionImportWorkerObserver implements NotionImportWorkerObserver {
+public class MicrometerNotionImportWorkerObserver implements ContentImportWorkerObserver {
     private static final String RUN_COUNTER = "knot.notion.import.runs";
     private static final String RECOVERY_COUNTER = "knot.notion.import.stale.recovered";
     private static final Logger log = LoggerFactory.getLogger(MicrometerNotionImportWorkerObserver.class);
@@ -53,7 +53,7 @@ public class MicrometerNotionImportWorkerObserver implements NotionImportWorkerO
     public void failed(
             Long importRunId,
             Long workspaceId,
-            NotionImportFailureCategory category
+            ContentImportFailureCategory category
     ) {
         meterRegistry.counter(
                 RUN_COUNTER,

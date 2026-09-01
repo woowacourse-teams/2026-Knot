@@ -1,9 +1,9 @@
 package com.knot.backend.workspace.application;
 
-import com.knot.backend.workspace.application.dto.result.ClaimedNotionImportRun;
-import com.knot.backend.workspace.domain.NotionImportRun;
-import com.knot.backend.workspace.domain.NotionImportRunRepository;
-import com.knot.backend.workspace.domain.NotionImportStatus;
+import com.knot.backend.workspace.application.dto.result.ClaimedContentImportRun;
+import com.knot.backend.workspace.domain.ContentImportRun;
+import com.knot.backend.workspace.domain.ContentImportRunRepository;
+import com.knot.backend.workspace.domain.ContentImportStatus;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -15,26 +15,26 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
-public class NotionImportRunLifecycleService {
-    private final NotionImportRunRepository importRunRepository;
+public class ContentImportRunLifecycleService {
+    private final ContentImportRunRepository importRunRepository;
     private final Clock clock;
 
     @Transactional
-    public Optional<ClaimedNotionImportRun> claimNext() {
+    public Optional<ClaimedContentImportRun> claimNext() {
         return importRunRepository.findFirstPendingForUpdate()
                 .map(importRun -> {
                     importRun.start(currentTime());
-                    NotionImportRun claimedImportRun = importRunRepository.save(importRun);
+                    ContentImportRun claimedImportRun = importRunRepository.save(importRun);
                     if (!importRunRepository.heartbeatIfRunning(claimedImportRun.getId())) {
-                        throw new IllegalStateException("Notion Import 선점 heartbeat를 기록하지 못했습니다");
+                        throw new IllegalStateException("Content Import 선점 heartbeat를 기록하지 못했습니다");
                     }
-                    return ClaimedNotionImportRun.from(claimedImportRun);
+                    return ClaimedContentImportRun.from(claimedImportRun);
                 });
     }
 
     @Transactional
     public boolean fail(Long importRunId) {
-        NotionImportRun importRun = importRunRepository.findByIdForUpdate(importRunId)
+        ContentImportRun importRun = importRunRepository.findByIdForUpdate(importRunId)
                 .orElse(null);
         if (importRun == null || !isActive(importRun)) {
             return false;
@@ -49,9 +49,9 @@ public class NotionImportRunLifecycleService {
         return importRunRepository.heartbeatIfRunning(importRunId);
     }
 
-    private boolean isActive(NotionImportRun importRun) {
-        return importRun.getStatus() == NotionImportStatus.PENDING
-                || importRun.getStatus() == NotionImportStatus.RUNNING;
+    private boolean isActive(ContentImportRun importRun) {
+        return importRun.getStatus() == ContentImportStatus.PENDING
+                || importRun.getStatus() == ContentImportStatus.RUNNING;
     }
 
     private Instant currentTime() {

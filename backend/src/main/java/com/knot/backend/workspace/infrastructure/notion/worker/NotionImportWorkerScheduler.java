@@ -1,23 +1,23 @@
 package com.knot.backend.workspace.infrastructure.notion.worker;
 
-import com.knot.backend.workspace.application.NotionImportStaleRecoveryService;
-import com.knot.backend.workspace.application.NotionImportWorker;
-import com.knot.backend.workspace.application.NotionImportWorkerObserver;
-import com.knot.backend.workspace.application.dto.result.NotionImportRecoveryResult;
+import com.knot.backend.workspace.application.ContentImportStaleRecoveryService;
+import com.knot.backend.workspace.application.ContentImportWorker;
+import com.knot.backend.workspace.application.ContentImportWorkerObserver;
+import com.knot.backend.workspace.application.dto.result.ContentImportRecoveryResult;
 import lombok.RequiredArgsConstructor;
 import org.springframework.scheduling.annotation.Scheduled;
 
 @RequiredArgsConstructor
 public class NotionImportWorkerScheduler {
-    private final NotionImportStaleRecoveryService staleRecoveryService;
-    private final NotionImportWorker worker;
-    private final NotionImportWorkerObserver observer;
+    private final ContentImportStaleRecoveryService staleRecoveryService;
+    private final ContentImportWorker worker;
+    private final ContentImportWorkerObserver observer;
     private final NotionImportWorkerProperties properties;
 
     @Scheduled(fixedDelayString = "${notion.import.worker.poll-delay:PT1S}")
     public void poll() {
         try {
-            NotionImportRecoveryResult recoveryResult = staleRecoveryService.recover(
+            ContentImportRecoveryResult recoveryResult = staleRecoveryService.recover(
                     properties.runningStaleTimeout(),
                     properties.recoveryBatchSize()
             );

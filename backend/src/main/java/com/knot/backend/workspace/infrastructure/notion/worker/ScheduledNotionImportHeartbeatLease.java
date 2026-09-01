@@ -1,8 +1,8 @@
 package com.knot.backend.workspace.infrastructure.notion.worker;
 
-import com.knot.backend.workspace.application.NotionImportHeartbeatLease;
-import com.knot.backend.workspace.application.NotionImportRunLifecycleService;
-import com.knot.backend.workspace.application.NotionImportWorkerObserver;
+import com.knot.backend.workspace.application.ContentImportHeartbeatLease;
+import com.knot.backend.workspace.application.ContentImportRunLifecycleService;
+import com.knot.backend.workspace.application.ContentImportWorkerObserver;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -10,9 +10,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.RequiredArgsConstructor;
 
 @RequiredArgsConstructor
-public class ScheduledNotionImportHeartbeatLease implements NotionImportHeartbeatLease {
-    private final NotionImportRunLifecycleService lifecycleService;
-    private final NotionImportWorkerObserver observer;
+public class ScheduledNotionImportHeartbeatLease implements ContentImportHeartbeatLease {
+    private final ContentImportRunLifecycleService lifecycleService;
+    private final ContentImportWorkerObserver observer;
     private final NotionImportWorkerProperties properties;
     private final ScheduledExecutorService scheduledExecutorService;
 

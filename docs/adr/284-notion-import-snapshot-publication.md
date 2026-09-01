@@ -1,4 +1,4 @@
-# Notion Import는 heartbeat로 실행권을 확인하며 새 snapshot을 완성한 뒤 성공 시에만 원자적으로 공개한다.
+# Content Import는 heartbeat로 실행권을 확인하며 새 snapshot을 완성한 뒤 성공 시에만 원자적으로 공개한다.
 
 ## 상태
 
@@ -10,7 +10,7 @@ Proposed
 
 ## 한 줄 요약
 
-Notion Import는 `RUNNING` heartbeat로 살아 있는 작업자를 보호하고, 새 snapshot을 완성한 뒤 성공 시에만 원자적으로 공개한다.
+Content Import 코어는 `RUNNING` heartbeat로 살아 있는 작업자를 보호하고, 새 snapshot을 완성한 뒤 성공 시에만 원자적으로 공개한다. Notion 수집과 운영 설정은 Infrastructure 어댑터에 둔다.
 
 ## 왜 이 결정이 필요했나
 
@@ -33,7 +33,9 @@ OWNER가 새 Import를 실행하는 중 Notion API 장애, 권한 변화, 빈 �
 
 ## 무엇을 결정했나
 
-Notion Import는 새 snapshot을 완성한 뒤 성공 시에만 원자적으로 공개하고 이전 Run Row는 publication에서 제외해 영구 보존한다.
+Content Import는 새 snapshot을 완성한 뒤 성공 시에만 원자적으로 공개하고 이전 Run Row는 publication에서 제외해 영구 보존한다.
+
+Domain·Application은 `ContentImportRun`, `ImportedPage`, `ContentSourceCollector` 같은 공급자 중립 계약을 사용한다. Notion API 호출, 수집기 조립, metric과 worker 운영 설정은 `workspace.infrastructure.notion`에 남긴다. MVP에는 Provider registry를 추가하지 않고, 실행 중인 Run의 Connection에서 Provider를 읽어 자격 증명 복호화에 사용한다.
 
 외부 API와 DB 작업의 실패 경계를 분리하면서 불완전한 결과가 사용자 조회에 노출되지 않게 한다.
 

@@ -51,4 +51,9 @@ public class ContentSourceConnectionRepositoryAdapter implements ContentSourceCo
                 provider
         );
     }
+
+    @Override
+    public Optional<ContentSourceConnection> findByIdForUpdate(Long connectionId) {
+        return connectionJpaRepository.findByIdForUpdate(connectionId);
+    }
 }

@@ -8,14 +8,14 @@ import static org.mockito.Mockito.doThrow;
 
 import com.knot.backend.testsupport.TestApplicationProperties;
 import com.knot.backend.testsupport.TestcontainersConfiguration;
-import com.knot.backend.workspace.application.dto.result.ClaimedNotionImportRun;
-import com.knot.backend.workspace.application.dto.result.NotionImportRecoveryResult;
-import com.knot.backend.workspace.domain.NotionImportRun;
-import com.knot.backend.workspace.domain.NotionImportRunRepository;
-import com.knot.backend.workspace.domain.NotionImportStatus;
-import com.knot.backend.workspace.domain.NotionPage;
-import com.knot.backend.workspace.domain.NotionPageMetadata;
-import com.knot.backend.workspace.domain.NotionPageRepository;
+import com.knot.backend.workspace.application.dto.result.ClaimedContentImportRun;
+import com.knot.backend.workspace.application.dto.result.ContentImportRecoveryResult;
+import com.knot.backend.workspace.domain.ContentImportRun;
+import com.knot.backend.workspace.domain.ContentImportRunRepository;
+import com.knot.backend.workspace.domain.ContentImportStatus;
+import com.knot.backend.workspace.domain.ImportedPage;
+import com.knot.backend.workspace.domain.ImportedPageMetadata;
+import com.knot.backend.workspace.domain.ImportedPageRepository;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -43,23 +43,23 @@ import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 @TestApplicationProperties
 @SpringBootTest
 @TestConstructor(autowireMode = TestConstructor.AutowireMode.ALL)
-class NotionImportWorkerPersistenceIntegrationTest {
-    private final NotionImportRunLifecycleService lifecycleService;
-    private final NotionImportStaleRecoveryService staleRecoveryService;
-    private final NotionImportSnapshotStagingService stagingService;
-    private final NotionImportPublicationService publicationService;
-    private final NotionImportRunRepository importRunRepository;
+class ContentImportWorkerPersistenceIntegrationTest {
+    private final ContentImportRunLifecycleService lifecycleService;
+    private final ContentImportStaleRecoveryService staleRecoveryService;
+    private final ContentImportSnapshotStagingService stagingService;
+    private final ContentImportPublicationService publicationService;
+    private final ContentImportRunRepository importRunRepository;
     @MockitoSpyBean
-    private final NotionPageRepository notionPageRepository;
+    private final ImportedPageRepository importedPageRepository;
     private final JdbcClient jdbcClient;
 
-    NotionImportWorkerPersistenceIntegrationTest(
-            NotionImportRunLifecycleService lifecycleService,
-            NotionImportStaleRecoveryService staleRecoveryService,
-            NotionImportSnapshotStagingService stagingService,
-            NotionImportPublicationService publicationService,
-            NotionImportRunRepository importRunRepository,
-            NotionPageRepository notionPageRepository,
+    ContentImportWorkerPersistenceIntegrationTest(
+            ContentImportRunLifecycleService lifecycleService,
+            ContentImportStaleRecoveryService staleRecoveryService,
+            ContentImportSnapshotStagingService stagingService,
+            ContentImportPublicationService publicationService,
+            ContentImportRunRepository importRunRepository,
+            ImportedPageRepository importedPageRepository,
             JdbcClient jdbcClient
     ) {
         this.lifecycleService = lifecycleService;
@@ -67,7 +67,7 @@ class NotionImportWorkerPersistenceIntegrationTest {
         this.stagingService = stagingService;
         this.publicationService = publicationService;
         this.importRunRepository = importRunRepository;
-        this.notionPageRepository = notionPageRepository;
+        this.importedPageRepository = importedPageRepository;
         this.jdbcClient = jdbcClient;
     }
 
@@ -77,9 +77,9 @@ class NotionImportWorkerPersistenceIntegrationTest {
         // given
         failAllActiveImportRuns();
         TestContext context = saveContext("동시 선점");
-        NotionImportRun pendingImportRun = saveImportRun(
+        ContentImportRun pendingImportRun = saveImportRun(
                 context,
-                NotionImportStatus.PENDING,
+                ContentImportStatus.PENDING,
                 null,
                 0,
                 null,
@@ -89,7 +89,7 @@ class NotionImportWorkerPersistenceIntegrationTest {
         );
         CyclicBarrier barrier = new CyclicBarrier(2);
         ExecutorService executorService = Executors.newFixedThreadPool(2);
-        Callable<Optional<ClaimedNotionImportRun>> claim = () -> {
+        Callable<Optional<ClaimedContentImportRun>> claim = () -> {
             barrier.await(
                     5,
                     TimeUnit.SECONDS
@@ -99,7 +99,7 @@ class NotionImportWorkerPersistenceIntegrationTest {
 
         try {
             // when
-            List<Optional<ClaimedNotionImportRun>> results = awaitResults(
+            List<Optional<ClaimedContentImportRun>> results = awaitResults(
                     executorService,
                     claim,
                     claim
@@ -111,9 +111,9 @@ class NotionImportWorkerPersistenceIntegrationTest {
                             .flatMap(Optional::stream)
                             .toList()
             ).singleElement()
-                    .extracting(ClaimedNotionImportRun::importRunId)
+                    .extracting(ClaimedContentImportRun::importRunId)
                     .isEqualTo(pendingImportRun.getId());
-            assertThat(importRunStatus(pendingImportRun.getId())).isEqualTo(NotionImportStatus.RUNNING);
+            assertThat(importRunStatus(pendingImportRun.getId())).isEqualTo(ContentImportStatus.RUNNING);
             assertThat(importRunLastHeartbeatAt(pendingImportRun.getId())).isNotNull();
         } finally {
             executorService.shutdownNow();
@@ -129,9 +129,9 @@ class NotionImportWorkerPersistenceIntegrationTest {
                 .truncatedTo(ChronoUnit.MICROS);
         TestContext stalePendingContext = saveContext("오래된 대기");
         TestContext staleRunningContext = saveContext("오래된 실행");
-        NotionImportRun stalePending = saveImportRun(
+        ContentImportRun stalePending = saveImportRun(
                 stalePendingContext,
-                NotionImportStatus.PENDING,
+                ContentImportStatus.PENDING,
                 null,
                 0,
                 null,
@@ -139,18 +139,18 @@ class NotionImportWorkerPersistenceIntegrationTest {
                 now.minus(Duration.ofMinutes(10))
         );
         Instant staleStartedAt = now.minus(Duration.ofMinutes(40));
-        NotionImportRun staleRunning = saveImportRun(
+        ContentImportRun staleRunning = saveImportRun(
                 staleRunningContext,
-                NotionImportStatus.RUNNING,
+                ContentImportStatus.RUNNING,
                 null,
                 0,
                 staleStartedAt,
                 null,
                 now.minus(Duration.ofHours(1))
         );
-        NotionImportRun activeLongRunning = saveImportRun(
+        ContentImportRun activeLongRunning = saveImportRun(
                 saveContext("긴 실행"),
-                NotionImportStatus.RUNNING,
+                ContentImportStatus.RUNNING,
                 null,
                 0,
                 now.minus(Duration.ofHours(2)),
@@ -158,9 +158,9 @@ class NotionImportWorkerPersistenceIntegrationTest {
                 now.minus(Duration.ofHours(3))
         );
         assertThat(lifecycleService.heartbeat(activeLongRunning.getId())).isTrue();
-        NotionImportRun recentlyClaimedLegacyRunning = saveImportRun(
+        ContentImportRun recentlyClaimedLegacyRunning = saveImportRun(
                 saveContext("구버전 선점"),
-                NotionImportStatus.RUNNING,
+                ContentImportStatus.RUNNING,
                 null,
                 0,
                 now.minus(Duration.ofMinutes(1)),
@@ -173,20 +173,20 @@ class NotionImportWorkerPersistenceIntegrationTest {
         );
 
         // when
-        NotionImportRecoveryResult result = staleRecoveryService.recover(
+        ContentImportRecoveryResult result = staleRecoveryService.recover(
                 Duration.ofMinutes(30),
                 10
         );
 
         // then
         assertThat(result.runningCount()).isEqualTo(1);
-        assertThat(importRunStatus(stalePending.getId())).isEqualTo(NotionImportStatus.PENDING);
-        assertThat(importRunStatus(staleRunning.getId())).isEqualTo(NotionImportStatus.FAILED);
-        assertThat(importRunStatus(activeLongRunning.getId())).isEqualTo(NotionImportStatus.RUNNING);
-        assertThat(importRunStatus(recentlyClaimedLegacyRunning.getId())).isEqualTo(NotionImportStatus.RUNNING);
+        assertThat(importRunStatus(stalePending.getId())).isEqualTo(ContentImportStatus.PENDING);
+        assertThat(importRunStatus(staleRunning.getId())).isEqualTo(ContentImportStatus.FAILED);
+        assertThat(importRunStatus(activeLongRunning.getId())).isEqualTo(ContentImportStatus.RUNNING);
+        assertThat(importRunStatus(recentlyClaimedLegacyRunning.getId())).isEqualTo(ContentImportStatus.RUNNING);
         assertThat(importRunStartedAt(staleRunning.getId())).isEqualTo(staleStartedAt);
         assertThat(lifecycleService.claimNext()).get()
-                .extracting(ClaimedNotionImportRun::importRunId)
+                .extracting(ClaimedContentImportRun::importRunId)
                 .isEqualTo(stalePending.getId());
     }
 
@@ -198,9 +198,9 @@ class NotionImportWorkerPersistenceIntegrationTest {
         Instant now = Instant.now()
                 .truncatedTo(ChronoUnit.MICROS);
         TestContext context = saveContext("회수 fence");
-        NotionImportRun previousImportRun = saveImportRun(
+        ContentImportRun previousImportRun = saveImportRun(
                 context,
-                NotionImportStatus.COMPLETED,
+                ContentImportStatus.COMPLETED,
                 1,
                 1,
                 now.minus(Duration.ofHours(3)),
@@ -221,9 +221,9 @@ class NotionImportWorkerPersistenceIntegrationTest {
                 previousImportRun.getId(),
                 now.minus(Duration.ofHours(2))
         );
-        NotionImportRun recoveredImportRun = saveImportRun(
+        ContentImportRun recoveredImportRun = saveImportRun(
                 context,
-                NotionImportStatus.RUNNING,
+                ContentImportStatus.RUNNING,
                 null,
                 0,
                 now.minus(Duration.ofHours(2)),
@@ -232,7 +232,7 @@ class NotionImportWorkerPersistenceIntegrationTest {
         );
 
         // when
-        NotionImportRecoveryResult recoveryResult = staleRecoveryService.recover(
+        ContentImportRecoveryResult recoveryResult = staleRecoveryService.recover(
                 Duration.ofHours(1),
                 10
         );
@@ -250,7 +250,7 @@ class NotionImportWorkerPersistenceIntegrationTest {
         assertThat(stagingFailure).isInstanceOf(RuntimeException.class);
         assertThat(publicationFailure).isInstanceOf(RuntimeException.class);
         assertThat(lifecycleService.heartbeat(recoveredImportRun.getId())).isFalse();
-        assertThat(importRunStatus(recoveredImportRun.getId())).isEqualTo(NotionImportStatus.FAILED);
+        assertThat(importRunStatus(recoveredImportRun.getId())).isEqualTo(ContentImportStatus.FAILED);
         assertThat(countPagesForImportRun(recoveredImportRun.getId())).isZero();
         assertThat(publishedImportRunId(context.workspaceId())).isEqualTo(previousImportRun.getId());
     }
@@ -263,9 +263,9 @@ class NotionImportWorkerPersistenceIntegrationTest {
         Instant now = Instant.now()
                 .truncatedTo(ChronoUnit.MICROS);
         Instant futureStartedAt = now.plus(Duration.ofHours(1));
-        NotionImportRun importRun = saveImportRun(
+        ContentImportRun importRun = saveImportRun(
                 saveContext("시계 오차"),
-                NotionImportStatus.RUNNING,
+                ContentImportStatus.RUNNING,
                 null,
                 0,
                 futureStartedAt,
@@ -278,14 +278,14 @@ class NotionImportWorkerPersistenceIntegrationTest {
         );
 
         // when
-        NotionImportRecoveryResult recoveryResult = staleRecoveryService.recover(
+        ContentImportRecoveryResult recoveryResult = staleRecoveryService.recover(
                 Duration.ofHours(1),
                 10
         );
 
         // then
         assertThat(recoveryResult.runningCount()).isZero();
-        assertThat(importRunStatus(importRun.getId())).isEqualTo(NotionImportStatus.RUNNING);
+        assertThat(importRunStatus(importRun.getId())).isEqualTo(ContentImportStatus.RUNNING);
     }
 
     @DisplayName("완성된 새 Snapshot만 공개하고 이전 Run과 Page를 보존한다")
@@ -295,9 +295,9 @@ class NotionImportWorkerPersistenceIntegrationTest {
         TestContext context = saveContext("공개 전환");
         Instant now = Instant.now()
                 .truncatedTo(ChronoUnit.MICROS);
-        NotionImportRun previousImportRun = saveImportRun(
+        ContentImportRun previousImportRun = saveImportRun(
                 context,
-                NotionImportStatus.COMPLETED,
+                ContentImportStatus.COMPLETED,
                 1,
                 1,
                 now.minus(Duration.ofMinutes(10)),
@@ -318,9 +318,9 @@ class NotionImportWorkerPersistenceIntegrationTest {
                 previousImportRun.getId(),
                 now.minus(Duration.ofMinutes(9))
         );
-        NotionImportRun newImportRun = saveImportRun(
+        ContentImportRun newImportRun = saveImportRun(
                 context,
-                NotionImportStatus.RUNNING,
+                ContentImportStatus.RUNNING,
                 null,
                 0,
                 now.minus(Duration.ofMinutes(1)),
@@ -332,7 +332,7 @@ class NotionImportWorkerPersistenceIntegrationTest {
                 context.workspaceId(),
                 2
         );
-        Long newParentPageId = stagingService.stagePage(
+        stagingService.stagePage(
                 newImportRun.getId(),
                 context.workspaceId(),
                 "new-parent",
@@ -346,7 +346,7 @@ class NotionImportWorkerPersistenceIntegrationTest {
                 newImportRun.getId(),
                 context.workspaceId(),
                 "new-child",
-                newParentPageId,
+                "new-parent",
                 "새 자식",
                 "# 새 자식",
                 1,
@@ -357,13 +357,13 @@ class NotionImportWorkerPersistenceIntegrationTest {
         publicationService.publish(newImportRun.getId());
 
         // then
-        assertThat(importRunStatus(newImportRun.getId())).isEqualTo(NotionImportStatus.COMPLETED);
+        assertThat(importRunStatus(newImportRun.getId())).isEqualTo(ContentImportStatus.COMPLETED);
         assertThat(publishedImportRunId(context.workspaceId())).isEqualTo(newImportRun.getId());
         assertThat(countImportRuns(context.workspaceId())).isEqualTo(2);
         assertThat(countPages(context.workspaceId())).isEqualTo(3);
         assertThat(
-                notionPageRepository.findPublishedMetadataByWorkspaceIdOrderByPositionAscIdAsc(context.workspaceId())
-        ).extracting(NotionPageMetadata::title)
+                importedPageRepository.findPublishedMetadataByWorkspaceIdOrderByPositionAscIdAsc(context.workspaceId())
+        ).extracting(ImportedPageMetadata::title)
                 .containsExactly(
                         "새 부모",
                         "새 자식"
@@ -378,25 +378,25 @@ class NotionImportWorkerPersistenceIntegrationTest {
         TestContext otherContext = saveContext("다른 저장");
         Instant now = Instant.now()
                 .truncatedTo(ChronoUnit.MICROS);
-        NotionImportRun importRun = saveImportRun(
+        ContentImportRun importRun = saveImportRun(
                 context,
-                NotionImportStatus.RUNNING,
+                ContentImportStatus.RUNNING,
                 null,
                 0,
                 now.minusSeconds(1),
                 null,
                 now.minusSeconds(2)
         );
-        NotionImportRun otherImportRun = saveImportRun(
+        ContentImportRun otherImportRun = saveImportRun(
                 otherContext,
-                NotionImportStatus.COMPLETED,
+                ContentImportStatus.COMPLETED,
                 1,
                 1,
                 now.minus(Duration.ofMinutes(2)),
                 now.minus(Duration.ofMinutes(1)),
                 now.minus(Duration.ofMinutes(3))
         );
-        NotionPage otherPage = savePage(
+        savePage(
                 otherContext.workspaceId(),
                 otherImportRun.getId(),
                 "other-parent",
@@ -417,7 +417,7 @@ class NotionImportWorkerPersistenceIntegrationTest {
                         importRun.getId(),
                         context.workspaceId(),
                         "invalid-child",
-                        otherPage.getId(),
+                        "other-parent",
                         "잘못된 자식",
                         "# 잘못된 자식",
                         0,
@@ -429,7 +429,7 @@ class NotionImportWorkerPersistenceIntegrationTest {
         assertThat(thrown).isInstanceOf(DataIntegrityViolationException.class);
         assertThat(processedPageCount(importRun.getId())).isZero();
         assertThat(countPagesForImportRun(importRun.getId())).isZero();
-        assertThat(importRunStatus(importRun.getId())).isEqualTo(NotionImportStatus.RUNNING);
+        assertThat(importRunStatus(importRun.getId())).isEqualTo(ContentImportStatus.RUNNING);
     }
 
     @DisplayName("publication pointer 저장이 실패하면 COMPLETED 전이를 함께 rollback한다")
@@ -439,9 +439,9 @@ class NotionImportWorkerPersistenceIntegrationTest {
         TestContext context = saveContext("공개 실패");
         Instant now = Instant.now()
                 .truncatedTo(ChronoUnit.MICROS);
-        NotionImportRun previousImportRun = saveImportRun(
+        ContentImportRun previousImportRun = saveImportRun(
                 context,
-                NotionImportStatus.COMPLETED,
+                ContentImportStatus.COMPLETED,
                 1,
                 1,
                 now.minus(Duration.ofMinutes(10)),
@@ -462,9 +462,9 @@ class NotionImportWorkerPersistenceIntegrationTest {
                 previousImportRun.getId(),
                 now.minus(Duration.ofMinutes(9))
         );
-        NotionImportRun newImportRun = saveImportRun(
+        ContentImportRun newImportRun = saveImportRun(
                 context,
-                NotionImportStatus.RUNNING,
+                ContentImportStatus.RUNNING,
                 null,
                 0,
                 now.minus(Duration.ofMinutes(1)),
@@ -486,7 +486,7 @@ class NotionImportWorkerPersistenceIntegrationTest {
                 0,
                 "https://www.notion.so/new"
         );
-        doThrow(new DataIntegrityViolationException("forced publication failure")).when(notionPageRepository)
+        doThrow(new DataIntegrityViolationException("forced publication failure")).when(importedPageRepository)
                 .publish(
                         eq(context.workspaceId()),
                         eq(newImportRun.getId()),
@@ -498,17 +498,17 @@ class NotionImportWorkerPersistenceIntegrationTest {
 
         // then
         assertThat(thrown).isInstanceOf(DataIntegrityViolationException.class);
-        assertThat(importRunStatus(newImportRun.getId())).isEqualTo(NotionImportStatus.RUNNING);
+        assertThat(importRunStatus(newImportRun.getId())).isEqualTo(ContentImportStatus.RUNNING);
         assertThat(publishedImportRunId(context.workspaceId())).isEqualTo(previousImportRun.getId());
     }
 
-    private List<Optional<ClaimedNotionImportRun>> awaitResults(
+    private List<Optional<ClaimedContentImportRun>> awaitResults(
             ExecutorService executorService,
-            Callable<Optional<ClaimedNotionImportRun>> first,
-            Callable<Optional<ClaimedNotionImportRun>> second
+            Callable<Optional<ClaimedContentImportRun>> first,
+            Callable<Optional<ClaimedContentImportRun>> second
     ) throws Exception {
-        Future<Optional<ClaimedNotionImportRun>> firstResult = executorService.submit(first);
-        Future<Optional<ClaimedNotionImportRun>> secondResult = executorService.submit(second);
+        Future<Optional<ClaimedContentImportRun>> firstResult = executorService.submit(first);
+        Future<Optional<ClaimedContentImportRun>> secondResult = executorService.submit(second);
         return List.of(
                 firstResult.get(
                         10,
@@ -635,9 +635,9 @@ class NotionImportWorkerPersistenceIntegrationTest {
         );
     }
 
-    private NotionImportRun saveImportRun(
+    private ContentImportRun saveImportRun(
             TestContext context,
-            NotionImportStatus status,
+            ContentImportStatus status,
             Integer totalPageCount,
             int processedPageCount,
             Instant startedAt,
@@ -645,7 +645,7 @@ class NotionImportWorkerPersistenceIntegrationTest {
             Instant createdAt
     ) {
         return importRunRepository.save(
-                NotionImportRun.create(
+                ContentImportRun.create(
                         context.workspaceId(),
                         context.connectionId(),
                         context.memberId(),
@@ -659,25 +659,25 @@ class NotionImportWorkerPersistenceIntegrationTest {
         );
     }
 
-    private NotionPage savePage(
+    private ImportedPage savePage(
             long workspaceId,
             long importRunId,
-            String notionPageId,
-            Long parentPageId,
+            String externalPageId,
+            String parentExternalPageId,
             String title,
             int position,
             Instant createdAt
     ) {
-        return notionPageRepository.save(
-                NotionPage.create(
+        return importedPageRepository.save(
+                ImportedPage.create(
                         workspaceId,
                         importRunId,
-                        notionPageId,
-                        parentPageId,
+                        externalPageId,
+                        parentExternalPageId,
                         title,
                         "# " + title,
                         position,
-                        "https://www.notion.so/" + notionPageId,
+                        "https://www.notion.so/" + externalPageId,
                         createdAt,
                         createdAt
                 )
@@ -688,7 +688,7 @@ class NotionImportWorkerPersistenceIntegrationTest {
         Instant failedAt = Instant.now()
                 .truncatedTo(ChronoUnit.MICROS);
         jdbcClient.sql("""
-                UPDATE notion_import_runs
+                UPDATE content_import_runs
                 SET status = 'FAILED',
                     started_at = COALESCE(started_at, CAST(:failedAt AS TIMESTAMPTZ)),
                     completed_at = GREATEST(started_at, CAST(:failedAt AS TIMESTAMPTZ)),
@@ -707,7 +707,7 @@ class NotionImportWorkerPersistenceIntegrationTest {
             Instant heartbeatAt
     ) {
         jdbcClient.sql("""
-                UPDATE notion_import_runs
+                UPDATE content_import_runs
                 SET last_heartbeat_at = CAST(:heartbeatAt AS TIMESTAMPTZ)
                 WHERE id = :importRunId
                 """)
@@ -722,10 +722,10 @@ class NotionImportWorkerPersistenceIntegrationTest {
                 .update();
     }
 
-    private NotionImportStatus importRunStatus(long importRunId) {
+    private ContentImportStatus importRunStatus(long importRunId) {
         return jdbcClient.sql("""
                 SELECT status
-                FROM notion_import_runs
+                FROM content_import_runs
                 WHERE id = :importRunId
                 """)
                 .param(
@@ -734,7 +734,7 @@ class NotionImportWorkerPersistenceIntegrationTest {
                 )
                 .query(String.class)
                 .single()
-                .transform(NotionImportStatus::valueOf);
+                .transform(ContentImportStatus::valueOf);
     }
 
     private Instant importRunStartedAt(long importRunId) {
@@ -757,7 +757,7 @@ class NotionImportWorkerPersistenceIntegrationTest {
     ) {
         return jdbcClient.sql("""
                 SELECT %s
-                FROM notion_import_runs
+                FROM content_import_runs
                 WHERE id = :importRunId
                 """.formatted(columnName))
                 .param(
@@ -771,7 +771,7 @@ class NotionImportWorkerPersistenceIntegrationTest {
     private long publishedImportRunId(long workspaceId) {
         return jdbcClient.sql("""
                 SELECT published_import_run_id
-                FROM notion_page_publications
+                FROM imported_page_publications
                 WHERE workspace_id = :workspaceId
                 """)
                 .param(
@@ -788,7 +788,7 @@ class NotionImportWorkerPersistenceIntegrationTest {
             Instant publishedAt
     ) {
         jdbcClient.sql("""
-                INSERT INTO notion_page_publications (
+                INSERT INTO imported_page_publications (
                     workspace_id,
                     published_import_run_id,
                     published_at
@@ -815,14 +815,14 @@ class NotionImportWorkerPersistenceIntegrationTest {
 
     private long countImportRuns(long workspaceId) {
         return countByWorkspaceId(
-                "notion_import_runs",
+                "content_import_runs",
                 workspaceId
         );
     }
 
     private long countPages(long workspaceId) {
         return countByWorkspaceId(
-                "notion_pages",
+                "imported_pages",
                 workspaceId
         );
     }
@@ -830,7 +830,7 @@ class NotionImportWorkerPersistenceIntegrationTest {
     private long countPagesForImportRun(long importRunId) {
         return jdbcClient.sql("""
                 SELECT COUNT(*)
-                FROM notion_pages
+                FROM imported_pages
                 WHERE import_run_id = :importRunId
                 """)
                 .param(
@@ -844,7 +844,7 @@ class NotionImportWorkerPersistenceIntegrationTest {
     private int processedPageCount(long importRunId) {
         return jdbcClient.sql("""
                 SELECT processed_page_count
-                FROM notion_import_runs
+                FROM content_import_runs
                 WHERE id = :importRunId
                 """)
                 .param(

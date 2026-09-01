@@ -1,14 +1,14 @@
 package com.knot.backend.workspace.infrastructure.notion.worker;
 
 import com.knot.backend.workspace.application.ContentSourceSecretProtector;
-import com.knot.backend.workspace.application.NotionContentCollector;
-import com.knot.backend.workspace.application.NotionImportHeartbeatLease;
-import com.knot.backend.workspace.application.NotionImportPublicationService;
-import com.knot.backend.workspace.application.NotionImportRunLifecycleService;
-import com.knot.backend.workspace.application.NotionImportSnapshotStagingService;
-import com.knot.backend.workspace.application.NotionImportStaleRecoveryService;
-import com.knot.backend.workspace.application.NotionImportWorker;
-import com.knot.backend.workspace.application.NotionImportWorkerObserver;
+import com.knot.backend.workspace.application.ContentSourceCollector;
+import com.knot.backend.workspace.application.ContentImportHeartbeatLease;
+import com.knot.backend.workspace.application.ContentImportPublicationService;
+import com.knot.backend.workspace.application.ContentImportRunLifecycleService;
+import com.knot.backend.workspace.application.ContentImportSnapshotStagingService;
+import com.knot.backend.workspace.application.ContentImportStaleRecoveryService;
+import com.knot.backend.workspace.application.ContentImportWorker;
+import com.knot.backend.workspace.application.ContentImportWorkerObserver;
 import com.knot.backend.workspace.domain.ContentSourceConnectionRepository;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -25,17 +25,17 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 public class NotionImportWorkerConfig {
 
     @Bean
-    public NotionImportWorker notionImportWorker(
-            NotionImportRunLifecycleService lifecycleService,
+    public ContentImportWorker notionImportWorker(
+            ContentImportRunLifecycleService lifecycleService,
             ContentSourceConnectionRepository connectionRepository,
             ContentSourceSecretProtector secretProtector,
-            NotionContentCollector contentCollector,
-            NotionImportSnapshotStagingService stagingService,
-            NotionImportPublicationService publicationService,
-            NotionImportWorkerObserver observer,
-            NotionImportHeartbeatLease heartbeatLease
+            ContentSourceCollector contentCollector,
+            ContentImportSnapshotStagingService stagingService,
+            ContentImportPublicationService publicationService,
+            ContentImportWorkerObserver observer,
+            ContentImportHeartbeatLease heartbeatLease
     ) {
-        return new NotionImportWorker(
+        return new ContentImportWorker(
                 lifecycleService,
                 connectionRepository,
                 secretProtector,
@@ -60,9 +60,9 @@ public class NotionImportWorkerConfig {
     }
 
     @Bean
-    public NotionImportHeartbeatLease notionImportHeartbeatLease(
-            NotionImportRunLifecycleService lifecycleService,
-            NotionImportWorkerObserver observer,
+    public ContentImportHeartbeatLease notionImportHeartbeatLease(
+            ContentImportRunLifecycleService lifecycleService,
+            ContentImportWorkerObserver observer,
             NotionImportWorkerProperties properties,
             ScheduledExecutorService notionImportHeartbeatScheduler
     ) {
@@ -76,9 +76,9 @@ public class NotionImportWorkerConfig {
 
     @Bean
     public NotionImportWorkerScheduler notionImportWorkerScheduler(
-            NotionImportStaleRecoveryService staleRecoveryService,
-            NotionImportWorker worker,
-            NotionImportWorkerObserver observer,
+            ContentImportStaleRecoveryService staleRecoveryService,
+            ContentImportWorker worker,
+            ContentImportWorkerObserver observer,
             NotionImportWorkerProperties properties
     ) {
         return new NotionImportWorkerScheduler(

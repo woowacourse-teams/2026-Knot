@@ -1,6 +1,6 @@
 package com.knot.backend.workspace.application;
 
-public interface NotionImportWorkerObserver {
+public interface ContentImportWorkerObserver {
 
     void claimed(
             Long importRunId,
@@ -16,7 +16,7 @@ public interface NotionImportWorkerObserver {
     void failed(
             Long importRunId,
             Long workspaceId,
-            NotionImportFailureCategory category
+            ContentImportFailureCategory category
     );
 
     void staleRecovered(int runningCount);

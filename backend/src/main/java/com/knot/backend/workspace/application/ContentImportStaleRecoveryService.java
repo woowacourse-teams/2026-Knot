@@ -1,8 +1,8 @@
 package com.knot.backend.workspace.application;
 
-import com.knot.backend.workspace.application.dto.result.NotionImportRecoveryResult;
-import com.knot.backend.workspace.domain.NotionImportRun;
-import com.knot.backend.workspace.domain.NotionImportRunRepository;
+import com.knot.backend.workspace.application.dto.result.ContentImportRecoveryResult;
+import com.knot.backend.workspace.domain.ContentImportRun;
+import com.knot.backend.workspace.domain.ContentImportRunRepository;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -12,11 +12,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
-public class NotionImportStaleRecoveryService {
-    private final NotionImportRunRepository importRunRepository;
+public class ContentImportStaleRecoveryService {
+    private final ContentImportRunRepository importRunRepository;
 
     @Transactional
-    public NotionImportRecoveryResult recover(
+    public ContentImportRecoveryResult recover(
             Duration runningTimeout,
             int batchSize
     ) {
@@ -25,11 +25,11 @@ public class NotionImportStaleRecoveryService {
                 batchSize
         );
         Instant recoveredAt = importRunRepository.currentDatabaseTime();
-        List<NotionImportRun> staleImportRuns = importRunRepository.findStaleRunningForUpdate(
+        List<ContentImportRun> staleImportRuns = importRunRepository.findStaleRunningForUpdate(
                 runningTimeout.toMillis(),
                 batchSize
         );
-        for (NotionImportRun importRun : staleImportRuns) {
+        for (ContentImportRun importRun : staleImportRuns) {
             importRun.fail(
                     laterOf(
                             recoveredAt,
@@ -38,7 +38,7 @@ public class NotionImportStaleRecoveryService {
             );
             importRunRepository.save(importRun);
         }
-        return new NotionImportRecoveryResult(staleImportRuns.size());
+        return new ContentImportRecoveryResult(staleImportRuns.size());
     }
 
     private void validateArguments(
@@ -46,7 +46,7 @@ public class NotionImportStaleRecoveryService {
             int batchSize
     ) {
         if (runningTimeout == null || runningTimeout.isZero() || runningTimeout.isNegative() || batchSize <= 0) {
-            throw new IllegalArgumentException("Notion Import stale 복구 설정이 올바르지 않습니다");
+            throw new IllegalArgumentException("Content Import stale 복구 설정이 올바르지 않습니다");
         }
     }
 

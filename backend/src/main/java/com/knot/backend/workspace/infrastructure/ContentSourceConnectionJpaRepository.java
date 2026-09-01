@@ -31,4 +31,12 @@ interface ContentSourceConnectionJpaRepository extends JpaRepository<ContentSour
             Long workspaceId,
             ContentSourceProvider provider
     );
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+            select connection
+            from ContentSourceConnection connection
+            where connection.id = :connectionId
+            """)
+    Optional<ContentSourceConnection> findByIdForUpdate(Long connectionId);
 }

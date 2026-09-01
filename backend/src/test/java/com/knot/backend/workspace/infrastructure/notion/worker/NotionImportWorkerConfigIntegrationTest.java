@@ -4,9 +4,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.knot.backend.testsupport.TestApplicationProperties;
 import com.knot.backend.testsupport.TestcontainersConfiguration;
-import com.knot.backend.workspace.application.NotionContentCollector;
-import com.knot.backend.workspace.application.NotionImportHeartbeatLease;
-import com.knot.backend.workspace.application.NotionImportWorker;
+import com.knot.backend.workspace.application.ContentSourceCollector;
+import com.knot.backend.workspace.application.ContentImportHeartbeatLease;
+import com.knot.backend.workspace.application.ContentImportWorker;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.DisplayName;
@@ -42,10 +42,10 @@ class NotionImportWorkerConfigIntegrationTest {
         // given
 
         // when
-        NotionImportWorker worker = applicationContext.getBean(NotionImportWorker.class);
-        NotionContentCollector collector = applicationContext.getBean(NotionContentCollector.class);
+        ContentImportWorker worker = applicationContext.getBean(ContentImportWorker.class);
+        ContentSourceCollector collector = applicationContext.getBean(ContentSourceCollector.class);
         NotionImportWorkerScheduler scheduler = applicationContext.getBean(NotionImportWorkerScheduler.class);
-        NotionImportHeartbeatLease heartbeatLease = applicationContext.getBean(NotionImportHeartbeatLease.class);
+        ContentImportHeartbeatLease heartbeatLease = applicationContext.getBean(ContentImportHeartbeatLease.class);
         ScheduledExecutorService heartbeatScheduler = applicationContext.getBean(
                 "notionImportHeartbeatScheduler",
                 ScheduledExecutorService.class

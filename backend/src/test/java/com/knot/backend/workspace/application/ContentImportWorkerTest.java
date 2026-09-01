@@ -8,9 +8,9 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
-import com.knot.backend.workspace.application.dto.result.ClaimedNotionImportRun;
-import com.knot.backend.workspace.application.dto.result.CollectedNotionPage;
-import com.knot.backend.workspace.application.dto.result.NotionCollectionResult;
+import com.knot.backend.workspace.application.dto.result.ClaimedContentImportRun;
+import com.knot.backend.workspace.application.dto.result.CollectedPage;
+import com.knot.backend.workspace.application.dto.result.ContentCollectionResult;
 import com.knot.backend.workspace.domain.ContentSourceConnection;
 import com.knot.backend.workspace.domain.ContentSourceConnectionRepository;
 import com.knot.backend.workspace.domain.ContentSourceProvider;
@@ -24,30 +24,30 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.InOrder;
 
-class NotionImportWorkerTest {
+class ContentImportWorkerTest {
     private static final Long IMPORT_RUN_ID = 1L;
     private static final Long WORKSPACE_ID = 2L;
     private static final Long CONNECTION_ID = 3L;
     private static final String CIPHERTEXT = "encrypted-access-credential";
     private static final String ACCESS_CREDENTIAL = "decrypted-access-credential";
-    private static final ClaimedNotionImportRun CLAIMED_IMPORT_RUN = new ClaimedNotionImportRun(
+    private static final ClaimedContentImportRun CLAIMED_IMPORT_RUN = new ClaimedContentImportRun(
             IMPORT_RUN_ID,
             WORKSPACE_ID,
             CONNECTION_ID
     );
 
-    private final NotionImportRunLifecycleService lifecycleService = mock(NotionImportRunLifecycleService.class);
+    private final ContentImportRunLifecycleService lifecycleService = mock(ContentImportRunLifecycleService.class);
     private final ContentSourceConnectionRepository connectionRepository = mock(
             ContentSourceConnectionRepository.class
     );
     private final ContentSourceSecretProtector secretProtector = mock(ContentSourceSecretProtector.class);
-    private final NotionContentCollector contentCollector = mock(NotionContentCollector.class);
-    private final NotionImportSnapshotStagingService stagingService = mock(NotionImportSnapshotStagingService.class);
-    private final NotionImportPublicationService publicationService = mock(NotionImportPublicationService.class);
-    private final NotionImportWorkerObserver observer = mock(NotionImportWorkerObserver.class);
-    private final NotionImportHeartbeatLease heartbeatLease = mock(NotionImportHeartbeatLease.class);
-    private final NotionImportHeartbeatLease.Handle heartbeatHandle = mock(NotionImportHeartbeatLease.Handle.class);
-    private final NotionImportWorker worker = new NotionImportWorker(
+    private final ContentSourceCollector contentCollector = mock(ContentSourceCollector.class);
+    private final ContentImportSnapshotStagingService stagingService = mock(ContentImportSnapshotStagingService.class);
+    private final ContentImportPublicationService publicationService = mock(ContentImportPublicationService.class);
+    private final ContentImportWorkerObserver observer = mock(ContentImportWorkerObserver.class);
+    private final ContentImportHeartbeatLease heartbeatLease = mock(ContentImportHeartbeatLease.class);
+    private final ContentImportHeartbeatLease.Handle heartbeatHandle = mock(ContentImportHeartbeatLease.Handle.class);
+    private final ContentImportWorker worker = new ContentImportWorker(
             lifecycleService,
             connectionRepository,
             secretProtector,
@@ -80,12 +80,12 @@ class NotionImportWorkerTest {
         );
     }
 
-    @DisplayName("복호화한 자격 증명으로 수집한 preorder를 저장하고 부모 DB ID를 연결한 뒤 공개한다")
+    @DisplayName("복호화한 자격 증명으로 수집한 preorder와 외부 부모 ID를 저장한 뒤 공개한다")
     @Test
     void processNext_success_stagesAndPublishesCompleteSnapshot() {
         // given
         allowClaimAndCredential();
-        List<CollectedNotionPage> pages = List.of(
+        List<CollectedPage> pages = List.of(
                 page(
                         "root",
                         null,
@@ -101,7 +101,7 @@ class NotionImportWorkerTest {
                         1
                 )
         );
-        when(contentCollector.collect(ACCESS_CREDENTIAL)).thenReturn(new NotionCollectionResult(pages));
+        when(contentCollector.collect(ACCESS_CREDENTIAL)).thenReturn(new ContentCollectionResult(pages));
         when(
                 stagingService.stagePage(
                         IMPORT_RUN_ID,
@@ -119,7 +119,7 @@ class NotionImportWorkerTest {
                         IMPORT_RUN_ID,
                         WORKSPACE_ID,
                         "child",
-                        10L,
+                        "root",
                         "자식",
                         "자식 본문",
                         1,
@@ -165,7 +165,7 @@ class NotionImportWorkerTest {
                         IMPORT_RUN_ID,
                         WORKSPACE_ID,
                         "child",
-                        10L,
+                        "root",
                         "자식",
                         "자식 본문",
                         1,
@@ -190,7 +190,7 @@ class NotionImportWorkerTest {
     void processNext_failure_emptyCollection() {
         // given
         allowClaimAndCredential();
-        when(contentCollector.collect(ACCESS_CREDENTIAL)).thenReturn(new NotionCollectionResult(List.of()));
+        when(contentCollector.collect(ACCESS_CREDENTIAL)).thenReturn(new ContentCollectionResult(List.of()));
         allowFailureTransition();
 
         // when
@@ -198,7 +198,7 @@ class NotionImportWorkerTest {
 
         // then
         assertThat(processed).isTrue();
-        verifyFailure(NotionImportFailureCategory.EMPTY_RESULT);
+        verifyFailure(ContentImportFailureCategory.EMPTY_RESULT);
         verifyNoInteractions(
                 stagingService,
                 publicationService
@@ -226,7 +226,7 @@ class NotionImportWorkerTest {
         // then
         assertThat(processed).isTrue();
         assertThat(connection.getAccessCredentialCiphertext()).isEqualTo(CIPHERTEXT);
-        verifyFailure(NotionImportFailureCategory.CREDENTIAL);
+        verifyFailure(ContentImportFailureCategory.CREDENTIAL);
         verifyNoInteractions(
                 contentCollector,
                 stagingService,
@@ -252,7 +252,7 @@ class NotionImportWorkerTest {
 
         // then
         assertThat(processed).isTrue();
-        verifyFailure(NotionImportFailureCategory.STORAGE);
+        verifyFailure(ContentImportFailureCategory.STORAGE);
         verifyNoInteractions(
                 secretProtector,
                 contentCollector,
@@ -283,7 +283,7 @@ class NotionImportWorkerTest {
         verify(observer).failed(
                 IMPORT_RUN_ID,
                 WORKSPACE_ID,
-                NotionImportFailureCategory.STORAGE
+                ContentImportFailureCategory.STORAGE
         );
         verifyNoInteractions(
                 connectionRepository,
@@ -301,7 +301,7 @@ class NotionImportWorkerTest {
         // given
         allowClaimAndCredential();
         when(contentCollector.collect(ACCESS_CREDENTIAL))
-                .thenThrow(new NotionCollectionException(NotionCollectionFailureType.TEMPORARY));
+                .thenThrow(new ContentCollectionException(ContentCollectionFailureType.TEMPORARY));
         allowFailureTransition();
 
         // when
@@ -309,7 +309,7 @@ class NotionImportWorkerTest {
 
         // then
         assertThat(processed).isTrue();
-        verifyFailure(NotionImportFailureCategory.COLLECTION);
+        verifyFailure(ContentImportFailureCategory.COLLECTION);
         verifyNoInteractions(
                 stagingService,
                 publicationService
@@ -321,14 +321,14 @@ class NotionImportWorkerTest {
     void processNext_success_recoveredWhileCollectingDoesNotPersist() {
         // given
         allowClaimAndCredential();
-        CollectedNotionPage page = page(
+        CollectedPage page = page(
                 "root",
                 null,
                 "루트",
                 "# 루트",
                 0
         );
-        when(contentCollector.collect(ACCESS_CREDENTIAL)).thenReturn(new NotionCollectionResult(List.of(page)));
+        when(contentCollector.collect(ACCESS_CREDENTIAL)).thenReturn(new ContentCollectionResult(List.of(page)));
         when(heartbeatHandle.isActive()).thenReturn(false);
 
         // when
@@ -360,11 +360,11 @@ class NotionImportWorkerTest {
     @ParameterizedTest(name = "{0}")
     void processNext_failure_invalidCollection(
             String caseName,
-            List<CollectedNotionPage> pages
+            List<CollectedPage> pages
     ) {
         // given
         allowClaimAndCredential();
-        when(contentCollector.collect(ACCESS_CREDENTIAL)).thenReturn(new NotionCollectionResult(pages));
+        when(contentCollector.collect(ACCESS_CREDENTIAL)).thenReturn(new ContentCollectionResult(pages));
         allowFailureTransition();
 
         // when
@@ -372,7 +372,7 @@ class NotionImportWorkerTest {
 
         // then
         assertThat(processed).isTrue();
-        verifyFailure(NotionImportFailureCategory.COLLECTION);
+        verifyFailure(ContentImportFailureCategory.COLLECTION);
         verifyNoInteractions(
                 stagingService,
                 publicationService
@@ -384,14 +384,14 @@ class NotionImportWorkerTest {
     void processNext_failure_staging() {
         // given
         allowClaimAndCredential();
-        CollectedNotionPage page = page(
+        CollectedPage page = page(
                 "root",
                 null,
                 "루트",
                 "# 루트",
                 0
         );
-        when(contentCollector.collect(ACCESS_CREDENTIAL)).thenReturn(new NotionCollectionResult(List.of(page)));
+        when(contentCollector.collect(ACCESS_CREDENTIAL)).thenReturn(new ContentCollectionResult(List.of(page)));
         when(
                 stagingService.stagePage(
                         IMPORT_RUN_ID,
@@ -411,7 +411,7 @@ class NotionImportWorkerTest {
 
         // then
         assertThat(processed).isTrue();
-        verifyFailure(NotionImportFailureCategory.STORAGE);
+        verifyFailure(ContentImportFailureCategory.STORAGE);
         verifyNoInteractions(publicationService);
     }
 
@@ -420,14 +420,14 @@ class NotionImportWorkerTest {
     void processNext_failure_publication() {
         // given
         allowClaimAndCredential();
-        CollectedNotionPage page = page(
+        CollectedPage page = page(
                 "root",
                 null,
                 "루트",
                 "# 루트",
                 0
         );
-        when(contentCollector.collect(ACCESS_CREDENTIAL)).thenReturn(new NotionCollectionResult(List.of(page)));
+        when(contentCollector.collect(ACCESS_CREDENTIAL)).thenReturn(new ContentCollectionResult(List.of(page)));
         when(
                 stagingService.stagePage(
                         IMPORT_RUN_ID,
@@ -450,7 +450,7 @@ class NotionImportWorkerTest {
 
         // then
         assertThat(processed).isTrue();
-        verifyFailure(NotionImportFailureCategory.PUBLICATION);
+        verifyFailure(ContentImportFailureCategory.PUBLICATION);
         verify(
                 observer,
                 never()
@@ -503,7 +503,7 @@ class NotionImportWorkerTest {
         when(lifecycleService.fail(IMPORT_RUN_ID)).thenReturn(true);
     }
 
-    private void verifyFailure(NotionImportFailureCategory category) {
+    private void verifyFailure(ContentImportFailureCategory category) {
         verify(lifecycleService).fail(IMPORT_RUN_ID);
         verify(observer).failed(
                 IMPORT_RUN_ID,
@@ -513,20 +513,20 @@ class NotionImportWorkerTest {
         verify(heartbeatHandle).close();
     }
 
-    private CollectedNotionPage page(
-            String notionPageId,
-            String parentNotionPageId,
+    private CollectedPage page(
+            String externalPageId,
+            String parentExternalPageId,
             String title,
             String markdownContent,
             int position
     ) {
-        return new CollectedNotionPage(
-                notionPageId,
-                parentNotionPageId,
+        return new CollectedPage(
+                externalPageId,
+                parentExternalPageId,
                 title,
                 markdownContent,
                 position,
-                "https://www.notion.so/" + notionPageId
+                "https://www.notion.so/" + externalPageId
         );
     }
 
@@ -578,20 +578,20 @@ class NotionImportWorkerTest {
         );
     }
 
-    private static CollectedNotionPage collectedPage(
-            String notionPageId,
-            String parentNotionPageId,
+    private static CollectedPage collectedPage(
+            String externalPageId,
+            String parentExternalPageId,
             String title,
             String markdownContent,
             int position
     ) {
-        return new CollectedNotionPage(
-                notionPageId,
-                parentNotionPageId,
+        return new CollectedPage(
+                externalPageId,
+                parentExternalPageId,
                 title,
                 markdownContent,
                 position,
-                "https://www.notion.so/" + notionPageId
+                "https://www.notion.so/" + externalPageId
         );
     }
 }

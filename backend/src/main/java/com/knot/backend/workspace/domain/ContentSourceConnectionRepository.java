@@ -20,4 +20,6 @@ public interface ContentSourceConnectionRepository {
             Long workspaceId,
             ContentSourceProvider provider
     );
+
+    Optional<ContentSourceConnection> findByIdForUpdate(Long connectionId);
 }

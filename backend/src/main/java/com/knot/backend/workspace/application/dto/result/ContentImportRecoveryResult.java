@@ -1,4 +1,4 @@
 package com.knot.backend.workspace.application.dto.result;
 
-public record NotionImportRecoveryResult(int runningCount) {
+public record ContentImportRecoveryResult(int runningCount) {
 }

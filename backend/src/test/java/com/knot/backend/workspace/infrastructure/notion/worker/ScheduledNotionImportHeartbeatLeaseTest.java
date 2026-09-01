@@ -10,9 +10,9 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.knot.backend.workspace.application.NotionImportHeartbeatLease;
-import com.knot.backend.workspace.application.NotionImportRunLifecycleService;
-import com.knot.backend.workspace.application.NotionImportWorkerObserver;
+import com.knot.backend.workspace.application.ContentImportHeartbeatLease;
+import com.knot.backend.workspace.application.ContentImportRunLifecycleService;
+import com.knot.backend.workspace.application.ContentImportWorkerObserver;
 import java.time.Duration;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -26,8 +26,8 @@ class ScheduledNotionImportHeartbeatLeaseTest {
     private static final Long WORKSPACE_ID = 2L;
     private static final Duration HEARTBEAT_INTERVAL = Duration.ofSeconds(30);
 
-    private final NotionImportRunLifecycleService lifecycleService = mock(NotionImportRunLifecycleService.class);
-    private final NotionImportWorkerObserver observer = mock(NotionImportWorkerObserver.class);
+    private final ContentImportRunLifecycleService lifecycleService = mock(ContentImportRunLifecycleService.class);
+    private final ContentImportWorkerObserver observer = mock(ContentImportWorkerObserver.class);
     private final ScheduledExecutorService scheduledExecutorService = mock(ScheduledExecutorService.class);
     private final ScheduledFuture<?> scheduledFuture = mock(ScheduledFuture.class);
     private final ScheduledNotionImportHeartbeatLease heartbeatLease = new ScheduledNotionImportHeartbeatLease(
@@ -50,7 +50,7 @@ class ScheduledNotionImportHeartbeatLeaseTest {
         when(lifecycleService.heartbeat(IMPORT_RUN_ID)).thenReturn(true);
 
         // when
-        NotionImportHeartbeatLease.Handle handle = heartbeatLease.start(
+        ContentImportHeartbeatLease.Handle handle = heartbeatLease.start(
                 IMPORT_RUN_ID,
                 WORKSPACE_ID
         );
@@ -70,7 +70,7 @@ class ScheduledNotionImportHeartbeatLeaseTest {
         // given
         ArgumentCaptor<Runnable> heartbeatTask = allowScheduling();
         when(lifecycleService.heartbeat(IMPORT_RUN_ID)).thenReturn(false);
-        NotionImportHeartbeatLease.Handle handle = heartbeatLease.start(
+        ContentImportHeartbeatLease.Handle handle = heartbeatLease.start(
                 IMPORT_RUN_ID,
                 WORKSPACE_ID
         );
@@ -91,7 +91,7 @@ class ScheduledNotionImportHeartbeatLeaseTest {
         ArgumentCaptor<Runnable> heartbeatTask = allowScheduling();
         when(lifecycleService.heartbeat(IMPORT_RUN_ID)).thenThrow(new IllegalStateException("database details"))
                 .thenReturn(true);
-        NotionImportHeartbeatLease.Handle handle = heartbeatLease.start(
+        ContentImportHeartbeatLease.Handle handle = heartbeatLease.start(
                 IMPORT_RUN_ID,
                 WORKSPACE_ID
         );
