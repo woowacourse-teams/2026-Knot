@@ -99,6 +99,7 @@ class FlywayMigrationUpgradeIntegrationTest {
                 "fk_content_import_runs_connection",
                 "fk_content_import_runs_requester_membership",
                 "chk_content_import_runs_status",
+                "chk_content_import_runs_completed_page_counts",
                 "uk_content_import_runs_id_workspace",
                 "uk_content_import_runs_id_workspace_status",
                 "pk_imported_pages",

@@ -26,11 +26,17 @@ CREATE TABLE content_import_runs (
     CONSTRAINT chk_content_import_runs_status_timestamps
         CHECK (
             (status = 'PENDING' AND started_at IS NULL AND completed_at IS NULL)
-            OR (status = 'RUNNING' AND started_at IS NOT NULL AND completed_at IS NULL)
+            OR (
+                status = 'RUNNING'
+                AND started_at IS NOT NULL
+                AND completed_at IS NULL
+                AND started_at >= created_at
+            )
             OR (
                 status IN ('COMPLETED', 'FAILED')
                 AND started_at IS NOT NULL
                 AND completed_at IS NOT NULL
+                AND started_at >= created_at
                 AND completed_at >= started_at
             )
         ),
@@ -39,7 +45,12 @@ CREATE TABLE content_import_runs (
     CONSTRAINT chk_content_import_runs_processed_page_count
         CHECK (processed_page_count >= 0),
     CONSTRAINT chk_content_import_runs_page_counts
-        CHECK (total_page_count IS NULL OR processed_page_count <= total_page_count)
+        CHECK (total_page_count IS NULL OR processed_page_count <= total_page_count),
+    CONSTRAINT chk_content_import_runs_completed_page_counts
+        CHECK (
+            status <> 'COMPLETED'
+            OR (total_page_count IS NOT NULL AND total_page_count >= 1 AND processed_page_count = total_page_count)
+        )
 );
 
 CREATE UNIQUE INDEX uk_content_import_runs_one_active

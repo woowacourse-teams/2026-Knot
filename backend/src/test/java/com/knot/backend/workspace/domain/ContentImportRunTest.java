@@ -40,6 +40,36 @@ class ContentImportRunTest {
                 .isEqualTo(ContentImportErrorCode.INVALID_CONTENT_IMPORT_RUN);
     }
 
+    @DisplayName("완료 상태는 전체 Page 수가 확정되고 처리한 Page 수와 같아야 한다")
+    @MethodSource("invalidCompletedPageCountCases")
+    @ParameterizedTest(name = "{0}")
+    void create_failure_invalidCompletedPageCounts(
+            String caseName,
+            Integer totalPageCount,
+            int processedPageCount
+    ) {
+        // given
+        ThrowingCallable action = () -> ContentImportRun.create(
+                1L,
+                2L,
+                3L,
+                ContentImportStatus.COMPLETED,
+                totalPageCount,
+                processedPageCount,
+                CREATED_AT.plusSeconds(1),
+                CREATED_AT.plusSeconds(2),
+                CREATED_AT
+        );
+
+        // when
+        Throwable thrown = catchThrowable(action);
+
+        // then
+        assertThat(thrown).isInstanceOf(ContentImportException.class)
+                .extracting(exception -> ((ContentImportException) exception).getErrorCode())
+                .isEqualTo(ContentImportErrorCode.INVALID_CONTENT_IMPORT_RUN);
+    }
+
     @DisplayName("상태에 맞는 시작·완료 시각 조합으로 생성한다")
     @MethodSource("validStatusTimestampCases")
     @ParameterizedTest(name = "{0}")
@@ -113,13 +143,14 @@ class ContentImportRunTest {
             Instant startedAt,
             Instant completedAt
     ) {
+        int processedPageCount = status == ContentImportStatus.COMPLETED ? 10 : 4;
         return ContentImportRun.create(
                 1L,
                 2L,
                 3L,
                 status,
                 10,
-                4,
+                processedPageCount,
                 startedAt,
                 completedAt,
                 CREATED_AT
@@ -141,16 +172,34 @@ class ContentImportRunTest {
                         null
                 ),
                 Arguments.of(
+                        "running-at-created-at",
+                        ContentImportStatus.RUNNING,
+                        CREATED_AT,
+                        null
+                ),
+                Arguments.of(
                         "completed",
                         ContentImportStatus.COMPLETED,
                         CREATED_AT.plusSeconds(1),
                         CREATED_AT.plusSeconds(2)
                 ),
                 Arguments.of(
+                        "completed-at-created-at",
+                        ContentImportStatus.COMPLETED,
+                        CREATED_AT,
+                        CREATED_AT
+                ),
+                Arguments.of(
                         "failed",
                         ContentImportStatus.FAILED,
                         CREATED_AT.plusSeconds(1),
                         CREATED_AT.plusSeconds(2)
+                ),
+                Arguments.of(
+                        "failed-at-created-at",
+                        ContentImportStatus.FAILED,
+                        CREATED_AT,
+                        CREATED_AT
                 )
         );
     }
@@ -216,6 +265,44 @@ class ContentImportRunTest {
                         ContentImportStatus.FAILED,
                         CREATED_AT.plusSeconds(2),
                         CREATED_AT.plusSeconds(1)
+                ),
+                Arguments.of(
+                        "running-before-created-at",
+                        ContentImportStatus.RUNNING,
+                        CREATED_AT.minusSeconds(1),
+                        null
+                ),
+                Arguments.of(
+                        "completed-started-before-created-at",
+                        ContentImportStatus.COMPLETED,
+                        CREATED_AT.minusSeconds(1),
+                        CREATED_AT.plusSeconds(1)
+                ),
+                Arguments.of(
+                        "failed-started-before-created-at",
+                        ContentImportStatus.FAILED,
+                        CREATED_AT.minusSeconds(1),
+                        CREATED_AT.plusSeconds(1)
+                )
+        );
+    }
+
+    private static Stream<Arguments> invalidCompletedPageCountCases() {
+        return Stream.of(
+                Arguments.of(
+                        "completed-without-total-page-count",
+                        null,
+                        0
+                ),
+                Arguments.of(
+                        "completed-with-zero-pages",
+                        0,
+                        0
+                ),
+                Arguments.of(
+                        "completed-with-unprocessed-page",
+                        10,
+                        9
                 )
         );
     }
