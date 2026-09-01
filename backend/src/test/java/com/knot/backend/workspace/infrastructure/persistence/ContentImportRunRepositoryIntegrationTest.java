@@ -1,12 +1,12 @@
-package com.knot.backend.workspace.infrastructure.notion;
+package com.knot.backend.workspace.infrastructure.persistence;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.knot.backend.testsupport.TestcontainersConfiguration;
-import com.knot.backend.workspace.domain.NotionImportRun;
-import com.knot.backend.workspace.domain.NotionImportRunRepository;
-import com.knot.backend.workspace.domain.NotionImportStatus;
+import com.knot.backend.workspace.domain.ContentImportRun;
+import com.knot.backend.workspace.domain.ContentImportRunRepository;
+import com.knot.backend.workspace.domain.ContentImportStatus;
 import jakarta.persistence.EntityManager;
 import java.time.Instant;
 import java.util.Optional;
@@ -25,13 +25,13 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.simple.JdbcClient;
 
 @Tag("integration")
-@Import({TestcontainersConfiguration.class, NotionImportRunRepositoryAdapter.class})
+@Import({TestcontainersConfiguration.class, ContentImportRunRepositoryAdapter.class})
 @DataJpaTest
-class NotionImportRunRepositoryIntegrationTest {
+class ContentImportRunRepositoryIntegrationTest {
     private static final Instant CREATED_AT = Instant.parse("2026-08-31T00:00:00Z");
 
     @Autowired
-    private NotionImportRunRepository importRunRepository;
+    private ContentImportRunRepository importRunRepository;
     @Autowired
     private EntityManager entityManager;
     @Autowired
@@ -65,12 +65,12 @@ class NotionImportRunRepositoryIntegrationTest {
                 workspaceId,
                 ownerId
         );
-        NotionImportRun savedImportRun = saveAndReload(
-                NotionImportRun.create(
+        ContentImportRun savedImportRun = saveAndReload(
+                ContentImportRun.create(
                         workspaceId,
                         connectionId,
                         ownerId,
-                        NotionImportStatus.COMPLETED,
+                        ContentImportStatus.COMPLETED,
                         10,
                         10,
                         CREATED_AT.plusSeconds(1),
@@ -81,19 +81,19 @@ class NotionImportRunRepositoryIntegrationTest {
         );
 
         // when
-        Optional<NotionImportRun> ownerResult = importRunRepository.findVisibleByIdAndMemberId(
+        Optional<ContentImportRun> ownerResult = importRunRepository.findVisibleByIdAndMemberId(
                 savedImportRun.getId(),
                 ownerId
         );
-        Optional<NotionImportRun> memberResult = importRunRepository.findVisibleByIdAndMemberId(
+        Optional<ContentImportRun> memberResult = importRunRepository.findVisibleByIdAndMemberId(
                 savedImportRun.getId(),
                 memberId
         );
-        Optional<NotionImportRun> outsiderResult = importRunRepository.findVisibleByIdAndMemberId(
+        Optional<ContentImportRun> outsiderResult = importRunRepository.findVisibleByIdAndMemberId(
                 savedImportRun.getId(),
                 outsiderId
         );
-        Optional<NotionImportRun> missingResult = importRunRepository.findVisibleByIdAndMemberId(
+        Optional<ContentImportRun> missingResult = importRunRepository.findVisibleByIdAndMemberId(
                 Long.MAX_VALUE,
                 ownerId
         );
@@ -126,11 +126,11 @@ class NotionImportRunRepositoryIntegrationTest {
                 workspaceId,
                 ownerId
         );
-        NotionImportRun importRun = NotionImportRun.create(
+        ContentImportRun importRun = ContentImportRun.create(
                 otherWorkspaceId,
                 connectionId,
                 ownerId,
-                NotionImportStatus.PENDING,
+                ContentImportStatus.PENDING,
                 null,
                 0,
                 null,
@@ -156,13 +156,13 @@ class NotionImportRunRepositoryIntegrationTest {
         importRunRepository.save(
                 activeImportRun(
                         context,
-                        NotionImportStatus.PENDING
+                        ContentImportStatus.PENDING
                 )
         );
         entityManager.flush();
-        NotionImportRun duplicate = activeImportRun(
+        ContentImportRun duplicate = activeImportRun(
                 context,
-                NotionImportStatus.RUNNING
+                ContentImportStatus.RUNNING
         );
 
         // when
@@ -187,7 +187,7 @@ class NotionImportRunRepositoryIntegrationTest {
                     SELECT 1
                     FROM information_schema.columns
                     WHERE table_schema = current_schema()
-                        AND table_name = 'notion_import_runs'
+                        AND table_name = 'content_import_runs'
                         AND column_name = :columnName
                 )
                 """)
@@ -218,7 +218,7 @@ class NotionImportRunRepositoryIntegrationTest {
 
         // when
         ThrowingCallable action = () -> jdbcClient.sql("""
-                INSERT INTO notion_import_runs (
+                INSERT INTO content_import_runs (
                     workspace_id,
                     content_source_connection_id,
                     requested_by_member_id,
@@ -282,28 +282,28 @@ class NotionImportRunRepositoryIntegrationTest {
         assertThatThrownBy(action).isInstanceOf(DataIntegrityViolationException.class);
     }
 
-    private NotionImportRun activeImportRun(
+    private ContentImportRun activeImportRun(
             TestContext context,
-            NotionImportStatus status
+            ContentImportStatus status
     ) {
-        return NotionImportRun.create(
+        return ContentImportRun.create(
                 context.workspaceId(),
                 context.connectionId(),
                 context.memberId(),
                 status,
                 null,
                 0,
-                status == NotionImportStatus.RUNNING ? CREATED_AT.plusSeconds(1) : null,
+                status == ContentImportStatus.RUNNING ? CREATED_AT.plusSeconds(1) : null,
                 null,
                 CREATED_AT
         );
     }
 
-    private NotionImportRun saveAndReload(
-            NotionImportRun importRun,
+    private ContentImportRun saveAndReload(
+            ContentImportRun importRun,
             long memberId
     ) {
-        NotionImportRun savedImportRun = importRunRepository.save(importRun);
+        ContentImportRun savedImportRun = importRunRepository.save(importRun);
         entityManager.flush();
         entityManager.clear();
         return importRunRepository.findVisibleByIdAndMemberId(

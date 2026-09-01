@@ -7,11 +7,11 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
-import com.knot.backend.workspace.application.dto.result.NotionPageTreeItemResult;
-import com.knot.backend.workspace.domain.NotionPageErrorCode;
-import com.knot.backend.workspace.domain.NotionPageException;
-import com.knot.backend.workspace.domain.NotionPageMetadata;
-import com.knot.backend.workspace.domain.NotionPageRepository;
+import com.knot.backend.workspace.application.dto.result.ImportedPageTreeItemResult;
+import com.knot.backend.workspace.domain.ImportedPageErrorCode;
+import com.knot.backend.workspace.domain.ImportedPageException;
+import com.knot.backend.workspace.domain.ImportedPageMetadata;
+import com.knot.backend.workspace.domain.ImportedPageRepository;
 import com.knot.backend.workspace.domain.Workspace;
 import com.knot.backend.workspace.domain.WorkspaceErrorCode;
 import com.knot.backend.workspace.domain.WorkspaceException;
@@ -27,17 +27,17 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
-class NotionPageTreeQueryServiceTest {
+class ImportedPageTreeQueryServiceTest {
     private static final Long WORKSPACE_ID = 1L;
     private static final long MEMBER_ID = 10L;
 
     private final WorkspaceRepository workspaceRepository = mock(WorkspaceRepository.class);
     private final WorkspaceMemberRepository workspaceMemberRepository = mock(WorkspaceMemberRepository.class);
-    private final NotionPageRepository notionPageRepository = mock(NotionPageRepository.class);
-    private final NotionPageTreeQueryService service = new NotionPageTreeQueryService(
+    private final ImportedPageRepository importedPageRepository = mock(ImportedPageRepository.class);
+    private final ImportedPageTreeQueryService service = new ImportedPageTreeQueryService(
             workspaceRepository,
             workspaceMemberRepository,
-            notionPageRepository
+            importedPageRepository
     );
 
     @DisplayName("Workspace 멤버에게 발행된 Page를 평면 Tree 계약으로 변환한다")
@@ -45,21 +45,21 @@ class NotionPageTreeQueryServiceTest {
     void findTree_success_mapsPublishedPages() {
         // given
         allowWorkspaceMember();
-        NotionPageMetadata rootPage = notionPage(
+        ImportedPageMetadata rootPage = importedPage(
                 1L,
                 null,
                 "루트",
                 0,
-                "https://www.notion.so/root"
+                "https://content.example/pages/root"
         );
-        NotionPageMetadata childPage = notionPage(
+        ImportedPageMetadata childPage = importedPage(
                 2L,
                 1L,
                 "자식",
                 1,
-                "https://www.notion.so/child"
+                "https://content.example/pages/child"
         );
-        when(notionPageRepository.findPublishedMetadataByWorkspaceIdOrderByPositionAscIdAsc(WORKSPACE_ID)).thenReturn(
+        when(importedPageRepository.findPublishedMetadataByWorkspaceIdOrderByPositionAscIdAsc(WORKSPACE_ID)).thenReturn(
                 List.of(
                         rootPage,
                         childPage
@@ -67,18 +67,18 @@ class NotionPageTreeQueryServiceTest {
         );
 
         // when
-        List<NotionPageTreeItemResult> result = service.findTree(
+        List<ImportedPageTreeItemResult> result = service.findTree(
                 WORKSPACE_ID,
                 MEMBER_ID
         );
 
         // then
         assertThat(result).extracting(
-                NotionPageTreeItemResult::id,
-                NotionPageTreeItemResult::parentPageId,
-                NotionPageTreeItemResult::title,
-                NotionPageTreeItemResult::position,
-                NotionPageTreeItemResult::notionUrl
+                ImportedPageTreeItemResult::id,
+                ImportedPageTreeItemResult::parentId,
+                ImportedPageTreeItemResult::title,
+                ImportedPageTreeItemResult::position,
+                ImportedPageTreeItemResult::sourceUrl
         )
                 .containsExactly(
                         tuple(
@@ -86,17 +86,17 @@ class NotionPageTreeQueryServiceTest {
                                 null,
                                 "루트",
                                 0,
-                                "https://www.notion.so/root"
+                                "https://content.example/pages/root"
                         ),
                         tuple(
                                 2L,
                                 1L,
                                 "자식",
                                 1,
-                                "https://www.notion.so/child"
+                                "https://content.example/pages/child"
                         )
                 );
-        verify(notionPageRepository).findPublishedMetadataByWorkspaceIdOrderByPositionAscIdAsc(WORKSPACE_ID);
+        verify(importedPageRepository).findPublishedMetadataByWorkspaceIdOrderByPositionAscIdAsc(WORKSPACE_ID);
     }
 
     @DisplayName("발행된 Page가 없으면 빈 배열을 반환한다")
@@ -104,11 +104,11 @@ class NotionPageTreeQueryServiceTest {
     void findTree_success_emptyPublishedPages() {
         // given
         allowWorkspaceMember();
-        when(notionPageRepository.findPublishedMetadataByWorkspaceIdOrderByPositionAscIdAsc(WORKSPACE_ID))
+        when(importedPageRepository.findPublishedMetadataByWorkspaceIdOrderByPositionAscIdAsc(WORKSPACE_ID))
                 .thenReturn(List.of());
 
         // when
-        List<NotionPageTreeItemResult> result = service.findTree(
+        List<ImportedPageTreeItemResult> result = service.findTree(
                 WORKSPACE_ID,
                 MEMBER_ID
         );
@@ -136,7 +136,7 @@ class NotionPageTreeQueryServiceTest {
         verifyNoInteractions(
                 workspaceRepository,
                 workspaceMemberRepository,
-                notionPageRepository
+                importedPageRepository
         );
     }
 
@@ -159,7 +159,7 @@ class NotionPageTreeQueryServiceTest {
                 .isEqualTo(WorkspaceErrorCode.WORKSPACE_NOT_FOUND);
         verifyNoInteractions(
                 workspaceMemberRepository,
-                notionPageRepository
+                importedPageRepository
         );
     }
 
@@ -186,7 +186,7 @@ class NotionPageTreeQueryServiceTest {
         assertThat(thrown).isInstanceOf(WorkspaceException.class)
                 .extracting(exception -> ((WorkspaceException) exception).getErrorCode())
                 .isEqualTo(WorkspaceErrorCode.WORKSPACE_ACCESS_DENIED);
-        verifyNoInteractions(notionPageRepository);
+        verifyNoInteractions(importedPageRepository);
     }
 
     @DisplayName("부모 누락, 자기 참조, 순환 참조가 있으면 전체 Tree 조회를 실패시킨다")
@@ -198,19 +198,19 @@ class NotionPageTreeQueryServiceTest {
     ) {
         // given
         allowWorkspaceMember();
-        List<NotionPageMetadata> notionPages = pageReferences.stream()
+        List<ImportedPageMetadata> importedPages = pageReferences.stream()
                 .map(
-                        reference -> notionPage(
+                        reference -> importedPage(
                                 reference.id(),
-                                reference.parentPageId(),
+                                reference.parentId(),
                                 "Page " + reference.id(),
                                 0,
-                                "https://www.notion.so/" + reference.id()
+                                "https://content.example/pages/" + reference.id()
                         )
                 )
                 .toList();
-        when(notionPageRepository.findPublishedMetadataByWorkspaceIdOrderByPositionAscIdAsc(WORKSPACE_ID))
-                .thenReturn(notionPages);
+        when(importedPageRepository.findPublishedMetadataByWorkspaceIdOrderByPositionAscIdAsc(WORKSPACE_ID))
+                .thenReturn(importedPages);
         ThrowingCallable action = () -> service.findTree(
                 WORKSPACE_ID,
                 MEMBER_ID
@@ -220,9 +220,9 @@ class NotionPageTreeQueryServiceTest {
         Throwable thrown = org.assertj.core.api.Assertions.catchThrowable(action);
 
         // then
-        assertThat(thrown).isInstanceOf(NotionPageException.class)
-                .extracting(exception -> ((NotionPageException) exception).getErrorCode())
-                .isEqualTo(NotionPageErrorCode.NOTION_PAGE_TREE_INVALID);
+        assertThat(thrown).isInstanceOf(ImportedPageException.class)
+                .extracting(exception -> ((ImportedPageException) exception).getErrorCode())
+                .isEqualTo(ImportedPageErrorCode.IMPORTED_PAGE_TREE_INVALID);
     }
 
     private void allowWorkspaceMember() {
@@ -235,20 +235,20 @@ class NotionPageTreeQueryServiceTest {
         ).thenReturn(true);
     }
 
-    private NotionPageMetadata notionPage(
+    private ImportedPageMetadata importedPage(
             Long id,
-            Long parentPageId,
+            Long parentId,
             String title,
             int position,
-            String notionUrl
+            String sourceUrl
     ) {
-        return new NotionPageMetadata(
+        return new ImportedPageMetadata(
                 id,
                 WORKSPACE_ID,
-                parentPageId,
+                parentId,
                 title,
                 position,
-                notionUrl
+                sourceUrl
         );
     }
 
@@ -290,7 +290,7 @@ class NotionPageTreeQueryServiceTest {
 
     private record PageReference(
             Long id,
-            Long parentPageId
+            Long parentId
     ) {
     }
 }

@@ -1,27 +1,25 @@
 package com.knot.backend.workspace.application.dto.result;
 
-import com.knot.backend.workspace.domain.NotionImportRun;
-import com.knot.backend.workspace.domain.NotionImportStatus;
+import com.knot.backend.workspace.domain.ContentImportRun;
+import com.knot.backend.workspace.domain.ContentImportStatus;
 import java.time.Instant;
 
-public record NotionImportStatusResult(
+public record ContentImportStatusResult(
         long id,
-        NotionImportStatus status,
+        ContentImportStatus status,
         Integer totalPageCount,
         int processedPageCount,
-        String failureReason,
         Instant createdAt,
         Instant startedAt,
         Instant completedAt
 ) {
 
-    public static NotionImportStatusResult from(NotionImportRun importRun) {
-        return new NotionImportStatusResult(
+    public static ContentImportStatusResult from(ContentImportRun importRun) {
+        return new ContentImportStatusResult(
                 importRun.getId(),
                 importRun.getStatus(),
                 importRun.getTotalPageCount(),
                 importRun.getProcessedPageCount(),
-                importRun.publicFailureReason(),
                 importRun.getCreatedAt(),
                 importRun.getStartedAt(),
                 importRun.getCompletedAt()

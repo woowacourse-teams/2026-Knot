@@ -1,10 +1,10 @@
 package com.knot.backend.workspace.application;
 
-import com.knot.backend.workspace.application.dto.result.NotionPageTreeItemResult;
-import com.knot.backend.workspace.domain.NotionPageErrorCode;
-import com.knot.backend.workspace.domain.NotionPageException;
-import com.knot.backend.workspace.domain.NotionPageMetadata;
-import com.knot.backend.workspace.domain.NotionPageRepository;
+import com.knot.backend.workspace.application.dto.result.ImportedPageTreeItemResult;
+import com.knot.backend.workspace.domain.ImportedPageErrorCode;
+import com.knot.backend.workspace.domain.ImportedPageException;
+import com.knot.backend.workspace.domain.ImportedPageMetadata;
+import com.knot.backend.workspace.domain.ImportedPageRepository;
 import com.knot.backend.workspace.domain.WorkspaceErrorCode;
 import com.knot.backend.workspace.domain.WorkspaceException;
 import com.knot.backend.workspace.domain.WorkspaceMemberRepository;
@@ -22,12 +22,12 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
-public class NotionPageTreeQueryService {
+public class ImportedPageTreeQueryService {
     private final WorkspaceRepository workspaceRepository;
     private final WorkspaceMemberRepository workspaceMemberRepository;
-    private final NotionPageRepository notionPageRepository;
+    private final ImportedPageRepository importedPageRepository;
 
-    public List<NotionPageTreeItemResult> findTree(
+    public List<ImportedPageTreeItemResult> findTree(
             Long workspaceId,
             long memberId
     ) {
@@ -37,14 +37,14 @@ public class NotionPageTreeQueryService {
                 workspaceId,
                 memberId
         );
-        List<NotionPageMetadata> notionPages = notionPageRepository
+        List<ImportedPageMetadata> importedPages = importedPageRepository
                 .findPublishedMetadataByWorkspaceIdOrderByPositionAscIdAsc(workspaceId);
         validateTree(
                 workspaceId,
-                notionPages
+                importedPages
         );
-        return notionPages.stream()
-                .map(NotionPageTreeItemResult::from)
+        return importedPages.stream()
+                .map(ImportedPageTreeItemResult::from)
                 .toList();
     }
 
@@ -75,20 +75,20 @@ public class NotionPageTreeQueryService {
 
     private void validateTree(
             Long workspaceId,
-            List<NotionPageMetadata> notionPages
+            List<ImportedPageMetadata> importedPages
     ) {
         Map<Long, Long> parentPageIdById = new HashMap<>();
-        for (NotionPageMetadata notionPage : notionPages) {
-            Long id = notionPage.id();
+        for (ImportedPageMetadata importedPage : importedPages) {
+            Long id = importedPage.id();
             if (id == null || id <= 0 || !Objects.equals(
-                    notionPage.workspaceId(),
+                    importedPage.workspaceId(),
                     workspaceId
             ) || parentPageIdById.containsKey(id)) {
                 throw invalidTree();
             }
             parentPageIdById.put(
                     id,
-                    notionPage.parentPageId()
+                    importedPage.parentId()
             );
         }
         validateParentReferences(parentPageIdById);
@@ -120,7 +120,7 @@ public class NotionPageTreeQueryService {
         }
     }
 
-    private NotionPageException invalidTree() {
-        return new NotionPageException(NotionPageErrorCode.NOTION_PAGE_TREE_INVALID);
+    private ImportedPageException invalidTree() {
+        return new ImportedPageException(ImportedPageErrorCode.IMPORTED_PAGE_TREE_INVALID);
     }
 }
