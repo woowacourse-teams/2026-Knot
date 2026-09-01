@@ -72,12 +72,22 @@ public class ContentImportRun {
                 totalPageCount,
                 processedPageCount
         );
+        validateCreatedAt(createdAt);
+        validatePendingPageCount(
+                status,
+                processedPageCount
+        );
+        validateCompletedPageCounts(
+                status,
+                totalPageCount,
+                processedPageCount
+        );
         validateStatusTimestamps(
                 status,
                 startedAt,
-                completedAt
+                completedAt,
+                createdAt
         );
-        validateCreatedAt(createdAt);
         this.workspaceId = workspaceId;
         this.contentSourceConnectionId = contentSourceConnectionId;
         this.requestedByMemberId = requestedByMemberId;
@@ -110,6 +120,25 @@ public class ContentImportRun {
                 processedPageCount,
                 startedAt,
                 completedAt,
+                createdAt
+        );
+    }
+
+    public static ContentImportRun createPending(
+            Long workspaceId,
+            Long contentSourceConnectionId,
+            Long requestedByMemberId,
+            Instant createdAt
+    ) {
+        return new ContentImportRun(
+                workspaceId,
+                contentSourceConnectionId,
+                requestedByMemberId,
+                ContentImportStatus.PENDING,
+                null,
+                0,
+                null,
+                null,
                 createdAt
         );
     }
@@ -164,6 +193,12 @@ public class ContentImportRun {
         this.lastHeartbeatAt = null;
     }
 
+    public void validateRetryable() {
+        if (status != ContentImportStatus.FAILED) {
+            throw new ContentImportException(ContentImportErrorCode.CONTENT_IMPORT_NOT_RETRYABLE);
+        }
+    }
+
     private void validateId(Long id) {
         if (id == null || id <= 0) {
             throw invalidImportRun();
@@ -188,15 +223,37 @@ public class ContentImportRun {
         }
     }
 
+    private void validatePendingPageCount(
+            ContentImportStatus status,
+            int processedPageCount
+    ) {
+        if (status == ContentImportStatus.PENDING && processedPageCount != 0) {
+            throw invalidImportRun();
+        }
+    }
+
+    private void validateCompletedPageCounts(
+            ContentImportStatus status,
+            Integer totalPageCount,
+            int processedPageCount
+    ) {
+        if (status == ContentImportStatus.COMPLETED
+                && (totalPageCount == null || totalPageCount < 1 || processedPageCount != totalPageCount)) {
+            throw invalidImportRun();
+        }
+    }
+
     private void validateStatusTimestamps(
             ContentImportStatus status,
             Instant startedAt,
-            Instant completedAt
+            Instant completedAt,
+            Instant createdAt
     ) {
         boolean valid = switch (status) {
             case PENDING -> startedAt == null && completedAt == null;
-            case RUNNING -> startedAt != null && completedAt == null;
-            case COMPLETED, FAILED -> startedAt != null && completedAt != null && !completedAt.isBefore(startedAt);
+            case RUNNING -> startedAt != null && completedAt == null && !startedAt.isBefore(createdAt);
+            case COMPLETED, FAILED -> startedAt != null && completedAt != null && !startedAt.isBefore(createdAt)
+                    && !completedAt.isBefore(startedAt);
         };
         if (!valid) {
             throw invalidImportRun();

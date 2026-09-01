@@ -51,6 +51,7 @@ public class ImportedPageRepositoryAdapter implements ImportedPageRepository {
                                 projection.getId(),
                                 projection.getWorkspaceId(),
                                 projection.getParentId(),
+                                projection.getHasParentReference(),
                                 projection.getTitle(),
                                 projection.getPosition(),
                                 projection.getSourceUrl()

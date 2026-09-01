@@ -202,6 +202,36 @@ class ContentImportRunRepositoryIntegrationTest {
         assertThat(failureReasonColumnExists).isFalse();
     }
 
+    @DisplayName("Page 한 건을 모두 처리하고 생성·시작·완료 시각이 같아도 완료 Import Run을 저장한다")
+    @Test
+    void save_success_completedBoundaryValues() {
+        // given
+        TestContext context = saveContext("boundary");
+        ContentImportRun importRun = ContentImportRun.create(
+                context.workspaceId(),
+                context.connectionId(),
+                context.memberId(),
+                ContentImportStatus.COMPLETED,
+                1,
+                1,
+                CREATED_AT,
+                CREATED_AT,
+                CREATED_AT
+        );
+
+        // when
+        ContentImportRun savedImportRun = saveAndReload(
+                importRun,
+                context.memberId()
+        );
+
+        // then
+        assertThat(savedImportRun.getTotalPageCount()).isEqualTo(1);
+        assertThat(savedImportRun.getProcessedPageCount()).isEqualTo(1);
+        assertThat(savedImportRun.getStartedAt()).isEqualTo(CREATED_AT);
+        assertThat(savedImportRun.getCompletedAt()).isEqualTo(CREATED_AT);
+    }
+
     @DisplayName("Import Run의 상태, Page 수와 시작·완료 시각 DB 제약을 지킨다")
     @MethodSource("invalidConstraintCases")
     @ParameterizedTest(name = "{0}")
@@ -211,7 +241,8 @@ class ContentImportRunRepositoryIntegrationTest {
             Integer totalPageCount,
             int processedPageCount,
             String startedAt,
-            String completedAt
+            String completedAt,
+            String createdAt
     ) {
         // given
         TestContext context = saveContext(caseName);
@@ -280,7 +311,7 @@ class ContentImportRunRepositoryIntegrationTest {
                 )
                 .param(
                         "createdAt",
-                        CREATED_AT.toString()
+                        createdAt
                 )
                 .update();
 
@@ -479,7 +510,8 @@ class ContentImportRunRepositoryIntegrationTest {
                         10,
                         0,
                         null,
-                        null
+                        null,
+                        CREATED_AT.toString()
                 ),
                 Arguments.of(
                         "invalid-page-count",
@@ -488,7 +520,8 @@ class ContentImportRunRepositoryIntegrationTest {
                         11,
                         CREATED_AT.plusSeconds(1)
                                 .toString(),
-                        null
+                        null,
+                        CREATED_AT.toString()
                 ),
                 Arguments.of(
                         "pending-with-started-at",
@@ -497,7 +530,8 @@ class ContentImportRunRepositoryIntegrationTest {
                         0,
                         CREATED_AT.plusSeconds(1)
                                 .toString(),
-                        null
+                        null,
+                        CREATED_AT.toString()
                 ),
                 Arguments.of(
                         "pending-with-completed-at",
@@ -506,7 +540,17 @@ class ContentImportRunRepositoryIntegrationTest {
                         0,
                         null,
                         CREATED_AT.plusSeconds(2)
-                                .toString()
+                                .toString(),
+                        CREATED_AT.toString()
+                ),
+                Arguments.of(
+                        "pending-with-processed-page-count",
+                        "PENDING",
+                        10,
+                        1,
+                        null,
+                        null,
+                        CREATED_AT.toString()
                 ),
                 Arguments.of(
                         "running-without-started-at",
@@ -514,7 +558,8 @@ class ContentImportRunRepositoryIntegrationTest {
                         null,
                         0,
                         null,
-                        null
+                        null,
+                        CREATED_AT.toString()
                 ),
                 Arguments.of(
                         "running-with-completed-at",
@@ -524,7 +569,8 @@ class ContentImportRunRepositoryIntegrationTest {
                         CREATED_AT.plusSeconds(1)
                                 .toString(),
                         CREATED_AT.plusSeconds(2)
-                                .toString()
+                                .toString(),
+                        CREATED_AT.toString()
                 ),
                 Arguments.of(
                         "completed-without-started-at",
@@ -533,7 +579,8 @@ class ContentImportRunRepositoryIntegrationTest {
                         10,
                         null,
                         CREATED_AT.plusSeconds(2)
-                                .toString()
+                                .toString(),
+                        CREATED_AT.toString()
                 ),
                 Arguments.of(
                         "completed-without-completed-at",
@@ -542,7 +589,41 @@ class ContentImportRunRepositoryIntegrationTest {
                         10,
                         CREATED_AT.plusSeconds(1)
                                 .toString(),
-                        null
+                        null,
+                        CREATED_AT.toString()
+                ),
+                Arguments.of(
+                        "completed-without-total-page-count",
+                        "COMPLETED",
+                        null,
+                        0,
+                        CREATED_AT.plusSeconds(1)
+                                .toString(),
+                        CREATED_AT.plusSeconds(2)
+                                .toString(),
+                        CREATED_AT.toString()
+                ),
+                Arguments.of(
+                        "completed-with-zero-pages",
+                        "COMPLETED",
+                        0,
+                        0,
+                        CREATED_AT.plusSeconds(1)
+                                .toString(),
+                        CREATED_AT.plusSeconds(2)
+                                .toString(),
+                        CREATED_AT.toString()
+                ),
+                Arguments.of(
+                        "completed-with-unprocessed-page",
+                        "COMPLETED",
+                        10,
+                        9,
+                        CREATED_AT.plusSeconds(1)
+                                .toString(),
+                        CREATED_AT.plusSeconds(2)
+                                .toString(),
+                        CREATED_AT.toString()
                 ),
                 Arguments.of(
                         "failed-without-started-at",
@@ -551,7 +632,8 @@ class ContentImportRunRepositoryIntegrationTest {
                         4,
                         null,
                         CREATED_AT.plusSeconds(2)
-                                .toString()
+                                .toString(),
+                        CREATED_AT.toString()
                 ),
                 Arguments.of(
                         "failed-without-completed-at",
@@ -560,7 +642,8 @@ class ContentImportRunRepositoryIntegrationTest {
                         4,
                         CREATED_AT.plusSeconds(1)
                                 .toString(),
-                        null
+                        null,
+                        CREATED_AT.toString()
                 ),
                 Arguments.of(
                         "completed-before-started-at",
@@ -570,7 +653,8 @@ class ContentImportRunRepositoryIntegrationTest {
                         CREATED_AT.plusSeconds(2)
                                 .toString(),
                         CREATED_AT.plusSeconds(1)
-                                .toString()
+                                .toString(),
+                        CREATED_AT.toString()
                 ),
                 Arguments.of(
                         "failed-before-started-at",
@@ -580,7 +664,40 @@ class ContentImportRunRepositoryIntegrationTest {
                         CREATED_AT.plusSeconds(2)
                                 .toString(),
                         CREATED_AT.plusSeconds(1)
-                                .toString()
+                                .toString(),
+                        CREATED_AT.toString()
+                ),
+                Arguments.of(
+                        "running-before-created-at",
+                        "RUNNING",
+                        null,
+                        0,
+                        CREATED_AT.minusSeconds(1)
+                                .toString(),
+                        null,
+                        CREATED_AT.toString()
+                ),
+                Arguments.of(
+                        "completed-started-before-created-at",
+                        "COMPLETED",
+                        10,
+                        10,
+                        CREATED_AT.minusSeconds(1)
+                                .toString(),
+                        CREATED_AT.plusSeconds(1)
+                                .toString(),
+                        CREATED_AT.toString()
+                ),
+                Arguments.of(
+                        "failed-started-before-created-at",
+                        "FAILED",
+                        10,
+                        4,
+                        CREATED_AT.minusSeconds(1)
+                                .toString(),
+                        CREATED_AT.plusSeconds(1)
+                                .toString(),
+                        CREATED_AT.toString()
                 )
         );
     }

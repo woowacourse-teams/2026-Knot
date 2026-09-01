@@ -1,8 +1,10 @@
 package com.knot.backend.workspace.infrastructure.persistence;
 
 import com.knot.backend.workspace.domain.ContentImportRun;
+import com.knot.backend.workspace.domain.ContentImportStatus;
 import jakarta.persistence.LockModeType;
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -57,6 +59,11 @@ interface ContentImportRunJpaRepository extends JpaRepository<ContentImportRun, 
     List<ContentImportRun> findStaleRunningForUpdate(
             long runningTimeoutMillis,
             int batchSize
+    );
+
+    Optional<ContentImportRun> findFirstByContentSourceConnectionIdAndStatusIn(
+            Long contentSourceConnectionId,
+            Collection<ContentImportStatus> statuses
     );
 
     @Query("""

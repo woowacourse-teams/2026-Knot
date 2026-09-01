@@ -1,6 +1,11 @@
 import { ChangeEvent, KeyboardEvent, SubmitEvent, useState } from "react";
+import { useParams } from "react-router";
+import useNavigateToChatSession from "@hooks/domain/chat/useNavigateToChatSession";
 
 export const useChatField = () => {
+  const { workspaceId, sessionId } = useParams();
+  const { navigateToChatSession } = useNavigateToChatSession();
+
   const [message, setMessage] = useState("");
 
   const canSubimt = message.trim().length > 0;
@@ -21,6 +26,11 @@ export const useChatField = () => {
     if (message.trim().length === 0) return;
 
     // TODO: 메시지 전송 mutation 연결
+    setMessage("");
+
+    // 첫 질문일 때. mutate 응답 대신 임시 ID로 url 이동
+    if (!workspaceId || sessionId) return;
+    navigateToChatSession({ workspaceId, sessionId: String(Date.now()) });
   };
 
   return {

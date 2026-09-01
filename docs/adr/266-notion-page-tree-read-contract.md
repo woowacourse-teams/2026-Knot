@@ -43,7 +43,7 @@ core domain/application은 특정 외부 공급자에 묶이지 않도록 `Impor
 
 `imported_pages`는 `import_run_id`별 Page 집합을 보존하고, `imported_page_publications`는 Workspace마다 마지막으로 발행된 Import Run 하나를 가리킨다. 조회는 publication pointer가 가리키는 `COMPLETED` 실행의 Page metadata만 읽는다. 실행 중이거나 실패한 Import의 Page가 같은 저장소에 있어도 조회 결과에는 포함하지 않는다.
 
-Page 본문은 Tree 응답 계약이 아니므로 조회 Repository는 Entity 전체가 아니라 `id`, `workspaceId`, `parentId`, `title`, `position`, `sourceUrl` projection만 읽는다. persistence는 저장된 `parentExternalPageId`를 부모 Page의 내부 `id`로 조인하고, Presentation은 `parentId`와 `sourceUrl`을 기존 JSON 필드인 `parentPageId`, `notionUrl`로 매핑한다. 실제 수집과 publication pointer 전환은 후속 Publish 작업이 같은 transaction에서 처리한다.
+Page 본문은 Tree 응답 계약이 아니므로 조회 Repository는 Entity 전체가 아니라 `id`, `workspaceId`, `parentId`, `hasParentReference`, `title`, `position`, `sourceUrl` projection만 읽는다. persistence는 저장된 `parentExternalPageId`를 부모 Page의 내부 `id`로 조인하고, 원래 부모 참조 존재 여부를 함께 보존해 실제 root와 깨진 부모 join을 구분한다. Presentation은 `parentId`와 `sourceUrl`을 기존 JSON 필드인 `parentPageId`, `notionUrl`로 매핑한다. 실제 수집과 publication pointer 전환은 후속 Publish 작업이 같은 transaction에서 처리한다.
 
 ## 결과
 

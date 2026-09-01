@@ -8,6 +8,8 @@ interface ImportedPageMetadataProjection {
 
     Long getParentId();
 
+    boolean getHasParentReference();
+
     String getTitle();
 
     int getPosition();

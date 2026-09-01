@@ -16,6 +16,12 @@ export default (env, argv) => {
     process.loadEnvFile(envFile);
   }
 
+  // env에 API_MOCKING이 없으면 개발 모드에서만 켜요 (.env.development가 gitignore라 모드가 기본값이에요)
+  const isApiMockingEnabled =
+    process.env.API_MOCKING === undefined
+      ? isDev
+      : process.env.API_MOCKING === "true";
+
   return {
     entry: "./src/index.tsx", // 모듈 진입점
     devtool: isDev ? "eval-source-map" : "source-map", // 개발: 빠르고 원본 그대로 / 프로덕션: 별도 .map 파일
@@ -26,9 +32,11 @@ export default (env, argv) => {
       clean: true, // 빌드 시 이전 산출물을 제거해요
     },
     devServer: {
-      static: {
-        directory: path.join(__dirname, "dist"),
-      },
+      static: [
+        { directory: path.join(__dirname, "dist") },
+        // msw의 mockServiceWorker.js를 개발 서버에서만 서빙해요
+        { directory: path.join(__dirname, "public") },
+      ],
       hot: true,
       open: true,
       port: 3000,
@@ -172,6 +180,8 @@ ${exports}
       }),
       new webpack.DefinePlugin({
         "process.env.API_BASE_URL": JSON.stringify(process.env.API_BASE_URL),
+        // 문자열 리터럴로 넣어 src/index.tsx의 분기가 빌드 시점에 접혀요
+        "process.env.API_MOCKING": JSON.stringify(String(isApiMockingEnabled)),
       }),
     ],
   };

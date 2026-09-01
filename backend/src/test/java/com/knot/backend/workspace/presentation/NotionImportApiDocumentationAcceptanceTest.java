@@ -29,6 +29,7 @@ import org.springframework.test.web.servlet.ResultActions;
 @TestConstructor(autowireMode = TestConstructor.AutowireMode.ALL)
 class NotionImportApiDocumentationAcceptanceTest {
     private static final String RESPONSE_REF = "#/components/schemas/NotionImportStatusResponse";
+    private static final String START_RESPONSE_REF = "#/components/schemas/NotionImportStartResponse";
     private static final String ERROR_RESPONSE_REF = "#/components/schemas/ErrorResponse";
 
     private final MockMvc mockMvc;
@@ -69,12 +70,60 @@ class NotionImportApiDocumentationAcceptanceTest {
                                 .value(ERROR_RESPONSE_REF)
                 )
                 .andExpect(
+                        jsonPath(
+                                operationPath + ".responses['400'].content['application/json']"
+                                        + ".examples.invalidNotionImportRunId.value.code"
+                        ).value("INVALID_NOTION_IMPORT_RUN_ID")
+                )
+                .andExpect(
+                        jsonPath(
+                                operationPath + ".responses['400'].content['application/json']"
+                                        + ".examples.invalidNotionImportRunId.value.message"
+                        ).value("Notion Import 실행 ID가 올바르지 않습니다")
+                )
+                .andExpect(
+                        jsonPath(
+                                operationPath + ".responses['400'].content['application/json']"
+                                        + ".examples.invalidParameter.value.code"
+                        ).value("INVALID_PARAMETER")
+                )
+                .andExpect(
+                        jsonPath(
+                                operationPath + ".responses['400'].content['application/json']"
+                                        + ".examples.invalidParameter.value.message"
+                        ).value("요청 파라미터 형식이 올바르지 않습니다")
+                )
+                .andExpect(
                         jsonPath(operationPath + ".responses['401'].content['application/json'].schema['$ref']")
                                 .value(ERROR_RESPONSE_REF)
                 )
                 .andExpect(
+                        jsonPath(
+                                operationPath + ".responses['401'].content['application/json']"
+                                        + ".examples.unauthenticated.value.code"
+                        ).value("UNAUTHENTICATED")
+                )
+                .andExpect(
+                        jsonPath(
+                                operationPath + ".responses['401'].content['application/json']"
+                                        + ".examples.unauthenticated.value.message"
+                        ).value("인증이 필요합니다")
+                )
+                .andExpect(
                         jsonPath(operationPath + ".responses['404'].content['application/json'].schema['$ref']")
                                 .value(ERROR_RESPONSE_REF)
+                )
+                .andExpect(
+                        jsonPath(
+                                operationPath + ".responses['404'].content['application/json']"
+                                        + ".examples.notionImportRunNotFound.value.code"
+                        ).value("NOTION_IMPORT_RUN_NOT_FOUND")
+                )
+                .andExpect(
+                        jsonPath(
+                                operationPath + ".responses['404'].content['application/json']"
+                                        + ".examples.notionImportRunNotFound.value.message"
+                        ).value("Notion Import 실행을 찾을 수 없습니다")
                 )
                 .andExpect(jsonPath(operationPath + ".responses['403']").doesNotExist())
                 .andExpect(jsonPath(schemaPath + ".id").exists())
@@ -119,6 +168,128 @@ class NotionImportApiDocumentationAcceptanceTest {
                                 containsInAnyOrder(
                                         "string",
                                         "null"
+                                )
+                        )
+                );
+    }
+
+    @DisplayName("OpenAPI JSON에 수동 Import 시작의 빈 요청, 보안, 성공과 충돌 응답 계약을 공개한다")
+    @Test
+    void openApi_success_notionImportStartContract() throws Exception {
+        // given
+        String openApiPath = "/v3/api-docs";
+        String operationPath = "$.paths['/api/v1/workspaces/{workspaceId}/imports'].post";
+        String schemaPath = "$.components.schemas.NotionImportStartResponse";
+
+        // when
+        ResultActions result = mockMvc.perform(get(openApiPath));
+
+        // then
+        result.andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith("application/json"))
+                .andExpect(jsonPath(operationPath + ".summary").value("수동 Notion Import 시작"))
+                .andExpect(jsonPath(operationPath + ".security[0].accessTokenCookie").exists())
+                .andExpect(jsonPath(operationPath + ".requestBody").doesNotExist())
+                .andExpect(jsonPath(operationPath + ".parameters[?(@.name == 'workspaceId')]").exists())
+                .andExpect(
+                        jsonPath(operationPath + ".parameters[?(@.name == 'workspaceId')].required")
+                                .value(hasItem(true))
+                )
+                .andExpect(jsonPath(operationPath + ".parameters[?(@.name == 'X-XSRF-TOKEN')]").exists())
+                .andExpect(
+                        jsonPath(operationPath + ".parameters[?(@.name == 'X-XSRF-TOKEN')].required")
+                                .value(hasItem(true))
+                )
+                .andExpect(
+                        jsonPath(operationPath + ".responses['202'].content['application/json'].schema['$ref']")
+                                .value(START_RESPONSE_REF)
+                )
+                .andExpect(jsonPath(operationPath + ".responses['202'].headers.Location").exists())
+                .andExpect(
+                        jsonPath(operationPath + ".responses['400'].content['application/json'].schema['$ref']")
+                                .value(ERROR_RESPONSE_REF)
+                )
+                .andExpect(
+                        jsonPath(operationPath + ".responses['401'].content['application/json'].schema['$ref']")
+                                .value(ERROR_RESPONSE_REF)
+                )
+                .andExpect(
+                        jsonPath(operationPath + ".responses['403'].content['application/json'].schema['$ref']")
+                                .value(ERROR_RESPONSE_REF)
+                )
+                .andExpect(
+                        jsonPath(operationPath + ".responses['404'].content['application/json'].schema['$ref']")
+                                .value(ERROR_RESPONSE_REF)
+                )
+                .andExpect(jsonPath(operationPath + ".responses['409'].headers.Location").exists())
+                .andExpect(
+                        jsonPath(
+                                operationPath + ".responses['409'].content['application/json'].schema.oneOf[*]['$ref']"
+                        ).value(
+                                containsInAnyOrder(
+                                        START_RESPONSE_REF,
+                                        ERROR_RESPONSE_REF
+                                )
+                        )
+                )
+                .andExpect(jsonPath(schemaPath + ".properties.id").exists());
+    }
+
+    @DisplayName("OpenAPI JSON에 실패 Import 재시도의 빈 요청, 보안, 성공과 충돌 응답 계약을 공개한다")
+    @Test
+    void openApi_success_notionImportRetryContract() throws Exception {
+        // given
+        String openApiPath = "/v3/api-docs";
+        String operationPath = "$.paths['/api/v1/imports/{importRunId}/retry'].post";
+
+        // when
+        ResultActions result = mockMvc.perform(get(openApiPath));
+
+        // then
+        result.andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith("application/json"))
+                .andExpect(jsonPath(operationPath + ".summary").value("실패한 Notion Import 재시도"))
+                .andExpect(jsonPath(operationPath + ".security[0].accessTokenCookie").exists())
+                .andExpect(jsonPath(operationPath + ".requestBody").doesNotExist())
+                .andExpect(jsonPath(operationPath + ".parameters[?(@.name == 'importRunId')]").exists())
+                .andExpect(
+                        jsonPath(operationPath + ".parameters[?(@.name == 'importRunId')].required")
+                                .value(hasItem(true))
+                )
+                .andExpect(jsonPath(operationPath + ".parameters[?(@.name == 'X-XSRF-TOKEN')]").exists())
+                .andExpect(
+                        jsonPath(operationPath + ".parameters[?(@.name == 'X-XSRF-TOKEN')].required")
+                                .value(hasItem(true))
+                )
+                .andExpect(
+                        jsonPath(operationPath + ".responses['202'].content['application/json'].schema['$ref']")
+                                .value(START_RESPONSE_REF)
+                )
+                .andExpect(jsonPath(operationPath + ".responses['202'].headers.Location").exists())
+                .andExpect(
+                        jsonPath(operationPath + ".responses['400'].content['application/json'].schema['$ref']")
+                                .value(ERROR_RESPONSE_REF)
+                )
+                .andExpect(
+                        jsonPath(operationPath + ".responses['401'].content['application/json'].schema['$ref']")
+                                .value(ERROR_RESPONSE_REF)
+                )
+                .andExpect(
+                        jsonPath(operationPath + ".responses['403'].content['application/json'].schema['$ref']")
+                                .value(ERROR_RESPONSE_REF)
+                )
+                .andExpect(
+                        jsonPath(operationPath + ".responses['404'].content['application/json'].schema['$ref']")
+                                .value(ERROR_RESPONSE_REF)
+                )
+                .andExpect(jsonPath(operationPath + ".responses['409'].headers.Location").exists())
+                .andExpect(
+                        jsonPath(
+                                operationPath + ".responses['409'].content['application/json'].schema.oneOf[*]['$ref']"
+                        ).value(
+                                containsInAnyOrder(
+                                        START_RESPONSE_REF,
+                                        ERROR_RESPONSE_REF
                                 )
                         )
                 );

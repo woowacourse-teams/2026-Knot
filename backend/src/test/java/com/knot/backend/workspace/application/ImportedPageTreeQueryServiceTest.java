@@ -203,6 +203,7 @@ class ImportedPageTreeQueryServiceTest {
                         reference -> importedPage(
                                 reference.id(),
                                 reference.parentId(),
+                                reference.hasParentReference(),
                                 "Page " + reference.id(),
                                 0,
                                 "https://content.example/pages/" + reference.id()
@@ -242,10 +243,29 @@ class ImportedPageTreeQueryServiceTest {
             int position,
             String sourceUrl
     ) {
+        return importedPage(
+                id,
+                parentId,
+                parentId != null,
+                title,
+                position,
+                sourceUrl
+        );
+    }
+
+    private ImportedPageMetadata importedPage(
+            Long id,
+            Long parentId,
+            boolean hasParentReference,
+            String title,
+            int position,
+            String sourceUrl
+    ) {
         return new ImportedPageMetadata(
                 id,
                 WORKSPACE_ID,
                 parentId,
+                hasParentReference,
                 title,
                 position,
                 sourceUrl
@@ -260,6 +280,16 @@ class ImportedPageTreeQueryServiceTest {
                                 new PageReference(
                                         1L,
                                         2L
+                                )
+                        )
+                ),
+                Arguments.of(
+                        "부모 참조는 있지만 Join된 부모 ID 없음",
+                        List.of(
+                                new PageReference(
+                                        1L,
+                                        null,
+                                        true
                                 )
                         )
                 ),
@@ -290,7 +320,18 @@ class ImportedPageTreeQueryServiceTest {
 
     private record PageReference(
             Long id,
-            Long parentId
+            Long parentId,
+            boolean hasParentReference
     ) {
+        private PageReference(
+                Long id,
+                Long parentId
+        ) {
+            this(
+                    id,
+                    parentId,
+                    parentId != null
+            );
+        }
     }
 }

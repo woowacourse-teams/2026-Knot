@@ -21,6 +21,8 @@ public interface ContentImportRunRepository {
             int batchSize
     );
 
+    Optional<ContentImportRun> findActiveByContentSourceConnectionId(Long contentSourceConnectionId);
+
     Optional<ContentImportRun> findVisibleByIdAndMemberId(
             Long importRunId,
             long memberId
