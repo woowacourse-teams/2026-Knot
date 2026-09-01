@@ -1,7 +1,8 @@
-package com.knot.backend.workspace.domain;
+package com.knot.backend.workspace.presentation;
 
 import com.knot.backend.global.exception.ErrorCategory;
 import com.knot.backend.global.exception.ErrorCode;
+import com.knot.backend.workspace.domain.ImportedPageErrorCode;
 import lombok.Getter;
 
 @Getter
@@ -30,5 +31,12 @@ public enum NotionPageErrorCode implements ErrorCode {
         this.category = category;
         this.code = code;
         this.message = message;
+    }
+
+    public static NotionPageErrorCode from(ImportedPageErrorCode errorCode) {
+        return switch (errorCode) {
+            case INVALID_IMPORTED_PAGE -> INVALID_NOTION_PAGE;
+            case IMPORTED_PAGE_TREE_INVALID -> NOTION_PAGE_TREE_INVALID;
+        };
     }
 }

@@ -12,7 +12,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
-class NotionImportRunTest {
+class ContentImportRunTest {
     private static final Instant CREATED_AT = Instant.parse("2026-08-31T00:00:00Z");
 
     @DisplayName("수동 Import 요청은 Page 수와 실행 시각이 비어 있는 PENDING Run을 생성한다")
@@ -24,7 +24,7 @@ class NotionImportRunTest {
         long requestedByMemberId = 3L;
 
         // when
-        NotionImportRun importRun = NotionImportRun.createPending(
+        ContentImportRun importRun = ContentImportRun.createPending(
                 workspaceId,
                 connectionId,
                 requestedByMemberId,
@@ -35,7 +35,7 @@ class NotionImportRunTest {
         assertThat(importRun.getWorkspaceId()).isEqualTo(workspaceId);
         assertThat(importRun.getContentSourceConnectionId()).isEqualTo(connectionId);
         assertThat(importRun.getRequestedByMemberId()).isEqualTo(requestedByMemberId);
-        assertThat(importRun.getStatus()).isEqualTo(NotionImportStatus.PENDING);
+        assertThat(importRun.getStatus()).isEqualTo(ContentImportStatus.PENDING);
         assertThat(importRun.getTotalPageCount()).isNull();
         assertThat(importRun.getProcessedPageCount()).isZero();
         assertThat(importRun.getStartedAt()).isNull();
@@ -43,41 +43,15 @@ class NotionImportRunTest {
         assertThat(importRun.getCreatedAt()).isEqualTo(CREATED_AT);
     }
 
-    @DisplayName("실패 상태는 저장값 없이 고정된 공개 사유를 반환한다")
-    @Test
-    void publicFailureReason_success_failedStatus() {
-        // given
-        NotionImportRun importRun = createImportRun(NotionImportStatus.FAILED);
-
-        // when
-        String publicFailureReason = importRun.publicFailureReason();
-
-        // then
-        assertThat(publicFailureReason).isEqualTo("Notion 문서를 가져오지 못했습니다");
-    }
-
-    @DisplayName("실패 상태가 아니면 공개 실패 사유를 반환하지 않는다")
-    @Test
-    void publicFailureReason_success_nonFailedStatus() {
-        // given
-        NotionImportRun importRun = createImportRun(NotionImportStatus.RUNNING);
-
-        // when
-        String publicFailureReason = importRun.publicFailureReason();
-
-        // then
-        assertThat(publicFailureReason).isNull();
-    }
-
     @DisplayName("처리한 Page 수가 전체 Page 수보다 크면 생성할 수 없다")
     @Test
     void create_failure_processedPageCountExceedsTotal() {
         // given
-        ThrowingCallable action = () -> NotionImportRun.create(
+        ThrowingCallable action = () -> ContentImportRun.create(
                 1L,
                 2L,
                 3L,
-                NotionImportStatus.RUNNING,
+                ContentImportStatus.RUNNING,
                 10,
                 11,
                 CREATED_AT.plusSeconds(1),
@@ -89,9 +63,9 @@ class NotionImportRunTest {
         Throwable thrown = catchThrowable(action);
 
         // then
-        assertThat(thrown).isInstanceOf(NotionImportException.class)
-                .extracting(exception -> ((NotionImportException) exception).getErrorCode())
-                .isEqualTo(NotionImportErrorCode.INVALID_NOTION_IMPORT_RUN);
+        assertThat(thrown).isInstanceOf(ContentImportException.class)
+                .extracting(exception -> ((ContentImportException) exception).getErrorCode())
+                .isEqualTo(ContentImportErrorCode.INVALID_CONTENT_IMPORT_RUN);
     }
 
     @DisplayName("상태에 맞는 시작·완료 시각 조합으로 생성한다")
@@ -99,14 +73,14 @@ class NotionImportRunTest {
     @ParameterizedTest(name = "{0}")
     void create_success_validStatusTimestampCombination(
             String caseName,
-            NotionImportStatus status,
+            ContentImportStatus status,
             Instant startedAt,
             Instant completedAt
     ) {
         // given
 
         // when
-        NotionImportRun importRun = createImportRun(
+        ContentImportRun importRun = createImportRun(
                 status,
                 startedAt,
                 completedAt
@@ -122,7 +96,7 @@ class NotionImportRunTest {
     @ParameterizedTest(name = "{0}")
     void create_failure_invalidStatusTimestampCombination(
             String caseName,
-            NotionImportStatus status,
+            ContentImportStatus status,
             Instant startedAt,
             Instant completedAt
     ) {
@@ -137,12 +111,12 @@ class NotionImportRunTest {
         Throwable thrown = catchThrowable(action);
 
         // then
-        assertThat(thrown).isInstanceOf(NotionImportException.class)
-                .extracting(exception -> ((NotionImportException) exception).getErrorCode())
-                .isEqualTo(NotionImportErrorCode.INVALID_NOTION_IMPORT_RUN);
+        assertThat(thrown).isInstanceOf(ContentImportException.class)
+                .extracting(exception -> ((ContentImportException) exception).getErrorCode())
+                .isEqualTo(ContentImportErrorCode.INVALID_CONTENT_IMPORT_RUN);
     }
 
-    private NotionImportRun createImportRun(NotionImportStatus status) {
+    private ContentImportRun createImportRun(ContentImportStatus status) {
         return switch (status) {
             case PENDING -> createImportRun(
                     status,
@@ -162,12 +136,12 @@ class NotionImportRunTest {
         };
     }
 
-    private NotionImportRun createImportRun(
-            NotionImportStatus status,
+    private ContentImportRun createImportRun(
+            ContentImportStatus status,
             Instant startedAt,
             Instant completedAt
     ) {
-        return NotionImportRun.create(
+        return ContentImportRun.create(
                 1L,
                 2L,
                 3L,
@@ -184,25 +158,25 @@ class NotionImportRunTest {
         return Stream.of(
                 Arguments.of(
                         "pending",
-                        NotionImportStatus.PENDING,
+                        ContentImportStatus.PENDING,
                         null,
                         null
                 ),
                 Arguments.of(
                         "running",
-                        NotionImportStatus.RUNNING,
+                        ContentImportStatus.RUNNING,
                         CREATED_AT.plusSeconds(1),
                         null
                 ),
                 Arguments.of(
                         "completed",
-                        NotionImportStatus.COMPLETED,
+                        ContentImportStatus.COMPLETED,
                         CREATED_AT.plusSeconds(1),
                         CREATED_AT.plusSeconds(2)
                 ),
                 Arguments.of(
                         "failed",
-                        NotionImportStatus.FAILED,
+                        ContentImportStatus.FAILED,
                         CREATED_AT.plusSeconds(1),
                         CREATED_AT.plusSeconds(2)
                 )
@@ -213,61 +187,61 @@ class NotionImportRunTest {
         return Stream.of(
                 Arguments.of(
                         "pending-with-started-at",
-                        NotionImportStatus.PENDING,
+                        ContentImportStatus.PENDING,
                         CREATED_AT.plusSeconds(1),
                         null
                 ),
                 Arguments.of(
                         "pending-with-completed-at",
-                        NotionImportStatus.PENDING,
+                        ContentImportStatus.PENDING,
                         null,
                         CREATED_AT.plusSeconds(2)
                 ),
                 Arguments.of(
                         "running-without-started-at",
-                        NotionImportStatus.RUNNING,
+                        ContentImportStatus.RUNNING,
                         null,
                         null
                 ),
                 Arguments.of(
                         "running-with-completed-at",
-                        NotionImportStatus.RUNNING,
+                        ContentImportStatus.RUNNING,
                         CREATED_AT.plusSeconds(1),
                         CREATED_AT.plusSeconds(2)
                 ),
                 Arguments.of(
                         "completed-without-started-at",
-                        NotionImportStatus.COMPLETED,
+                        ContentImportStatus.COMPLETED,
                         null,
                         CREATED_AT.plusSeconds(2)
                 ),
                 Arguments.of(
                         "completed-without-completed-at",
-                        NotionImportStatus.COMPLETED,
+                        ContentImportStatus.COMPLETED,
                         CREATED_AT.plusSeconds(1),
                         null
                 ),
                 Arguments.of(
                         "failed-without-started-at",
-                        NotionImportStatus.FAILED,
+                        ContentImportStatus.FAILED,
                         null,
                         CREATED_AT.plusSeconds(2)
                 ),
                 Arguments.of(
                         "failed-without-completed-at",
-                        NotionImportStatus.FAILED,
+                        ContentImportStatus.FAILED,
                         CREATED_AT.plusSeconds(1),
                         null
                 ),
                 Arguments.of(
                         "completed-before-started-at",
-                        NotionImportStatus.COMPLETED,
+                        ContentImportStatus.COMPLETED,
                         CREATED_AT.plusSeconds(2),
                         CREATED_AT.plusSeconds(1)
                 ),
                 Arguments.of(
                         "failed-before-started-at",
-                        NotionImportStatus.FAILED,
+                        ContentImportStatus.FAILED,
                         CREATED_AT.plusSeconds(2),
                         CREATED_AT.plusSeconds(1)
                 )

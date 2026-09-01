@@ -1,7 +1,8 @@
 package com.knot.backend.workspace.presentation;
 
 import com.knot.backend.auth.domain.AuthenticatedMember;
-import com.knot.backend.workspace.application.NotionPageTreeQueryService;
+import com.knot.backend.workspace.application.ImportedPageTreeQueryService;
+import com.knot.backend.workspace.domain.ImportedPageException;
 import com.knot.backend.workspace.presentation.dto.response.NotionPageTreeItemResponse;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -18,7 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/workspaces/{workspaceId}/notion-pages")
 @RequiredArgsConstructor
 public class NotionPageTreeController implements NotionPageTreeApi {
-    private final NotionPageTreeQueryService pageTreeQueryService;
+    private final ImportedPageTreeQueryService pageTreeQueryService;
 
     @Override
     @GetMapping(value = "/tree", produces = MediaType.APPLICATION_JSON_VALUE)
@@ -26,13 +27,18 @@ public class NotionPageTreeController implements NotionPageTreeApi {
             @PathVariable Long workspaceId,
             @AuthenticationPrincipal AuthenticatedMember authenticatedMember
     ) {
-        List<NotionPageTreeItemResponse> response = pageTreeQueryService.findTree(
-                workspaceId,
-                authenticatedMember.getMemberId()
-        )
-                .stream()
-                .map(NotionPageTreeItemResponse::from)
-                .toList();
+        List<NotionPageTreeItemResponse> response;
+        try {
+            response = pageTreeQueryService.findTree(
+                    workspaceId,
+                    authenticatedMember.getMemberId()
+            )
+                    .stream()
+                    .map(NotionPageTreeItemResponse::from)
+                    .toList();
+        } catch (ImportedPageException exception) {
+            throw NotionPageException.from(exception);
+        }
         return ResponseEntity.ok()
                 .cacheControl(CacheControl.noStore())
                 .body(response);

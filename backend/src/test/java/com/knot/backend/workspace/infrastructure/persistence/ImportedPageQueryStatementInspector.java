@@ -1,10 +1,10 @@
-package com.knot.backend.workspace.infrastructure.notion;
+package com.knot.backend.workspace.infrastructure.persistence;
 
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import org.hibernate.resource.jdbc.spi.StatementInspector;
 
-public class NotionPageQueryStatementInspector implements StatementInspector {
+public class ImportedPageQueryStatementInspector implements StatementInspector {
     private static final List<String> SQL_STATEMENTS = new CopyOnWriteArrayList<>();
 
     @Override
@@ -17,13 +17,13 @@ public class NotionPageQueryStatementInspector implements StatementInspector {
         SQL_STATEMENTS.clear();
     }
 
-    static List<String> selectsFromNotionPages() {
+    static List<String> selectsFromImportedPages() {
         return SQL_STATEMENTS.stream()
                 .filter(
                         sql -> sql.toLowerCase()
                                 .contains("select")
                                 && sql.toLowerCase()
-                                        .contains("notion_pages")
+                                        .contains("imported_pages")
                 )
                 .toList();
     }

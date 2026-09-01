@@ -1,11 +1,11 @@
 package com.knot.backend.workspace.domain;
 
-public record NotionPageMetadata(
+public record ImportedPageMetadata(
         Long id,
         Long workspaceId,
-        Long parentPageId,
+        Long parentId,
         String title,
         int position,
-        String notionUrl
+        String sourceUrl
 ) {
 }

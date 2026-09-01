@@ -11,9 +11,9 @@ import lombok.Getter;
 
 @Getter
 @Entity
-@Table(name = "notion_pages")
-public class NotionPage {
-    public static final int MAX_NOTION_PAGE_ID_LENGTH = 100;
+@Table(name = "imported_pages")
+public class ImportedPage {
+    public static final int MAX_EXTERNAL_PAGE_ID_LENGTH = 100;
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -25,11 +25,11 @@ public class NotionPage {
     @Column(name = "import_run_id", nullable = false, updatable = false)
     private Long importRunId;
 
-    @Column(name = "notion_page_id", nullable = false, length = MAX_NOTION_PAGE_ID_LENGTH, updatable = false)
-    private String notionPageId;
+    @Column(name = "external_page_id", nullable = false, length = MAX_EXTERNAL_PAGE_ID_LENGTH, updatable = false)
+    private String externalPageId;
 
-    @Column(name = "parent_page_id")
-    private Long parentPageId;
+    @Column(name = "parent_external_page_id", length = MAX_EXTERNAL_PAGE_ID_LENGTH, updatable = false)
+    private String parentExternalPageId;
 
     @Column(nullable = false, columnDefinition = "TEXT")
     private String title;
@@ -40,8 +40,8 @@ public class NotionPage {
     @Column(nullable = false)
     private int position;
 
-    @Column(name = "notion_url", nullable = false, columnDefinition = "TEXT")
-    private String notionUrl;
+    @Column(name = "source_url", nullable = false, columnDefinition = "TEXT")
+    private String sourceUrl;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
@@ -49,65 +49,68 @@ public class NotionPage {
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
-    protected NotionPage() {}
+    protected ImportedPage() {}
 
-    private NotionPage(
+    private ImportedPage(
             Long workspaceId,
             Long importRunId,
-            String notionPageId,
-            Long parentPageId,
+            String externalPageId,
+            String parentExternalPageId,
             String title,
             String markdownContent,
             int position,
-            String notionUrl,
+            String sourceUrl,
             Instant createdAt,
             Instant updatedAt
     ) {
         validateWorkspaceId(workspaceId);
         validateImportRunId(importRunId);
-        validateNotionPageId(notionPageId);
-        validateParentPageId(parentPageId);
+        validateExternalPageId(externalPageId);
+        validateParentExternalPageId(
+                externalPageId,
+                parentExternalPageId
+        );
         validateTitle(title);
         validateMarkdownContent(markdownContent);
         validatePosition(position);
-        validateNotionUrl(notionUrl);
+        validateSourceUrl(sourceUrl);
         validateTimestamps(
                 createdAt,
                 updatedAt
         );
         this.workspaceId = workspaceId;
         this.importRunId = importRunId;
-        this.notionPageId = notionPageId;
-        this.parentPageId = parentPageId;
+        this.externalPageId = externalPageId;
+        this.parentExternalPageId = parentExternalPageId;
         this.title = title;
         this.markdownContent = markdownContent;
         this.position = position;
-        this.notionUrl = notionUrl;
+        this.sourceUrl = sourceUrl;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
     }
 
-    public static NotionPage create(
+    public static ImportedPage create(
             Long workspaceId,
             Long importRunId,
-            String notionPageId,
-            Long parentPageId,
+            String externalPageId,
+            String parentExternalPageId,
             String title,
             String markdownContent,
             int position,
-            String notionUrl,
+            String sourceUrl,
             Instant createdAt,
             Instant updatedAt
     ) {
-        return new NotionPage(
+        return new ImportedPage(
                 workspaceId,
                 importRunId,
-                notionPageId,
-                parentPageId,
+                externalPageId,
+                parentExternalPageId,
                 title,
                 markdownContent,
                 position,
-                notionUrl,
+                sourceUrl,
                 createdAt,
                 updatedAt
         );
@@ -115,49 +118,55 @@ public class NotionPage {
 
     private void validateWorkspaceId(Long workspaceId) {
         if (workspaceId == null || workspaceId <= 0) {
-            throw invalidNotionPage();
+            throw invalidImportedPage();
         }
     }
 
     private void validateImportRunId(Long importRunId) {
         if (importRunId == null || importRunId <= 0) {
-            throw invalidNotionPage();
+            throw invalidImportedPage();
         }
     }
 
-    private void validateNotionPageId(String notionPageId) {
-        if (notionPageId == null || notionPageId.isBlank() || notionPageId.length() > MAX_NOTION_PAGE_ID_LENGTH) {
-            throw invalidNotionPage();
+    private void validateExternalPageId(String externalPageId) {
+        if (externalPageId == null || externalPageId.isBlank()
+                || externalPageId.length() > MAX_EXTERNAL_PAGE_ID_LENGTH) {
+            throw invalidImportedPage();
         }
     }
 
-    private void validateParentPageId(Long parentPageId) {
-        if (parentPageId != null && parentPageId <= 0) {
-            throw invalidNotionPage();
+    private void validateParentExternalPageId(
+            String externalPageId,
+            String parentExternalPageId
+    ) {
+        if (parentExternalPageId != null
+                && (parentExternalPageId.isBlank() || parentExternalPageId.length() > MAX_EXTERNAL_PAGE_ID_LENGTH
+                        || parentExternalPageId.equals(externalPageId))) {
+            throw invalidImportedPage();
         }
     }
 
     private void validateTitle(String title) {
         if (title == null) {
-            throw invalidNotionPage();
+            throw invalidImportedPage();
         }
     }
 
     private void validateMarkdownContent(String markdownContent) {
         if (markdownContent == null) {
-            throw invalidNotionPage();
+            throw invalidImportedPage();
         }
     }
 
     private void validatePosition(int position) {
         if (position < 0) {
-            throw invalidNotionPage();
+            throw invalidImportedPage();
         }
     }
 
-    private void validateNotionUrl(String notionUrl) {
-        if (notionUrl == null || notionUrl.isBlank()) {
-            throw invalidNotionPage();
+    private void validateSourceUrl(String sourceUrl) {
+        if (sourceUrl == null || sourceUrl.isBlank()) {
+            throw invalidImportedPage();
         }
     }
 
@@ -166,11 +175,11 @@ public class NotionPage {
             Instant updatedAt
     ) {
         if (createdAt == null || updatedAt == null || updatedAt.isBefore(createdAt)) {
-            throw invalidNotionPage();
+            throw invalidImportedPage();
         }
     }
 
-    private NotionPageException invalidNotionPage() {
-        return new NotionPageException(NotionPageErrorCode.INVALID_NOTION_PAGE);
+    private ImportedPageException invalidImportedPage() {
+        return new ImportedPageException(ImportedPageErrorCode.INVALID_IMPORTED_PAGE);
     }
 }

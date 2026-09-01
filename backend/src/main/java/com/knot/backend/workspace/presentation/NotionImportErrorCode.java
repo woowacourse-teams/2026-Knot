@@ -1,7 +1,8 @@
-package com.knot.backend.workspace.domain;
+package com.knot.backend.workspace.presentation;
 
 import com.knot.backend.global.exception.ErrorCategory;
 import com.knot.backend.global.exception.ErrorCode;
+import com.knot.backend.workspace.domain.ContentImportErrorCode;
 import lombok.Getter;
 
 @Getter
@@ -48,5 +49,13 @@ public enum NotionImportErrorCode implements ErrorCode {
         this.category = category;
         this.code = code;
         this.message = message;
+    }
+
+    public static NotionImportErrorCode from(ContentImportErrorCode errorCode) {
+        return switch (errorCode) {
+            case INVALID_CONTENT_IMPORT_RUN_ID -> INVALID_NOTION_IMPORT_RUN_ID;
+            case INVALID_CONTENT_IMPORT_RUN -> INVALID_NOTION_IMPORT_RUN;
+            case CONTENT_IMPORT_RUN_NOT_FOUND -> NOTION_IMPORT_RUN_NOT_FOUND;
+        };
     }
 }

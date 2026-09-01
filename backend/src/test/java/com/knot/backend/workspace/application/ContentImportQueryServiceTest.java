@@ -7,12 +7,12 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
-import com.knot.backend.workspace.application.dto.result.NotionImportStatusResult;
-import com.knot.backend.workspace.domain.NotionImportErrorCode;
-import com.knot.backend.workspace.domain.NotionImportException;
-import com.knot.backend.workspace.domain.NotionImportRun;
-import com.knot.backend.workspace.domain.NotionImportRunRepository;
-import com.knot.backend.workspace.domain.NotionImportStatus;
+import com.knot.backend.workspace.application.dto.result.ContentImportStatusResult;
+import com.knot.backend.workspace.domain.ContentImportErrorCode;
+import com.knot.backend.workspace.domain.ContentImportException;
+import com.knot.backend.workspace.domain.ContentImportRun;
+import com.knot.backend.workspace.domain.ContentImportRunRepository;
+import com.knot.backend.workspace.domain.ContentImportStatus;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.stream.Stream;
@@ -23,31 +23,29 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
-class NotionImportQueryServiceTest {
+class ContentImportQueryServiceTest {
     private static final Long IMPORT_RUN_ID = 1L;
     private static final long MEMBER_ID = 2L;
     private static final Instant CREATED_AT = Instant.parse("2026-08-31T00:00:00Z");
 
-    private final NotionImportRunRepository importRunRepository = mock(NotionImportRunRepository.class);
-    private final NotionImportQueryService service = new NotionImportQueryService(importRunRepository);
+    private final ContentImportRunRepository importRunRepository = mock(ContentImportRunRepository.class);
+    private final ContentImportQueryService service = new ContentImportQueryService(importRunRepository);
 
     @DisplayName("조회 가능한 Import Run의 네 상태를 응답 계약으로 변환한다")
     @MethodSource("statusCases")
     @ParameterizedTest(name = "{0}")
     void findStatus_success_statusContract(
-            NotionImportStatus status,
+            ContentImportStatus status,
             Integer totalPageCount,
             int processedPageCount,
-            String failureReason,
             Instant startedAt,
             Instant completedAt
     ) {
         // given
-        NotionImportRun importRun = mockImportRun(
+        ContentImportRun importRun = mockImportRun(
                 status,
                 totalPageCount,
                 processedPageCount,
-                failureReason,
                 startedAt,
                 completedAt
         );
@@ -59,19 +57,18 @@ class NotionImportQueryServiceTest {
         ).thenReturn(Optional.of(importRun));
 
         // when
-        NotionImportStatusResult result = service.findStatus(
+        ContentImportStatusResult result = service.findStatus(
                 IMPORT_RUN_ID,
                 MEMBER_ID
         );
 
         // then
         assertThat(result).isEqualTo(
-                new NotionImportStatusResult(
+                new ContentImportStatusResult(
                         IMPORT_RUN_ID,
                         status,
                         totalPageCount,
                         processedPageCount,
-                        failureReason,
                         CREATED_AT,
                         startedAt,
                         completedAt
@@ -96,9 +93,9 @@ class NotionImportQueryServiceTest {
         Throwable thrown = catchThrowable(action);
 
         // then
-        assertThat(thrown).isInstanceOf(NotionImportException.class)
-                .extracting(exception -> ((NotionImportException) exception).getErrorCode())
-                .isEqualTo(NotionImportErrorCode.INVALID_NOTION_IMPORT_RUN_ID);
+        assertThat(thrown).isInstanceOf(ContentImportException.class)
+                .extracting(exception -> ((ContentImportException) exception).getErrorCode())
+                .isEqualTo(ContentImportErrorCode.INVALID_CONTENT_IMPORT_RUN_ID);
         verifyNoInteractions(importRunRepository);
     }
 
@@ -121,25 +118,23 @@ class NotionImportQueryServiceTest {
         Throwable thrown = catchThrowable(action);
 
         // then
-        assertThat(thrown).isInstanceOf(NotionImportException.class)
-                .extracting(exception -> ((NotionImportException) exception).getErrorCode())
-                .isEqualTo(NotionImportErrorCode.NOTION_IMPORT_RUN_NOT_FOUND);
+        assertThat(thrown).isInstanceOf(ContentImportException.class)
+                .extracting(exception -> ((ContentImportException) exception).getErrorCode())
+                .isEqualTo(ContentImportErrorCode.CONTENT_IMPORT_RUN_NOT_FOUND);
     }
 
-    private NotionImportRun mockImportRun(
-            NotionImportStatus status,
+    private ContentImportRun mockImportRun(
+            ContentImportStatus status,
             Integer totalPageCount,
             int processedPageCount,
-            String failureReason,
             Instant startedAt,
             Instant completedAt
     ) {
-        NotionImportRun importRun = mock(NotionImportRun.class);
+        ContentImportRun importRun = mock(ContentImportRun.class);
         when(importRun.getId()).thenReturn(IMPORT_RUN_ID);
         when(importRun.getStatus()).thenReturn(status);
         when(importRun.getTotalPageCount()).thenReturn(totalPageCount);
         when(importRun.getProcessedPageCount()).thenReturn(processedPageCount);
-        when(importRun.publicFailureReason()).thenReturn(failureReason);
         when(importRun.getCreatedAt()).thenReturn(CREATED_AT);
         when(importRun.getStartedAt()).thenReturn(startedAt);
         when(importRun.getCompletedAt()).thenReturn(completedAt);
@@ -149,34 +144,30 @@ class NotionImportQueryServiceTest {
     private static Stream<Arguments> statusCases() {
         return Stream.of(
                 Arguments.of(
-                        NotionImportStatus.PENDING,
+                        ContentImportStatus.PENDING,
                         null,
                         0,
-                        null,
                         null,
                         null
                 ),
                 Arguments.of(
-                        NotionImportStatus.RUNNING,
+                        ContentImportStatus.RUNNING,
                         10,
                         4,
-                        null,
                         CREATED_AT.plusSeconds(1),
                         null
                 ),
                 Arguments.of(
-                        NotionImportStatus.COMPLETED,
+                        ContentImportStatus.COMPLETED,
                         10,
                         10,
-                        null,
                         CREATED_AT.plusSeconds(1),
                         CREATED_AT.plusSeconds(2)
                 ),
                 Arguments.of(
-                        NotionImportStatus.FAILED,
+                        ContentImportStatus.FAILED,
                         10,
                         4,
-                        "Notion 문서를 가져오지 못했습니다",
                         CREATED_AT.plusSeconds(1),
                         CREATED_AT.plusSeconds(2)
                 )

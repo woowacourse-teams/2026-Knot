@@ -70,7 +70,7 @@ class NotionImportAcceptanceTest {
     @BeforeEach
     void clearTables() {
         jdbcClient.sql("""
-                TRUNCATE TABLE notion_import_runs, content_source_connections, content_source_authorizations,
+                TRUNCATE TABLE content_import_runs, content_source_connections, content_source_authorizations,
                     workspace_members, workspaces, oauth_identities, members
                 RESTART IDENTITY CASCADE
                 """)
@@ -470,7 +470,7 @@ class NotionImportAcceptanceTest {
             Instant completedAt
     ) {
         return jdbcClient.sql("""
-                INSERT INTO notion_import_runs (
+                INSERT INTO content_import_runs (
                     workspace_id,
                     content_source_connection_id,
                     requested_by_member_id,
@@ -547,7 +547,7 @@ class NotionImportAcceptanceTest {
                     COALESCE(completed_at::text, 'null'),
                     created_at::text
                 )
-                FROM notion_import_runs
+                FROM content_import_runs
                 WHERE id = :importRunId
                 """)
                 .param(

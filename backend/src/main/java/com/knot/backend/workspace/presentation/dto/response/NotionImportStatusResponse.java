@@ -1,7 +1,7 @@
 package com.knot.backend.workspace.presentation.dto.response;
 
-import com.knot.backend.workspace.application.dto.result.NotionImportStatusResult;
-import com.knot.backend.workspace.domain.NotionImportStatus;
+import com.knot.backend.workspace.application.dto.result.ContentImportStatusResult;
+import com.knot.backend.workspace.domain.ContentImportStatus;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.Instant;
 
@@ -9,7 +9,7 @@ import java.time.Instant;
 // @formatter:off
 public record NotionImportStatusResponse(
         @Schema(description = "Import 실행 ID", example = "1") long id,
-        @Schema(description = "Import 상태", example = "RUNNING") NotionImportStatus status,
+        @Schema(description = "Import 상태", example = "RUNNING") ContentImportStatus status,
         @Schema(
                 description = "가져올 전체 Page 수, 아직 알 수 없으면 null",
                 example = "30",
@@ -34,17 +34,25 @@ public record NotionImportStatusResponse(
         ) Instant completedAt
 ) {
     // @formatter:on
+    private static final String FAILURE_REASON = "Notion 문서를 가져오지 못했습니다";
 
-    public static NotionImportStatusResponse from(NotionImportStatusResult result) {
+    public static NotionImportStatusResponse from(ContentImportStatusResult result) {
         return new NotionImportStatusResponse(
                 result.id(),
                 result.status(),
                 result.totalPageCount(),
                 result.processedPageCount(),
-                result.failureReason(),
+                failureReason(result.status()),
                 result.createdAt(),
                 result.startedAt(),
                 result.completedAt()
         );
+    }
+
+    private static String failureReason(ContentImportStatus status) {
+        if (status == ContentImportStatus.FAILED) {
+            return FAILURE_REASON;
+        }
+        return null;
     }
 }
