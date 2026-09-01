@@ -19,9 +19,11 @@ public interface NotionImportWorkerObserver {
             NotionImportFailureCategory category
     );
 
-    void staleRecovered(
-            int pendingCount,
-            int runningCount
+    void staleRecovered(int runningCount);
+
+    void heartbeatFailed(
+            Long importRunId,
+            Long workspaceId
     );
 
     void pollingFailed();

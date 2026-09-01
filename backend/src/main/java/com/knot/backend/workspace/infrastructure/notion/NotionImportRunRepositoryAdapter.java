@@ -29,14 +29,22 @@ public class NotionImportRunRepositoryAdapter implements NotionImportRunReposito
     }
 
     @Override
-    public List<NotionImportRun> findStaleForUpdate(
-            Instant pendingCutoff,
-            Instant runningCutoff,
+    public boolean heartbeatIfRunning(Long importRunId) {
+        return importRunJpaRepository.heartbeatIfRunning(importRunId) == 1;
+    }
+
+    @Override
+    public Instant currentDatabaseTime() {
+        return importRunJpaRepository.currentDatabaseTime();
+    }
+
+    @Override
+    public List<NotionImportRun> findStaleRunningForUpdate(
+            long runningTimeoutMillis,
             int batchSize
     ) {
-        return importRunJpaRepository.findStaleForUpdate(
-                pendingCutoff,
-                runningCutoff,
+        return importRunJpaRepository.findStaleRunningForUpdate(
+                runningTimeoutMillis,
                 batchSize
         );
     }

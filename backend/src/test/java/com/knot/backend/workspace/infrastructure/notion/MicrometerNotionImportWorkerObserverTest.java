@@ -31,9 +31,10 @@ class MicrometerNotionImportWorkerObserverTest {
                 2L,
                 NotionImportFailureCategory.COLLECTION
         );
-        observer.staleRecovered(
-                2,
-                1
+        observer.staleRecovered(1);
+        observer.heartbeatFailed(
+                5L,
+                2L
         );
 
         // then
@@ -75,16 +76,24 @@ class MicrometerNotionImportWorkerObserverTest {
                 meterRegistry.get("knot.notion.import.stale.recovered")
                         .tag(
                                 "previous_status",
-                                "PENDING"
+                                "RUNNING"
                         )
                         .counter()
                         .count()
-        ).isEqualTo(2);
+        ).isEqualTo(1);
         assertThat(
-                meterRegistry.get("knot.notion.import.stale.recovered")
+                meterRegistry.find("knot.notion.import.stale.recovered")
                         .tag(
                                 "previous_status",
-                                "RUNNING"
+                                "PENDING"
+                        )
+                        .counter()
+        ).isNull();
+        assertThat(
+                meterRegistry.get("knot.notion.import.runs")
+                        .tag(
+                                "outcome",
+                                "heartbeat_failed"
                         )
                         .counter()
                         .count()

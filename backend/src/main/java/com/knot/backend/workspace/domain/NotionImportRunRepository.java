@@ -12,9 +12,12 @@ public interface NotionImportRunRepository {
 
     Optional<NotionImportRun> findByIdForUpdate(Long importRunId);
 
-    List<NotionImportRun> findStaleForUpdate(
-            Instant pendingCutoff,
-            Instant runningCutoff,
+    boolean heartbeatIfRunning(Long importRunId);
+
+    Instant currentDatabaseTime();
+
+    List<NotionImportRun> findStaleRunningForUpdate(
+            long runningTimeoutMillis,
             int batchSize
     );
 

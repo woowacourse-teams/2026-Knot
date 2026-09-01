@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 
 interface NotionImportRunJpaRepository extends JpaRepository<NotionImportRun, Long> {
@@ -29,18 +30,32 @@ interface NotionImportRunJpaRepository extends JpaRepository<NotionImportRun, Lo
             """)
     Optional<NotionImportRun> findByIdForUpdate(Long importRunId);
 
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(value = """
+            UPDATE notion_import_runs
+            SET last_heartbeat_at = CURRENT_TIMESTAMP
+            WHERE id = :importRunId
+                AND status = 'RUNNING'
+            """, nativeQuery = true)
+    int heartbeatIfRunning(Long importRunId);
+
+    @Query(value = "SELECT CURRENT_TIMESTAMP", nativeQuery = true)
+    Instant currentDatabaseTime();
+
     @Query(value = """
             SELECT *
             FROM notion_import_runs
-            WHERE (status = 'PENDING' AND created_at <= :pendingCutoff)
-                OR (status = 'RUNNING' AND started_at <= :runningCutoff)
-            ORDER BY created_at ASC, id ASC
+            WHERE status = 'RUNNING'
+                AND last_heartbeat_at <= CURRENT_TIMESTAMP
+                    - CAST(:runningTimeoutMillis AS DOUBLE PRECISION) * INTERVAL '1 millisecond'
+                AND started_at <= CURRENT_TIMESTAMP
+                    - CAST(:runningTimeoutMillis AS DOUBLE PRECISION) * INTERVAL '1 millisecond'
+            ORDER BY last_heartbeat_at ASC, id ASC
             LIMIT :batchSize
             FOR UPDATE SKIP LOCKED
             """, nativeQuery = true)
-    List<NotionImportRun> findStaleForUpdate(
-            Instant pendingCutoff,
-            Instant runningCutoff,
+    List<NotionImportRun> findStaleRunningForUpdate(
+            long runningTimeoutMillis,
             int batchSize
     );
 

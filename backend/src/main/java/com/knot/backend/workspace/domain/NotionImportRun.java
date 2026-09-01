@@ -47,6 +47,9 @@ public class NotionImportRun {
     @Column(name = "completed_at")
     private Instant completedAt;
 
+    @Column(name = "last_heartbeat_at")
+    private Instant lastHeartbeatAt;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -85,6 +88,7 @@ public class NotionImportRun {
         this.processedPageCount = processedPageCount;
         this.startedAt = startedAt;
         this.completedAt = completedAt;
+        this.lastHeartbeatAt = status == NotionImportStatus.RUNNING ? truncateToDatabasePrecision(startedAt) : null;
         this.createdAt = createdAt;
     }
 
@@ -123,7 +127,9 @@ public class NotionImportRun {
         validateStatus(NotionImportStatus.PENDING);
         validateTransitionTime(startedAt);
         this.status = NotionImportStatus.RUNNING;
-        this.startedAt = truncateToDatabasePrecision(startedAt);
+        Instant normalizedStartedAt = truncateToDatabasePrecision(startedAt);
+        this.startedAt = normalizedStartedAt;
+        this.lastHeartbeatAt = normalizedStartedAt;
     }
 
     public void preparePageCount(int totalPageCount) {
@@ -150,6 +156,7 @@ public class NotionImportRun {
         }
         this.status = NotionImportStatus.COMPLETED;
         this.completedAt = truncateToDatabasePrecision(completedAt);
+        this.lastHeartbeatAt = null;
     }
 
     public void fail(Instant failedAt) {
@@ -163,6 +170,7 @@ public class NotionImportRun {
         }
         this.status = NotionImportStatus.FAILED;
         this.completedAt = normalizedFailedAt;
+        this.lastHeartbeatAt = null;
     }
 
     private void validateId(Long id) {

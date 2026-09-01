@@ -45,6 +45,8 @@ class NotionImportWorkerTest {
     private final NotionImportSnapshotStagingService stagingService = mock(NotionImportSnapshotStagingService.class);
     private final NotionImportPublicationService publicationService = mock(NotionImportPublicationService.class);
     private final NotionImportWorkerObserver observer = mock(NotionImportWorkerObserver.class);
+    private final NotionImportHeartbeatLease heartbeatLease = mock(NotionImportHeartbeatLease.class);
+    private final NotionImportHeartbeatLease.Handle heartbeatHandle = mock(NotionImportHeartbeatLease.Handle.class);
     private final NotionImportWorker worker = new NotionImportWorker(
             lifecycleService,
             connectionRepository,
@@ -52,7 +54,8 @@ class NotionImportWorkerTest {
             contentCollector,
             stagingService,
             publicationService,
-            observer
+            observer,
+            heartbeatLease
     );
 
     @DisplayName("PENDING Run이 없으면 외부 자격 증명과 수집기를 사용하지 않는다")
@@ -72,7 +75,8 @@ class NotionImportWorkerTest {
                 contentCollector,
                 stagingService,
                 publicationService,
-                observer
+                observer,
+                heartbeatLease
         );
     }
 
@@ -178,6 +182,7 @@ class NotionImportWorkerTest {
                 lifecycleService,
                 never()
         ).fail(IMPORT_RUN_ID);
+        verify(heartbeatHandle).close();
     }
 
     @DisplayName("수집 결과가 0건이면 Run을 실패 처리하고 저장·공개하지 않는다")
@@ -233,7 +238,7 @@ class NotionImportWorkerTest {
     @Test
     void processNext_failure_connectionLookup() {
         // given
-        when(lifecycleService.claimNext()).thenReturn(Optional.of(CLAIMED_IMPORT_RUN));
+        allowClaim();
         when(
                 connectionRepository.findByIdAndWorkspaceId(
                         CONNECTION_ID,
@@ -256,6 +261,40 @@ class NotionImportWorkerTest {
         );
     }
 
+    @DisplayName("heartbeat 예약에 실패하면 외부 I/O 전에 Run을 실패 처리한다")
+    @Test
+    void processNext_failure_heartbeatScheduling() {
+        // given
+        when(lifecycleService.claimNext()).thenReturn(Optional.of(CLAIMED_IMPORT_RUN));
+        when(
+                heartbeatLease.start(
+                        IMPORT_RUN_ID,
+                        WORKSPACE_ID
+                )
+        ).thenThrow(new IllegalStateException("scheduler details"));
+        allowFailureTransition();
+
+        // when
+        boolean processed = worker.processNext();
+
+        // then
+        assertThat(processed).isTrue();
+        verify(lifecycleService).fail(IMPORT_RUN_ID);
+        verify(observer).failed(
+                IMPORT_RUN_ID,
+                WORKSPACE_ID,
+                NotionImportFailureCategory.STORAGE
+        );
+        verifyNoInteractions(
+                connectionRepository,
+                secretProtector,
+                contentCollector,
+                stagingService,
+                publicationService,
+                heartbeatHandle
+        );
+    }
+
     @DisplayName("수집기가 실패하면 외부 오류 원문 없이 Run을 실패 처리한다")
     @Test
     void processNext_failure_collection() {
@@ -275,6 +314,45 @@ class NotionImportWorkerTest {
                 stagingService,
                 publicationService
         );
+    }
+
+    @DisplayName("수집 중 회수된 worker는 결과가 돌아와도 저장하거나 공개하지 않는다")
+    @Test
+    void processNext_success_recoveredWhileCollectingDoesNotPersist() {
+        // given
+        allowClaimAndCredential();
+        CollectedNotionPage page = page(
+                "root",
+                null,
+                "루트",
+                "# 루트",
+                0
+        );
+        when(contentCollector.collect(ACCESS_CREDENTIAL)).thenReturn(new NotionCollectionResult(List.of(page)));
+        when(heartbeatHandle.isActive()).thenReturn(false);
+
+        // when
+        boolean processed = worker.processNext();
+
+        // then
+        assertThat(processed).isTrue();
+        verifyNoInteractions(
+                stagingService,
+                publicationService
+        );
+        verify(
+                lifecycleService,
+                never()
+        ).fail(IMPORT_RUN_ID);
+        verify(
+                observer,
+                never()
+        ).completed(
+                IMPORT_RUN_ID,
+                WORKSPACE_ID,
+                1
+        );
+        verify(heartbeatHandle).close();
     }
 
     @DisplayName("중복 ID, 연속 position과 부모 선행 계약이 깨진 결과는 저장 전에 실패 처리한다")
@@ -397,7 +475,7 @@ class NotionImportWorkerTest {
     }
 
     private ContentSourceConnection allowClaimAndConnection() {
-        when(lifecycleService.claimNext()).thenReturn(Optional.of(CLAIMED_IMPORT_RUN));
+        allowClaim();
         ContentSourceConnection connection = mock(ContentSourceConnection.class);
         when(connection.getProvider()).thenReturn(ContentSourceProvider.NOTION);
         when(connection.getAccessCredentialCiphertext()).thenReturn(CIPHERTEXT);
@@ -408,6 +486,17 @@ class NotionImportWorkerTest {
                 )
         ).thenReturn(Optional.of(connection));
         return connection;
+    }
+
+    private void allowClaim() {
+        when(lifecycleService.claimNext()).thenReturn(Optional.of(CLAIMED_IMPORT_RUN));
+        when(
+                heartbeatLease.start(
+                        IMPORT_RUN_ID,
+                        WORKSPACE_ID
+                )
+        ).thenReturn(heartbeatHandle);
+        when(heartbeatHandle.isActive()).thenReturn(true);
     }
 
     private void allowFailureTransition() {
@@ -421,6 +510,7 @@ class NotionImportWorkerTest {
                 WORKSPACE_ID,
                 category
         );
+        verify(heartbeatHandle).close();
     }
 
     private CollectedNotionPage page(

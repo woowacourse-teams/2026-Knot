@@ -14,7 +14,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 class NotionImportWorkerSchedulerTest {
-    private static final Duration PENDING_TIMEOUT = Duration.ofMinutes(5);
+    private static final Duration HEARTBEAT_INTERVAL = Duration.ofSeconds(30);
     private static final Duration RUNNING_TIMEOUT = Duration.ofHours(1);
     private static final int RECOVERY_BATCH_SIZE = 100;
 
@@ -27,7 +27,7 @@ class NotionImportWorkerSchedulerTest {
             observer,
             new NotionImportWorkerProperties(
                     Duration.ofSeconds(1),
-                    PENDING_TIMEOUT,
+                    HEARTBEAT_INTERVAL,
                     RUNNING_TIMEOUT,
                     RECOVERY_BATCH_SIZE
             )
@@ -39,25 +39,16 @@ class NotionImportWorkerSchedulerTest {
         // given
         when(
                 staleRecoveryService.recover(
-                        PENDING_TIMEOUT,
                         RUNNING_TIMEOUT,
                         RECOVERY_BATCH_SIZE
                 )
-        ).thenReturn(
-                new NotionImportRecoveryResult(
-                        2,
-                        1
-                )
-        );
+        ).thenReturn(new NotionImportRecoveryResult(1));
 
         // when
         scheduler.poll();
 
         // then
-        verify(observer).staleRecovered(
-                2,
-                1
-        );
+        verify(observer).staleRecovered(1);
         verify(worker).processNext();
         verify(
                 observer,
@@ -71,7 +62,6 @@ class NotionImportWorkerSchedulerTest {
         // given
         when(
                 staleRecoveryService.recover(
-                        PENDING_TIMEOUT,
                         RUNNING_TIMEOUT,
                         RECOVERY_BATCH_SIZE
                 )

@@ -479,6 +479,7 @@ class NotionImportAcceptanceTest {
                     processed_page_count,
                     started_at,
                     completed_at,
+                    last_heartbeat_at,
                     created_at
                 ) VALUES (
                     :workspaceId,
@@ -489,6 +490,7 @@ class NotionImportAcceptanceTest {
                     :processedPageCount,
                     CAST(:startedAt AS TIMESTAMPTZ),
                     CAST(:completedAt AS TIMESTAMPTZ),
+                    CAST(:lastHeartbeatAt AS TIMESTAMPTZ),
                     CAST(:createdAt AS TIMESTAMPTZ)
                 )
                 RETURNING id
@@ -524,6 +526,10 @@ class NotionImportAcceptanceTest {
                 .param(
                         "completedAt",
                         instantValue(completedAt)
+                )
+                .param(
+                        "lastHeartbeatAt",
+                        status.equals("RUNNING") ? instantValue(startedAt) : null
                 )
                 .param(
                         "createdAt",

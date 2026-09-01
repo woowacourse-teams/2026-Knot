@@ -72,29 +72,32 @@ public class MicrometerNotionImportWorkerObserver implements NotionImportWorkerO
     }
 
     @Override
-    public void staleRecovered(
-            int pendingCount,
-            int runningCount
-    ) {
-        meterRegistry.counter(
-                RECOVERY_COUNTER,
-                "previous_status",
-                "PENDING"
-        )
-                .increment(pendingCount);
+    public void staleRecovered(int runningCount) {
         meterRegistry.counter(
                 RECOVERY_COUNTER,
                 "previous_status",
                 "RUNNING"
         )
                 .increment(runningCount);
-        if (pendingCount > 0 || runningCount > 0) {
+        if (runningCount > 0) {
             log.warn(
-                    "오래된 Notion Import 작업을 회수했습니다: pendingCount={}, runningCount={}",
-                    pendingCount,
+                    "heartbeat가 만료된 Notion Import 작업을 회수했습니다: runningCount={}",
                     runningCount
             );
         }
+    }
+
+    @Override
+    public void heartbeatFailed(
+            Long importRunId,
+            Long workspaceId
+    ) {
+        incrementRunCounter("heartbeat_failed");
+        log.warn(
+                "Notion Import heartbeat 갱신에 실패했습니다: importRunId={}, workspaceId={}",
+                importRunId,
+                workspaceId
+        );
     }
 
     @Override

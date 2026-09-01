@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -32,7 +33,7 @@ class FlywayMigrationUpgradeIntegrationTest {
             .withUsername("knot")
             .withPassword("knot");
 
-    @DisplayName("V9까지 적용된 스키마를 V10과 V11의 Notion Import 스키마로 업그레이드한다")
+    @DisplayName("V11의 RUNNING Run을 V12 heartbeat로 올리고 구버전 terminal 전이를 허용한다")
     @Test
     void migrate_success_v9ToNotionImportSchema() throws SQLException {
         // given
@@ -45,6 +46,16 @@ class FlywayMigrationUpgradeIntegrationTest {
                 WHERE table_schema = 'public'
                 ORDER BY table_name
                 """);
+        Flyway v11Flyway = configureFlyway(MigrationVersion.fromVersion("11"));
+        MigrateResult v11Result = v11Flyway.migrate();
+        insertImportRun(
+                "migration-running",
+                "RUNNING"
+        );
+        insertImportRun(
+                "migration-pending",
+                "PENDING"
+        );
         Flyway latestFlyway = configureFlyway();
 
         // when
@@ -66,7 +77,9 @@ class FlywayMigrationUpgradeIntegrationTest {
                 "notion_page_publications"
         );
         assertThat(result.success).isTrue();
-        assertThat(result.migrationsExecuted).isEqualTo(2);
+        assertThat(v11Result.success).isTrue();
+        assertThat(v11Result.migrationsExecuted).isEqualTo(2);
+        assertThat(result.migrationsExecuted).isEqualTo(1);
         assertThat(appliedVersions(latestFlyway)).containsExactly(
                 "1",
                 "2",
@@ -76,7 +89,8 @@ class FlywayMigrationUpgradeIntegrationTest {
                 "6",
                 "9",
                 "10",
-                "11"
+                "11",
+                "12"
         );
         assertThat(schemaObjectNames("""
                 SELECT table_name
@@ -99,6 +113,7 @@ class FlywayMigrationUpgradeIntegrationTest {
                 "fk_notion_import_runs_connection",
                 "fk_notion_import_runs_requester_membership",
                 "chk_notion_import_runs_status",
+                "chk_notion_import_runs_heartbeat",
                 "uk_notion_import_runs_id_workspace",
                 "uk_notion_import_runs_id_workspace_status",
                 "pk_notion_pages",
@@ -119,8 +134,194 @@ class FlywayMigrationUpgradeIntegrationTest {
                 "uk_workspace_members_member_last_viewed",
                 "uk_notion_import_runs_one_active",
                 "idx_notion_import_runs_workspace_created",
+                "idx_notion_import_runs_running_heartbeat",
                 "idx_notion_pages_workspace_run_order"
         );
+        assertThat(schemaObjectNames("""
+                SELECT column_name
+                FROM information_schema.columns
+                WHERE table_schema = 'public'
+                    AND table_name = 'notion_import_runs'
+                ORDER BY ordinal_position
+                """)).contains("last_heartbeat_at");
+        assertThat(queryBoolean("""
+                SELECT last_heartbeat_at > started_at
+                FROM notion_import_runs
+                WHERE status = 'RUNNING'
+                """)).isTrue();
+        assertThat(queryBoolean("""
+                SELECT last_heartbeat_at IS NOT NULL
+                FROM notion_import_runs
+                WHERE status = 'PENDING'
+                """)).isTrue();
+        executeUpdate("""
+                UPDATE notion_import_runs
+                SET status = 'FAILED',
+                    completed_at = CURRENT_TIMESTAMP
+                WHERE status = 'RUNNING'
+                """);
+        assertThat(queryBoolean("""
+                SELECT status = 'FAILED' AND last_heartbeat_at IS NOT NULL
+                FROM notion_import_runs
+                WHERE status = 'FAILED'
+                """)).isTrue();
+        executeUpdate("""
+                UPDATE notion_import_runs
+                SET status = 'RUNNING',
+                    started_at = CURRENT_TIMESTAMP
+                WHERE status = 'PENDING'
+                """);
+        assertThat(queryBoolean("""
+                SELECT status = 'RUNNING' AND last_heartbeat_at IS NOT NULL
+                FROM notion_import_runs
+                WHERE status = 'RUNNING'
+                """)).isTrue();
+        executeUpdate("""
+                UPDATE notion_import_runs
+                SET last_heartbeat_at = CURRENT_TIMESTAMP - INTERVAL '2 hours'
+                WHERE status = 'RUNNING'
+                """);
+        assertThat(queryBoolean("""
+                SELECT NOT EXISTS (
+                    SELECT 1
+                    FROM notion_import_runs
+                    WHERE status = 'RUNNING'
+                        AND last_heartbeat_at <= CURRENT_TIMESTAMP - INTERVAL '1 hour'
+                        AND started_at <= CURRENT_TIMESTAMP - INTERVAL '1 hour'
+                )
+                """)).isTrue();
+        executeUpdate("""
+                INSERT INTO notion_import_runs (
+                    workspace_id,
+                    content_source_connection_id,
+                    requested_by_member_id,
+                    status,
+                    processed_page_count,
+                    created_at
+                )
+                SELECT
+                    workspace_id,
+                    content_source_connection_id,
+                    requested_by_member_id,
+                    'PENDING',
+                    0,
+                    CURRENT_TIMESTAMP
+                FROM notion_import_runs
+                WHERE status = 'FAILED'
+                """);
+        assertThat(queryBoolean("""
+                SELECT last_heartbeat_at IS NOT NULL
+                FROM notion_import_runs
+                WHERE status = 'PENDING'
+                """)).isTrue();
+        executeUpdate("""
+                UPDATE notion_import_runs
+                SET status = 'RUNNING',
+                    started_at = CURRENT_TIMESTAMP
+                WHERE status = 'PENDING'
+                """);
+        assertThat(queryBoolean("""
+                SELECT BOOL_AND(last_heartbeat_at IS NOT NULL)
+                FROM notion_import_runs
+                WHERE status = 'RUNNING'
+                """)).isTrue();
+    }
+
+    private void insertImportRun(
+            String label,
+            String status
+    ) throws SQLException {
+        try (Connection connection = openConnection(); PreparedStatement statement = connection.prepareStatement("""
+                WITH inserted_member AS (
+                    INSERT INTO members (nickname, profile_image_url)
+                    VALUES (?, NULL)
+                    RETURNING id
+                ), inserted_workspace AS (
+                    INSERT INTO workspaces (name, created_at)
+                    VALUES (?, CURRENT_TIMESTAMP - INTERVAL '3 hours')
+                    RETURNING id
+                ), inserted_membership AS (
+                    INSERT INTO workspace_members (workspace_id, member_id, role, joined_at)
+                    SELECT
+                        inserted_workspace.id,
+                        inserted_member.id,
+                        'OWNER',
+                        CURRENT_TIMESTAMP - INTERVAL '3 hours'
+                    FROM inserted_workspace, inserted_member
+                    RETURNING workspace_id, member_id
+                ), inserted_connection AS (
+                    INSERT INTO content_source_connections (
+                        workspace_id,
+                        provider,
+                        access_credential_ciphertext,
+                        external_source_id,
+                        provider_connection_id,
+                        authorization_owner_type,
+                        authorizing_member_id,
+                        created_at,
+                        updated_at
+                    )
+                    SELECT
+                        workspace_id,
+                        'NOTION',
+                        'ciphertext',
+                        ?,
+                        ?,
+                        'WORKSPACE',
+                        member_id,
+                        CURRENT_TIMESTAMP - INTERVAL '3 hours',
+                        CURRENT_TIMESTAMP - INTERVAL '3 hours'
+                    FROM inserted_membership
+                    RETURNING id, workspace_id
+                )
+                INSERT INTO notion_import_runs (
+                    workspace_id,
+                    content_source_connection_id,
+                    requested_by_member_id,
+                    status,
+                    processed_page_count,
+                    started_at,
+                    created_at
+                )
+                SELECT
+                    inserted_connection.workspace_id,
+                    inserted_connection.id,
+                    inserted_membership.member_id,
+                    ?,
+                    0,
+                    CASE
+                        WHEN ? = 'RUNNING' THEN CURRENT_TIMESTAMP - INTERVAL '2 hours'
+                        ELSE NULL
+                    END,
+                    CURRENT_TIMESTAMP - INTERVAL '3 hours'
+                FROM inserted_connection, inserted_membership
+                """)) {
+            statement.setString(
+                    1,
+                    label
+            );
+            statement.setString(
+                    2,
+                    label
+            );
+            statement.setString(
+                    3,
+                    label + "-source"
+            );
+            statement.setString(
+                    4,
+                    label + "-bot"
+            );
+            statement.setString(
+                    5,
+                    status
+            );
+            statement.setString(
+                    6,
+                    status
+            );
+            statement.executeUpdate();
+        }
     }
 
     private Flyway configureFlyway(MigrationVersion target) {
@@ -159,16 +360,37 @@ class FlywayMigrationUpgradeIntegrationTest {
     private List<String> schemaObjectNames(String query) throws SQLException {
         List<String> names = new ArrayList<>();
 
-        try (Connection connection = DriverManager.getConnection(
-                POSTGRESQL.getJdbcUrl(),
-                POSTGRESQL.getUsername(),
-                POSTGRESQL.getPassword()
-        ); Statement statement = connection.createStatement(); ResultSet resultSet = statement.executeQuery(query)) {
+        try (Connection connection = openConnection();
+                Statement statement = connection.createStatement();
+                ResultSet resultSet = statement.executeQuery(query)) {
             while (resultSet.next()) {
                 names.add(resultSet.getString(1));
             }
         }
 
         return names;
+    }
+
+    private boolean queryBoolean(String query) throws SQLException {
+        try (Connection connection = openConnection();
+                Statement statement = connection.createStatement();
+                ResultSet resultSet = statement.executeQuery(query)) {
+            resultSet.next();
+            return resultSet.getBoolean(1);
+        }
+    }
+
+    private void executeUpdate(String query) throws SQLException {
+        try (Connection connection = openConnection(); Statement statement = connection.createStatement()) {
+            statement.executeUpdate(query);
+        }
+    }
+
+    private Connection openConnection() throws SQLException {
+        return DriverManager.getConnection(
+                POSTGRESQL.getJdbcUrl(),
+                POSTGRESQL.getUsername(),
+                POSTGRESQL.getPassword()
+        );
     }
 }

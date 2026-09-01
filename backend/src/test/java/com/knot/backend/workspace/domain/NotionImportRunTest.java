@@ -114,7 +114,7 @@ class NotionImportRunTest {
                 .isEqualTo(NotionImportErrorCode.INVALID_NOTION_IMPORT_RUN);
     }
 
-    @DisplayName("대기 중인 Import Run을 시작하면 실행 중 상태와 시작 시각을 기록한다")
+    @DisplayName("대기 중인 Import Run을 시작하면 실행 중 상태와 시작·heartbeat 시각을 기록한다")
     @Test
     void start_success_pendingRun() {
         // given
@@ -127,6 +127,7 @@ class NotionImportRunTest {
         // then
         assertThat(importRun.getStatus()).isEqualTo(NotionImportStatus.RUNNING);
         assertThat(importRun.getStartedAt()).isEqualTo(startedAt);
+        assertThat(importRun.getLastHeartbeatAt()).isEqualTo(startedAt);
         assertThat(importRun.getCompletedAt()).isNull();
     }
 
@@ -162,6 +163,7 @@ class NotionImportRunTest {
         assertThat(importRun.getTotalPageCount()).isEqualTo(2);
         assertThat(importRun.getProcessedPageCount()).isEqualTo(2);
         assertThat(importRun.getCompletedAt()).isEqualTo(completedAt);
+        assertThat(importRun.getLastHeartbeatAt()).isNull();
     }
 
     @DisplayName("0건인 수집 결과는 전체 Page 수로 준비할 수 없다")
@@ -244,6 +246,7 @@ class NotionImportRunTest {
         assertThat(importRun.getStatus()).isEqualTo(NotionImportStatus.FAILED);
         assertThat(importRun.getStartedAt()).isEqualTo(failedAt);
         assertThat(importRun.getCompletedAt()).isEqualTo(failedAt);
+        assertThat(importRun.getLastHeartbeatAt()).isNull();
     }
 
     @DisplayName("실행 중인 Import Run을 실패 처리하면 기존 시작 시각을 보존한다")
@@ -258,6 +261,7 @@ class NotionImportRunTest {
 
         // then
         assertThat(importRun.getStatus()).isEqualTo(NotionImportStatus.FAILED);
+        assertThat(importRun.getLastHeartbeatAt()).isNull();
         assertThat(importRun.getStartedAt()).isEqualTo(CREATED_AT.plusSeconds(1));
         assertThat(importRun.getCompletedAt()).isEqualTo(failedAt);
     }

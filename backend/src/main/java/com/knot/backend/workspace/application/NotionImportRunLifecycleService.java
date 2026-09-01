@@ -10,6 +10,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
@@ -23,8 +24,11 @@ public class NotionImportRunLifecycleService {
         return importRunRepository.findFirstPendingForUpdate()
                 .map(importRun -> {
                     importRun.start(currentTime());
-                    importRunRepository.save(importRun);
-                    return ClaimedNotionImportRun.from(importRun);
+                    NotionImportRun claimedImportRun = importRunRepository.save(importRun);
+                    if (!importRunRepository.heartbeatIfRunning(claimedImportRun.getId())) {
+                        throw new IllegalStateException("Notion Import 선점 heartbeat를 기록하지 못했습니다");
+                    }
+                    return ClaimedNotionImportRun.from(claimedImportRun);
                 });
     }
 
@@ -38,6 +42,11 @@ public class NotionImportRunLifecycleService {
         importRun.fail(currentTime());
         importRunRepository.save(importRun);
         return true;
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public boolean heartbeat(Long importRunId) {
+        return importRunRepository.heartbeatIfRunning(importRunId);
     }
 
     private boolean isActive(NotionImportRun importRun) {

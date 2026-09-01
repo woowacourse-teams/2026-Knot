@@ -5,7 +5,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.knot.backend.testsupport.TestApplicationProperties;
 import com.knot.backend.testsupport.TestcontainersConfiguration;
 import com.knot.backend.workspace.application.NotionContentCollector;
+import com.knot.backend.workspace.application.NotionImportHeartbeatLease;
 import com.knot.backend.workspace.application.NotionImportWorker;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -35,17 +38,34 @@ class NotionImportWorkerConfigIntegrationTest {
 
     @DisplayName("Notion OAuth와 Import worker를 활성화하면 실제 수집기와 polling 작업자를 조립한다")
     @Test
-    void config_success_enabled() {
+    void config_success_enabled() throws Exception {
         // given
 
         // when
         NotionImportWorker worker = applicationContext.getBean(NotionImportWorker.class);
         NotionContentCollector collector = applicationContext.getBean(NotionContentCollector.class);
         NotionImportWorkerScheduler scheduler = applicationContext.getBean(NotionImportWorkerScheduler.class);
+        NotionImportHeartbeatLease heartbeatLease = applicationContext.getBean(NotionImportHeartbeatLease.class);
+        ScheduledExecutorService heartbeatScheduler = applicationContext.getBean(
+                "notionImportHeartbeatScheduler",
+                ScheduledExecutorService.class
+        );
 
         // then
         assertThat(worker).isNotNull();
         assertThat(collector).isNotNull();
         assertThat(scheduler).isNotNull();
+        assertThat(heartbeatLease).isNotNull();
+        assertThat(heartbeatScheduler).isNotNull();
+        assertThat(
+                heartbeatScheduler.submit(
+                        () -> Thread.currentThread()
+                                .getName()
+                )
+                        .get(
+                                5,
+                                TimeUnit.SECONDS
+                        )
+        ).isEqualTo("notion-import-heartbeat");
     }
 }

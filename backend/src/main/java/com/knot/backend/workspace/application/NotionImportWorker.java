@@ -24,6 +24,7 @@ public class NotionImportWorker {
     private final NotionImportSnapshotStagingService stagingService;
     private final NotionImportPublicationService publicationService;
     private final NotionImportWorkerObserver observer;
+    private final NotionImportHeartbeatLease heartbeatLease;
 
     public boolean processNext() {
         Optional<ClaimedNotionImportRun> claimedImportRun = lifecycleService.claimNext();
@@ -35,11 +36,37 @@ public class NotionImportWorker {
                 importRun.importRunId(),
                 importRun.workspaceId()
         );
-        process(importRun);
+        NotionImportHeartbeatLease.Handle heartbeatHandle;
+        try {
+            heartbeatHandle = heartbeatLease.start(
+                    importRun.importRunId(),
+                    importRun.workspaceId()
+            );
+        } catch (RuntimeException ignored) {
+            fail(
+                    importRun,
+                    NotionImportFailureCategory.STORAGE
+            );
+            return true;
+        }
+        try (heartbeatHandle) {
+            process(
+                    importRun,
+                    heartbeatHandle
+            );
+        } catch (RuntimeException ignored) {
+            fail(
+                    importRun,
+                    NotionImportFailureCategory.STORAGE
+            );
+        }
         return true;
     }
 
-    private void process(ClaimedNotionImportRun importRun) {
+    private void process(
+            ClaimedNotionImportRun importRun,
+            NotionImportHeartbeatLease.Handle heartbeatHandle
+    ) {
         ContentSourceConnection connection;
         try {
             connection = connectionRepository.findByIdAndWorkspaceId(
@@ -86,6 +113,10 @@ public class NotionImportWorker {
                     importRun,
                     NotionImportFailureCategory.COLLECTION
             );
+            return;
+        }
+
+        if (!heartbeatHandle.isActive()) {
             return;
         }
 

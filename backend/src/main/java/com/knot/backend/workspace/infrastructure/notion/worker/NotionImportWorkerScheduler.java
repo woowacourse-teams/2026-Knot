@@ -18,14 +18,10 @@ public class NotionImportWorkerScheduler {
     public void poll() {
         try {
             NotionImportRecoveryResult recoveryResult = staleRecoveryService.recover(
-                    properties.pendingStaleTimeout(),
                     properties.runningStaleTimeout(),
                     properties.recoveryBatchSize()
             );
-            observer.staleRecovered(
-                    recoveryResult.pendingCount(),
-                    recoveryResult.runningCount()
-            );
+            observer.staleRecovered(recoveryResult.runningCount());
             worker.processNext();
         } catch (RuntimeException ignored) {
             observer.pollingFailed();

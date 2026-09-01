@@ -114,22 +114,21 @@ class NotionImportWorkerPersistenceIntegrationTest {
                     .extracting(ClaimedNotionImportRun::importRunId)
                     .isEqualTo(pendingImportRun.getId());
             assertThat(importRunStatus(pendingImportRun.getId())).isEqualTo(NotionImportStatus.RUNNING);
+            assertThat(importRunLastHeartbeatAt(pendingImportRun.getId())).isNotNull();
         } finally {
             executorService.shutdownNow();
         }
     }
 
-    @DisplayName("기준 시각을 넘긴 PENDING과 RUNNING만 FAILED로 회수한다")
+    @DisplayName("PENDING은 보존하고 heartbeat가 만료된 RUNNING만 FAILED로 회수한다")
     @Test
-    void recover_success_onlyStaleActiveRunsFail() {
+    void recover_success_onlyRunningWithExpiredHeartbeatFails() {
         // given
         failAllActiveImportRuns();
         Instant now = Instant.now()
                 .truncatedTo(ChronoUnit.MICROS);
         TestContext stalePendingContext = saveContext("오래된 대기");
         TestContext staleRunningContext = saveContext("오래된 실행");
-        TestContext freshPendingContext = saveContext("새 대기");
-        TestContext freshRunningContext = saveContext("새 실행");
         NotionImportRun stalePending = saveImportRun(
                 stalePendingContext,
                 NotionImportStatus.PENDING,
@@ -149,52 +148,144 @@ class NotionImportWorkerPersistenceIntegrationTest {
                 null,
                 now.minus(Duration.ofHours(1))
         );
-        NotionImportRun freshPending = saveImportRun(
-                freshPendingContext,
-                NotionImportStatus.PENDING,
+        NotionImportRun activeLongRunning = saveImportRun(
+                saveContext("긴 실행"),
+                NotionImportStatus.RUNNING,
                 null,
                 0,
+                now.minus(Duration.ofHours(2)),
                 null,
-                null,
-                now.minus(Duration.ofMinutes(1))
+                now.minus(Duration.ofHours(3))
         );
-        NotionImportRun freshRunning = saveImportRun(
-                freshRunningContext,
+        assertThat(lifecycleService.heartbeat(activeLongRunning.getId())).isTrue();
+        NotionImportRun recentlyClaimedLegacyRunning = saveImportRun(
+                saveContext("구버전 선점"),
                 NotionImportStatus.RUNNING,
                 null,
                 0,
                 now.minus(Duration.ofMinutes(1)),
                 null,
-                now.minus(Duration.ofMinutes(2))
+                now.minus(Duration.ofHours(2))
+        );
+        updateHeartbeat(
+                recentlyClaimedLegacyRunning.getId(),
+                now.minus(Duration.ofHours(2))
         );
 
         // when
         NotionImportRecoveryResult result = staleRecoveryService.recover(
-                Duration.ofMinutes(5),
                 Duration.ofMinutes(30),
                 10
         );
 
         // then
-        assertThat(result.pendingCount()).isEqualTo(1);
         assertThat(result.runningCount()).isEqualTo(1);
-        assertThat(importRunStatus(stalePending.getId())).isEqualTo(NotionImportStatus.FAILED);
+        assertThat(importRunStatus(stalePending.getId())).isEqualTo(NotionImportStatus.PENDING);
         assertThat(importRunStatus(staleRunning.getId())).isEqualTo(NotionImportStatus.FAILED);
-        assertThat(importRunStatus(freshPending.getId())).isEqualTo(NotionImportStatus.PENDING);
-        assertThat(importRunStatus(freshRunning.getId())).isEqualTo(NotionImportStatus.RUNNING);
-        assertThat(importRunStartedAt(stalePending.getId())).isEqualTo(importRunCompletedAt(stalePending.getId()));
+        assertThat(importRunStatus(activeLongRunning.getId())).isEqualTo(NotionImportStatus.RUNNING);
+        assertThat(importRunStatus(recentlyClaimedLegacyRunning.getId())).isEqualTo(NotionImportStatus.RUNNING);
         assertThat(importRunStartedAt(staleRunning.getId())).isEqualTo(staleStartedAt);
+        assertThat(lifecycleService.claimNext()).get()
+                .extracting(ClaimedNotionImportRun::importRunId)
+                .isEqualTo(stalePending.getId());
+    }
 
-        NotionImportRun nextImportRun = saveImportRun(
-                stalePendingContext,
-                NotionImportStatus.PENDING,
+    @DisplayName("회수된 이전 worker는 같은 Run에 Page를 저장하거나 공개할 수 없다")
+    @Test
+    void recover_success_fencesRecoveredWorkerFromStagingAndPublication() {
+        // given
+        failAllActiveImportRuns();
+        Instant now = Instant.now()
+                .truncatedTo(ChronoUnit.MICROS);
+        TestContext context = saveContext("회수 fence");
+        NotionImportRun previousImportRun = saveImportRun(
+                context,
+                NotionImportStatus.COMPLETED,
+                1,
+                1,
+                now.minus(Duration.ofHours(3)),
+                now.minus(Duration.ofHours(2)),
+                now.minus(Duration.ofHours(4))
+        );
+        savePage(
+                context.workspaceId(),
+                previousImportRun.getId(),
+                "previous",
+                null,
+                "이전 Page",
+                0,
+                now.minus(Duration.ofHours(3))
+        );
+        publishImportRun(
+                context.workspaceId(),
+                previousImportRun.getId(),
+                now.minus(Duration.ofHours(2))
+        );
+        NotionImportRun recoveredImportRun = saveImportRun(
+                context,
+                NotionImportStatus.RUNNING,
                 null,
                 0,
+                now.minus(Duration.ofHours(2)),
                 null,
-                null,
-                now
+                now.minus(Duration.ofHours(3))
         );
-        assertThat(nextImportRun.getId()).isPositive();
+
+        // when
+        NotionImportRecoveryResult recoveryResult = staleRecoveryService.recover(
+                Duration.ofHours(1),
+                10
+        );
+        Throwable stagingFailure = catchThrowable(
+                () -> stagingService.prepare(
+                        recoveredImportRun.getId(),
+                        context.workspaceId(),
+                        1
+                )
+        );
+        Throwable publicationFailure = catchThrowable(() -> publicationService.publish(recoveredImportRun.getId()));
+
+        // then
+        assertThat(recoveryResult.runningCount()).isEqualTo(1);
+        assertThat(stagingFailure).isInstanceOf(RuntimeException.class);
+        assertThat(publicationFailure).isInstanceOf(RuntimeException.class);
+        assertThat(lifecycleService.heartbeat(recoveredImportRun.getId())).isFalse();
+        assertThat(importRunStatus(recoveredImportRun.getId())).isEqualTo(NotionImportStatus.FAILED);
+        assertThat(countPagesForImportRun(recoveredImportRun.getId())).isZero();
+        assertThat(publishedImportRunId(context.workspaceId())).isEqualTo(previousImportRun.getId());
+    }
+
+    @DisplayName("started_at을 기록한 노드의 시계가 앞서면 timeout 전에는 회수하지 않는다")
+    @Test
+    void recover_success_preservesFutureStartedAtUntilTimeout() {
+        // given
+        failAllActiveImportRuns();
+        Instant now = Instant.now()
+                .truncatedTo(ChronoUnit.MICROS);
+        Instant futureStartedAt = now.plus(Duration.ofHours(1));
+        NotionImportRun importRun = saveImportRun(
+                saveContext("시계 오차"),
+                NotionImportStatus.RUNNING,
+                null,
+                0,
+                futureStartedAt,
+                null,
+                now.minus(Duration.ofHours(2))
+        );
+        updateHeartbeat(
+                importRun.getId(),
+                now.minus(Duration.ofHours(2))
+        );
+
+        // when
+        NotionImportRecoveryResult recoveryResult = staleRecoveryService.recover(
+                Duration.ofHours(1),
+                10
+        );
+
+        // then
+        assertThat(recoveryResult.runningCount()).isZero();
+        assertThat(importRunStatus(importRun.getId())).isEqualTo(NotionImportStatus.RUNNING);
     }
 
     @DisplayName("완성된 새 Snapshot만 공개하고 이전 Run과 Page를 보존한다")
@@ -600,12 +691,33 @@ class NotionImportWorkerPersistenceIntegrationTest {
                 UPDATE notion_import_runs
                 SET status = 'FAILED',
                     started_at = COALESCE(started_at, CAST(:failedAt AS TIMESTAMPTZ)),
-                    completed_at = CAST(:failedAt AS TIMESTAMPTZ)
+                    completed_at = GREATEST(started_at, CAST(:failedAt AS TIMESTAMPTZ)),
+                    last_heartbeat_at = NULL
                 WHERE status IN ('PENDING', 'RUNNING')
                 """)
                 .param(
                         "failedAt",
                         failedAt.toString()
+                )
+                .update();
+    }
+
+    private void updateHeartbeat(
+            long importRunId,
+            Instant heartbeatAt
+    ) {
+        jdbcClient.sql("""
+                UPDATE notion_import_runs
+                SET last_heartbeat_at = CAST(:heartbeatAt AS TIMESTAMPTZ)
+                WHERE id = :importRunId
+                """)
+                .param(
+                        "heartbeatAt",
+                        heartbeatAt.toString()
+                )
+                .param(
+                        "importRunId",
+                        importRunId
                 )
                 .update();
     }
@@ -632,10 +744,10 @@ class NotionImportWorkerPersistenceIntegrationTest {
         );
     }
 
-    private Instant importRunCompletedAt(long importRunId) {
+    private Instant importRunLastHeartbeatAt(long importRunId) {
         return importRunTimestamp(
                 importRunId,
-                "completed_at"
+                "last_heartbeat_at"
         );
     }
 

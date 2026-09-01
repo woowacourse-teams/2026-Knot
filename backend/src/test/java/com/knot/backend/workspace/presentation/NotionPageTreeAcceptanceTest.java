@@ -20,6 +20,7 @@ import com.knot.backend.workspace.application.ContentSourceCredentialKind;
 import com.knot.backend.workspace.application.ContentSourceSecretProtector;
 import com.knot.backend.workspace.application.NotionContentCollector;
 import com.knot.backend.workspace.application.NotionImportFailureCategory;
+import com.knot.backend.workspace.application.NotionImportHeartbeatLease;
 import com.knot.backend.workspace.application.NotionImportPublicationService;
 import com.knot.backend.workspace.application.NotionImportRunLifecycleService;
 import com.knot.backend.workspace.application.NotionImportSnapshotStagingService;
@@ -1113,6 +1114,7 @@ class NotionPageTreeAcceptanceTest {
                     processed_page_count,
                     started_at,
                     completed_at,
+                    last_heartbeat_at,
                     created_at
                 ) VALUES (
                     :workspaceId,
@@ -1123,6 +1125,7 @@ class NotionPageTreeAcceptanceTest {
                     :processedPageCount,
                     CAST(:startedAt AS TIMESTAMPTZ),
                     CAST(:completedAt AS TIMESTAMPTZ),
+                    CAST(:lastHeartbeatAt AS TIMESTAMPTZ),
                     CAST(:createdAt AS TIMESTAMPTZ)
                 )
                 RETURNING id
@@ -1156,6 +1159,13 @@ class NotionPageTreeAcceptanceTest {
                         "completedAt",
                         finished
                                 ? CREATED_AT.plusSeconds(2)
+                                        .toString()
+                                : null
+                )
+                .param(
+                        "lastHeartbeatAt",
+                        status.equals("RUNNING")
+                                ? CREATED_AT.plusSeconds(1)
                                         .toString()
                                 : null
                 )
@@ -1360,6 +1370,23 @@ class NotionPageTreeAcceptanceTest {
         }
 
         @Bean
+        @Primary
+        NotionImportHeartbeatLease notionPageTreeHeartbeatLease() {
+            return (
+                    importRunId,
+                    workspaceId
+            ) -> new NotionImportHeartbeatLease.Handle() {
+                @Override
+                public boolean isActive() {
+                    return true;
+                }
+
+                @Override
+                public void close() {}
+            };
+        }
+
+        @Bean
         NotionImportWorker notionPageTreeImportWorker(
                 NotionImportRunLifecycleService lifecycleService,
                 ContentSourceConnectionRepository connectionRepository,
@@ -1367,7 +1394,8 @@ class NotionPageTreeAcceptanceTest {
                 NotionContentCollector contentCollector,
                 NotionImportSnapshotStagingService stagingService,
                 NotionImportPublicationService publicationService,
-                NotionImportWorkerObserver observer
+                NotionImportWorkerObserver observer,
+                NotionImportHeartbeatLease heartbeatLease
         ) {
             return new NotionImportWorker(
                     lifecycleService,
@@ -1376,7 +1404,8 @@ class NotionPageTreeAcceptanceTest {
                     contentCollector,
                     stagingService,
                     publicationService,
-                    observer
+                    observer,
+                    heartbeatLease
             );
         }
     }

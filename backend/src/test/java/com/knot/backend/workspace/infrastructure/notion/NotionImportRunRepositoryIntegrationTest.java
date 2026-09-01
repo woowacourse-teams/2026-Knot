@@ -227,6 +227,7 @@ class NotionImportRunRepositoryIntegrationTest {
                     processed_page_count,
                     started_at,
                     completed_at,
+                    last_heartbeat_at,
                     created_at
                 ) VALUES (
                     :workspaceId,
@@ -237,6 +238,7 @@ class NotionImportRunRepositoryIntegrationTest {
                     :processedPageCount,
                     CAST(:startedAt AS TIMESTAMPTZ),
                     CAST(:completedAt AS TIMESTAMPTZ),
+                    CAST(:lastHeartbeatAt AS TIMESTAMPTZ),
                     CAST(:createdAt AS TIMESTAMPTZ)
                 )
                 """)
@@ -271,6 +273,10 @@ class NotionImportRunRepositoryIntegrationTest {
                 .param(
                         "completedAt",
                         completedAt
+                )
+                .param(
+                        "lastHeartbeatAt",
+                        "RUNNING".equals(status) ? startedAt : null
                 )
                 .param(
                         "createdAt",
