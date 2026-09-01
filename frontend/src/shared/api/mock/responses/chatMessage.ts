@@ -1,4 +1,7 @@
-import type { ChatMessage } from "@api/mock/types/chatMessage";
+import type {
+  ChatMessage,
+  ChatMessageStream,
+} from "@api/mock/types/chatMessage";
 
 const SECOND = 1000;
 const MINUTE = 60 * SECOND;
@@ -36,3 +39,9 @@ export const chatMessagesResponse = [
     createdAt: fromNow(2 * HOUR - 2 * MINUTE - 3 * SECOND),
   },
 ] satisfies ChatMessage[];
+
+// 현재 Fake LLM이 돌려주는 두 조각이에요
+export const chatMessageStreamResponse = {
+  deltas: ["테스트 ", "LLM 응답입니다."],
+  messageId: 102,
+} satisfies ChatMessageStream;
