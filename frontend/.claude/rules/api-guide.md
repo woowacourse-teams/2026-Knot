@@ -91,21 +91,23 @@ src/shared/api/mock/
 ├── handlers/
 │   ├── index.ts                      # 전체 핸들러 합치기
 │   └── api/v1/chatSessions/index.ts  # fetch/ 와 동일한 경로 구조
-└── responses/
-    └── chatSession.ts                # 도메인별 mock 응답 데이터
+├── responses/
+│   └── chatSession.ts                # 도메인별 mock 응답 데이터
+└── types/
+    └── chatSession.ts                # 도메인별 mock 전용 응답 타입
 ```
 
 - `handlers/`는 `fetch/`와 경로 구조를 일치시킴. 엔드포인트가 바뀌면 요청 함수와 핸들러가 항상 같이 바뀌므로 `fetch/`의 "URL과 폴더 구조 일치" 규칙을 그대로 이어받음.
 - `responses/`는 `queryKey/`처럼 도메인별 플랫 파일. 데이터는 엔드포인트가 아니라 도메인 단위로 바뀌고(세션 목록·세션 상세가 같은 `ChatSession`을 공유), 통합 테스트의 기대값으로도 쓰이기 때문.
-- 응답 타입의 정본은 mock이 아니라 `fetch/`의 엔드포인트 폴더. mock을 지워도 타입이 사라지지 않아야 함.
+- `types/`는 `responses/`와 같은 도메인별 파일로 둔 mock 전용 타입. mock의 데이터 타입은 모두 여기서 처리하고 `fetch/`·`shared/types/`의 타입을 import하지 않음. 실제 요청의 응답 타입 정본은 여전히 `fetch/`의 엔드포인트 폴더.
 
 ### mock 응답 데이터
 
-`responses/`의 파일은 `fetch/`의 응답 타입을 `satisfies`로 빌려 씀. 백엔드 스펙이 바뀌면 mock이 컴파일 에러로 먼저 터짐.
+`responses/`의 파일은 `mock/types/`의 타입을 `satisfies`로 씀. `fetch/` 타입과 import로 묶이지 않으므로 백엔드 스펙이 바뀌면 `fetch/`의 타입과 `mock/types/`를 함께 갱신함.
 
 ```typescript
 // src/shared/api/mock/responses/chatSession.ts
-import type { GetChatSessionsApiResponse } from "@api/fetch/api/v1/chatSessions";
+import type { ChatSession } from "@api/mock/types/chatSession";
 
 const HOUR = 60 * 60 * 1000;
 
@@ -119,7 +121,7 @@ export const chatSessionsResponse = [
     createdAt: fromNow(2 * HOUR),
     lastMessageAt: fromNow(30 * 1000),
   },
-] satisfies GetChatSessionsApiResponse;
+] satisfies ChatSession[];
 ```
 
 - 변수명은 `chatSessionsResponse`처럼 도메인 + `Response`로 작성.
@@ -149,7 +151,7 @@ export const handlers = [...chatSessionsHandlers];
 
 - 경로는 `fetch/`의 경로 상수를 재사용해 요청 함수와 핸들러가 어긋나지 않게 함.
 - 경로 파라미터가 있는 엔드포인트는 `fetch/`의 상수가 실제 id를 채우는 함수라 그대로 못 쓰므로, 그 경우에만 `*/api/v1/chat-sessions/:sessionId` 패턴을 핸들러에 직접 적고 폴더 위치(`handlers/api/v1/chatSessions/[sessionId]/`)로 대응 관계를 드러냄.
-- 엔드포인트 하나를 추가하는 비용은 **응답 1개 + 핸들러 1개 + 등록 1줄**.
+- 엔드포인트 하나를 추가하는 비용은 **응답 1개 + 핸들러 1개 + 등록 1줄**(새 도메인이면 타입 1개 추가).
 
 ### 켜고 끄기
 
@@ -169,9 +171,9 @@ export const handlers = [...chatSessionsHandlers];
 
 - 실제 서버로 테스트하면 DB가 바뀌고 특정 플로우에 도달하기 어려워 위험 부담과 공수가 크므로, 자동화 테스트는 연동 후에도 계속 mock으로 돌림.
 - 실제 API 연동 검증은 자동화 테스트가 아니라 **QA에서 실제 API를 붙여** 수행.
-- 따라서 백엔드 스펙이 바뀌면 mock을 지우는 게 아니라 `fetch/`의 타입과 함께 갱신함. `satisfies`로 묶여 있어 어긋나면 컴파일 에러로 먼저 드러남.
+- 따라서 백엔드 스펙이 바뀌면 mock을 지우는 게 아니라 `fetch/`의 타입·`mock/types/`·`responses/`를 함께 갱신함.
 
 ### 의존 규칙
 
-- 의존은 `mock/` → `fetch/`·`types/` **단방향**. 프로덕션 코드는 `mock/`을 import하지 않음. (`grep -r "api/mock" src --exclude-dir=mock`으로 확인. 결과는 `API_MOCKING` 플래그 안에서 `mock/browser`를 동적 import하는 `src/index.tsx` 한 곳만 허용)
+- 의존은 `mock/` → `fetch/` **단방향**이며 `fetch/`에서는 경로 상수만 가져옴. 데이터 타입은 `mock/types/`에 두고 `fetch/`·`shared/types/`의 타입을 import하지 않음. 프로덕션 코드는 `mock/`을 import하지 않음. (`grep -r "api/mock" src --exclude-dir=mock`으로 확인. 결과는 `API_MOCKING` 플래그 안에서 `mock/browser`를 동적 import하는 `src/index.tsx` 한 곳만 허용)
 - `mock/`에는 **실제 API 응답을 흉내내는 것만** 둠. 대응하는 엔드포인트가 아직 없는 임시 UI 데이터는 핸들러를 만들 수 없으므로 스펙이 정해질 때까지 컴포넌트에 코로케이션.
