@@ -115,6 +115,7 @@ class ImportedPageRepositoryIntegrationTest {
                 ImportedPageMetadata::id,
                 ImportedPageMetadata::title,
                 ImportedPageMetadata::parentId,
+                ImportedPageMetadata::hasParentReference,
                 ImportedPageMetadata::position
         )
                 .containsExactly(
@@ -122,18 +123,21 @@ class ImportedPageRepositoryIntegrationTest {
                                 firstPage.getId(),
                                 "첫 Page",
                                 null,
+                                false,
                                 0
                         ),
                         tuple(
                                 tiedPage.getId(),
                                 "같은 순서 Page",
                                 null,
+                                false,
                                 0
                         ),
                         tuple(
                                 lastPage.getId(),
                                 "마지막 Page",
                                 firstPage.getId(),
+                                true,
                                 2
                         )
                 );

@@ -13,6 +13,7 @@ interface ImportedPageJpaRepository extends JpaRepository<ImportedPage, Long> {
                 page.id AS "id",
                 page.workspace_id AS "workspaceId",
                 parent.id AS "parentId",
+                page.parent_external_page_id IS NOT NULL AS "hasParentReference",
                 page.title AS "title",
                 page.position AS "position",
                 page.source_url AS "sourceUrl"

@@ -83,7 +83,7 @@ public class ImportedPageTreeQueryService {
             if (id == null || id <= 0 || !Objects.equals(
                     importedPage.workspaceId(),
                     workspaceId
-            ) || parentPageIdById.containsKey(id)) {
+            ) || parentPageIdById.containsKey(id) || hasInconsistentParentReference(importedPage)) {
                 throw invalidTree();
             }
             parentPageIdById.put(
@@ -93,6 +93,10 @@ public class ImportedPageTreeQueryService {
         }
         validateParentReferences(parentPageIdById);
         validateNoCycle(parentPageIdById);
+    }
+
+    private boolean hasInconsistentParentReference(ImportedPageMetadata importedPage) {
+        return importedPage.hasParentReference() != (importedPage.parentId() != null);
     }
 
     private void validateParentReferences(Map<Long, Long> parentPageIdById) {
