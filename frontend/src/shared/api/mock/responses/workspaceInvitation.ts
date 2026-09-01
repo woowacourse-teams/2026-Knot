@@ -10,8 +10,8 @@ const DAY = 24 * 60 * 60 * 1000;
 const afterNow = (remaining: number) =>
   new Date(Date.now() + remaining).toISOString();
 
-// 초대 카드·홈 초대 카드 테스트가 이 응답을 DTO로 변환해 기대값으로 써요.
-// linkToken은 링크 진입 게이트의 임시 통과 토큰(#243 전)과 같은 값이에요
+// 초대 카드·홈 초대 카드 테스트가 이 응답을 DTO로 변환해 기대값으로 쓰고,
+// 홈 E2E(workspaceHomePage)는 code와 `/invite/<linkToken>`을 복사 기대값으로 써요
 export const workspaceInvitationResponse = {
   code: "X35D3S",
   linkToken: "Xk3vQ9mZp2LrT7wB1nHc4A",

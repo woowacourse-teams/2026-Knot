@@ -1,3 +1,15 @@
+import { GetMeResponseDto } from "@api/dto/auth";
+import {
+  GetWorkspaceResponseDto,
+  GetWorkspacesResponseDto,
+} from "@api/dto/workspace";
+import { PostWorkspaceInvitationResponseDto } from "@api/dto/workspaceInvitation";
+import { meResponse } from "@api/mock/responses/auth";
+import {
+  workspaceDetailResponse,
+  workspacesResponse,
+} from "@api/mock/responses/workspace";
+import { workspaceInvitationResponse } from "@api/mock/responses/workspaceInvitation";
 import { expect, test, type Page } from "@playwright/test";
 
 /**
@@ -5,17 +17,25 @@ import { expect, test, type Page } from "@playwright/test";
  *
  * 홈 진입, 사이드바 열고 닫기, 폴더 트리 펼침·접힘, 초대 링크·코드 복사, Notion 동기화,
  * 하단 Dock으로 탐색 이동까지 홈 화면 위에서 사용자가 밟는 플로우를 페이지 단위로 확인해요.
- * 회원·워크스페이스·초대·동기화 API가 아직 없어 화면에 보이는 값은 각 위젯의 임시 상수예요.
+ * 회원·워크스페이스·초대는 dev 서버의 msw mock 응답(`API_MOCKING`)에서 오므로 기대값도 같은 응답을
+ * DTO로 변환해 가져와요. 동기화와 사이드바 트리는 API가 아직 없어 위젯의 임시 상수예요.
  */
 
-// TODO: 워크스페이스 조회 API 연결 후 실제 workspaceId로 교체
-const WORKSPACE_ID = "temp";
+const expectedMe = new GetMeResponseDto(meResponse);
+const expectedWorkspace = new GetWorkspaceResponseDto(workspaceDetailResponse);
+const expectedInvitation = new PostWorkspaceInvitationResponseDto(
+  workspaceInvitationResponse,
+);
+
+// mock 워크스페이스 조회는 id와 무관하게 같은 응답이라 목록 첫 워크스페이스의 id로 들어가요
+const WORKSPACE_ID = new GetWorkspacesResponseDto(workspacesResponse)
+  .workspaces[0].id;
 const HOME_PATH = `/workspace/${WORKSPACE_ID}`;
 const CHAT_PATH = `${HOME_PATH}/chat`;
 
-// TODO(#229): 초대 API 연결 후 응답의 참여 코드로 교체
-const INVITE_CODE = "X35D3S";
-const DISPLAY_INVITE_LINK = `/workspace/code?code=${INVITE_CODE}`;
+const GREETING = `반가워요, ${expectedMe.nickname} 님`;
+const INVITE_CODE = expectedInvitation.code;
+const DISPLAY_INVITE_LINK = `/invite/${expectedInvitation.linkToken}`;
 
 // TODO(동기화 API Issue 미정): Notion 동기화 API 연결 후 응답으로 교체
 const LAST_SYNCED_AT_LABEL = "어제 오후 3:12에 동기화";
@@ -64,9 +84,7 @@ test.describe("홈 진입", () => {
   test("인사말, 카드 2개, 하단 Dock을 보여주고 사이드바는 닫혀 있다", async ({
     page,
   }) => {
-    await expect(
-      page.getByRole("heading", { name: "반가워요, 노티드 님" }),
-    ).toBeVisible();
+    await expect(page.getByRole("heading", { name: GREETING })).toBeVisible();
 
     const notionCard = getCard({ page, title: "Notion 동기화" });
     await expect(notionCard.getByText(LAST_SYNCED_AT_LABEL)).toBeVisible();
@@ -105,9 +123,7 @@ test.describe("홈 진입", () => {
     await getDock(page).getByRole("button", { name: "홈" }).click();
 
     await expect(page).toHaveURL(HOME_PATH);
-    await expect(
-      page.getByRole("heading", { name: "반가워요, 노티드 님" }),
-    ).toBeVisible();
+    await expect(page.getByRole("heading", { name: GREETING })).toBeVisible();
   });
 });
 
@@ -122,7 +138,7 @@ test.describe("사이드바", () => {
 
     await expect(toggle).toHaveAttribute("aria-expanded", "true");
     await expect(sidebar).toBeVisible();
-    await expect(sidebar.getByText("팀 노트")).toBeVisible();
+    await expect(sidebar.getByText(expectedWorkspace.name)).toBeVisible();
     await expect(sidebar.getByText("폴더", { exact: true })).toBeVisible();
 
     await expect(getFolderRow({ page, name: "제품" })).toContainText("24");
@@ -290,15 +306,13 @@ test.describe("하단 Dock", () => {
 
     await expect(page).toHaveURL(CHAT_PATH);
     await expect(
-      page.getByRole("heading", { name: "Chat Page" }),
+      page.getByRole("textbox", { name: "무엇이든 요청하세요" }),
     ).toBeVisible();
 
     await page.goBack();
 
     await expect(page).toHaveURL(HOME_PATH);
-    await expect(
-      page.getByRole("heading", { name: "반가워요, 노티드 님" }),
-    ).toBeVisible();
+    await expect(page.getByRole("heading", { name: GREETING })).toBeVisible();
     await expect(
       getDock(page).getByRole("button", { name: "홈" }),
     ).toHaveAttribute("aria-current", "page");
@@ -318,6 +332,8 @@ test.describe("하단 Dock", () => {
       "aria-expanded",
       "true",
     );
-    await expect(getSidebar(page).getByText("팀 노트")).toBeVisible();
+    await expect(
+      getSidebar(page).getByText(expectedWorkspace.name),
+    ).toBeVisible();
   });
 });
