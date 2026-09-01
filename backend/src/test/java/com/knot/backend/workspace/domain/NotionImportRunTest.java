@@ -114,6 +114,186 @@ class NotionImportRunTest {
                 .isEqualTo(NotionImportErrorCode.INVALID_NOTION_IMPORT_RUN);
     }
 
+    @DisplayName("대기 중인 Import Run을 시작하면 실행 중 상태와 시작 시각을 기록한다")
+    @Test
+    void start_success_pendingRun() {
+        // given
+        NotionImportRun importRun = createPendingImportRun();
+        Instant startedAt = CREATED_AT.plusSeconds(1);
+
+        // when
+        importRun.start(startedAt);
+
+        // then
+        assertThat(importRun.getStatus()).isEqualTo(NotionImportStatus.RUNNING);
+        assertThat(importRun.getStartedAt()).isEqualTo(startedAt);
+        assertThat(importRun.getCompletedAt()).isNull();
+    }
+
+    @DisplayName("실행 중인 Import Run은 다시 시작할 수 없다")
+    @Test
+    void start_failure_runningRun() {
+        // given
+        NotionImportRun importRun = createImportRun(NotionImportStatus.RUNNING);
+        ThrowingCallable action = () -> importRun.start(CREATED_AT.plusSeconds(2));
+
+        // when
+        Throwable thrown = catchThrowable(action);
+
+        // then
+        assertThat(thrown).isInstanceOf(NotionImportException.class);
+    }
+
+    @DisplayName("모든 Page를 처리한 실행 중 Import Run을 완료한다")
+    @Test
+    void complete_success_allPagesProcessed() {
+        // given
+        NotionImportRun importRun = createRunningImportRun();
+        importRun.preparePageCount(2);
+        importRun.recordProcessedPage();
+        importRun.recordProcessedPage();
+        Instant completedAt = CREATED_AT.plusSeconds(2);
+
+        // when
+        importRun.complete(completedAt);
+
+        // then
+        assertThat(importRun.getStatus()).isEqualTo(NotionImportStatus.COMPLETED);
+        assertThat(importRun.getTotalPageCount()).isEqualTo(2);
+        assertThat(importRun.getProcessedPageCount()).isEqualTo(2);
+        assertThat(importRun.getCompletedAt()).isEqualTo(completedAt);
+    }
+
+    @DisplayName("0건인 수집 결과는 전체 Page 수로 준비할 수 없다")
+    @Test
+    void preparePageCount_failure_emptyResult() {
+        // given
+        NotionImportRun importRun = createRunningImportRun();
+        ThrowingCallable action = () -> importRun.preparePageCount(0);
+
+        // when
+        Throwable thrown = catchThrowable(action);
+
+        // then
+        assertThat(thrown).isInstanceOf(NotionImportException.class);
+        assertThat(importRun.getTotalPageCount()).isNull();
+        assertThat(importRun.getProcessedPageCount()).isZero();
+    }
+
+    @DisplayName("전체 Page 수는 실행 중 한 번만 준비한다")
+    @Test
+    void preparePageCount_failure_alreadyPrepared() {
+        // given
+        NotionImportRun importRun = createRunningImportRun();
+        importRun.preparePageCount(2);
+        ThrowingCallable action = () -> importRun.preparePageCount(2);
+
+        // when
+        Throwable thrown = catchThrowable(action);
+
+        // then
+        assertThat(thrown).isInstanceOf(NotionImportException.class);
+        assertThat(importRun.getTotalPageCount()).isEqualTo(2);
+    }
+
+    @DisplayName("처리하지 않은 Page가 남은 Import Run은 완료할 수 없다")
+    @Test
+    void complete_failure_unprocessedPageRemains() {
+        // given
+        NotionImportRun importRun = createRunningImportRun();
+        importRun.preparePageCount(2);
+        importRun.recordProcessedPage();
+        ThrowingCallable action = () -> importRun.complete(CREATED_AT.plusSeconds(2));
+
+        // when
+        Throwable thrown = catchThrowable(action);
+
+        // then
+        assertThat(thrown).isInstanceOf(NotionImportException.class);
+        assertThat(importRun.getStatus()).isEqualTo(NotionImportStatus.RUNNING);
+    }
+
+    @DisplayName("전체 Page 수를 넘겨 처리할 수 없다")
+    @Test
+    void recordProcessedPage_failure_totalPageCountExceeded() {
+        // given
+        NotionImportRun importRun = createRunningImportRun();
+        importRun.preparePageCount(1);
+        importRun.recordProcessedPage();
+        ThrowingCallable action = importRun::recordProcessedPage;
+
+        // when
+        Throwable thrown = catchThrowable(action);
+
+        // then
+        assertThat(thrown).isInstanceOf(NotionImportException.class);
+        assertThat(importRun.getProcessedPageCount()).isEqualTo(1);
+    }
+
+    @DisplayName("대기 중인 stale Import Run을 실패 처리하면 회수 시각을 시작·완료 시각으로 기록한다")
+    @Test
+    void fail_success_pendingRun() {
+        // given
+        NotionImportRun importRun = createPendingImportRun();
+        Instant failedAt = CREATED_AT.plusSeconds(10);
+
+        // when
+        importRun.fail(failedAt);
+
+        // then
+        assertThat(importRun.getStatus()).isEqualTo(NotionImportStatus.FAILED);
+        assertThat(importRun.getStartedAt()).isEqualTo(failedAt);
+        assertThat(importRun.getCompletedAt()).isEqualTo(failedAt);
+    }
+
+    @DisplayName("실행 중인 Import Run을 실패 처리하면 기존 시작 시각을 보존한다")
+    @Test
+    void fail_success_runningRun() {
+        // given
+        NotionImportRun importRun = createRunningImportRun();
+        Instant failedAt = CREATED_AT.plusSeconds(10);
+
+        // when
+        importRun.fail(failedAt);
+
+        // then
+        assertThat(importRun.getStatus()).isEqualTo(NotionImportStatus.FAILED);
+        assertThat(importRun.getStartedAt()).isEqualTo(CREATED_AT.plusSeconds(1));
+        assertThat(importRun.getCompletedAt()).isEqualTo(failedAt);
+    }
+
+    @DisplayName("완료된 Import Run은 실패 상태로 되돌릴 수 없다")
+    @Test
+    void fail_failure_completedRun() {
+        // given
+        NotionImportRun importRun = createImportRun(NotionImportStatus.COMPLETED);
+        ThrowingCallable action = () -> importRun.fail(CREATED_AT.plusSeconds(10));
+
+        // when
+        Throwable thrown = catchThrowable(action);
+
+        // then
+        assertThat(thrown).isInstanceOf(NotionImportException.class);
+        assertThat(importRun.getStatus()).isEqualTo(NotionImportStatus.COMPLETED);
+    }
+
+    @DisplayName("시작 시각보다 앞선 시각으로 Import Run을 완료할 수 없다")
+    @Test
+    void complete_failure_beforeStartedAt() {
+        // given
+        NotionImportRun importRun = createRunningImportRun();
+        importRun.preparePageCount(1);
+        importRun.recordProcessedPage();
+        ThrowingCallable action = () -> importRun.complete(CREATED_AT);
+
+        // when
+        Throwable thrown = catchThrowable(action);
+
+        // then
+        assertThat(thrown).isInstanceOf(NotionImportException.class);
+        assertThat(importRun.getStatus()).isEqualTo(NotionImportStatus.RUNNING);
+    }
+
     private NotionImportRun createImportRun(NotionImportStatus status) {
         return switch (status) {
             case PENDING -> createImportRun(
@@ -132,6 +312,26 @@ class NotionImportRunTest {
                     CREATED_AT.plusSeconds(2)
             );
         };
+    }
+
+    private NotionImportRun createPendingImportRun() {
+        return NotionImportRun.create(
+                1L,
+                2L,
+                3L,
+                NotionImportStatus.PENDING,
+                null,
+                0,
+                null,
+                null,
+                CREATED_AT
+        );
+    }
+
+    private NotionImportRun createRunningImportRun() {
+        NotionImportRun importRun = createPendingImportRun();
+        importRun.start(CREATED_AT.plusSeconds(1));
+        return importRun;
     }
 
     private NotionImportRun createImportRun(

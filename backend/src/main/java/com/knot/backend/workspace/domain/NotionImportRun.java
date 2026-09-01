@@ -9,6 +9,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import lombok.Getter;
 
 @Getter
@@ -65,7 +66,7 @@ public class NotionImportRun {
         validateId(workspaceId);
         validateId(contentSourceConnectionId);
         validateId(requestedByMemberId);
-        validateStatus(status);
+        validateRequiredStatus(status);
         validatePageCounts(
                 totalPageCount,
                 processedPageCount
@@ -118,13 +119,59 @@ public class NotionImportRun {
         return null;
     }
 
+    public void start(Instant startedAt) {
+        validateStatus(NotionImportStatus.PENDING);
+        validateTransitionTime(startedAt);
+        this.status = NotionImportStatus.RUNNING;
+        this.startedAt = truncateToDatabasePrecision(startedAt);
+    }
+
+    public void preparePageCount(int totalPageCount) {
+        validateStatus(NotionImportStatus.RUNNING);
+        if (totalPageCount <= 0 || this.totalPageCount != null || processedPageCount != 0) {
+            throw invalidImportRun();
+        }
+        this.totalPageCount = totalPageCount;
+    }
+
+    public void recordProcessedPage() {
+        validateStatus(NotionImportStatus.RUNNING);
+        if (totalPageCount == null || processedPageCount >= totalPageCount) {
+            throw invalidImportRun();
+        }
+        processedPageCount++;
+    }
+
+    public void complete(Instant completedAt) {
+        validateStatus(NotionImportStatus.RUNNING);
+        validateTransitionTime(completedAt);
+        if (totalPageCount == null || totalPageCount <= 0 || processedPageCount != totalPageCount) {
+            throw invalidImportRun();
+        }
+        this.status = NotionImportStatus.COMPLETED;
+        this.completedAt = truncateToDatabasePrecision(completedAt);
+    }
+
+    public void fail(Instant failedAt) {
+        if (status != NotionImportStatus.PENDING && status != NotionImportStatus.RUNNING) {
+            throw invalidImportRun();
+        }
+        validateTransitionTime(failedAt);
+        Instant normalizedFailedAt = truncateToDatabasePrecision(failedAt);
+        if (status == NotionImportStatus.PENDING) {
+            this.startedAt = normalizedFailedAt;
+        }
+        this.status = NotionImportStatus.FAILED;
+        this.completedAt = normalizedFailedAt;
+    }
+
     private void validateId(Long id) {
         if (id == null || id <= 0) {
             throw invalidImportRun();
         }
     }
 
-    private void validateStatus(NotionImportStatus status) {
+    private void validateRequiredStatus(NotionImportStatus status) {
         if (status == null) {
             throw invalidImportRun();
         }
@@ -163,7 +210,24 @@ public class NotionImportRun {
         }
     }
 
+    private void validateStatus(NotionImportStatus expectedStatus) {
+        if (status != expectedStatus) {
+            throw invalidImportRun();
+        }
+    }
+
+    private void validateTransitionTime(Instant transitionTime) {
+        if (transitionTime == null || transitionTime.isBefore(createdAt)
+                || startedAt != null && transitionTime.isBefore(startedAt)) {
+            throw invalidImportRun();
+        }
+    }
+
     private NotionImportException invalidImportRun() {
         return new NotionImportException(NotionImportErrorCode.INVALID_NOTION_IMPORT_RUN);
+    }
+
+    private Instant truncateToDatabasePrecision(Instant instant) {
+        return instant.truncatedTo(ChronoUnit.MICROS);
     }
 }

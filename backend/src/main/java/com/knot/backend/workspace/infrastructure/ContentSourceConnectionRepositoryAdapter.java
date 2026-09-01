@@ -20,6 +20,17 @@ public class ContentSourceConnectionRepositoryAdapter implements ContentSourceCo
     }
 
     @Override
+    public Optional<ContentSourceConnection> findByIdAndWorkspaceId(
+            Long connectionId,
+            Long workspaceId
+    ) {
+        return connectionJpaRepository.findByIdAndWorkspaceId(
+                connectionId,
+                workspaceId
+        );
+    }
+
+    @Override
     public Optional<ContentSourceConnection> findByWorkspaceIdAndProvider(
             Long workspaceId,
             ContentSourceProvider provider

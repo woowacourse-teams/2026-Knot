@@ -6,6 +6,11 @@ public interface ContentSourceConnectionRepository {
 
     ContentSourceConnection save(ContentSourceConnection connection);
 
+    Optional<ContentSourceConnection> findByIdAndWorkspaceId(
+            Long connectionId,
+            Long workspaceId
+    );
+
     Optional<ContentSourceConnection> findByWorkspaceIdAndProvider(
             Long workspaceId,
             ContentSourceProvider provider

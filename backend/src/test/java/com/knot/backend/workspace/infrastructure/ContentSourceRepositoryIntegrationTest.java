@@ -302,6 +302,20 @@ class ContentSourceRepositoryIntegrationTest {
                         "template-id",
                         "request-id"
                 );
+        assertThat(
+                connectionRepository.findByIdAndWorkspaceId(
+                        savedConnection.getId(),
+                        context.workspaceId()
+                )
+        ).get()
+                .extracting(ContentSourceConnection::getId)
+                .isEqualTo(savedConnection.getId());
+        assertThat(
+                connectionRepository.findByIdAndWorkspaceId(
+                        savedConnection.getId(),
+                        Long.MAX_VALUE
+                )
+        ).isEmpty();
     }
 
     @DisplayName("한 워크스페이스에는 Connection을 하나만 저장할 수 있다")
