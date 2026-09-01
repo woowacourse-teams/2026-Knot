@@ -69,12 +69,60 @@ class NotionImportApiDocumentationAcceptanceTest {
                                 .value(ERROR_RESPONSE_REF)
                 )
                 .andExpect(
+                        jsonPath(
+                                operationPath + ".responses['400'].content['application/json']"
+                                        + ".examples.invalidNotionImportRunId.value.code"
+                        ).value("INVALID_NOTION_IMPORT_RUN_ID")
+                )
+                .andExpect(
+                        jsonPath(
+                                operationPath + ".responses['400'].content['application/json']"
+                                        + ".examples.invalidNotionImportRunId.value.message"
+                        ).value("Notion Import 실행 ID가 올바르지 않습니다")
+                )
+                .andExpect(
+                        jsonPath(
+                                operationPath + ".responses['400'].content['application/json']"
+                                        + ".examples.invalidParameter.value.code"
+                        ).value("INVALID_PARAMETER")
+                )
+                .andExpect(
+                        jsonPath(
+                                operationPath + ".responses['400'].content['application/json']"
+                                        + ".examples.invalidParameter.value.message"
+                        ).value("요청 파라미터 형식이 올바르지 않습니다")
+                )
+                .andExpect(
                         jsonPath(operationPath + ".responses['401'].content['application/json'].schema['$ref']")
                                 .value(ERROR_RESPONSE_REF)
                 )
                 .andExpect(
+                        jsonPath(
+                                operationPath + ".responses['401'].content['application/json']"
+                                        + ".examples.unauthenticated.value.code"
+                        ).value("UNAUTHENTICATED")
+                )
+                .andExpect(
+                        jsonPath(
+                                operationPath + ".responses['401'].content['application/json']"
+                                        + ".examples.unauthenticated.value.message"
+                        ).value("인증이 필요합니다")
+                )
+                .andExpect(
                         jsonPath(operationPath + ".responses['404'].content['application/json'].schema['$ref']")
                                 .value(ERROR_RESPONSE_REF)
+                )
+                .andExpect(
+                        jsonPath(
+                                operationPath + ".responses['404'].content['application/json']"
+                                        + ".examples.notionImportRunNotFound.value.code"
+                        ).value("NOTION_IMPORT_RUN_NOT_FOUND")
+                )
+                .andExpect(
+                        jsonPath(
+                                operationPath + ".responses['404'].content['application/json']"
+                                        + ".examples.notionImportRunNotFound.value.message"
+                        ).value("Notion Import 실행을 찾을 수 없습니다")
                 )
                 .andExpect(jsonPath(operationPath + ".responses['403']").doesNotExist())
                 .andExpect(jsonPath(schemaPath + ".id").exists())
