@@ -2,7 +2,7 @@ package com.knot.backend.workspace.infrastructure.notion.collector;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.knot.backend.workspace.application.dto.result.CollectedNotionPage;
+import com.knot.backend.workspace.application.dto.result.CollectedPage;
 import com.knot.backend.workspace.infrastructure.notion.collector.NotionCollectionState.NotionObjectType;
 import com.knot.backend.workspace.infrastructure.notion.collector.NotionCollectionState.PlacementPriority;
 import java.util.List;
@@ -42,10 +42,10 @@ class NotionCollectionStateTest {
         );
 
         // when
-        List<CollectedNotionPage> pages = state.toResult();
+        List<CollectedPage> pages = state.toResult();
 
         // then
-        assertThat(pages).extracting(CollectedNotionPage::notionPageId)
+        assertThat(pages).extracting(CollectedPage::externalPageId)
                 .containsExactly(
                         "data-source",
                         "page-first",

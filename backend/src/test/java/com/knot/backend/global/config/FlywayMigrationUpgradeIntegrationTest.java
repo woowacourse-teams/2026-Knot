@@ -33,9 +33,9 @@ class FlywayMigrationUpgradeIntegrationTest {
             .withUsername("knot")
             .withPassword("knot");
 
-    @DisplayName("V11의 RUNNING Run을 V12 heartbeat로 올리고 구버전 terminal 전이를 허용한다")
+    @DisplayName("V9 스키마를 V12 콘텐츠 Import heartbeat 스키마로 업그레이드한다")
     @Test
-    void migrate_success_v9ToNotionImportSchema() throws SQLException {
+    void migrate_success_v9ToContentImportSchema() throws SQLException {
         // given
         Flyway v9Flyway = configureFlyway(MigrationVersion.fromVersion("9"));
         v9Flyway.migrate();
@@ -72,9 +72,9 @@ class FlywayMigrationUpgradeIntegrationTest {
                 "9"
         );
         assertThat(tablesBeforeUpgrade).doesNotContain(
-                "notion_import_runs",
-                "notion_pages",
-                "notion_page_publications"
+                "content_import_runs",
+                "imported_pages",
+                "imported_page_publications"
         );
         assertThat(result.success).isTrue();
         assertThat(v11Result.success).isTrue();
@@ -98,9 +98,9 @@ class FlywayMigrationUpgradeIntegrationTest {
                 WHERE table_schema = 'public'
                 ORDER BY table_name
                 """)).contains(
-                "notion_import_runs",
-                "notion_pages",
-                "notion_page_publications"
+                "content_import_runs",
+                "imported_pages",
+                "imported_page_publications"
         );
         assertThat(schemaObjectNames("""
                 SELECT constraint_name
@@ -109,21 +109,21 @@ class FlywayMigrationUpgradeIntegrationTest {
                 ORDER BY constraint_name
                 """)).contains(
                 "uk_content_source_connections_id_workspace",
-                "pk_notion_import_runs",
-                "fk_notion_import_runs_connection",
-                "fk_notion_import_runs_requester_membership",
-                "chk_notion_import_runs_status",
-                "chk_notion_import_runs_heartbeat",
-                "uk_notion_import_runs_id_workspace",
-                "uk_notion_import_runs_id_workspace_status",
-                "pk_notion_pages",
-                "uk_notion_pages_workspace_run_notion_page",
-                "fk_notion_pages_import_run",
-                "fk_notion_pages_parent",
-                "chk_notion_pages_timestamps",
-                "pk_notion_page_publications",
-                "chk_notion_page_publications_status",
-                "fk_notion_page_publications_import_run"
+                "pk_content_import_runs",
+                "fk_content_import_runs_connection",
+                "fk_content_import_runs_requester_membership",
+                "chk_content_import_runs_status",
+                "chk_content_import_runs_heartbeat",
+                "uk_content_import_runs_id_workspace",
+                "uk_content_import_runs_id_workspace_status",
+                "pk_imported_pages",
+                "uk_imported_pages_workspace_run_external_page",
+                "fk_imported_pages_import_run",
+                "fk_imported_pages_parent",
+                "chk_imported_pages_timestamps",
+                "pk_imported_page_publications",
+                "chk_imported_page_publications_status",
+                "fk_imported_page_publications_import_run"
         );
         assertThat(schemaObjectNames("""
                 SELECT indexname
@@ -132,66 +132,66 @@ class FlywayMigrationUpgradeIntegrationTest {
                 ORDER BY indexname
                 """)).contains(
                 "uk_workspace_members_member_last_viewed",
-                "uk_notion_import_runs_one_active",
-                "idx_notion_import_runs_workspace_created",
-                "idx_notion_import_runs_running_heartbeat",
-                "idx_notion_pages_workspace_run_order"
+                "uk_content_import_runs_one_active",
+                "idx_content_import_runs_workspace_created",
+                "idx_content_import_runs_running_heartbeat",
+                "idx_imported_pages_workspace_run_order"
         );
         assertThat(schemaObjectNames("""
                 SELECT column_name
                 FROM information_schema.columns
                 WHERE table_schema = 'public'
-                    AND table_name = 'notion_import_runs'
+                    AND table_name = 'content_import_runs'
                 ORDER BY ordinal_position
                 """)).contains("last_heartbeat_at");
         assertThat(queryBoolean("""
                 SELECT last_heartbeat_at > started_at
-                FROM notion_import_runs
+                FROM content_import_runs
                 WHERE status = 'RUNNING'
                 """)).isTrue();
         assertThat(queryBoolean("""
                 SELECT last_heartbeat_at IS NOT NULL
-                FROM notion_import_runs
+                FROM content_import_runs
                 WHERE status = 'PENDING'
                 """)).isTrue();
         executeUpdate("""
-                UPDATE notion_import_runs
+                UPDATE content_import_runs
                 SET status = 'FAILED',
                     completed_at = CURRENT_TIMESTAMP
                 WHERE status = 'RUNNING'
                 """);
         assertThat(queryBoolean("""
                 SELECT status = 'FAILED' AND last_heartbeat_at IS NOT NULL
-                FROM notion_import_runs
+                FROM content_import_runs
                 WHERE status = 'FAILED'
                 """)).isTrue();
         executeUpdate("""
-                UPDATE notion_import_runs
+                UPDATE content_import_runs
                 SET status = 'RUNNING',
                     started_at = CURRENT_TIMESTAMP
                 WHERE status = 'PENDING'
                 """);
         assertThat(queryBoolean("""
                 SELECT status = 'RUNNING' AND last_heartbeat_at IS NOT NULL
-                FROM notion_import_runs
+                FROM content_import_runs
                 WHERE status = 'RUNNING'
                 """)).isTrue();
         executeUpdate("""
-                UPDATE notion_import_runs
+                UPDATE content_import_runs
                 SET last_heartbeat_at = CURRENT_TIMESTAMP - INTERVAL '2 hours'
                 WHERE status = 'RUNNING'
                 """);
         assertThat(queryBoolean("""
                 SELECT NOT EXISTS (
                     SELECT 1
-                    FROM notion_import_runs
+                    FROM content_import_runs
                     WHERE status = 'RUNNING'
                         AND last_heartbeat_at <= CURRENT_TIMESTAMP - INTERVAL '1 hour'
                         AND started_at <= CURRENT_TIMESTAMP - INTERVAL '1 hour'
                 )
                 """)).isTrue();
         executeUpdate("""
-                INSERT INTO notion_import_runs (
+                INSERT INTO content_import_runs (
                     workspace_id,
                     content_source_connection_id,
                     requested_by_member_id,
@@ -206,23 +206,23 @@ class FlywayMigrationUpgradeIntegrationTest {
                     'PENDING',
                     0,
                     CURRENT_TIMESTAMP
-                FROM notion_import_runs
+                FROM content_import_runs
                 WHERE status = 'FAILED'
                 """);
         assertThat(queryBoolean("""
                 SELECT last_heartbeat_at IS NOT NULL
-                FROM notion_import_runs
+                FROM content_import_runs
                 WHERE status = 'PENDING'
                 """)).isTrue();
         executeUpdate("""
-                UPDATE notion_import_runs
+                UPDATE content_import_runs
                 SET status = 'RUNNING',
                     started_at = CURRENT_TIMESTAMP
                 WHERE status = 'PENDING'
                 """);
         assertThat(queryBoolean("""
                 SELECT BOOL_AND(last_heartbeat_at IS NOT NULL)
-                FROM notion_import_runs
+                FROM content_import_runs
                 WHERE status = 'RUNNING'
                 """)).isTrue();
     }
@@ -274,7 +274,7 @@ class FlywayMigrationUpgradeIntegrationTest {
                     FROM inserted_membership
                     RETURNING id, workspace_id
                 )
-                INSERT INTO notion_import_runs (
+                INSERT INTO content_import_runs (
                     workspace_id,
                     content_source_connection_id,
                     requested_by_member_id,

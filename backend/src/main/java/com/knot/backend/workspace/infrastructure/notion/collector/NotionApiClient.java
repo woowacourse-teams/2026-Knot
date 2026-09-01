@@ -6,8 +6,8 @@ import static com.knot.backend.workspace.infrastructure.notion.collector.NotionJ
 import static com.knot.backend.workspace.infrastructure.notion.collector.NotionJson.requiredNonBlankString;
 import static com.knot.backend.workspace.infrastructure.notion.collector.NotionJson.requiredNotionId;
 
-import com.knot.backend.workspace.application.NotionCollectionException;
-import com.knot.backend.workspace.application.NotionCollectionFailureType;
+import com.knot.backend.workspace.application.ContentCollectionException;
+import com.knot.backend.workspace.application.ContentCollectionFailureType;
 import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -566,15 +566,15 @@ final class NotionApiClient {
         return statusCode == 409 || statusCode == 429 || statusCode >= 500 && statusCode < 600;
     }
 
-    private NotionCollectionException failureForStatus(int statusCode) {
+    private ContentCollectionException failureForStatus(int statusCode) {
         if (statusCode == 401 || statusCode == 403) {
-            return new NotionCollectionException(NotionCollectionFailureType.ACCESS_DENIED);
+            return new ContentCollectionException(ContentCollectionFailureType.ACCESS_DENIED);
         }
         if (statusCode == 404) {
-            return new NotionCollectionException(NotionCollectionFailureType.NOT_FOUND);
+            return new ContentCollectionException(ContentCollectionFailureType.NOT_FOUND);
         }
         if (statusCode == 429) {
-            return new NotionCollectionException(NotionCollectionFailureType.RATE_LIMITED);
+            return new ContentCollectionException(ContentCollectionFailureType.RATE_LIMITED);
         }
         if (statusCode == 409) {
             return temporaryFailure();
@@ -583,7 +583,7 @@ final class NotionApiClient {
             return temporaryFailure();
         }
         if (statusCode >= 400 && statusCode < 500) {
-            return new NotionCollectionException(NotionCollectionFailureType.INVALID_REQUEST);
+            return new ContentCollectionException(ContentCollectionFailureType.INVALID_REQUEST);
         }
         return invalidResponse();
     }
@@ -612,7 +612,7 @@ final class NotionApiClient {
                             NOTION_API_VERSION
                     );
         } catch (IllegalArgumentException exception) {
-            throw new NotionCollectionException(NotionCollectionFailureType.INVALID_REQUEST);
+            throw new ContentCollectionException(ContentCollectionFailureType.INVALID_REQUEST);
         }
     }
 
@@ -651,8 +651,8 @@ final class NotionApiClient {
         return value;
     }
 
-    private NotionCollectionException temporaryFailure() {
-        return new NotionCollectionException(NotionCollectionFailureType.TEMPORARY);
+    private ContentCollectionException temporaryFailure() {
+        return new ContentCollectionException(ContentCollectionFailureType.TEMPORARY);
     }
 
     private record DataSourceQueryWindow(

@@ -39,9 +39,11 @@ Page Tree API는 마지막 성공 Page 전체를 parentPageId 기반 평면 배�
 
 현재는 전체 Page 수 문제가 관측되지 않았고 parentPageId 평면 배열이 가장 단순하다. 잘못된 계층은 숨기지 않고 실패시켜 불완전한 탐색 결과를 정상으로 보이지 않게 한다.
 
-`notion_pages`는 `import_run_id`별 Page 집합을 보존하고, `notion_page_publications`는 Workspace마다 마지막으로 발행된 Import Run 하나를 가리킨다. 조회는 publication pointer가 가리키는 `COMPLETED` 실행의 Page metadata만 읽는다. 실행 중이거나 실패한 Import의 Page가 같은 저장소에 있어도 조회 결과에는 포함하지 않는다.
+core domain/application은 특정 외부 공급자에 묶이지 않도록 `ImportedPage`, `ImportedPageMetadata`, `ImportedPageTreeQueryService`, `ImportedPageTreeItemResult` 이름을 사용한다. 기존 Notion API 이름, HTTP 경로, `parentPageId`, `notionUrl` JSON 필드와 `NOTION_PAGE_*` 오류 메시지는 Presentation mapping boundary에만 남긴다.
 
-Page 본문은 Tree 응답 계약이 아니므로 조회 Repository는 Entity 전체가 아니라 `id`, `workspaceId`, `parentPageId`, `title`, `position`, `notionUrl` projection만 읽는다. 실제 수집과 publication pointer 전환은 후속 Publish 작업이 같은 transaction에서 처리한다.
+`imported_pages`는 `import_run_id`별 Page 집합을 보존하고, `imported_page_publications`는 Workspace마다 마지막으로 발행된 Import Run 하나를 가리킨다. 조회는 publication pointer가 가리키는 `COMPLETED` 실행의 Page metadata만 읽는다. 실행 중이거나 실패한 Import의 Page가 같은 저장소에 있어도 조회 결과에는 포함하지 않는다.
+
+Page 본문은 Tree 응답 계약이 아니므로 조회 Repository는 Entity 전체가 아니라 `id`, `workspaceId`, `parentId`, `title`, `position`, `sourceUrl` projection만 읽는다. persistence는 저장된 `parentExternalPageId`를 부모 Page의 내부 `id`로 조인하고, Presentation은 `parentId`와 `sourceUrl`을 기존 JSON 필드인 `parentPageId`, `notionUrl`로 매핑한다. 실제 수집과 publication pointer 전환은 후속 Publish 작업이 같은 transaction에서 처리한다.
 
 ## 결과
 
@@ -50,6 +52,7 @@ Page 본문은 Tree 응답 계약이 아니므로 조회 Repository는 Entity �
 - BE는 Workspace의 publication pointer가 가리키는 완료 실행만 공개한다.
 - Tree 조회는 `markdown_content`를 읽지 않는다.
 - 한 Page의 계층 오류가 전체 요청을 실패시킨다.
+- domain/application의 Page 조회 오류는 `ImportedPage*` 기준으로 유지하고, 기존 Notion API 오류 코드와 메시지는 Presentation 예외 매핑에서만 노출한다.
 - 응답 크기 문제가 실제로 관측되기 전에는 pagination, lazy loading과 cache를 도입하지 않는다.
 
 ## 다시 논의해야 할 조건

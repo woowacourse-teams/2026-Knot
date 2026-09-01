@@ -1,6 +1,6 @@
 package com.knot.backend.workspace.infrastructure.notion.collector;
 
-import com.knot.backend.workspace.application.NotionContentCollector;
+import com.knot.backend.workspace.application.ContentSourceCollector;
 import com.knot.backend.workspace.infrastructure.notion.oauth.NotionOAuthProperties;
 import io.micrometer.core.instrument.MeterRegistry;
 import java.net.URI;
@@ -16,7 +16,7 @@ import tools.jackson.databind.ObjectMapper;
 public class NotionCollectorConfig {
 
     @Bean
-    public NotionContentCollector notionContentCollector(
+    public ContentSourceCollector notionContentCollector(
             @Qualifier("notionOAuthHttpClient") HttpClient httpClient,
             NotionOAuthProperties properties,
             ObjectMapper objectMapper,

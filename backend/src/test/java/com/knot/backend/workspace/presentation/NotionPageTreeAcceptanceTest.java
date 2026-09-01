@@ -95,7 +95,7 @@ class NotionPageTreeAcceptanceTest {
     @BeforeEach
     void clearTables() {
         jdbcClient.sql("""
-                TRUNCATE TABLE notion_page_publications, notion_pages, notion_import_runs,
+                TRUNCATE TABLE imported_page_publications, imported_pages, content_import_runs,
                     content_source_connections, content_source_authorizations,
                     workspace_members, workspaces, oauth_identities, members
                 RESTART IDENTITY CASCADE
@@ -148,7 +148,7 @@ class NotionPageTreeAcceptanceTest {
                 workspaceId,
                 publishedRunId,
                 "first-child",
-                rootPageId,
+                "root",
                 "첫 자식",
                 "첫 본문",
                 0
@@ -157,7 +157,7 @@ class NotionPageTreeAcceptanceTest {
                 workspaceId,
                 publishedRunId,
                 "second-child",
-                rootPageId,
+                "root",
                 "둘째 자식",
                 "둘째 본문",
                 1
@@ -650,7 +650,9 @@ class NotionPageTreeAcceptanceTest {
         );
         createCycle(
                 firstPageId,
-                secondPageId
+                secondPageId,
+                "first",
+                "second"
         );
 
         // when
@@ -970,33 +972,33 @@ class NotionPageTreeAcceptanceTest {
     private long saveNotionPage(
             long workspaceId,
             long importRunId,
-            String notionPageId,
-            Long parentPageId,
+            String externalPageId,
+            String parentExternalPageId,
             String title,
             String markdownContent,
             int position
     ) {
         return jdbcClient.sql("""
-                INSERT INTO notion_pages (
+                INSERT INTO imported_pages (
                     workspace_id,
                     import_run_id,
-                    notion_page_id,
-                    parent_page_id,
+                    external_page_id,
+                    parent_external_page_id,
                     title,
                     markdown_content,
                     position,
-                    notion_url,
+                    source_url,
                     created_at,
                     updated_at
                 ) VALUES (
                     :workspaceId,
                     :importRunId,
-                    :notionPageId,
-                    :parentPageId,
+                    :externalPageId,
+                    :parentExternalPageId,
                     :title,
                     :markdownContent,
                     :position,
-                    :notionUrl,
+                    :sourceUrl,
                     CAST(:createdAt AS TIMESTAMPTZ),
                     CAST(:createdAt AS TIMESTAMPTZ)
                 )
@@ -1011,12 +1013,12 @@ class NotionPageTreeAcceptanceTest {
                         importRunId
                 )
                 .param(
-                        "notionPageId",
-                        notionPageId
+                        "externalPageId",
+                        externalPageId
                 )
                 .param(
-                        "parentPageId",
-                        parentPageId
+                        "parentExternalPageId",
+                        parentExternalPageId
                 )
                 .param(
                         "title",
@@ -1031,8 +1033,8 @@ class NotionPageTreeAcceptanceTest {
                         position
                 )
                 .param(
-                        "notionUrl",
-                        "https://www.notion.so/" + notionPageId
+                        "sourceUrl",
+                        "https://www.notion.so/" + externalPageId
                 )
                 .param(
                         "createdAt",
@@ -1105,7 +1107,7 @@ class NotionPageTreeAcceptanceTest {
         boolean finished = status.equals("COMPLETED") || status.equals("FAILED");
         boolean completed = status.equals("COMPLETED");
         return jdbcClient.sql("""
-                INSERT INTO notion_import_runs (
+                INSERT INTO content_import_runs (
                     workspace_id,
                     content_source_connection_id,
                     requested_by_member_id,
@@ -1182,7 +1184,7 @@ class NotionPageTreeAcceptanceTest {
             long importRunId
     ) {
         jdbcClient.sql("""
-                INSERT INTO notion_page_publications (workspace_id, published_import_run_id, published_at)
+                INSERT INTO imported_page_publications (workspace_id, published_import_run_id, published_at)
                 VALUES (:workspaceId, :importRunId, CAST(:publishedAt AS TIMESTAMPTZ))
                 """)
                 .param(
@@ -1203,13 +1205,15 @@ class NotionPageTreeAcceptanceTest {
 
     private void createCycle(
             long firstPageId,
-            long secondPageId
+            long secondPageId,
+            String firstExternalPageId,
+            String secondExternalPageId
     ) {
         jdbcClient.sql("""
-                UPDATE notion_pages
-                SET parent_page_id = CASE
-                    WHEN id = :firstPageId THEN :secondPageId
-                    WHEN id = :secondPageId THEN :firstPageId
+                UPDATE imported_pages
+                SET parent_external_page_id = CASE
+                    WHEN id = :firstPageId THEN :secondExternalPageId
+                    WHEN id = :secondPageId THEN :firstExternalPageId
                 END
                 WHERE id IN (:firstPageId, :secondPageId)
                 """)
@@ -1221,6 +1225,14 @@ class NotionPageTreeAcceptanceTest {
                         "secondPageId",
                         secondPageId
                 )
+                .param(
+                        "firstExternalPageId",
+                        firstExternalPageId
+                )
+                .param(
+                        "secondExternalPageId",
+                        secondExternalPageId
+                )
                 .update();
     }
 
@@ -1230,16 +1242,16 @@ class NotionPageTreeAcceptanceTest {
                     '|',
                     id,
                     import_run_id,
-                    notion_page_id,
-                    COALESCE(parent_page_id::text, 'null'),
+                    external_page_id,
+                    COALESCE(parent_external_page_id::text, 'null'),
                     title,
                     markdown_content,
                     position,
-                    notion_url,
+                    source_url,
                     created_at::text,
                     updated_at::text
                 )
-                FROM notion_pages
+                FROM imported_pages
                 WHERE workspace_id = :workspaceId
                 ORDER BY id
                 """)
@@ -1300,7 +1312,7 @@ class NotionPageTreeAcceptanceTest {
                     COALESCE(completed_at::text, 'null'),
                     created_at::text
                 )
-                FROM notion_import_runs
+                FROM content_import_runs
                 WHERE id = :importRunId
                 """)
                 .param(
