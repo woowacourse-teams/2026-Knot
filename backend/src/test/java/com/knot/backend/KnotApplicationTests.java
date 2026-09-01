@@ -50,6 +50,7 @@ import tools.jackson.databind.ObjectMapper;
 @TestConstructor(autowireMode = AutowireMode.ALL)
 class KnotApplicationTests {
     private static final String FRONTEND_ORIGIN = "https://knoted.kr";
+    private static final String LOCAL_FRONTEND_ORIGIN = "http://localhost:3000";
     private static final String UNALLOWED_ORIGIN = "https://attacker.example";
     private static final String JWT_COOKIE_NAME = "KNOT_ACCESS_TOKEN";
     private static final String NICKNAME_COOKIE_NAME = "KNOT_NICKNAME_TOKEN";
@@ -306,6 +307,35 @@ class KnotApplicationTests {
 
         // then
         result.andExpect(header().doesNotExist(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN));
+    }
+
+    @Test
+    @DisplayName("localhost 프론트 Origin에서 CSRF 토큰을 조회한다")
+    void csrf_success_localFrontendOrigin() throws Exception {
+        // given
+
+        // when
+        ResultActions result = mockMvc.perform(
+                get("/api/v1/auth/csrf").header(
+                        HttpHeaders.ORIGIN,
+                        LOCAL_FRONTEND_ORIGIN
+                )
+        );
+
+        // then
+        result.andExpect(status().isOk())
+                .andExpect(
+                        header().string(
+                                HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN,
+                                LOCAL_FRONTEND_ORIGIN
+                        )
+                )
+                .andExpect(
+                        header().string(
+                                HttpHeaders.ACCESS_CONTROL_ALLOW_CREDENTIALS,
+                                "true"
+                        )
+                );
     }
 
     @Test
