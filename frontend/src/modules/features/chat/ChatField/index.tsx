@@ -10,7 +10,7 @@ interface ChatFieldProps extends Omit<
 > {}
 
 export default function ChatField({ ...props }: ChatFieldProps) {
-  const { message, canSubimt, handleChange, handleKeyDown, handleSubmit } =
+  const { message, canSubmit, handleChange, handleKeyDown, handleSubmit } =
     useChatField();
 
   return (
@@ -23,7 +23,7 @@ export default function ChatField({ ...props }: ChatFieldProps) {
         onKeyDown={handleKeyDown}
         {...props}
       />
-      <ChatFieldSubmitButton status={canSubimt ? "active" : "inactive"} />
+      <ChatFieldSubmitButton status={canSubmit ? "active" : "inactive"} />
     </Container>
   );
 }
