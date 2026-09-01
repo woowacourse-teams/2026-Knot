@@ -1,19 +1,28 @@
-import type { ChatSession } from "@/shared/types/chatSession";
 import { httpClient } from "@api/httpClient";
 
 export const WORKSPACE_CONVERSATIONS_API_PATH = (workspaceId: number) =>
   `/api/v1/workspaces/${workspaceId}/conversations`;
 
-export type GetChatSessionsApiResponse = ChatSession[];
+// 목록 조회와 생성 응답이 같은 모양을 써요
+interface ChatSession {
+  id: number;
+  title: string;
+  /** ISO 8601 */
+  createdAt: string;
+  /** ISO 8601 */
+  lastMessageAt: string;
+}
 
-export interface PostChatSessionApiRequest {
+type GetChatSessionsApiResponse = ChatSession[];
+
+interface PostChatSessionApiRequest {
   /** 최대 255자 */
   title?: string;
 }
 
-export type PostChatSessionApiResponse = ChatSession;
+type PostChatSessionApiResponse = ChatSession;
 
-export interface CreateChatSessionApiParams extends PostChatSessionApiRequest {
+interface CreateChatSessionApiParams extends PostChatSessionApiRequest {
   workspaceId: number;
 }
 

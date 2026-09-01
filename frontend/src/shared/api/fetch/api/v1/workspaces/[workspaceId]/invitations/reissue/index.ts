@@ -1,10 +1,16 @@
-import type { WorkspaceInvitation } from "@/shared/types/workspaceInvitation";
 import { httpClient } from "@api/httpClient";
 
 export const WORKSPACE_INVITATIONS_REISSUE_API_PATH = (workspaceId: number) =>
   `/api/v1/workspaces/${workspaceId}/invitations/reissue`;
 
-export type PostWorkspaceInvitationReissueApiResponse = WorkspaceInvitation;
+interface PostWorkspaceInvitationReissueApiResponse {
+  /** 6자 초대 코드 (예: X35D3S) */
+  code: string;
+  /** `/invite/<linkToken>` 진입 경로에 들어가요 */
+  linkToken: string;
+  /** ISO 8601 */
+  expiresAt: string;
+}
 
 /**
  * @description 기존 초대를 무효화하고 새 초대를 발급합니다

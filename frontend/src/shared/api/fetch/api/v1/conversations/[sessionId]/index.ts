@@ -1,10 +1,19 @@
-import type { ChatMessage } from "@/shared/types/chatMessage";
 import { httpClient } from "@api/httpClient";
 
 export const CHAT_MESSAGES_API_PATH = (sessionId: number) =>
   `/api/v1/conversations/${sessionId}`;
 
-export type GetChatMessagesApiResponse = ChatMessage[];
+type ChatMessageRole = "USER" | "ASSISTANT";
+
+interface ChatMessage {
+  id: number;
+  role: ChatMessageRole;
+  content: string;
+  /** ISO 8601 */
+  createdAt: string;
+}
+
+type GetChatMessagesApiResponse = ChatMessage[];
 
 /**
  * @description 대화 세션의 메시지 목록을 조회합니다
