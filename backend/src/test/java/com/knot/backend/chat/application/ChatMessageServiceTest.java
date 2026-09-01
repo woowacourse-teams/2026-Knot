@@ -47,6 +47,8 @@ class ChatMessageServiceTest {
         ChatSession session = mock(ChatSession.class);
         when(session.getMemberId()).thenReturn(2L);
         when(session.getWorkspaceId()).thenReturn(1L);
+        when(userMessage.getRole()).thenReturn(ChatMessageRole.USER);
+        when(userMessage.getContent()).thenReturn("질문");
         when(chatSessionRepository.findById(10L)).thenReturn(java.util.Optional.of(session));
         when(
                 workspaceMemberRepository.existsByWorkspaceIdAndMemberId(
