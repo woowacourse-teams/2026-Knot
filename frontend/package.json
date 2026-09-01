@@ -9,10 +9,14 @@
     "build": "pnpm tsc && webpack --mode production",
     "start": "webpack serve --mode production",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:report": "playwright show-report"
   },
   "devDependencies": {
     "@emotion/babel-plugin": "^11.13.5",
+    "@playwright/test": "^1.62.1",
     "@svgr/webpack": "^8.1.0",
     "@tanstack/react-query-devtools": "^5.102.0",
     "@testing-library/jest-dom": "^7.0.1",

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { getInviteLink } from "./getInviteLink";
+import { getInviteLink } from ".";
 
 describe("getInviteLink", () => {
   it("linkToken을 /invite/<linkToken> 진입 경로에 넣어 origin이 붙은 링크와 표시용 경로를 만든다", () => {
