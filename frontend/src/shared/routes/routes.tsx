@@ -52,6 +52,10 @@ export const router = createBrowserRouter([
         element: <WorkspaceInvitePage />,
       },
       {
+        path: PATH_ROUTE.WORKSPACE_NOTION_CONNECTION,
+        element: <WorkspaceNotionConnectionPage />,
+      },
+      {
         path: PATH_ROUTE.WORKSPACE_CODE,
         element: <WorkspaceCodePage />,
       },
@@ -77,10 +81,6 @@ export const router = createBrowserRouter([
       {
         path: PATH_ROUTE.WORKSPACE_HOME,
         element: <WorkspaceHomePage />,
-      },
-      {
-        path: PATH_ROUTE.WORKSPACE_NOTION_CONNECTION,
-        element: <WorkspaceNotionConnectionPage />,
       },
       {
         path: PATH_ROUTE.CHAT,

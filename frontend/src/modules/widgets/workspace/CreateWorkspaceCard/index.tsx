@@ -13,7 +13,8 @@ import { useCreateWorkspace } from "./models/useCreateWorkspace";
  * `maxLength`로 21자째 입력은 막습니다.
  *
  * 값이 비었거나(공백만 있는 값 포함) 에러면 버튼이 비활성이고, 라벨은 늘 `워크스페이스 생성`이에요.
- * 생성 API(#216)가 아직 없어 유효한 이름으로 제출하면 임시 workspaceId로 초대 화면으로 넘어갑니다.
+ * 제출하면 생성 API를 호출하고 요청 중에는 버튼이 로딩으로 잠겨요. 성공하면 응답의 workspaceId로
+ * 초대 화면으로 넘어가고, 400 등 실패는 입력창 아래 문구로, 401은 로그인 화면으로 처리합니다.
  *
  * 로고와 중앙 배치는 `CenteredLayout`이 맡으므로 이 카드는 자기 모양만 그려요.
  *
@@ -22,8 +23,15 @@ import { useCreateWorkspace } from "./models/useCreateWorkspace";
  * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=432-1594 새 워크스페이스 생성/입력 에러}
  */
 export default function CreateWorkspaceCard() {
-  const { errorMessage, handleChange, handleSubmit, isSubmittable, name } =
-    useCreateWorkspace();
+  const {
+    errorMessage,
+    handleChange,
+    handleSubmit,
+    inputRef,
+    isPending,
+    isSubmittable,
+    name,
+  } = useCreateWorkspace();
 
   return (
     <Container>
@@ -35,6 +43,7 @@ export default function CreateWorkspaceCard() {
             {name.length}/{WORKSPACE_NAME_MAX_LENGTH}
           </Counter>
           <TextField
+            ref={inputRef}
             value={name}
             onChange={handleChange}
             placeholder="예시: knot"
@@ -46,7 +55,13 @@ export default function CreateWorkspaceCard() {
           />
         </Field>
 
-        <Button type="submit" size="lg" isFullWidth disabled={!isSubmittable}>
+        <Button
+          type="submit"
+          size="lg"
+          isFullWidth
+          disabled={!isSubmittable}
+          isLoading={isPending}
+        >
           워크스페이스 생성
         </Button>
       </Form>

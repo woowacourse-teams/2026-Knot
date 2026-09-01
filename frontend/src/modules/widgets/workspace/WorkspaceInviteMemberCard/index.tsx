@@ -14,6 +14,7 @@ import { useWorkspaceInviteMemberCard } from "./model/useWorkspaceInviteMemberCa
  * 6자 참여 코드를 복사하고 글자가 2초 동안 `복사됨`으로 바뀌어요.
  * alert는 쓰지 않고, 클립보드에 쓰지 못하면 화면 변화 없이 넘어갑니다.
  *
+ * 코드·링크는 현재 `:workspaceId`의 활성 초대 조회 응답에서 오고, 응답 전에는 복사를 막아요.
  * 코드·링크·복사 로직은 팀원 초대 화면 카드와 같은 `useCopyWorkspaceInvite`를 써요.
  *
  * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=600-10087 Card/InviteMember}
@@ -21,12 +22,16 @@ import { useWorkspaceInviteMemberCard } from "./model/useWorkspaceInviteMemberCa
  */
 export default function WorkspaceInviteMemberCard() {
   const {
+    inviteCode,
     displayInviteLink,
+    isLoading,
     isLinkCopied,
     isCodeCopied,
     handleCopyLink,
     handleCopyCode,
   } = useWorkspaceInviteMemberCard();
+
+  const isInviteReady = inviteCode !== undefined;
 
   return (
     <Container>
@@ -42,13 +47,15 @@ export default function WorkspaceInviteMemberCard() {
           <LinkInput
             variant="copy"
             status="filled"
-            value={displayInviteLink}
+            value={displayInviteLink ?? ""}
             readOnly
             aria-label="초대 링크"
           />
           <CopyButton
             size="sm"
             variant={isLinkCopied ? "accent" : "filled"}
+            isLoading={isLoading}
+            disabled={!isInviteReady}
             onClick={handleCopyLink}
           >
             {isLinkCopied ? (
@@ -62,7 +69,11 @@ export default function WorkspaceInviteMemberCard() {
           </CopyButton>
         </LinkField>
 
-        <CopyCodeButton type="button" onClick={handleCopyCode}>
+        <CopyCodeButton
+          type="button"
+          disabled={!isInviteReady}
+          onClick={handleCopyCode}
+        >
           {isCodeCopied ? "복사됨" : "초대 코드 복사"}
         </CopyCodeButton>
       </Content>
@@ -139,6 +150,11 @@ const CopyCodeButton = styled.button`
   color: ${({ theme }) => theme.neutral[500]};
   text-align: center;
   ${({ theme }) => theme.text.body01};
+
+  &:disabled {
+    color: ${({ theme }) => theme.neutral[400]};
+    cursor: default;
+  }
 
   &:focus-visible {
     outline: 2px solid ${({ theme }) => theme.sub.accent[500]};

@@ -1,9 +1,9 @@
 ---
 name: create-pr-content
-description: 현재 브랜치 HEAD 커밋과 develop 브랜치 커밋의 변경사항을 비교하여 pr 내용을 작성
+description: 현재 브랜치 HEAD 커밋과 develop 브랜치 커밋의 변경사항을 비교하여 pr 내용을 작성하고, /explain-diff-html로 만든 변경 설명 페이지를 Artifact로 게시해 PR 본문에 링크
 user-invocable: true
 disable-model-invocation: true
-allowed-tools: Bash(git diff:*), Bash(git log:*), Bash(git branch:*), Bash(git status:*), Bash(gh issue view:*), Bash(gh api:*), Bash(mkdir:*), Bash(code:*), Read, Write, Glob, Grep
+allowed-tools: Bash(git diff:*), Bash(git log:*), Bash(git branch:*), Bash(git status:*), Bash(gh issue view:*), Bash(gh api:*), Bash(mkdir:*), Bash(code:*), Bash(date:*), Read, Write, Glob, Grep, Skill, Artifact
 ---
 
 # pr 작성 커맨드
@@ -12,12 +12,16 @@ allowed-tools: Bash(git diff:*), Bash(git log:*), Bash(git branch:*), Bash(git s
 
 작성 결과물은 레포 내부(`context/`)가 아니라 **OS 임시 디렉토리**에 저장하고, 작성이 끝나면 **VS Code로 자동으로 열어줌**.
 
+PR 본문에는 `/explain-diff-html`로 만든 **변경 설명 페이지**를 Artifact로 게시한 링크를 포함함. 게시된 페이지는 작성자 본인만 볼 수 있으므로, 완료 시 사용자가 직접 링크에 들어가 공유를 켜도록 안내함.
+
 ## 이 커맨드가 하는 일
 
 1. **변경사항 확인** - 코드의 변경사항을 명확히 확인
 2. **이슈 확인** - 관련 이슈 및 상위(부모) 이슈 내용까지 조회
-3. **PR 문서 작성** - 임시 파일에 작성
-4. **VS Code로 열기** - 작성된 파일을 자동으로 오픈
+3. **변경 설명 페이지 생성·게시** - `/explain-diff-html`로 HTML을 만들고 Artifact로 게시
+4. **PR 문서 작성** - 임시 파일에 작성, 설명 페이지 링크 포함
+5. **VS Code로 열기** - 작성된 파일을 자동으로 오픈
+6. **공유 안내** - 사용자가 링크에 직접 들어가 공유를 켜도록 안내
 
 ---
 
@@ -107,7 +111,43 @@ query($owner:String!, $name:String!, $number:Int!, $after:String) {
 - #51
 ```
 
-## 3단계: PR 문서 작성
+## 3단계: 변경 설명 페이지 생성·게시
+
+1·2단계에서 파악한 diff와 이슈 맥락을 그대로 이어받아 `/explain-diff-html` 스킬을 호출하고, 결과 HTML을 Artifact로 게시함. 게시된 URL은 4단계 PR 본문에 넣음.
+
+### 3-1. `/explain-diff-html` 호출
+
+`Skill` 도구로 `explain-diff-html`을 호출하되, Artifact로 게시할 수 있는 형태여야 하므로 아래 조건을 `args`로 함께 전달함.
+
+```text
+대상: develop...HEAD diff (이슈 #<번호> <이슈 제목>)
+출력 조건:
+- 파일 경로: /tmp/<YYYY-MM-DD>-explanation-<브랜치명을 -로 치환>.html
+- Artifact로 게시하므로 <!DOCTYPE>, <html>, <head>, <body> 태그를 쓰지 않고, <title>과 <style>을 파일 맨 위에 둔 뒤 본문 요소를 바로 작성
+- body에 배경색을 명시하고, 라이트·다크 테마 모두에서 읽히도록 색은 CSS 변수로 정의 (:root에 라이트 기본값, prefers-color-scheme: dark와 [data-theme="dark"]에서 재정의)
+- 외부 스크립트·이미지 없이 자체 완결. 퀴즈 피드백은 alert 대신 인라인으로 표시
+- 본문은 한국어 높임말
+```
+
+- 파일명의 날짜는 `date +%F`로 확인.
+- 스킬이 로드되면 그 지시(Background · Intuition · Code · Quiz 구성, 목차, 코드 블록은 `<pre>`)를 그대로 따름. Artifact 도구 규칙에 따라 HTML을 쓰기 전에 `artifact-design` 스킬도 로드함.
+- HTML은 `/tmp` 아래에만 쓰고 **레포 안에는 만들지 않음.**
+
+### 3-2. Artifact로 게시
+
+```text
+Artifact(
+  file_path = <3-1에서 만든 HTML 경로>,
+  favicon = "🔍",
+  description = "<이슈 제목> 변경 설명 (배경·직관·코드·퀴즈)"
+)
+```
+
+- `<title>`은 변경을 식별할 수 있는 짧은 이름으로 둠. (예: `초대 링크 입장 플로우 변경 설명`)
+- 게시 결과의 URL(`https://claude.ai/code/artifact/...`)을 기록해 4단계에서 사용.
+- 게시가 실패하면(도구 사용 불가, 크기 초과 등) 작업을 중단하지 않고 PR 문서에는 링크 대신 로컬 HTML 경로를 적은 뒤, 6단계 안내에서 게시 실패 사실을 알림.
+
+## 4단계: PR 문서 작성
 
 ### 저장 위치
 
@@ -121,7 +161,7 @@ mkdir -p /tmp/knot-pr
 - 파일이 이미 존재하면 덮어씀.
 - **`context/` 하위에는 절대 작성하지 않음.**
 
-## 4단계: VS Code로 열기
+## 5단계: VS Code로 열기
 
 작성 완료 후 반드시 실행:
 
@@ -129,7 +169,15 @@ mkdir -p /tmp/knot-pr
 code /tmp/knot-pr/<파일명>.md
 ```
 
-마지막에 사용자에게 저장 경로를 한 줄로 알려줌.
+## 6단계: 공유 안내 (필수)
+
+Artifact는 게시 직후 **작성자 본인만 볼 수 있음**. 리뷰어가 PR의 링크를 열 수 있으려면 사용자가 직접 공유를 켜야 하며, 이는 도구로 대신할 수 없음. 마지막 메시지에 반드시 아래 세 가지를 포함:
+
+1. PR 문서 저장 경로 (한 줄)
+2. 변경 설명 페이지 URL
+3. 공유 안내: "위 링크에 직접 들어가서 페이지의 공유(Share) 메뉴로 공유를 켜 주세요. 켜기 전에는 리뷰어가 열 수 없습니다."
+
+게시가 실패했다면 2·3번 대신 실패 사실과 로컬 HTML 경로를 알림.
 
 ---
 
@@ -145,6 +193,8 @@ code /tmp/knot-pr/<파일명>.md
 ## 작업 내용
 
 _주요 변경사항 요약(초록). 한 문장에서 두 문장._
+
+> 변경 배경·핵심 아이디어·코드 워크스루·퀴즈를 정리한 [변경 설명 페이지](<아티팩트 URL>)를 함께 참고해 주세요.
 
 ### [변경사항 1]
 
@@ -290,6 +340,8 @@ const getRouterPath = (routeKey: RouteKey) => ROUTES[routeKey];
 
 프로필 관리 기능 중 프로필 사진 업로드 및 제거 기능을 구현하였습니다.
 상위 이슈의 TODO 중 프로필 정보 수정은 후속 PR에서 진행하겠습니다.
+
+> 변경 배경·핵심 아이디어·코드 워크스루·퀴즈를 정리한 [변경 설명 페이지](https://claude.ai/code/artifact/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)를 함께 참고해 주세요.
 
 ### 프로필 사진 업로드
 

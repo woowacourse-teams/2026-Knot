@@ -11,6 +11,7 @@ import { workspaceConversationsHandlers } from "./api/v1/workspaces/[workspaceId
 import { workspaceInvitationHandlers } from "./api/v1/workspaces/[workspaceId]/invitation";
 import { workspaceInvitationsHandlers } from "./api/v1/workspaces/[workspaceId]/invitations";
 import { workspaceInvitationReissueHandlers } from "./api/v1/workspaces/[workspaceId]/invitations/reissue";
+import { workspaceNotionOAuthAuthorizationsHandlers } from "./api/v1/workspaces/[workspaceId]/notionOauthAuthorizations";
 
 // 리다이렉트 엔드포인트(OAuth 시작·로그아웃)와 SSE 메시지 전송은 XHR 응답이 아니라 두지 않아요
 export const handlers = [
@@ -24,6 +25,7 @@ export const handlers = [
   ...workspaceInvitationsHandlers,
   ...workspaceInvitationReissueHandlers,
   ...workspaceConversationsHandlers,
+  ...workspaceNotionOAuthAuthorizationsHandlers,
   ...invitationAcceptHandlers,
   ...invitationPreviewHandlers,
   ...chatMessagesHandlers,

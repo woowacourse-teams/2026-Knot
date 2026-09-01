@@ -1,3 +1,4 @@
+import useWorkspaceQuery from "@api/queries/useWorkspaceQuery";
 import styled from "@emotion/styled";
 import Spacing from "@primitives/layout/Spacing";
 import {
@@ -8,10 +9,10 @@ import {
 import ChevronDownIcon from "@/assets/icons/chevronDown.svg";
 import PlusIcon from "@/assets/icons/plus.svg";
 import SyncIcon from "@/assets/icons/sync.svg";
+import { useParams } from "react-router";
 
 import {
   LAST_SYNCED_LABEL,
-  WORKSPACE_NAME,
   WORKSPACE_TREE,
 } from "./constants/workspaceSidebar";
 import { useWorkspaceTree } from "./model/useWorkspaceTree";
@@ -21,7 +22,9 @@ import SidebarTreeList from "./ui/SidebarTreeList";
  * 워크스페이스 사이드바.
  *
  * GNB의 토글 버튼으로 열리며, 열리면 264px 너비로 왼쪽에 자리 잡고 GNB·본문을 오른쪽으로 밀어요.
- * 워크스페이스 헤더(전환)·폴더 추가·하단 동기화는 API가 없어 모양만 그리고,
+ * 헤더의 워크스페이스 이름은 현재 `:workspaceId`의 워크스페이스 조회 응답에서 오고, 레이아웃의 진입 판정과
+ * 같은 쿼리라 요청은 한 번만 나가요. 응답 전에는 이름 자리를 비워 둬요.
+ * 워크스페이스 전환·폴더 추가·하단 동기화는 API가 없어 모양만 그리고,
  * 임시 트리의 폴더 행만 눌러서 펼치고 접을 수 있어요.
  *
  * 닫혀 있을 때는 아무것도 그리지 않지만 컴포넌트는 남아 있어 트리 펼침 상태가 유지돼요.
@@ -30,17 +33,23 @@ import SidebarTreeList from "./ui/SidebarTreeList";
  * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=600-10207 탐색 결과/사이드바 오픈}
  */
 export default function WorkspaceSidebar() {
+  const { workspaceId } = useParams();
   const { isSidebarOpen } = useWorkspaceSidebar();
   const { isFolderExpanded, toggleFolder } = useWorkspaceTree();
+  const { data: workspace } = useWorkspaceQuery({
+    workspaceId: Number(workspaceId),
+  });
 
   if (!isSidebarOpen) return null;
+
+  const workspaceName = workspace?.name ?? "";
 
   return (
     <Container id={WORKSPACE_SIDEBAR_ID} aria-label="워크스페이스 사이드바">
       <WorkspaceHeader>
         <WorkspaceInfo>
-          <InitialAvatar aria-hidden>{WORKSPACE_NAME.charAt(0)}</InitialAvatar>
-          <WorkspaceName>{WORKSPACE_NAME}</WorkspaceName>
+          <InitialAvatar aria-hidden>{workspaceName.charAt(0)}</InitialAvatar>
+          <WorkspaceName>{workspaceName}</WorkspaceName>
         </WorkspaceInfo>
         <ChevronDownIcon size={12} />
       </WorkspaceHeader>

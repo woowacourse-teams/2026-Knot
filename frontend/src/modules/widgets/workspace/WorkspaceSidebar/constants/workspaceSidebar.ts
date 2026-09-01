@@ -54,8 +54,5 @@ export const WORKSPACE_TREE: WorkspaceTreeNode[] = [
 /** Figma 예시에서 처음부터 펼쳐져 있는 폴더예요. */
 export const INITIAL_EXPANDED_FOLDER_IDS = ["product", "roadmap"];
 
-// TODO: 워크스페이스 조회 API 연결 후 응답의 이름으로 교체
-export const WORKSPACE_NAME = "팀 노트";
-
 // TODO(#266): 동기화 API 연결 후 마지막 동기화 시각으로 교체
 export const LAST_SYNCED_LABEL = "2분 전";

@@ -15,7 +15,7 @@ export const useWorkspaceFloatingDock = () => {
   const handleHomeClick = () => {
     if (!workspaceId || isHomeActive) return;
 
-    navigateToWorkspaceHome(workspaceId);
+    navigateToWorkspaceHome({ workspaceId });
   };
 
   const handleChatClick = () => {
