@@ -54,6 +54,19 @@ class NotionMarkdownRendererTest {
         assertThat(rendered.markdown()).doesNotContain("raw-secret.png");
     }
 
+    @DisplayName("ordered list 자식을 marker 폭으로 들여쓰고 일반 문단의 list marker를 escape한다")
+    @Test
+    void render_success_preservesParagraphMarkersAndOrderedListNesting() throws Exception {
+        // given
+        JsonNode fixture = readJson("/notion/collector/markdown-boundaries.json");
+
+        // when
+        RenderedNotionMarkdown rendered = renderer.render(blocks(fixture));
+
+        // then
+        assertThat(rendered.markdown()).isEqualTo(readText("/notion/collector/expected-boundaries.md").stripTrailing());
+    }
+
     private List<NotionBlock> blocks(JsonNode values) {
         List<NotionBlock> blocks = new ArrayList<>();
         for (JsonNode value : values) {

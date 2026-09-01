@@ -140,6 +140,136 @@ class HttpNotionContentCollectorTest {
                 .hasSize(2);
     }
 
+    @DisplayName("Wiki Data Source query의 partial Data Source를 조회해 구조적 자식으로 재귀 수집한다")
+    @Test
+    void collect_success_recursesIntoNestedWikiDataSource() throws Exception {
+        // given
+        AtomicInteger dataSourceRetrievals = new AtomicInteger();
+        URI baseUri = startServer(exchange -> {
+            String path = exchange.getRequestURI()
+                    .getPath();
+            switch (path) {
+                case "/v1/search" -> respond(
+                        exchange,
+                        200,
+                        pageList("""
+                                {
+                                  "object":"data_source",
+                                  "id":"data-source-root",
+                                  "properties":{}
+                                }
+                                """)
+                );
+                case "/v1/data_sources/data-source-root" -> {
+                    dataSourceRetrievals.incrementAndGet();
+                    respond(
+                            exchange,
+                            200,
+                            """
+                                    {
+                                      "object":"data_source",
+                                      "id":"data-source-root",
+                                      "parent":{"type":"workspace","workspace":true},
+                                      "url":"https://notion.so/data-source-root",
+                                      "title":[{"plain_text":"Wiki"}]
+                                    }
+                                    """
+                    );
+                }
+                case "/v1/data_sources/data-source-root/query" -> respond(
+                        exchange,
+                        200,
+                        pageList("""
+                                {
+                                  "object":"data_source",
+                                  "id":"data-source-child",
+                                  "properties":{}
+                                }
+                                """)
+                );
+                case "/v1/data_sources/data-source-child" -> {
+                    dataSourceRetrievals.incrementAndGet();
+                    respond(
+                            exchange,
+                            200,
+                            """
+                                    {
+                                      "object":"data_source",
+                                      "id":"data-source-child",
+                                      "parent":{"type":"database_id","database_id":"database-child"},
+                                      "url":"https://notion.so/data-source-child",
+                                      "title":[{"plain_text":"Nested"}]
+                                    }
+                                    """
+                    );
+                }
+                case "/v1/data_sources/data-source-child/query" -> respond(
+                        exchange,
+                        200,
+                        pageList("""
+                                {"object":"page","id":"page-nested-row"}
+                                """)
+                );
+                case "/v1/pages/page-nested-row" -> respond(
+                        exchange,
+                        200,
+                        pageResponse(
+                                "page-nested-row",
+                                "Nested Row",
+                                "{\"type\":\"data_source_id\",\"data_source_id\":\"data-source-child\"}",
+                                ""
+                        )
+                );
+                case "/v1/blocks/page-nested-row/children" -> respond(
+                        exchange,
+                        200,
+                        blockList("")
+                );
+                default -> respond(
+                        exchange,
+                        404,
+                        "{}"
+                );
+            }
+        });
+        HttpNotionContentCollector collector = collector(
+                baseUri,
+                Duration.ofSeconds(1),
+                new TestObserver(),
+                ignored -> {
+                }
+        );
+
+        // when
+        NotionCollectionResult result = collector.collect(ACCESS_CREDENTIAL);
+
+        // then
+        assertThat(result.pages()).containsExactly(
+                page(
+                        "data-source-root",
+                        null,
+                        "Wiki",
+                        0,
+                        "https://notion.so/data-source-root"
+                ),
+                page(
+                        "data-source-child",
+                        "data-source-root",
+                        "Nested",
+                        1,
+                        "https://notion.so/data-source-child"
+                ),
+                page(
+                        "page-nested-row",
+                        "data-source-child",
+                        "Nested Row",
+                        2,
+                        "https://notion.so/page-nested-row"
+                )
+        );
+        assertThat(dataSourceRetrievals).hasValue(2);
+    }
+
     @DisplayName("429 Retry-After 초를 기다린 뒤 같은 요청을 재시도한다")
     @Test
     void collect_success_retriesRateLimitUsingRetryAfter() throws Exception {
@@ -176,6 +306,323 @@ class HttpNotionContentCollectorTest {
         assertThat(result.pages()).isEmpty();
         assertThat(requests).hasValue(2);
         assertThat(sleeps).containsExactly(Duration.ofSeconds(2));
+    }
+
+    @DisplayName("30초를 넘는 429 Retry-After는 provider보다 일찍 재요청하지 않고 rate limit으로 반환한다")
+    @Test
+    void collect_failure_doesNotRetryLongRateLimitEarly() throws Exception {
+        // given
+        AtomicInteger requests = new AtomicInteger();
+        URI baseUri = startServer(exchange -> {
+            requests.incrementAndGet();
+            exchange.getResponseHeaders()
+                    .add(
+                            "Retry-After",
+                            "31"
+                    );
+            respond(
+                    exchange,
+                    429,
+                    "{\"message\":\"limited\"}"
+            );
+        });
+        List<Duration> sleeps = new ArrayList<>();
+        HttpNotionContentCollector collector = collector(
+                baseUri,
+                Duration.ofSeconds(1),
+                new TestObserver(),
+                sleeps::add
+        );
+
+        // when
+        Throwable throwable = catchThrowable(() -> collector.collect(ACCESS_CREDENTIAL));
+
+        // then
+        assertFailureType(
+                throwable,
+                NotionCollectionFailureType.RATE_LIMITED
+        );
+        assertThat(requests).hasValue(1);
+        assertThat(sleeps).isEmpty();
+    }
+
+    @DisplayName("529 Retry-After 초를 기다린 뒤 같은 요청을 재시도한다")
+    @Test
+    void collect_success_retriesServiceOverloadUsingRetryAfter() throws Exception {
+        // given
+        AtomicInteger requests = new AtomicInteger();
+        URI baseUri = startServer(exchange -> {
+            if (requests.incrementAndGet() == 1) {
+                exchange.getResponseHeaders()
+                        .add(
+                                "Retry-After",
+                                "2"
+                        );
+                respond(
+                        exchange,
+                        529,
+                        "{\"message\":\"overloaded\"}"
+                );
+                return;
+            }
+            respondEmptyPage(exchange);
+        });
+        List<Duration> sleeps = new ArrayList<>();
+        HttpNotionContentCollector collector = collector(
+                baseUri,
+                Duration.ofSeconds(1),
+                new TestObserver(),
+                sleeps::add
+        );
+
+        // when
+        NotionCollectionResult result = collector.collect(ACCESS_CREDENTIAL);
+
+        // then
+        assertThat(result.pages()).isEmpty();
+        assertThat(requests).hasValue(2);
+        assertThat(sleeps).containsExactly(Duration.ofSeconds(2));
+    }
+
+    @DisplayName("Data Source query가 10,000건 제한에 걸리면 created_time window로 전진하고 경계 ID를 중복 제거한다")
+    @Test
+    void queryDataSource_success_windowsIncompleteResultsAndDeduplicatesBoundary() throws Exception {
+        // given
+        AtomicInteger requests = new AtomicInteger();
+        List<String> requestBodies = new CopyOnWriteArrayList<>();
+        URI baseUri = startServer(exchange -> {
+            requestBodies.add(
+                    new String(
+                            exchange.getRequestBody()
+                                    .readAllBytes(),
+                            StandardCharsets.UTF_8
+                    )
+            );
+            int request = requests.incrementAndGet();
+            if (request == 1) {
+                respond(
+                        exchange,
+                        200,
+                        """
+                                {
+                                  "results":[
+                                    {"object":"page","id":"page-first","created_time":"2026-08-31T00:00:00Z"}
+                                  ],
+                                  "has_more":true,
+                                  "next_cursor":"window-next",
+                                  "request_status":{
+                                    "type":"incomplete",
+                                    "incomplete_reason":"query_result_limit_reached"
+                                  }
+                                }
+                                """
+                );
+                return;
+            }
+            if (request == 2) {
+                respond(
+                        exchange,
+                        200,
+                        """
+                                {
+                                  "results":[
+                                    {"object":"page","id":"page-boundary","created_time":"2026-09-01T00:00:00Z"}
+                                  ],
+                                  "has_more":false,
+                                  "next_cursor":null,
+                                  "request_status":{"type":"complete"}
+                                }
+                                """
+                );
+                return;
+            }
+            respond(
+                    exchange,
+                    200,
+                    """
+                            {
+                              "results":[
+                                {"object":"page","id":"page-boundary","created_time":"2026-09-01T00:00:00Z"},
+                                {"object":"page","id":"page-last","created_time":"2026-09-02T00:00:00Z"}
+                              ],
+                              "has_more":false,
+                              "next_cursor":null,
+                              "request_status":{"type":"complete"}
+                            }
+                            """
+            );
+        });
+        NotionApiClient apiClient = apiClient(
+                baseUri,
+                Duration.ofSeconds(1),
+                ignored -> {
+                }
+        );
+
+        // when
+        List<JsonNode> results = apiClient.queryDataSource(
+                "data-source-1",
+                ACCESS_CREDENTIAL
+        );
+
+        // then
+        assertThat(results).extracting(
+                result -> result.get("id")
+                        .asString()
+        )
+                .containsExactly(
+                        "page-first",
+                        "page-boundary",
+                        "page-last"
+                );
+        assertThat(requests).hasValue(3);
+        JsonNode firstRequest = objectMapper.readTree(requestBodies.getFirst());
+        JsonNode cursorRequest = objectMapper.readTree(requestBodies.get(1));
+        JsonNode secondWindowRequest = objectMapper.readTree(requestBodies.get(2));
+        assertThat(
+                firstRequest.get("sorts")
+                        .get(0)
+                        .get("timestamp")
+                        .asString()
+        ).isEqualTo("created_time");
+        assertThat(
+                firstRequest.get("sorts")
+                        .get(0)
+                        .get("direction")
+                        .asString()
+        ).isEqualTo("ascending");
+        assertThat(firstRequest.get("filter")).isNull();
+        assertThat(
+                cursorRequest.get("start_cursor")
+                        .asString()
+        ).isEqualTo("window-next");
+        assertThat(cursorRequest.get("filter")).isNull();
+        assertThat(secondWindowRequest.get("start_cursor")).isNull();
+        assertThat(
+                secondWindowRequest.get("filter")
+                        .get("created_time")
+                        .get("on_or_after")
+                        .asString()
+        ).isEqualTo("2026-09-01T00:00:00Z");
+    }
+
+    @DisplayName("Data Source query incomplete window가 같은 created_time 경계에서 멈추면 전체 수집을 실패한다")
+    @Test
+    void queryDataSource_failure_rejectsIncompleteWindowWithoutProgress() throws Exception {
+        // given
+        AtomicInteger requests = new AtomicInteger();
+        URI baseUri = startServer(exchange -> {
+            requests.incrementAndGet();
+            respond(
+                    exchange,
+                    200,
+                    """
+                            {
+                              "results":[
+                                {"object":"page","id":"page-boundary","created_time":"2026-09-01T00:00:00Z"}
+                              ],
+                              "has_more":false,
+                              "next_cursor":null,
+                              "request_status":{
+                                "type":"incomplete",
+                                "incomplete_reason":"query_result_limit_reached"
+                              }
+                            }
+                            """
+            );
+        });
+        NotionApiClient apiClient = apiClient(
+                baseUri,
+                Duration.ofSeconds(1),
+                ignored -> {
+                }
+        );
+
+        // when
+        Throwable throwable = catchThrowable(
+                () -> apiClient.queryDataSource(
+                        "data-source-1",
+                        ACCESS_CREDENTIAL
+                )
+        );
+
+        // then
+        assertFailureType(
+                throwable,
+                NotionCollectionFailureType.INVALID_RESPONSE
+        );
+        assertThat(requests).hasValue(2);
+    }
+
+    @DisplayName("409 conflict_error가 계속되면 제한된 backoff 후 일시 오류로 중단한다")
+    @Test
+    void collect_failure_retriesConflictWithinBound() throws Exception {
+        // given
+        AtomicInteger requests = new AtomicInteger();
+        URI baseUri = startServer(exchange -> {
+            requests.incrementAndGet();
+            respond(
+                    exchange,
+                    409,
+                    "{\"code\":\"conflict_error\"}"
+            );
+        });
+        List<Duration> sleeps = new ArrayList<>();
+        HttpNotionContentCollector collector = collector(
+                baseUri,
+                Duration.ofSeconds(1),
+                new TestObserver(),
+                sleeps::add
+        );
+
+        // when
+        Throwable throwable = catchThrowable(() -> collector.collect(ACCESS_CREDENTIAL));
+
+        // then
+        assertFailureType(
+                throwable,
+                NotionCollectionFailureType.TEMPORARY
+        );
+        assertThat(requests).hasValue(HttpNotionContentCollector.MAX_ATTEMPTS);
+        assertThat(sleeps).containsExactly(
+                Duration.ofMillis(200),
+                Duration.ofMillis(400),
+                Duration.ofMillis(800),
+                Duration.ofMillis(1_600)
+        );
+    }
+
+    @DisplayName("409 conflict_error 이후 정상 응답이 오면 backoff 후 성공한다")
+    @Test
+    void collect_success_retriesConflict() throws Exception {
+        // given
+        AtomicInteger requests = new AtomicInteger();
+        URI baseUri = startServer(exchange -> {
+            if (requests.incrementAndGet() == 1) {
+                respond(
+                        exchange,
+                        409,
+                        "{\"code\":\"conflict_error\"}"
+                );
+                return;
+            }
+            respondEmptyPage(exchange);
+        });
+        List<Duration> sleeps = new ArrayList<>();
+        HttpNotionContentCollector collector = collector(
+                baseUri,
+                Duration.ofSeconds(1),
+                new TestObserver(),
+                sleeps::add
+        );
+
+        // when
+        NotionCollectionResult result = collector.collect(ACCESS_CREDENTIAL);
+
+        // then
+        assertThat(result.pages()).isEmpty();
+        assertThat(requests).hasValue(2);
+        assertThat(sleeps).containsExactly(Duration.ofMillis(200));
     }
 
     @DisplayName("5xx가 계속되면 최대 횟수까지만 재시도하고 일시 오류로 분류한다")
@@ -449,6 +896,22 @@ class HttpNotionContentCollectorTest {
                 baseUri,
                 timeout,
                 observer,
+                sleeper
+        );
+    }
+
+    private NotionApiClient apiClient(
+            URI baseUri,
+            Duration timeout,
+            NotionRetrySleeper sleeper
+    ) {
+        return new NotionApiClient(
+                HttpClient.newBuilder()
+                        .connectTimeout(timeout)
+                        .build(),
+                objectMapper,
+                baseUri,
+                timeout,
                 sleeper
         );
     }

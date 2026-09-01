@@ -95,7 +95,7 @@ final class NotionMarkdownRenderer {
         }
 
         boolean listItem = LIST_TYPES.contains(type);
-        int childIndentation = listItem ? indentation + 2 : indentation;
+        int childIndentation = indentation + listMarkerWidth(type);
         String childMarkdown = renderSiblings(
                 block.children(),
                 childIndentation,
@@ -128,7 +128,7 @@ final class NotionMarkdownRenderer {
     ) {
         JsonNode content = block.get(type);
         return switch (type) {
-            case "paragraph" -> richTextContent(content);
+            case "paragraph" -> paragraph(content);
             case "heading_1" -> heading(
                     "# ",
                     content
@@ -171,6 +171,10 @@ final class NotionMarkdownRenderer {
             JsonNode content
     ) {
         return prefix + richTextContent(content);
+    }
+
+    private String paragraph(JsonNode content) {
+        return escapeParagraphLineStarts(richTextContent(content));
     }
 
     private String richTextContent(JsonNode content) {
@@ -346,6 +350,110 @@ final class NotionMarkdownRenderer {
                 "\n",
                 "\n" + indentation
         );
+    }
+
+    private int listMarkerWidth(String type) {
+        return switch (type) {
+            case "numbered_list_item" -> 3;
+            case "bulleted_list_item", "to_do", "toggle" -> 2;
+            default -> 0;
+        };
+    }
+
+    private String escapeParagraphLineStarts(String value) {
+        StringBuilder escaped = new StringBuilder(value.length());
+        int lineStart = 0;
+        for (int index = 0; index <= value.length(); index++) {
+            if (index == value.length() || value.charAt(index) == '\n') {
+                escaped.append(
+                        escapeParagraphLine(
+                                value.substring(
+                                        lineStart,
+                                        index
+                                )
+                        )
+                );
+                if (index < value.length()) {
+                    escaped.append('\n');
+                }
+                lineStart = index + 1;
+            }
+        }
+        return escaped.toString();
+    }
+
+    private String escapeParagraphLine(String line) {
+        int markerStart = 0;
+        while (markerStart < line.length() && markerStart < 3 && line.charAt(markerStart) == ' ') {
+            markerStart++;
+        }
+        if (markerStart == line.length()) {
+            return line;
+        }
+
+        String content = line.substring(markerStart);
+        if (isDashThematicBreak(content)) {
+            return insertEscape(
+                    line,
+                    markerStart
+            );
+        }
+        char first = content.charAt(0);
+        if ((first == '-' || first == '+') && isMarkerBoundary(
+                content,
+                1
+        )) {
+            return insertEscape(
+                    line,
+                    markerStart
+            );
+        }
+
+        int digits = 0;
+        while (digits < content.length() && digits < 9 && Character.isDigit(content.charAt(digits))) {
+            digits++;
+        }
+        if (digits > 0 && digits < content.length() && (content.charAt(digits) == '.' || content.charAt(digits) == ')')
+                && isMarkerBoundary(
+                        content,
+                        digits + 1
+                )) {
+            return insertEscape(
+                    line,
+                    markerStart + digits
+            );
+        }
+        return line;
+    }
+
+    private boolean isDashThematicBreak(String content) {
+        int dashCount = 0;
+        for (int index = 0; index < content.length(); index++) {
+            char character = content.charAt(index);
+            if (character == '-') {
+                dashCount++;
+            } else if (character != ' ' && character != '\t') {
+                return false;
+            }
+        }
+        return dashCount >= 3;
+    }
+
+    private boolean isMarkerBoundary(
+            String content,
+            int boundary
+    ) {
+        return boundary == content.length() || Character.isWhitespace(content.charAt(boundary));
+    }
+
+    private String insertEscape(
+            String value,
+            int index
+    ) {
+        return value.substring(
+                0,
+                index
+        ) + '\\' + value.substring(index);
     }
 
     private String escapeMarkdown(String value) {

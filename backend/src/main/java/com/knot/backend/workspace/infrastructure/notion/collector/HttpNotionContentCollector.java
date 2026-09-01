@@ -118,20 +118,25 @@ public final class HttpNotionContentCollector implements NotionContentCollector 
         if (!state.startDataSource(dataSourceId)) {
             return;
         }
+        JsonNode fullDataSource = fullDataSource(
+                dataSource,
+                dataSourceId,
+                accessCredential
+        );
         state.setContent(
                 dataSourceId,
                 NotionObjectType.DATA_SOURCE,
-                markdownRenderer.plainText(dataSource.get("title")),
+                markdownRenderer.plainText(fullDataSource.get("title")),
                 "",
                 requiredHttpsUrl(
-                        dataSource,
+                        fullDataSource,
                         "url"
                 )
         );
         state.setDatabaseContainerId(
                 dataSourceId,
                 NotionObjectType.DATA_SOURCE,
-                databaseContainerId(dataSource.get("parent"))
+                databaseContainerId(fullDataSource.get("parent"))
         );
         collectDataSourceRows(
                 dataSourceId,
@@ -145,6 +150,35 @@ public final class HttpNotionContentCollector implements NotionContentCollector 
         state.finishDataSource(dataSourceId);
     }
 
+    private JsonNode fullDataSource(
+            JsonNode dataSource,
+            String dataSourceId,
+            String accessCredential
+    ) {
+        JsonNode value = hasFullDataSourceFields(dataSource)
+                ? dataSource
+                : apiClient.retrieveDataSource(
+                        dataSourceId,
+                        accessCredential
+                );
+        String objectType = requiredNonBlankString(
+                value,
+                "object"
+        );
+        String responseDataSourceId = requiredNotionId(
+                value,
+                "id"
+        );
+        if (!"data_source".equals(objectType) || !dataSourceId.equals(responseDataSourceId)) {
+            throw invalidResponse();
+        }
+        return value;
+    }
+
+    private boolean hasFullDataSourceFields(JsonNode dataSource) {
+        return dataSource.get("title") != null && dataSource.get("parent") != null && dataSource.get("url") != null;
+    }
+
     private void collectDataSourceRows(
             String dataSourceId,
             List<JsonNode> rows,
@@ -153,27 +187,59 @@ public final class HttpNotionContentCollector implements NotionContentCollector 
     ) {
         long rowOrder = 0;
         for (JsonNode row : rows) {
-            if (!"page".equals(
-                    requiredNonBlankString(
-                            row,
-                            "object"
-                    )
-            )) {
-                throw invalidResponse();
-            }
-            collectPage(
-                    requiredNotionId(
-                            row,
-                            "id"
-                    ),
-                    dataSourceId,
-                    rowOrder++,
-                    PlacementPriority.STRUCTURAL,
-                    true,
-                    accessCredential,
-                    state
+            String objectType = requiredNonBlankString(
+                    row,
+                    "object"
             );
+            long order = rowOrder++;
+            switch (objectType) {
+                case "page" -> collectPage(
+                        requiredNotionId(
+                                row,
+                                "id"
+                        ),
+                        dataSourceId,
+                        order,
+                        PlacementPriority.STRUCTURAL,
+                        true,
+                        accessCredential,
+                        state
+                );
+                case "data_source" -> collectNestedDataSource(
+                        row,
+                        dataSourceId,
+                        order,
+                        accessCredential,
+                        state
+                );
+                default -> throw invalidResponse();
+            }
         }
+    }
+
+    private void collectNestedDataSource(
+            JsonNode dataSource,
+            String parentDataSourceId,
+            long order,
+            String accessCredential,
+            NotionCollectionState state
+    ) {
+        String dataSourceId = requiredNotionId(
+                dataSource,
+                "id"
+        );
+        state.place(
+                dataSourceId,
+                NotionObjectType.DATA_SOURCE,
+                parentDataSourceId,
+                order,
+                PlacementPriority.STRUCTURAL
+        );
+        collectDataSource(
+                dataSource,
+                accessCredential,
+                state
+        );
     }
 
     private void collectPage(
