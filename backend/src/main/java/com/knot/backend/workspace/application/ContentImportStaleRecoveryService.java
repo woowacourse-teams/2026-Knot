@@ -20,13 +20,13 @@ public class ContentImportStaleRecoveryService {
             Duration runningTimeout,
             int batchSize
     ) {
-        validateArguments(
+        long runningTimeoutMillis = validateArguments(
                 runningTimeout,
                 batchSize
         );
         Instant recoveredAt = importRunRepository.currentDatabaseTime();
         List<ContentImportRun> staleImportRuns = importRunRepository.findStaleRunningForUpdate(
-                runningTimeout.toMillis(),
+                runningTimeoutMillis,
                 batchSize
         );
         for (ContentImportRun importRun : staleImportRuns) {
@@ -41,12 +41,24 @@ public class ContentImportStaleRecoveryService {
         return new ContentImportRecoveryResult(staleImportRuns.size());
     }
 
-    private void validateArguments(
+    private long validateArguments(
             Duration runningTimeout,
             int batchSize
     ) {
         if (runningTimeout == null || runningTimeout.isZero() || runningTimeout.isNegative() || batchSize <= 0) {
             throw new IllegalArgumentException("Content Import stale 복구 설정이 올바르지 않습니다");
+        }
+        try {
+            long runningTimeoutMillis = runningTimeout.toMillis();
+            if (runningTimeoutMillis < 1) {
+                throw new IllegalArgumentException("Content Import stale 복구 설정이 올바르지 않습니다");
+            }
+            return runningTimeoutMillis;
+        } catch (ArithmeticException exception) {
+            throw new IllegalArgumentException(
+                    "Content Import stale 복구 설정이 올바르지 않습니다",
+                    exception
+            );
         }
     }
 
