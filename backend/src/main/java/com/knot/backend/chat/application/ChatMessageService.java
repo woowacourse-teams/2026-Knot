@@ -8,6 +8,12 @@ import com.knot.backend.chat.domain.ChatException;
 import com.knot.backend.chat.domain.ChatMessage;
 import com.knot.backend.chat.domain.ChatMessageRepository;
 import com.knot.backend.chat.domain.ChatMessageRole;
+import com.knot.backend.search.application.PublishedDocumentSearchService;
+import com.knot.backend.search.application.SearchContext;
+import com.knot.backend.search.application.SearchReferencePersistenceService;
+import com.knot.backend.search.domain.SearchErrorCode;
+import com.knot.backend.search.domain.SearchException;
+import com.knot.backend.chat.domain.ChatSession;
 import java.time.Instant;
 import java.util.List;
 import java.util.concurrent.CancellationException;
@@ -26,6 +32,8 @@ public class ChatMessageService {
     private final ChatMessagePersistenceService chatMessagePersistenceService;
     private final ChatMessageRepository chatMessageRepository;
     private final LlmClient llmClient;
+    private final PublishedDocumentSearchService documentSearchService;
+    private final SearchReferencePersistenceService searchReferencePersistenceService;
     private final ActiveChatStreamRegistry activeChatStreamRegistry;
     private final Executor chatStreamExecutor;
 
@@ -34,6 +42,8 @@ public class ChatMessageService {
             ChatMessagePersistenceService chatMessagePersistenceService,
             ChatMessageRepository chatMessageRepository,
             LlmClient llmClient,
+            PublishedDocumentSearchService documentSearchService,
+            SearchReferencePersistenceService searchReferencePersistenceService,
             ActiveChatStreamRegistry activeChatStreamRegistry,
             @Qualifier("chatStreamExecutor") Executor chatStreamExecutor
     ) {
@@ -41,6 +51,8 @@ public class ChatMessageService {
         this.chatMessagePersistenceService = chatMessagePersistenceService;
         this.chatMessageRepository = chatMessageRepository;
         this.llmClient = llmClient;
+        this.documentSearchService = documentSearchService;
+        this.searchReferencePersistenceService = searchReferencePersistenceService;
         this.activeChatStreamRegistry = activeChatStreamRegistry;
         this.chatStreamExecutor = chatStreamExecutor;
     }
@@ -51,7 +63,7 @@ public class ChatMessageService {
             String content,
             ChatStreamListener listener
     ) {
-        chatSessionAccessPolicy.requireOwner(
+        ChatSession session = chatSessionAccessPolicy.requireOwner(
                 sessionId,
                 memberId
         );
@@ -104,6 +116,8 @@ public class ChatMessageService {
                 try {
                     streamAnswer(
                             sessionId,
+                            session.getWorkspaceId(),
+                            content,
                             history,
                             listener,
                             handle,
@@ -131,6 +145,8 @@ public class ChatMessageService {
 
     private void streamAnswer(
             long sessionId,
+            long workspaceId,
+            String query,
             List<ChatMessage> history,
             ChatStreamListener listener,
             ChatStreamHandle handle,
@@ -138,7 +154,25 @@ public class ChatMessageService {
     ) {
         StringBuilder answer = new StringBuilder();
         try {
-            LlmStream stream = llmClient.start(toLlmRequest(history));
+            SearchContext searchContext = documentSearchService.search(
+                    workspaceId,
+                    query
+            );
+            if (!searchContext.isReady()) {
+                completeFallback(
+                        sessionId,
+                        searchContext,
+                        listener,
+                        handle
+                );
+                return;
+            }
+            LlmStream stream = llmClient.start(
+                    toLlmRequest(
+                            history,
+                            searchContext
+                    )
+            );
             streamReference.set(stream);
             if (handle.isCancelled()) {
                 return;
@@ -165,12 +199,20 @@ public class ChatMessageService {
                     answer.toString(),
                     Instant.now()
             );
+            searchReferencePersistenceService.replace(
+                    assistantMessage.getId(),
+                    searchContext.references()
+            );
             listener.onComplete(assistantMessage.getId());
         } catch (CancellationException exception) {
             if (Thread.currentThread()
                     .isInterrupted()) {
                 Thread.currentThread()
                         .interrupt();
+            }
+        } catch (SearchException exception) {
+            if (!handle.isCancelled()) {
+                listener.onError(mapSearchError(exception));
             }
         } catch (RuntimeException exception) {
             if (!handle.isCancelled()) {
@@ -181,8 +223,52 @@ public class ChatMessageService {
         }
     }
 
-    private LlmRequest toLlmRequest(List<ChatMessage> history) {
-        return new LlmRequest(
+    private void completeFallback(
+            long sessionId,
+            SearchContext searchContext,
+            ChatStreamListener listener,
+            ChatStreamHandle handle
+    ) {
+        if (!handle.beginCompletion()) {
+            return;
+        }
+        String fallbackAnswer = searchContext.fallbackAnswer();
+        if (!listener.onChunk(fallbackAnswer)) {
+            handle.cancel();
+            return;
+        }
+        ChatMessage assistantMessage = chatMessagePersistenceService.saveMessage(
+                sessionId,
+                ChatMessageRole.ASSISTANT,
+                fallbackAnswer,
+                Instant.now()
+        );
+        searchReferencePersistenceService.replace(
+                assistantMessage.getId(),
+                List.of()
+        );
+        listener.onComplete(assistantMessage.getId());
+    }
+
+    private ChatErrorCode mapSearchError(SearchException exception) {
+        if (exception.searchErrorCode() == SearchErrorCode.SEARCH_IMPORT_NOT_READY) {
+            return ChatErrorCode.CHAT_DOCUMENTS_NOT_READY;
+        }
+        return ChatErrorCode.LLM_STREAM_FAILED;
+    }
+
+    private LlmRequest toLlmRequest(
+            List<ChatMessage> history,
+            SearchContext searchContext
+    ) {
+        List<LlmMessage> messages = new java.util.ArrayList<>();
+        messages.add(
+                new LlmMessage(
+                        LlmMessageRole.SYSTEM,
+                        searchContext.groundingPrompt()
+                )
+        );
+        messages.addAll(
                 history.stream()
                         .map(
                                 message -> new LlmMessage(
@@ -195,6 +281,7 @@ public class ChatMessageService {
                         )
                         .toList()
         );
+        return new LlmRequest(messages);
     }
 
     private void checkCancellation(ChatStreamHandle handle) {

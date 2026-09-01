@@ -108,6 +108,12 @@ public enum ChatErrorCode implements ErrorCode {
             "채팅 응답이 이미 진행 중입니다"
     ),
 
+    CHAT_DOCUMENTS_NOT_READY(
+            ErrorCategory.CONFLICT,
+            "CHAT_DOCUMENTS_NOT_READY",
+            "문서 동기화가 완료된 후 검색할 수 있습니다"
+    ),
+
     LLM_CONFIGURATION_INVALID(
             ErrorCategory.INTERNAL_SERVER_ERROR,
             "LLM_CONFIGURATION_INVALID",
