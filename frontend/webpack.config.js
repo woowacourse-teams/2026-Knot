@@ -16,7 +16,7 @@ export default (env, argv) => {
     process.loadEnvFile(envFile);
   }
 
-  // env에 API_MOCKING이 있으면 그 값을, 없으면 개발 모드에서만 켜요 (.env.development가 gitignore라 모드로 기본값을 정해요)
+  // env에 API_MOCKING이 없으면 개발 모드에서만 켜요 (.env.development가 gitignore라 모드가 기본값이에요)
   const isApiMockingEnabled =
     process.env.API_MOCKING === undefined
       ? isDev
@@ -34,7 +34,7 @@ export default (env, argv) => {
     devServer: {
       static: [
         { directory: path.join(__dirname, "dist") },
-        // msw의 /mockServiceWorker.js를 서빙해요. 프로덕션 산출물(dist/)에는 복사하지 않아요
+        // msw의 mockServiceWorker.js를 개발 서버에서만 서빙해요
         { directory: path.join(__dirname, "public") },
       ],
       hot: true,
@@ -180,7 +180,7 @@ ${exports}
       }),
       new webpack.DefinePlugin({
         "process.env.API_BASE_URL": JSON.stringify(process.env.API_BASE_URL),
-        // "true" | "false" 문자열 리터럴로 넣어 src/index.tsx의 분기가 빌드 시점에 접히게 해요
+        // 문자열 리터럴로 넣어 src/index.tsx의 분기가 빌드 시점에 접혀요
         "process.env.API_MOCKING": JSON.stringify(String(isApiMockingEnabled)),
       }),
     ],

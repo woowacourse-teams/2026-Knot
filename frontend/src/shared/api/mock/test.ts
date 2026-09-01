@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { mockServer } from "./server";
 
-// 실제 엔드포인트가 아니라 인프라 동작만 보기 위한 임시 경로예요
+// 인프라 동작만 보는 임시 경로예요
 const SMOKE_PATH = "/__mock-smoke";
 
 describe("msw mock 서버 인프라", () => {

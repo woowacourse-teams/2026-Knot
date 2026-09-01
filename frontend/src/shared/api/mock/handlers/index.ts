@@ -12,8 +12,7 @@ import { workspaceInvitationHandlers } from "./api/v1/workspaces/[workspaceId]/i
 import { workspaceInvitationsHandlers } from "./api/v1/workspaces/[workspaceId]/invitations";
 import { workspaceInvitationReissueHandlers } from "./api/v1/workspaces/[workspaceId]/invitations/reissue";
 
-// 엔드포인트 핸들러는 `fetch/`와 같은 경로 구조(`handlers/api/v1/...`)로 두고 여기서 하나로 합쳐요.
-// 브라우저 리다이렉트 엔드포인트(OAuth 시작·로그아웃 302)와 SSE 메시지 전송은 XHR 응답을 흉내낼 대상이 아니라 두지 않아요
+// 리다이렉트 엔드포인트(OAuth 시작·로그아웃)와 SSE 메시지 전송은 XHR 응답이 아니라 두지 않아요
 export const handlers = [
   ...authMeHandlers,
   ...authCsrfHandlers,

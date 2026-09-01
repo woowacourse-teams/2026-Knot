@@ -38,7 +38,7 @@ import { describe, expect, it } from "vitest";
 const WORKSPACE_ID = 1;
 const SESSION_ID = 100;
 
-// 등록된 기본 핸들러가 fetch/의 요청 함수와 같은 경로·메서드를 보는지 확인해요. 응답 변형은 여기가 아니라 각 위젯 테스트에서 덮어요
+// 기본 핸들러가 fetch 요청 함수와 같은 경로·메서드에 응답하는지 확인해요
 describe("mock 기본 핸들러와 fetch 요청 함수의 대응", () => {
   describe("인증", () => {
     it("GET /api/v1/auth/me는 meResponse를 돌려준다", async () => {
