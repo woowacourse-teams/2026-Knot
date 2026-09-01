@@ -3,7 +3,7 @@ import { httpClient } from "@api/httpClient";
 export const INVITATION_PREVIEW_API_PATH = (tokenOrCode: string) =>
   `/api/v1/invitations/${encodeURIComponent(tokenOrCode)}`;
 
-export interface GetInvitationPreviewApiResponse {
+interface GetInvitationPreviewApiResponse {
   workspaceId: number;
   workspaceName: string;
 }

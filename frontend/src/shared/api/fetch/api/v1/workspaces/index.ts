@@ -2,23 +2,23 @@ import { httpClient } from "@api/httpClient";
 
 export const WORKSPACES_API_PATH = "/api/v1/workspaces";
 
-export interface WorkspaceListItem {
+interface WorkspaceListItem {
   id: number;
   name: string;
 }
 
-export interface GetWorkspacesApiResponse {
+interface GetWorkspacesApiResponse {
   /** 본 적이 없으면 null */
   lastViewedWorkspaceId: number | null;
   workspaces: WorkspaceListItem[];
 }
 
-export interface PostWorkspaceApiRequest {
+interface PostWorkspaceApiRequest {
   /** 한글·영문·공백만, 최대 20자, 한글이나 영문을 하나 이상 포함 */
   name: string;
 }
 
-export interface PostWorkspaceApiResponse {
+interface PostWorkspaceApiResponse {
   id: number;
 }
 

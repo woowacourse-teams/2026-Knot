@@ -2,13 +2,13 @@ import { httpClient } from "@api/httpClient";
 
 export const INVITATIONS_ACCEPT_API_PATH = "/api/v1/invitations/accept";
 
-export interface PostInvitationAcceptApiRequest {
+interface PostInvitationAcceptApiRequest {
   /** 초대 코드 또는 링크 토큰 원문 */
   credential: string;
 }
 
 // 기존 멤버십(200)과 새 멤버십(201) 모두 같은 모양이에요
-export interface PostInvitationAcceptApiResponse {
+interface PostInvitationAcceptApiResponse {
   workspaceId: number;
   workspaceName: string;
 }

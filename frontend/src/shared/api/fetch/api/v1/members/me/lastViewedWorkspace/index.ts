@@ -3,7 +3,7 @@ import { httpClient } from "@api/httpClient";
 export const LAST_VIEWED_WORKSPACE_API_PATH =
   "/api/v1/members/me/last-viewed-workspace";
 
-export interface PutLastViewedWorkspaceApiRequest {
+interface PutLastViewedWorkspaceApiRequest {
   workspaceId: number;
 }
 

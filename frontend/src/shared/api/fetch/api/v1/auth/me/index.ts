@@ -2,7 +2,7 @@ import { httpClient } from "@api/httpClient";
 
 export const AUTH_ME_API_PATH = "/api/v1/auth/me";
 
-export interface GetMeApiResponse {
+interface GetMeApiResponse {
   memberId: number;
   nickname: string;
   profileImageUrl: string;

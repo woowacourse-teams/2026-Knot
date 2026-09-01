@@ -3,7 +3,7 @@ import { httpClient } from "@api/httpClient";
 export const WORKSPACE_API_PATH = (workspaceId: number) =>
   `/api/v1/workspaces/${workspaceId}`;
 
-export interface GetWorkspaceApiResponse {
+interface GetWorkspaceApiResponse {
   name: string;
 }
 
