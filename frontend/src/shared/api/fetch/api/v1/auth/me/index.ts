@@ -1,12 +1,7 @@
+import { GetMeResponseDto, type GetMeResponseRaw } from "@api/dto/auth";
 import { httpClient } from "@api/httpClient";
 
 export const AUTH_ME_API_PATH = "/api/v1/auth/me";
-
-interface GetMeApiResponse {
-  memberId: number;
-  nickname: string;
-  profileImageUrl: string;
-}
 
 /**
  * @description 로그인한 회원의 정보를 조회합니다
@@ -15,10 +10,10 @@ interface GetMeApiResponse {
  * const { nickname } = await getMeApi();
  */
 export const getMeApi = async () => {
-  const response = await httpClient<GetMeApiResponse>({
+  const response = await httpClient<GetMeResponseRaw>({
     method: "get",
     url: AUTH_ME_API_PATH,
   });
 
-  return response.data;
+  return new GetMeResponseDto(response.data);
 };
