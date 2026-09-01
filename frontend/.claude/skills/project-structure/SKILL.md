@@ -75,7 +75,16 @@ src/
 │   │   │       └── index.ts
 │   │   ├── mutations/
 │   │   ├── suspense/
-│   │   └── prefetch/
+│   │   ├── prefetch/
+│   │   └── mock/                    # msw mock API (연동 후에도 테스트용으로 유지)
+│   │       ├── browser.ts
+│   │       ├── server.ts
+│   │       ├── handlers/
+│   │       │   ├── index.ts
+│   │       │   └── api/v1/users/    # fetch/ 와 동일한 경로 구조
+│   │       │       └── index.ts
+│   │       └── responses/
+│   │           └── user.ts          # 도메인별 mock 응답 데이터
 │   ├── components/
 │   │   ├── primitives/
 │   │   │   ├── ui/
@@ -181,5 +190,6 @@ const { path, isLoading } = useGetCoursePath(courseId); // ✅
 - [ ] 컴포넌트라면 `.claude/rules/component-abstract-pattern.md`의 판단 기준으로 `modules/widgets` · `modules/features` · `shared/components/*` 중 어디인지 정했는가?
 - [ ] 훅·로직이라면 「코드를 shared로 내리는 기준」(이름·인자·반환값·이식 테스트)으로 컴포넌트 `model`에 둘지 `shared/hooks`로 내릴지 정했는가?
 - [ ] `shared/`라면 `api` / `components` / `hooks` / `provider` / `routes` / `utils` / `constants` / `types` 중 어디인가?
+- [ ] mock 데이터라면 컴포넌트가 아니라 `shared/api/mock`에 두었는가? (`.claude/rules/api-guide.md`의 「API mock」)
 - [ ] 폴더·파일명이 `.claude/rules/general-code-convention.md`의 네이밍 규칙(카멜 통일 · 폴더 + `index.ts(x)` · 예외)에 맞는가?
 - [ ] 컨텍스트가 특정 컴포넌트 전용이면 해당 컴포넌트의 `context` 세그먼트에, 전역이면 `shared/provider`에 두었는가?
