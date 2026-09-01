@@ -430,6 +430,18 @@ class NotionImportRunTest {
                         NotionImportStatus.FAILED,
                         CREATED_AT.plusSeconds(1),
                         null
+                ),
+                Arguments.of(
+                        "completed-before-started-at",
+                        NotionImportStatus.COMPLETED,
+                        CREATED_AT.plusSeconds(2),
+                        CREATED_AT.plusSeconds(1)
+                ),
+                Arguments.of(
+                        "failed-before-started-at",
+                        NotionImportStatus.FAILED,
+                        CREATED_AT.plusSeconds(2),
+                        CREATED_AT.plusSeconds(1)
                 )
         );
     }

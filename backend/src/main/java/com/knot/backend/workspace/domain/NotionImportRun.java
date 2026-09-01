@@ -197,7 +197,7 @@ public class NotionImportRun {
         boolean valid = switch (status) {
             case PENDING -> startedAt == null && completedAt == null;
             case RUNNING -> startedAt != null && completedAt == null;
-            case COMPLETED, FAILED -> startedAt != null && completedAt != null;
+            case COMPLETED, FAILED -> startedAt != null && completedAt != null && !completedAt.isBefore(startedAt);
         };
         if (!valid) {
             throw invalidImportRun();

@@ -555,6 +555,26 @@ class NotionImportRunRepositoryIntegrationTest {
                         CREATED_AT.plusSeconds(1)
                                 .toString(),
                         null
+                ),
+                Arguments.of(
+                        "completed-before-started-at",
+                        "COMPLETED",
+                        10,
+                        10,
+                        CREATED_AT.plusSeconds(2)
+                                .toString(),
+                        CREATED_AT.plusSeconds(1)
+                                .toString()
+                ),
+                Arguments.of(
+                        "failed-before-started-at",
+                        "FAILED",
+                        10,
+                        4,
+                        CREATED_AT.plusSeconds(2)
+                                .toString(),
+                        CREATED_AT.plusSeconds(1)
+                                .toString()
                 )
         );
     }
