@@ -111,6 +111,25 @@ public class NotionImportRun {
         );
     }
 
+    public static NotionImportRun createPending(
+            Long workspaceId,
+            Long contentSourceConnectionId,
+            Long requestedByMemberId,
+            Instant createdAt
+    ) {
+        return new NotionImportRun(
+                workspaceId,
+                contentSourceConnectionId,
+                requestedByMemberId,
+                NotionImportStatus.PENDING,
+                null,
+                0,
+                null,
+                null,
+                createdAt
+        );
+    }
+
     public String publicFailureReason() {
         if (status == NotionImportStatus.FAILED) {
             return PUBLIC_FAILURE_REASON;

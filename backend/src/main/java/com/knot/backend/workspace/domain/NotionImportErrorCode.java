@@ -18,6 +18,18 @@ public enum NotionImportErrorCode implements ErrorCode {
             "Notion Import 실행 정보가 올바르지 않습니다"
     ),
 
+    NOTION_CONNECTION_NOT_CONNECTED(
+            ErrorCategory.CONFLICT,
+            "NOTION_CONNECTION_NOT_CONNECTED",
+            "Notion 연결이 필요합니다"
+    ),
+
+    NOTION_CONNECTION_REAUTHENTICATION_REQUIRED(
+            ErrorCategory.CONFLICT,
+            "NOTION_CONNECTION_REAUTHENTICATION_REQUIRED",
+            "Notion 연결 재인증이 필요합니다"
+    ),
+
     NOTION_IMPORT_RUN_NOT_FOUND(
             ErrorCategory.NOT_FOUND,
             "NOTION_IMPORT_RUN_NOT_FOUND",

@@ -15,6 +15,34 @@ import org.junit.jupiter.params.provider.MethodSource;
 class NotionImportRunTest {
     private static final Instant CREATED_AT = Instant.parse("2026-08-31T00:00:00Z");
 
+    @DisplayName("수동 Import 요청은 Page 수와 실행 시각이 비어 있는 PENDING Run을 생성한다")
+    @Test
+    void createPending_success() {
+        // given
+        long workspaceId = 1L;
+        long connectionId = 2L;
+        long requestedByMemberId = 3L;
+
+        // when
+        NotionImportRun importRun = NotionImportRun.createPending(
+                workspaceId,
+                connectionId,
+                requestedByMemberId,
+                CREATED_AT
+        );
+
+        // then
+        assertThat(importRun.getWorkspaceId()).isEqualTo(workspaceId);
+        assertThat(importRun.getContentSourceConnectionId()).isEqualTo(connectionId);
+        assertThat(importRun.getRequestedByMemberId()).isEqualTo(requestedByMemberId);
+        assertThat(importRun.getStatus()).isEqualTo(NotionImportStatus.PENDING);
+        assertThat(importRun.getTotalPageCount()).isNull();
+        assertThat(importRun.getProcessedPageCount()).isZero();
+        assertThat(importRun.getStartedAt()).isNull();
+        assertThat(importRun.getCompletedAt()).isNull();
+        assertThat(importRun.getCreatedAt()).isEqualTo(CREATED_AT);
+    }
+
     @DisplayName("실패 상태는 저장값 없이 고정된 공개 사유를 반환한다")
     @Test
     void publicFailureReason_success_failedStatus() {
