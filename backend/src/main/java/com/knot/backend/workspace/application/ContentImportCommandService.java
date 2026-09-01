@@ -1,13 +1,13 @@
 package com.knot.backend.workspace.application;
 
-import com.knot.backend.workspace.application.dto.result.NotionImportRunRequestResult;
+import com.knot.backend.workspace.application.dto.result.ContentImportRunRequestResult;
+import com.knot.backend.workspace.domain.ContentImportErrorCode;
+import com.knot.backend.workspace.domain.ContentImportException;
+import com.knot.backend.workspace.domain.ContentImportRun;
+import com.knot.backend.workspace.domain.ContentImportRunRepository;
 import com.knot.backend.workspace.domain.ContentSourceConnection;
 import com.knot.backend.workspace.domain.ContentSourceConnectionRepository;
 import com.knot.backend.workspace.domain.ContentSourceProvider;
-import com.knot.backend.workspace.domain.NotionImportErrorCode;
-import com.knot.backend.workspace.domain.NotionImportException;
-import com.knot.backend.workspace.domain.NotionImportRun;
-import com.knot.backend.workspace.domain.NotionImportRunRepository;
 import com.knot.backend.workspace.domain.WorkspaceErrorCode;
 import com.knot.backend.workspace.domain.WorkspaceException;
 import com.knot.backend.workspace.domain.WorkspaceMemberRepository;
@@ -22,17 +22,18 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
-public class NotionImportCommandService {
+public class ContentImportCommandService {
     private final WorkspaceRepository workspaceRepository;
     private final WorkspaceMemberRepository workspaceMemberRepository;
     private final ContentSourceConnectionRepository connectionRepository;
-    private final NotionImportRunRepository importRunRepository;
+    private final ContentImportRunRepository importRunRepository;
     private final Clock clock;
 
     @Transactional
-    public NotionImportRunRequestResult start(
+    public ContentImportRunRequestResult start(
             Long workspaceId,
-            long memberId
+            long memberId,
+            ContentSourceProvider provider
     ) {
         validateWorkspaceId(workspaceId);
         validateWorkspaceExists(workspaceId);
@@ -40,7 +41,10 @@ public class NotionImportCommandService {
                 workspaceId,
                 memberId
         );
-        ContentSourceConnection connection = connectedNotionConnectionForUpdate(workspaceId);
+        ContentSourceConnection connection = connectedContentSourceConnectionForUpdate(
+                workspaceId,
+                provider
+        );
         validateConnectionAuthorization(connection);
         return importRunRepository.findActiveByContentSourceConnectionId(connection.getId())
                 .map(this::existingResult)
@@ -77,12 +81,17 @@ public class NotionImportCommandService {
         }
     }
 
-    private ContentSourceConnection connectedNotionConnectionForUpdate(Long workspaceId) {
+    private ContentSourceConnection connectedContentSourceConnectionForUpdate(
+            Long workspaceId,
+            ContentSourceProvider provider
+    ) {
         return connectionRepository.findByWorkspaceIdAndProviderForUpdate(
                 workspaceId,
-                ContentSourceProvider.NOTION
+                provider
         )
-                .orElseThrow(() -> new NotionImportException(NotionImportErrorCode.NOTION_CONNECTION_NOT_CONNECTED));
+                .orElseThrow(
+                        () -> new ContentImportException(ContentImportErrorCode.CONTENT_SOURCE_CONNECTION_NOT_CONNECTED)
+                );
     }
 
     private void validateConnectionAuthorization(ContentSourceConnection connection) {
@@ -91,30 +100,32 @@ public class NotionImportCommandService {
                 connection.getAuthorizingMemberId(),
                 WorkspaceMemberRole.OWNER
         )) {
-            throw new NotionImportException(NotionImportErrorCode.NOTION_CONNECTION_REAUTHENTICATION_REQUIRED);
+            throw new ContentImportException(
+                    ContentImportErrorCode.CONTENT_SOURCE_CONNECTION_REAUTHENTICATION_REQUIRED
+            );
         }
     }
 
-    private NotionImportRunRequestResult existingResult(NotionImportRun importRun) {
-        return new NotionImportRunRequestResult(
+    private ContentImportRunRequestResult existingResult(ContentImportRun importRun) {
+        return new ContentImportRunRequestResult(
                 importRun.getId(),
                 false
         );
     }
 
-    private NotionImportRunRequestResult createPendingRun(
+    private ContentImportRunRequestResult createPendingRun(
             Long workspaceId,
             Long connectionId,
             long memberId
     ) {
-        NotionImportRun importRun = NotionImportRun.createPending(
+        ContentImportRun importRun = ContentImportRun.createPending(
                 workspaceId,
                 connectionId,
                 memberId,
                 currentTime()
         );
-        NotionImportRun savedImportRun = importRunRepository.save(importRun);
-        return new NotionImportRunRequestResult(
+        ContentImportRun savedImportRun = importRunRepository.save(importRun);
+        return new ContentImportRunRequestResult(
                 savedImportRun.getId(),
                 true
         );

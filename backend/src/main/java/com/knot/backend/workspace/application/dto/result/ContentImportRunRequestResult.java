@@ -1,6 +1,6 @@
 package com.knot.backend.workspace.application.dto.result;
 
-public record NotionImportRunRequestResult(
+public record ContentImportRunRequestResult(
         long id,
         boolean created
 ) {

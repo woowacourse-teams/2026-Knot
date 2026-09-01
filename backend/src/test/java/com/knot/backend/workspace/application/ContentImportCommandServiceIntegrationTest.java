@@ -4,7 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.knot.backend.testsupport.TestApplicationProperties;
 import com.knot.backend.testsupport.TestcontainersConfiguration;
-import com.knot.backend.workspace.application.dto.result.NotionImportRunRequestResult;
+import com.knot.backend.workspace.application.dto.result.ContentImportRunRequestResult;
+import com.knot.backend.workspace.domain.ContentSourceProvider;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -27,14 +28,15 @@ import org.springframework.test.context.TestConstructor;
 @TestApplicationProperties
 @SpringBootTest
 @TestConstructor(autowireMode = TestConstructor.AutowireMode.ALL)
-class NotionImportCommandServiceIntegrationTest {
+class ContentImportCommandServiceIntegrationTest {
     private static final Instant CREATED_AT = Instant.parse("2026-09-01T00:00:00Z");
+    private static final ContentSourceProvider PROVIDER = ContentSourceProvider.values()[0];
 
-    private final NotionImportCommandService service;
+    private final ContentImportCommandService service;
     private final JdbcClient jdbcClient;
 
-    NotionImportCommandServiceIntegrationTest(
-            NotionImportCommandService service,
+    ContentImportCommandServiceIntegrationTest(
+            ContentImportCommandService service,
             JdbcClient jdbcClient
     ) {
         this.service = service;
@@ -44,7 +46,7 @@ class NotionImportCommandServiceIntegrationTest {
     @BeforeEach
     void clearTables() {
         jdbcClient.sql("""
-                TRUNCATE TABLE notion_pages, notion_import_runs, content_source_connections,
+                TRUNCATE TABLE imported_pages, content_import_runs, content_source_connections,
                     content_source_authorizations, workspace_members, workspaces, oauth_identities, members
                 RESTART IDENTITY CASCADE
                 """)
@@ -58,9 +60,10 @@ class NotionImportCommandServiceIntegrationTest {
         TestContext context = saveContext("owner");
 
         // when
-        NotionImportRunRequestResult result = service.start(
+        ContentImportRunRequestResult result = service.start(
                 context.workspaceId(),
-                context.memberId()
+                context.memberId(),
+                PROVIDER
         );
 
         // then
@@ -81,15 +84,15 @@ class NotionImportCommandServiceIntegrationTest {
         TestContext context = saveContext("owner");
 
         // when
-        List<NotionImportRunRequestResult> results = startConcurrently(context);
+        List<ContentImportRunRequestResult> results = startConcurrently(context);
 
         // then
-        assertThat(results).extracting(NotionImportRunRequestResult::created)
+        assertThat(results).extracting(ContentImportRunRequestResult::created)
                 .containsExactlyInAnyOrder(
                         true,
                         false
                 );
-        assertThat(results).extracting(NotionImportRunRequestResult::id)
+        assertThat(results).extracting(ContentImportRunRequestResult::id)
                 .containsOnly(
                         results.getFirst()
                                 .id()
@@ -98,12 +101,12 @@ class NotionImportCommandServiceIntegrationTest {
         assertThat(importRunCount()).isOne();
     }
 
-    private List<NotionImportRunRequestResult> startConcurrently(TestContext context) throws Exception {
+    private List<ContentImportRunRequestResult> startConcurrently(TestContext context) throws Exception {
         ExecutorService executorService = Executors.newFixedThreadPool(2);
         CountDownLatch ready = new CountDownLatch(2);
         CountDownLatch start = new CountDownLatch(1);
         try {
-            List<Future<NotionImportRunRequestResult>> futures = new ArrayList<>();
+            List<Future<ContentImportRunRequestResult>> futures = new ArrayList<>();
             for (int index = 0; index < 2; index++) {
                 futures.add(executorService.submit(() -> {
                     ready.countDown();
@@ -115,7 +118,8 @@ class NotionImportCommandServiceIntegrationTest {
                     }
                     return service.start(
                             context.workspaceId(),
-                            context.memberId()
+                            context.memberId(),
+                            PROVIDER
                     );
                 }));
             }
@@ -126,8 +130,8 @@ class NotionImportCommandServiceIntegrationTest {
                 throw new IllegalStateException("동시 시작 작업이 준비되지 않았습니다");
             }
             start.countDown();
-            List<NotionImportRunRequestResult> results = new ArrayList<>();
-            for (Future<NotionImportRunRequestResult> future : futures) {
+            List<ContentImportRunRequestResult> results = new ArrayList<>();
+            for (Future<ContentImportRunRequestResult> future : futures) {
                 results.add(
                         future.get(
                                 10,
@@ -232,7 +236,7 @@ class NotionImportCommandServiceIntegrationTest {
                     version
                 ) VALUES (
                     :workspaceId,
-                    'NOTION',
+                    :provider,
                     'encrypted-access-token',
                     :externalSourceId,
                     :providerConnectionId,
@@ -249,12 +253,16 @@ class NotionImportCommandServiceIntegrationTest {
                         workspaceId
                 )
                 .param(
+                        "provider",
+                        PROVIDER.name()
+                )
+                .param(
                         "externalSourceId",
-                        "notion-workspace-" + workspaceId
+                        "external-source-" + workspaceId
                 )
                 .param(
                         "providerConnectionId",
-                        "notion-bot-" + workspaceId
+                        "provider-connection-" + workspaceId
                 )
                 .param(
                         "authorizingMemberId",
@@ -281,7 +289,7 @@ class NotionImportCommandServiceIntegrationTest {
                     COALESCE(started_at::text, 'null'),
                     COALESCE(completed_at::text, 'null')
                 )
-                FROM notion_import_runs
+                FROM content_import_runs
                 WHERE id = :importRunId
                 """)
                 .param(
@@ -295,7 +303,7 @@ class NotionImportCommandServiceIntegrationTest {
     private long activeImportRunCount(long connectionId) {
         return jdbcClient.sql("""
                 SELECT COUNT(*)
-                FROM notion_import_runs
+                FROM content_import_runs
                 WHERE content_source_connection_id = :connectionId
                     AND status IN ('PENDING', 'RUNNING')
                 """)
@@ -308,7 +316,7 @@ class NotionImportCommandServiceIntegrationTest {
     }
 
     private long importRunCount() {
-        return jdbcClient.sql("SELECT COUNT(*) FROM notion_import_runs")
+        return jdbcClient.sql("SELECT COUNT(*) FROM content_import_runs")
                 .query(Long.class)
                 .single();
     }

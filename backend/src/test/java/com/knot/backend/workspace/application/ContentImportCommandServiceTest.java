@@ -9,15 +9,15 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
-import com.knot.backend.workspace.application.dto.result.NotionImportRunRequestResult;
+import com.knot.backend.workspace.application.dto.result.ContentImportRunRequestResult;
+import com.knot.backend.workspace.domain.ContentImportErrorCode;
+import com.knot.backend.workspace.domain.ContentImportException;
+import com.knot.backend.workspace.domain.ContentImportRun;
+import com.knot.backend.workspace.domain.ContentImportRunRepository;
+import com.knot.backend.workspace.domain.ContentImportStatus;
 import com.knot.backend.workspace.domain.ContentSourceConnection;
 import com.knot.backend.workspace.domain.ContentSourceConnectionRepository;
 import com.knot.backend.workspace.domain.ContentSourceProvider;
-import com.knot.backend.workspace.domain.NotionImportErrorCode;
-import com.knot.backend.workspace.domain.NotionImportException;
-import com.knot.backend.workspace.domain.NotionImportRun;
-import com.knot.backend.workspace.domain.NotionImportRunRepository;
-import com.knot.backend.workspace.domain.NotionImportStatus;
 import com.knot.backend.workspace.domain.Workspace;
 import com.knot.backend.workspace.domain.WorkspaceErrorCode;
 import com.knot.backend.workspace.domain.WorkspaceException;
@@ -33,25 +33,26 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
-class NotionImportCommandServiceTest {
+class ContentImportCommandServiceTest {
     private static final Long WORKSPACE_ID = 1L;
     private static final long MEMBER_ID = 2L;
     private static final long AUTHORIZING_MEMBER_ID = 3L;
     private static final Long CONNECTION_ID = 4L;
     private static final Long IMPORT_RUN_ID = 5L;
     private static final Instant CREATED_AT = Instant.parse("2026-09-01T00:00:00.123456Z");
+    private static final ContentSourceProvider PROVIDER = ContentSourceProvider.values()[0];
 
     private final WorkspaceRepository workspaceRepository = mock(WorkspaceRepository.class);
     private final WorkspaceMemberRepository workspaceMemberRepository = mock(WorkspaceMemberRepository.class);
     private final ContentSourceConnectionRepository connectionRepository = mock(
             ContentSourceConnectionRepository.class
     );
-    private final NotionImportRunRepository importRunRepository = mock(NotionImportRunRepository.class);
+    private final ContentImportRunRepository importRunRepository = mock(ContentImportRunRepository.class);
     private final Clock clock = Clock.fixed(
             CREATED_AT,
             ZoneOffset.UTC
     );
-    private final NotionImportCommandService service = new NotionImportCommandService(
+    private final ContentImportCommandService service = new ContentImportCommandService(
             workspaceRepository,
             workspaceMemberRepository,
             connectionRepository,
@@ -65,34 +66,35 @@ class NotionImportCommandServiceTest {
         // given
         ContentSourceConnection connection = stubConnectedOwner();
         when(importRunRepository.findActiveByContentSourceConnectionId(CONNECTION_ID)).thenReturn(Optional.empty());
-        NotionImportRun savedImportRun = mock(NotionImportRun.class);
+        ContentImportRun savedImportRun = mock(ContentImportRun.class);
         when(savedImportRun.getId()).thenReturn(IMPORT_RUN_ID);
-        when(importRunRepository.save(any(NotionImportRun.class))).thenReturn(savedImportRun);
-        ArgumentCaptor<NotionImportRun> importRunCaptor = ArgumentCaptor.forClass(NotionImportRun.class);
+        when(importRunRepository.save(any(ContentImportRun.class))).thenReturn(savedImportRun);
+        ArgumentCaptor<ContentImportRun> importRunCaptor = ArgumentCaptor.forClass(ContentImportRun.class);
 
         // when
-        NotionImportRunRequestResult result = service.start(
+        ContentImportRunRequestResult result = service.start(
                 WORKSPACE_ID,
-                MEMBER_ID
+                MEMBER_ID,
+                PROVIDER
         );
 
         // then
         assertThat(result).isEqualTo(
-                new NotionImportRunRequestResult(
+                new ContentImportRunRequestResult(
                         IMPORT_RUN_ID,
                         true
                 )
         );
         verify(connectionRepository).findByWorkspaceIdAndProviderForUpdate(
                 WORKSPACE_ID,
-                ContentSourceProvider.NOTION
+                PROVIDER
         );
         verify(importRunRepository).save(importRunCaptor.capture());
-        NotionImportRun createdImportRun = importRunCaptor.getValue();
+        ContentImportRun createdImportRun = importRunCaptor.getValue();
         assertThat(createdImportRun.getWorkspaceId()).isEqualTo(WORKSPACE_ID);
         assertThat(createdImportRun.getContentSourceConnectionId()).isEqualTo(connection.getId());
         assertThat(createdImportRun.getRequestedByMemberId()).isEqualTo(MEMBER_ID);
-        assertThat(createdImportRun.getStatus()).isEqualTo(NotionImportStatus.PENDING);
+        assertThat(createdImportRun.getStatus()).isEqualTo(ContentImportStatus.PENDING);
         assertThat(createdImportRun.getCreatedAt()).isEqualTo(CREATED_AT);
     }
 
@@ -101,20 +103,21 @@ class NotionImportCommandServiceTest {
     void start_success_existingActiveRun() {
         // given
         stubConnectedOwner();
-        NotionImportRun activeImportRun = mock(NotionImportRun.class);
+        ContentImportRun activeImportRun = mock(ContentImportRun.class);
         when(activeImportRun.getId()).thenReturn(IMPORT_RUN_ID);
         when(importRunRepository.findActiveByContentSourceConnectionId(CONNECTION_ID))
                 .thenReturn(Optional.of(activeImportRun));
 
         // when
-        NotionImportRunRequestResult result = service.start(
+        ContentImportRunRequestResult result = service.start(
                 WORKSPACE_ID,
-                MEMBER_ID
+                MEMBER_ID,
+                PROVIDER
         );
 
         // then
         assertThat(result).isEqualTo(
-                new NotionImportRunRequestResult(
+                new ContentImportRunRequestResult(
                         IMPORT_RUN_ID,
                         false
                 )
@@ -122,7 +125,7 @@ class NotionImportCommandServiceTest {
         verify(
                 importRunRepository,
                 never()
-        ).save(any(NotionImportRun.class));
+        ).save(any(ContentImportRun.class));
     }
 
     @DisplayName("Workspace ID가 양수가 아니면 저장소를 조회하지 않는다")
@@ -131,7 +134,8 @@ class NotionImportCommandServiceTest {
         // given
         ThrowingCallable action = () -> service.start(
                 0L,
-                MEMBER_ID
+                MEMBER_ID,
+                PROVIDER
         );
 
         // when
@@ -156,7 +160,8 @@ class NotionImportCommandServiceTest {
         when(workspaceRepository.findById(WORKSPACE_ID)).thenReturn(Optional.empty());
         ThrowingCallable action = () -> service.start(
                 WORKSPACE_ID,
-                MEMBER_ID
+                MEMBER_ID,
+                PROVIDER
         );
 
         // when
@@ -187,7 +192,8 @@ class NotionImportCommandServiceTest {
         ).thenReturn(false);
         ThrowingCallable action = () -> service.start(
                 WORKSPACE_ID,
-                MEMBER_ID
+                MEMBER_ID,
+                PROVIDER
         );
 
         // when
@@ -203,42 +209,43 @@ class NotionImportCommandServiceTest {
         );
     }
 
-    @DisplayName("Notion Connection이 없으면 활성 Run을 조회하지 않는다")
+    @DisplayName("요청한 공급자의 Content Source Connection이 없으면 활성 Run을 조회하지 않는다")
     @Test
-    void start_failure_notionConnectionNotConnected() {
+    void start_failure_contentSourceConnectionNotConnected() {
         // given
         stubCurrentOwner();
         when(
                 connectionRepository.findByWorkspaceIdAndProviderForUpdate(
                         WORKSPACE_ID,
-                        ContentSourceProvider.NOTION
+                        PROVIDER
                 )
         ).thenReturn(Optional.empty());
         ThrowingCallable action = () -> service.start(
                 WORKSPACE_ID,
-                MEMBER_ID
+                MEMBER_ID,
+                PROVIDER
         );
 
         // when
         Throwable thrown = catchThrowable(action);
 
         // then
-        assertThat(thrown).isInstanceOf(NotionImportException.class)
-                .extracting(exception -> ((NotionImportException) exception).getErrorCode())
-                .isEqualTo(NotionImportErrorCode.NOTION_CONNECTION_NOT_CONNECTED);
+        assertThat(thrown).isInstanceOf(ContentImportException.class)
+                .extracting(exception -> ((ContentImportException) exception).contentImportErrorCode())
+                .isEqualTo(ContentImportErrorCode.CONTENT_SOURCE_CONNECTION_NOT_CONNECTED);
         verifyNoInteractions(importRunRepository);
     }
 
     @DisplayName("Connection 승인자가 현재 OWNER가 아니면 재인증 오류로 시작을 거부한다")
     @Test
-    void start_failure_notionConnectionReauthenticationRequired() {
+    void start_failure_contentSourceConnectionReauthenticationRequired() {
         // given
         stubCurrentOwner();
         ContentSourceConnection connection = connection();
         when(
                 connectionRepository.findByWorkspaceIdAndProviderForUpdate(
                         WORKSPACE_ID,
-                        ContentSourceProvider.NOTION
+                        PROVIDER
                 )
         ).thenReturn(Optional.of(connection));
         when(
@@ -250,16 +257,17 @@ class NotionImportCommandServiceTest {
         ).thenReturn(false);
         ThrowingCallable action = () -> service.start(
                 WORKSPACE_ID,
-                MEMBER_ID
+                MEMBER_ID,
+                PROVIDER
         );
 
         // when
         Throwable thrown = catchThrowable(action);
 
         // then
-        assertThat(thrown).isInstanceOf(NotionImportException.class)
-                .extracting(exception -> ((NotionImportException) exception).getErrorCode())
-                .isEqualTo(NotionImportErrorCode.NOTION_CONNECTION_REAUTHENTICATION_REQUIRED);
+        assertThat(thrown).isInstanceOf(ContentImportException.class)
+                .extracting(exception -> ((ContentImportException) exception).contentImportErrorCode())
+                .isEqualTo(ContentImportErrorCode.CONTENT_SOURCE_CONNECTION_REAUTHENTICATION_REQUIRED);
         verifyNoInteractions(importRunRepository);
     }
 
@@ -269,7 +277,7 @@ class NotionImportCommandServiceTest {
         when(
                 connectionRepository.findByWorkspaceIdAndProviderForUpdate(
                         WORKSPACE_ID,
-                        ContentSourceProvider.NOTION
+                        PROVIDER
                 )
         ).thenReturn(Optional.of(connection));
         when(

@@ -62,7 +62,7 @@ class NotionImportStartAcceptanceTest {
     @BeforeEach
     void clearTables() {
         jdbcClient.sql("""
-                TRUNCATE TABLE notion_pages, notion_import_runs, content_source_connections,
+                TRUNCATE TABLE imported_pages, content_import_runs, content_source_connections,
                     content_source_authorizations, workspace_members, workspaces, oauth_identities, members
                 RESTART IDENTITY CASCADE
                 """)
@@ -346,7 +346,8 @@ class NotionImportStartAcceptanceTest {
 
         // then
         result.andExpect(status().isConflict())
-                .andExpect(jsonPath("$.code").value("NOTION_CONNECTION_NOT_CONNECTED"));
+                .andExpect(jsonPath("$.code").value("NOTION_CONNECTION_NOT_CONNECTED"))
+                .andExpect(jsonPath("$.message").value("Notion 연결이 필요합니다"));
         assertThat(importRunCount()).isZero();
     }
 
@@ -393,7 +394,8 @@ class NotionImportStartAcceptanceTest {
 
         // then
         result.andExpect(status().isConflict())
-                .andExpect(jsonPath("$.code").value("NOTION_CONNECTION_REAUTHENTICATION_REQUIRED"));
+                .andExpect(jsonPath("$.code").value("NOTION_CONNECTION_REAUTHENTICATION_REQUIRED"))
+                .andExpect(jsonPath("$.message").value("Notion 연결 재인증이 필요합니다"));
         assertThat(importRunCount()).isZero();
     }
 
@@ -539,7 +541,7 @@ class NotionImportStartAcceptanceTest {
                         .toString()
                 : null;
         return jdbcClient.sql("""
-                INSERT INTO notion_import_runs (
+                INSERT INTO content_import_runs (
                     workspace_id,
                     content_source_connection_id,
                     requested_by_member_id,
@@ -603,7 +605,7 @@ class NotionImportStartAcceptanceTest {
                     COALESCE(started_at::text, 'null'),
                     COALESCE(completed_at::text, 'null')
                 )
-                FROM notion_import_runs
+                FROM content_import_runs
                 WHERE id = :importRunId
                 """)
                 .param(
@@ -615,13 +617,13 @@ class NotionImportStartAcceptanceTest {
     }
 
     private long singleImportRunId() {
-        return jdbcClient.sql("SELECT id FROM notion_import_runs")
+        return jdbcClient.sql("SELECT id FROM content_import_runs")
                 .query(Long.class)
                 .single();
     }
 
     private long importRunCount() {
-        return jdbcClient.sql("SELECT COUNT(*) FROM notion_import_runs")
+        return jdbcClient.sql("SELECT COUNT(*) FROM content_import_runs")
                 .query(Long.class)
                 .single();
     }
