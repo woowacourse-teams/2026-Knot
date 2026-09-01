@@ -1,6 +1,6 @@
 import { useParams } from "react-router";
+import useChatSessionsQuery from "@api/queries/useChatSessionsQuery";
 import useNavigateToChatSession from "@hooks/domain/chat/useNavigateToChatSession";
-import { mockChatSessions } from "../mock";
 import { groupChatSessions } from "../utils/groupChatSessions";
 
 /**
@@ -12,15 +12,17 @@ export const useChatSessionList = () => {
   const { workspaceId, sessionId } = useParams();
   const { navigateToChatSession } = useNavigateToChatSession();
 
-  // TODO: 채팅 세션 목록 조회 쿼리로 교체
-  const groups = groupChatSessions({ sessions: mockChatSessions });
+  const { data } = useChatSessionsQuery({
+    workspaceId: workspaceId ? Number(workspaceId) : null,
+  });
+
+  const groups = groupChatSessions({ sessions: data?.sessions ?? [] });
 
   const openedSessionId = sessionId ?? null;
 
   const handleSelectSession = (selectedSessionId: number) => {
     if (!workspaceId) return;
 
-    // TODO: 전체 메시지 조회 쿼리 추가
     navigateToChatSession({
       workspaceId,
       sessionId: String(selectedSessionId),
