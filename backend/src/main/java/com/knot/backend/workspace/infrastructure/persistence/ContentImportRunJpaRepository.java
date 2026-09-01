@@ -1,11 +1,18 @@
 package com.knot.backend.workspace.infrastructure.persistence;
 
 import com.knot.backend.workspace.domain.ContentImportRun;
+import com.knot.backend.workspace.domain.ContentImportStatus;
+import java.util.Collection;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
 interface ContentImportRunJpaRepository extends JpaRepository<ContentImportRun, Long> {
+
+    Optional<ContentImportRun> findFirstByContentSourceConnectionIdAndStatusIn(
+            Long contentSourceConnectionId,
+            Collection<ContentImportStatus> statuses
+    );
 
     @Query("""
             SELECT importRun

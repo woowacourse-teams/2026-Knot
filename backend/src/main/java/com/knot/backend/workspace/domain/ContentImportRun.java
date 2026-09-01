@@ -119,6 +119,24 @@ public class ContentImportRun {
         );
     }
 
+    public static ContentImportRun createPending(
+            Long workspaceId,
+            Long contentSourceConnectionId,
+            Long requestedByMemberId,
+            Instant createdAt
+    ) {
+        return new ContentImportRun(
+                workspaceId,
+                contentSourceConnectionId,
+                requestedByMemberId,
+                ContentImportStatus.PENDING,
+                null,
+                0,
+                null,
+                null,
+                createdAt
+        );
+    }
     private void validateId(Long id) {
         if (id == null || id <= 0) {
             throw invalidImportRun();
