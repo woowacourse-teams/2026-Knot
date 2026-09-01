@@ -100,12 +100,14 @@ class FlywayMigrationUpgradeIntegrationTest {
                 "fk_notion_import_runs_requester_membership",
                 "chk_notion_import_runs_status",
                 "uk_notion_import_runs_id_workspace",
+                "uk_notion_import_runs_id_workspace_status",
                 "pk_notion_pages",
                 "uk_notion_pages_workspace_run_notion_page",
                 "fk_notion_pages_import_run",
                 "fk_notion_pages_parent",
                 "chk_notion_pages_timestamps",
                 "pk_notion_page_publications",
+                "chk_notion_page_publications_status",
                 "fk_notion_page_publications_import_run"
         );
         assertThat(schemaObjectNames("""

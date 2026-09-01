@@ -27,7 +27,12 @@ CREATE TABLE notion_import_runs (
         CHECK (
             (status = 'PENDING' AND started_at IS NULL AND completed_at IS NULL)
             OR (status = 'RUNNING' AND started_at IS NOT NULL AND completed_at IS NULL)
-            OR (status IN ('COMPLETED', 'FAILED') AND started_at IS NOT NULL AND completed_at IS NOT NULL)
+            OR (
+                status IN ('COMPLETED', 'FAILED')
+                AND started_at IS NOT NULL
+                AND completed_at IS NOT NULL
+                AND completed_at >= started_at
+            )
         ),
     CONSTRAINT chk_notion_import_runs_total_page_count
         CHECK (total_page_count IS NULL OR total_page_count >= 0),
