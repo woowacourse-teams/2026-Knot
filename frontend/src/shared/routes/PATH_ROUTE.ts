@@ -19,6 +19,8 @@ export const PATH_ROUTE = {
   CHAT: "/workspace/:workspaceId/chat",
   CHAT_SESSION: "/workspace/:workspaceId/chat/:sessionId",
 
+  INVITE: "/invite/:token",
+
   JOIN_ERROR: "/join-error",
 } as const;
 

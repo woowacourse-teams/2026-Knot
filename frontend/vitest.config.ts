@@ -17,6 +17,14 @@ export default defineConfig({
           focusable: "false",
           "aria-hidden": "true",
         },
+        // webpack 설정과 같이 size prop을 만들어요. 플러그인이 jsx로 변환하므로 타입 표기는 넣지 않아요
+        template: ({ componentName, jsx, exports }, { tpl }) => tpl`
+const ${componentName} = ({ size = 24, ...props }) => (
+  ${jsx}
+);
+
+${exports}
+`,
       },
     }),
   ],
@@ -46,6 +54,6 @@ export default defineConfig({
     globals: true,
     environment: "jsdom",
     setupFiles: ["./vitest.setup.ts"],
-    include: ["src/**/*.test.{ts,tsx}"],
+    include: ["src/**/*.test.{ts,tsx}", "src/**/test.{ts,tsx}"],
   },
 });
