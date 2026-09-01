@@ -1,6 +1,6 @@
 import styled from "@emotion/styled";
 import useWorkspaceEntry from "@hooks/domain/workspace/useWorkspaceEntry";
-import Spinner from "@primitives/ui/Spinner";
+import LoadingIndicator from "@primitives/ui/LoadingIndicator";
 import { WorkspaceSidebarProvider } from "@provider/context/workspaceSidebarContext";
 import WorkspaceGnb from "@widgets/workspace/WorkspaceGnb";
 import WorkspaceSidebar from "@widgets/workspace/WorkspaceSidebar";
@@ -34,12 +34,7 @@ export default function WorkspaceLayout() {
             {isReady ? (
               <Outlet />
             ) : (
-              <LoadingFallback
-                role="status"
-                aria-label="워크스페이스를 불러오고 있어요"
-              >
-                <Spinner />
-              </LoadingFallback>
+              <LoadingFallback label="워크스페이스를 불러오고 있어요" />
             )}
           </Main>
         </Content>
@@ -67,10 +62,8 @@ const Main = styled.main`
   overflow-y: auto;
 `;
 
-const LoadingFallback = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: center;
+/** 본문 자리를 그대로 채워 스피너가 화면 가운데에 놓이도록 해요. */
+const LoadingFallback = styled(LoadingIndicator)`
   height: 100%;
   color: ${({ theme }) => theme.neutral[800]};
 `;
