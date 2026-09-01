@@ -30,8 +30,8 @@ export default function OnboardingCard({
 }
 
 /**
- * 피그마 그림자는 `0 12px 32px rgba(15,23,41,0.08)`로 theme에 없는 값이라
- * 가장 가까운 `shadow03`으로 대신합니다.
+ * 피그마 그림자 `0 12px 32px rgba(15,23,41,0.08)`은 theme에 없는 값이라 토큰으로 대신합니다.
+ * 워크스페이스 생성·참여 카드가 `shadow02`를 쓰고 있어 같은 값으로 맞췄어요.
  */
 const Root = styled(Stack)`
   width: 100%;
@@ -39,5 +39,5 @@ const Root = styled(Stack)`
   padding: 3rem; /* 48px */
   border-radius: 1.5rem; /* 24px */
   background-color: ${({ theme }) => theme.neutral[0]};
-  box-shadow: ${({ theme }) => theme.shadow03};
+  box-shadow: ${({ theme }) => theme.shadow02};
 `;
