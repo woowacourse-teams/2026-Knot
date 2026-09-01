@@ -30,6 +30,17 @@ public class ImportedPageRepositoryAdapter implements ImportedPageRepository {
     }
 
     @Override
+    public List<ImportedPage> findAllByWorkspaceIdAndImportRunIdOrderByPositionAscIdAsc(
+            Long workspaceId,
+            Long importRunId
+    ) {
+        return importedPageJpaRepository.findAllByWorkspaceIdAndImportRunIdOrderByPositionAscIdAsc(
+                workspaceId,
+                importRunId
+        );
+    }
+
+    @Override
     public void publish(
             Long workspaceId,
             Long importRunId,

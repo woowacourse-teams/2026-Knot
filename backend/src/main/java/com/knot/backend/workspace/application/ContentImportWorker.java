@@ -20,6 +20,7 @@ public class ContentImportWorker {
     private final ContentSourceCollector contentCollector;
     private final ContentImportSnapshotStagingService stagingService;
     private final ContentImportPublicationService publicationService;
+    private final ContentImportSearchIndexer searchIndexer;
     private final ContentImportWorkerObserver observer;
     private final ContentImportHeartbeatLease heartbeatLease;
 
@@ -138,6 +139,19 @@ public class ContentImportWorker {
             stage(
                     importRun,
                     pages
+            );
+        } catch (RuntimeException ignored) {
+            fail(
+                    importRun,
+                    ContentImportFailureCategory.STORAGE
+            );
+            return;
+        }
+
+        try {
+            searchIndexer.index(
+                    importRun.importRunId(),
+                    importRun.workspaceId()
             );
         } catch (RuntimeException ignored) {
             fail(
