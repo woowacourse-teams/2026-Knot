@@ -193,6 +193,6 @@ const { path, isLoading } = useGetCoursePath(courseId); // ✅
 - [ ] 훅·로직이라면 「코드를 shared로 내리는 기준」(이름·인자·반환값·이식 테스트)으로 컴포넌트 `model`에 둘지 `shared/hooks`로 내릴지 정했는가?
 - [ ] `shared/`라면 `api` / `components` / `hooks` / `provider` / `routes` / `utils` / `constants` / `types` 중 어디인가?
 - [ ] mock 데이터라면 컴포넌트가 아니라 `shared/api/mock`에 두었는가? (`.claude/rules/api-guide.md`의 「API mock」)
-- [ ] 서버와 주고받는 요청·응답 DTO라면 `shared/types`나 `fetch/` 파일 안이 아니라 `shared/api/dto/{도메인}.ts`에 클래스(+ 생성자 입력 `Raw`/`Input` 인터페이스)로 두었는가? 같은 도메인은 한 파일. `new`는 `fetch/`·`mutations/`에서만. (`.claude/rules/dto-guide.md`)
+- [ ] 서버와 주고받는 요청·응답 DTO라면 `shared/types`나 `fetch/` 파일 안이 아니라 `shared/api/dto/{도메인}.ts`에 클래스(+ 생성자 입력 `Raw`/`Input` 인터페이스)로 두었는가? 같은 도메인은 한 파일. `new`는 `fetch/`·`mutations/`에서만(테스트 파일의 기대값용 응답 클래스는 예외). (`.claude/rules/dto-guide.md`)
 - [ ] 폴더·파일명이 `.claude/rules/general-code-convention.md`의 네이밍 규칙(카멜 통일 · 폴더 + `index.ts(x)` · 예외)에 맞는가?
 - [ ] 컨텍스트가 특정 컴포넌트 전용이면 해당 컴포넌트의 `context` 세그먼트에, 전역이면 `shared/provider`에 두었는가?

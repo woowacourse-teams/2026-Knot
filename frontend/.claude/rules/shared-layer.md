@@ -59,4 +59,4 @@ description: shared 레이어의 최상위 구성(api / components / hooks / pro
 - 특정 컴포넌트 전용 컨텍스트를 `shared/provider/context`에 두지 않음.
 - 쿼리·뮤테이션 훅은 `shared/hooks`가 아니라 `shared/api`의 `queries` / `mutations`에서 관리. (`.claude/rules/query-hooks.md` 참고)
 - mock 데이터는 컴포넌트가 아니라 `shared/api/mock`에서 msw 핸들러로 관리하고, 프로덕션 코드는 `mock/`을 import하지 않음. `mock/`은 실제 API 연동 후에도 테스트용으로 유지. (`.claude/rules/api-guide.md` 참고)
-- 서버와 주고받는 요청·응답 DTO는 `shared/types`가 아니라 `shared/api/dto`에 도메인별 파일의 **클래스**로 두고, `shared/api` 밖에서는 import하지도 `new`하지도 않음. 컴포넌트·훅은 쿼리 훅의 반환값과 뮤테이션 훅의 `mutate` 인자 추론으로 타입을 받음. (`.claude/rules/dto-guide.md` 참고)
+- 서버와 주고받는 요청·응답 DTO는 `shared/types`가 아니라 `shared/api/dto`에 도메인별 파일의 **클래스**로 두고, `shared/api` 밖에서는 import하지도 `new`하지도 않음(테스트 파일이 기대값용으로 응답 클래스를 쓰는 것만 예외). 컴포넌트·훅은 쿼리 훅의 반환값과 뮤테이션 훅의 `mutate` 인자 추론으로 타입을 받음. (`.claude/rules/dto-guide.md` 참고)

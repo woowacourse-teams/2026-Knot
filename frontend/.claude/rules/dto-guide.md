@@ -77,7 +77,7 @@ src/shared/api/dto/
 
 ## `new`를 부르는 곳
 
-`new`는 **`shared/api` 안의 두 곳에서만** 부름. 경계 변환이 이 두 곳에서만 일어나야 "변환 지점 단일화"가 성립.
+프로덕션 코드에서 `new`는 **`shared/api` 안의 두 곳에서만** 부름. 경계 변환이 이 두 곳에서만 일어나야 "변환 지점 단일화"가 성립. 테스트 파일이 기대값을 만들기 위해 응답 클래스를 `new`하는 것만 예외(`test-strategy.md` 「기대값」).
 
 | 방향 | 위치                           | 코드                                                     |
 | ---- | ------------------------------ | -------------------------------------------------------- |
@@ -289,6 +289,7 @@ export default useCreateWorkspaceMutation;
 - `queries/`·`suspense/`·`prefetch/`는 `dto/`를 import하지 않음. 요청 함수의 반환 타입 추론으로 충분함.
 - 요청·응답 타입을 `fetch/`·`mutations/` 파일 안에 다시 정의하지 않음.
 - `mock/`은 `dto/`를 import하지 않음. mock 응답 데이터는 서버 JSON 모양이므로 `mock/types/`에 `Raw`에 대응하는 타입을 별도로 둠. (`api-guide.md` 「API mock」)
-- **`shared/api` 밖(`modules/`, `pages/`, `shared/components`, `shared/hooks`)은 `dto/`를 import하지 않음.** 컴포넌트·훅은 쿼리 훅의 `data`와 뮤테이션 훅의 `mutate` 인자에서 타입을 추론받아 씀. 서버 응답 모양이 컴포넌트까지 직접 흘러가면 스펙 변경이 화면 전체로 번지기 때문. (`grep -rn "api/dto" src --exclude-dir=api`로 확인. 결과가 없어야 함)
-- `new XxxDto(...)`는 `fetch/`·`mutations/`에서만 부름. (`grep -rn "new [A-Za-z]*Dto(" src`로 확인. 결과가 `shared/api/dto`·`shared/api/fetch`·`shared/api/mutations` 밖에 없어야 함)
+- **`shared/api` 밖(`modules/`, `pages/`, `shared/components`, `shared/hooks`)은 `dto/`를 import하지 않음.** 컴포넌트·훅은 쿼리 훅의 `data`와 뮤테이션 훅의 `mutate` 인자에서 타입을 추론받아 씀. 서버 응답 모양이 컴포넌트까지 직접 흘러가면 스펙 변경이 화면 전체로 번지기 때문. (`grep -rn "api/dto" src --exclude-dir=api --exclude=test.tsx --exclude='*.test.ts'`로 확인. 결과가 없어야 함)
+- **예외: 테스트 파일**(`test.tsx` · `*.test.ts` · `src/__test__/**`)은 mock 응답(`Raw`)을 기대값으로 바꾸기 위해 **응답 DTO 클래스만** 값 import할 수 있음. 요청 DTO는 테스트에서도 `new`하지 않음. (`test-strategy.md` 「기대값」)
+- `new XxxDto(...)`는 프로덕션 코드에서 `fetch/`·`mutations/`에서만 부름. (`grep -rn "new [A-Za-z]*Dto(" src --exclude=test.tsx --exclude='*.test.ts'`로 확인. 결과가 `shared/api/dto`·`shared/api/fetch`·`shared/api/mutations` 밖에 없어야 함)
 - API 요청·응답 타입을 위해 `src/shared/types/`를 만들지 않음. 전역 `types/`는 서버 스펙과 무관한 공용 타입 자리.

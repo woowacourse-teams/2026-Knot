@@ -138,11 +138,13 @@
       이름을 되풀이한 주석 ❌, `@property`로 클래스 위에 몰아 쓰기 ❌
 - [ ] C-5-13. `dto/`에 **DTO 클래스와 생성자 입력 `interface`(`Raw`·`Input`)만** 있는가 (상수 · 함수 · enum ❌)
 - [ ] C-5-14. `dto/`가 다른 폴더를 import하지 않고, `mock/`과 `shared/api` 밖에서 `dto/`를 import하지 않는가
+      (예외: 테스트 파일이 기대값용으로 **응답** DTO 클래스를 값 import하는 것 — C-7-6)
 - [ ] C-5-15. **생성자가 변환만 하는가** — 필드 선별·기본값·`null` 정규화·이름 변경·형식 변환·중첩 조각 `new`만 허용.
       `throw`·형식 검사 같은 **검증 로직 ❌**. 변환 없는 필드도 `this.id = raw.id`로 그대로 대입했는가
 - [ ] C-5-16. 클래스에 **메서드·getter·`#private` 필드가 없는가** — 필드만. 파생 값은 사용하는 쪽이나 `shared/utils`에서 계산
 - [ ] C-5-17. **`new XxxDto(...)`의 위치** — 응답 클래스는 `fetch/` 요청 함수, 요청 클래스는 `mutations/`의 `mutationFn`에서만.
-      요청 함수 안에서 요청 클래스를 `new` ❌, 컴포넌트·`shared/hooks`·`mock/`에서 `new` ❌ (`grep -rn "new [A-Za-z]*Dto(" src`로 확인)
+      요청 함수 안에서 요청 클래스를 `new` ❌, 컴포넌트·`shared/hooks`·`mock/`에서 `new` ❌
+      (`grep -rn "new [A-Za-z]*Dto(" src --exclude=test.tsx --exclude='*.test.ts'`로 확인. 테스트 파일의 응답 클래스 `new`는 예외 — C-7-6)
 - [ ] C-5-18. **`Raw`/`Input`이 클래스와 분리돼 있는가** — 응답 클래스의 생성자 입력은 서버 JSON 모양(`Raw`), 요청 클래스의 생성자 입력은 앱 값(`Input`).
       클래스를 `httpClient` 제네릭이나 `mutationFn` 인자 타입에 그대로 쓰지 않았는가
 
@@ -174,6 +176,8 @@
 - [ ] C-7-3. E2E가 전역 `src/__test__/`에 있는가 (페이지 폴더에 두지 않음)
 - [ ] C-7-4. **훅 테스트를 작성하지 않았는가** — 훅은 테스트 대상이 아님. 작성돼 있으면 지적
 - [ ] C-7-5. `*.stories.tsx` 등 스토리북 파일을 새로 만들지 않았는가 (보류 상태)
+- [ ] C-7-6. **기대값** — 통합·E2E 테스트의 기대값이 mock 응답(`Raw`)을 `new XxxResponseDto(mockResponse)`로 변환한 값인가.
+      mock 값을 그대로 쓰기 ❌, 문자열로 박기 ❌, 변환 로직을 테스트에 되풀이(`mockResponse.name.trim()`) ❌, 테스트에서 요청 DTO `new` ❌
 
 ---
 
