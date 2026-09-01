@@ -69,6 +69,10 @@ public class ContentImportRun {
                 processedPageCount
         );
         validateCreatedAt(createdAt);
+        validatePendingPageCount(
+                status,
+                processedPageCount
+        );
         validateCompletedPageCounts(
                 status,
                 totalPageCount,
@@ -135,6 +139,15 @@ public class ContentImportRun {
             throw invalidImportRun();
         }
         if (processedPageCount < 0 || totalPageCount != null && processedPageCount > totalPageCount) {
+            throw invalidImportRun();
+        }
+    }
+
+    private void validatePendingPageCount(
+            ContentImportStatus status,
+            int processedPageCount
+    ) {
+        if (status == ContentImportStatus.PENDING && processedPageCount != 0) {
             throw invalidImportRun();
         }
     }

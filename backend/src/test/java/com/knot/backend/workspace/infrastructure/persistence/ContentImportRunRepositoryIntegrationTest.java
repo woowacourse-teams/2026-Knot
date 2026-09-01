@@ -538,6 +538,15 @@ class ContentImportRunRepositoryIntegrationTest {
                         CREATED_AT.toString()
                 ),
                 Arguments.of(
+                        "pending-with-processed-page-count",
+                        "PENDING",
+                        10,
+                        1,
+                        null,
+                        null,
+                        CREATED_AT.toString()
+                ),
+                Arguments.of(
                         "running-without-started-at",
                         "RUNNING",
                         null,

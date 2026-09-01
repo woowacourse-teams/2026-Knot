@@ -44,6 +44,8 @@ CREATE TABLE content_import_runs (
         CHECK (total_page_count IS NULL OR total_page_count >= 0),
     CONSTRAINT chk_content_import_runs_processed_page_count
         CHECK (processed_page_count >= 0),
+    CONSTRAINT chk_content_import_runs_pending_page_count
+        CHECK (status <> 'PENDING' OR processed_page_count = 0),
     CONSTRAINT chk_content_import_runs_page_counts
         CHECK (total_page_count IS NULL OR processed_page_count <= total_page_count),
     CONSTRAINT chk_content_import_runs_completed_page_counts

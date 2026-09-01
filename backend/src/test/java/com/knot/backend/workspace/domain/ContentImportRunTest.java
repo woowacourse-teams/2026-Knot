@@ -40,6 +40,31 @@ class ContentImportRunTest {
                 .isEqualTo(ContentImportErrorCode.INVALID_CONTENT_IMPORT_RUN);
     }
 
+    @DisplayName("대기 상태는 처리한 Page 수가 0이어야 한다")
+    @Test
+    void create_failure_pendingWithProcessedPageCount() {
+        // given
+        ThrowingCallable action = () -> ContentImportRun.create(
+                1L,
+                2L,
+                3L,
+                ContentImportStatus.PENDING,
+                10,
+                1,
+                null,
+                null,
+                CREATED_AT
+        );
+
+        // when
+        Throwable thrown = catchThrowable(action);
+
+        // then
+        assertThat(thrown).isInstanceOf(ContentImportException.class)
+                .extracting(exception -> ((ContentImportException) exception).getErrorCode())
+                .isEqualTo(ContentImportErrorCode.INVALID_CONTENT_IMPORT_RUN);
+    }
+
     @DisplayName("완료 상태는 전체 Page 수가 확정되고 처리한 Page 수와 같아야 한다")
     @MethodSource("invalidCompletedPageCountCases")
     @ParameterizedTest(name = "{0}")
@@ -143,7 +168,11 @@ class ContentImportRunTest {
             Instant startedAt,
             Instant completedAt
     ) {
-        int processedPageCount = status == ContentImportStatus.COMPLETED ? 10 : 4;
+        int processedPageCount = switch (status) {
+            case PENDING -> 0;
+            case RUNNING, FAILED -> 4;
+            case COMPLETED -> 10;
+        };
         return ContentImportRun.create(
                 1L,
                 2L,
