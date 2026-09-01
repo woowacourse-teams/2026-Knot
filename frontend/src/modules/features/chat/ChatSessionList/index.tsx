@@ -1,6 +1,7 @@
 import styled from "@emotion/styled";
 import { useChatSessionList } from "./model/useChatSessionList";
 import ChatSessionGroup from "./ui/ChatSessionGroup";
+import EmptyChatSessionList from "./ui/EmptyChatSessionList";
 
 /**
  * 워크스페이스에 쌓인 대화 목록.
@@ -13,7 +14,7 @@ export default function ChatSessionList() {
   const { groups, openedSessionId, handleSelectSession } = useChatSessionList();
 
   if (groups.length === 0) {
-    return <EmptyMessage>아직 나눈 대화가 없어요</EmptyMessage>;
+    return <EmptyChatSessionList />;
   }
 
   return (
@@ -38,9 +39,4 @@ const Container = styled.div`
   width: 100%;
   height: 100%;
   overflow-y: auto;
-`;
-
-const EmptyMessage = styled.p`
-  ${({ theme }) => theme.text.body01};
-  color: ${({ theme }) => theme.neutral[500]};
 `;
