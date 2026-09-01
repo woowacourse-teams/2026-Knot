@@ -1,19 +1,45 @@
 import { ThemeProvider } from "@emotion/react";
 import { WorkspaceSidebarProvider } from "@provider/context/workspaceSidebarContext";
 import { theme } from "@provider/themeProvider";
+import { getRouterPath, PATH_ROUTE } from "@routes/PATH_ROUTE";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen } from "@testing-library/react";
 import WorkspaceSidebar from "@widgets/workspace/WorkspaceSidebar";
+import { createMemoryRouter, RouterProvider } from "react-router";
 import { describe, expect, it } from "vitest";
 
 import WorkspaceGnb from ".";
 
+const HOME_PATH = getRouterPath({
+  routeKey: "WORKSPACE_HOME",
+  params: { workspaceId: "1" },
+});
+
+// 사이드바가 현재 `:workspaceId`의 워크스페이스를 조회하므로 라우터와 QueryClient를 함께 감싸요
 const renderGnb = () => {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  const router = createMemoryRouter(
+    [
+      {
+        path: PATH_ROUTE.WORKSPACE_HOME,
+        element: (
+          <WorkspaceSidebarProvider>
+            <WorkspaceGnb />
+            <WorkspaceSidebar />
+          </WorkspaceSidebarProvider>
+        ),
+      },
+    ],
+    { initialEntries: [HOME_PATH] },
+  );
+
   render(
     <ThemeProvider theme={theme}>
-      <WorkspaceSidebarProvider>
-        <WorkspaceGnb />
-        <WorkspaceSidebar />
-      </WorkspaceSidebarProvider>
+      <QueryClientProvider client={queryClient}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>
     </ThemeProvider>,
   );
 
