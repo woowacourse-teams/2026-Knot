@@ -56,17 +56,44 @@ paths:
 
 - `any` 금지
 - **type vs interface**: 객체는 `interface`, 나머지는 `type`
+  - **예외: `src/shared/api/dto/`의 DTO는 `class`.** 서버 JSON ↔ 앱 모양의 변환을 생성자 한 곳에 모으기 위한 예외이며, 이 폴더 밖에서는 `class`를 쓰지 않음. DTO 생성자의 입력 타입(`Raw`·`Input`)은 여전히 `interface`
 - **리턴 타입은 명시하지 않음** — 거의 100% 추론되므로 타입 시스템에 맡김
 - 초기값에 타입을 지정해 타입 시스템이 알아서 추론하도록 둠 (타입스크립트를 자바스크립트처럼 쓰기)
-- API 요청/응답 타입은 `Request`, `Response` 접미사 사용
+- API 요청/응답 DTO는 `src/shared/api/dto/`의 도메인별 파일에 클래스로 두고 `RequestDto`, `ResponseDto` 접미사 사용. 생성자 입력은 `…ResponseRaw`(서버 JSON) / `…RequestInput`(앱 값). 요청 함수 파일 안에 다시 정의하지 않고, `new`는 `fetch/`(응답)·`mutations/`(요청)에서만 부름 (`.claude/rules/dto-guide.md`)
 
   ```tsx
-  interface UpdateTodoResponse {
-    // ...
+  // src/shared/api/dto/todo.ts
+  /** 할 일 수정의 서버 응답 모양 */
+  export interface PatchTodoResponseRaw {
+    id: number;
+    title: string;
   }
 
-  const updateTodo = async (): Promise<UpdateTodoResponse> => {
-    // ...
+  /** 할 일 수정 응답 */
+  export class PatchTodoResponseDto {
+    /** 수정된 할 일 ID */
+    id: number;
+    /** 수정된 제목 */
+    title: string;
+
+    constructor(raw: PatchTodoResponseRaw) {
+      this.id = raw.id;
+      this.title = raw.title;
+    }
+  }
+
+  // src/shared/api/fetch/api/v1/todos/[todoId]/index.ts
+  import {
+    PatchTodoResponseDto,
+    type PatchTodoResponseRaw,
+  } from "@api/dto/todo";
+
+  const updateTodoApi = async (todoId: number) => {
+    const response = await httpClient<PatchTodoResponseRaw>({
+      // ...
+    });
+
+    return new PatchTodoResponseDto(response.data);
   };
   ```
 
