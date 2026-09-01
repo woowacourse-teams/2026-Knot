@@ -1,5 +1,7 @@
+import { useParams } from "react-router";
+import useChatMessagesQuery from "@api/queries/useChatMessagesQuery";
 import useOpenedSourceMessage from "@hooks/domain/chat/useOpenedSourceMessage";
-import { mockMessages, mockSourceCounts } from "../mock";
+import { mockSourceCounts } from "../mock";
 import type { ChatTurnView } from "../types/chatTurn";
 import { formatSourceLabel } from "../utils/formatSourceLabel";
 import { toChatTurns } from "../utils/toChatTurns";
@@ -12,15 +14,21 @@ import { toChatTurns } from "../utils/toChatTurns";
  * URL은 두 곳에서 모두 읽을 수 있기 때문입니다.
  */
 export const useMessageList = () => {
+  const { sessionId } = useParams();
   const { openedMessageId, openSourceMessage } = useOpenedSourceMessage();
 
-  // TODO: mock 데이터 교체 필요
-  const turns: ChatTurnView[] = toChatTurns(mockMessages).map((turn) => {
-    const sourceCount = mockSourceCounts[turn.id];
-    const sourceLabel = sourceCount ? formatSourceLabel(sourceCount) : null;
-
-    return { ...turn, sourceLabel: sourceLabel ?? undefined };
+  const { data } = useChatMessagesQuery({
+    sessionId: sessionId ? Number(sessionId) : null,
   });
+
+  const turns: ChatTurnView[] = toChatTurns(data?.messages ?? []).map(
+    (turn) => {
+      const sourceCount = mockSourceCounts[turn.id];
+      const sourceLabel = sourceCount ? formatSourceLabel(sourceCount) : null;
+
+      return { ...turn, sourceLabel: sourceLabel ?? undefined };
+    },
+  );
 
   const hasAnsweredTurn = turns.some(({ status }) => status === "done");
 
