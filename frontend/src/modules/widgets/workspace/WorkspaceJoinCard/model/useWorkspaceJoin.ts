@@ -15,7 +15,7 @@ export const useWorkspaceJoin = () => {
   const handleJoin = () => {
     if (!workspaceId) return;
 
-    navigateToWorkspaceHome(workspaceId);
+    navigateToWorkspaceHome({ workspaceId });
   };
 
   return { workspaceName, handleJoin };
