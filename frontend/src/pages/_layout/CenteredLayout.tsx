@@ -7,7 +7,7 @@ import LogoIcon from "@/assets/logos/logo.svg";
 /**
  * knot 로고 + 중앙 카드 레이아웃
  *
- * 워크스페이스 진입 전 플로우(온보딩, 워크스페이스 생성/참여, 팀원 초대, 초대 에러)가 공유한다.
+ * 워크스페이스 진입 전 플로우(온보딩, 워크스페이스 생성/참여, 팀원 초대, 노션 연동, 초대 에러)가 공유한다.
  * 연한 배경 위에 로고를 띄우고 그 아래 화면 콘텐츠(카드)를 가운데 놓는다.
  *
  * @see https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=600-10188 워크스페이스 생성 및 참여
