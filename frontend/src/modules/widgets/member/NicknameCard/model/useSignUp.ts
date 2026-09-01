@@ -2,7 +2,7 @@ import usePostNicknameMutation from "@api/mutations/usePostNicknameMutation";
 import useNavigateToLogin from "@hooks/domain/auth/useNavigateToLogin";
 import useNavigateToOnboardingComplete from "@hooks/domain/member/useNavigateToOnboardingComplete";
 import type { ChangeEvent } from "react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import { getNicknameErrorMessage } from "../utils/getNicknameErrorMessage";
 import {
@@ -19,10 +19,14 @@ import {
  *
  * 온보딩 토큰이 없거나 만료된 401은 문구로 알리지 않고 로그인 화면으로 돌려보냅니다.
  * 이 화면은 로그인을 마쳐야 의미가 있기 때문이에요.
+ *
+ * 제출이 실패하면 입력창으로 포커스를 되돌립니다. 버튼을 누르면서 포커스가 버튼으로
+ * 옮겨갔는데, 실패로 버튼이 비활성되면 포커스가 갈 곳을 잃기 때문이에요.
  */
 export const useSignUp = () => {
   const [nickname, setNickname] = useState("");
   const [submitErrorMessage, setSubmitErrorMessage] = useState<string>();
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const { mutate, isPending } = usePostNicknameMutation();
   const { navigateToOnboardingComplete } = useNavigateToOnboardingComplete();
@@ -50,6 +54,7 @@ export const useSignUp = () => {
           }
 
           setSubmitErrorMessage(getSubmitErrorMessage(error));
+          inputRef.current?.focus();
         },
       },
     );
@@ -60,6 +65,7 @@ export const useSignUp = () => {
     errorMessage,
     isSubmittable,
     isPending,
+    inputRef,
     handleChange,
     handleSubmit,
   };

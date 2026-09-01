@@ -1,12 +1,14 @@
 import styled from "@emotion/styled";
 import Input, { type InputVariant } from "@primitives/ui/Input";
-import type { InputHTMLAttributes } from "react";
+import type { ComponentProps } from "react";
 import { useId } from "react";
 
-interface TextFieldProps extends Omit<
-  InputHTMLAttributes<HTMLInputElement>,
-  "value"
-> {
+/**
+ * `InputHTMLAttributes` 대신 `ComponentProps<"input">`을 쓰는 이유가 있어요.
+ * 전자에는 `ref`가 없어서, 리액트 19에서 `ref`가 일반 prop이 되었는데도
+ * 타입에서 막힙니다. 후자는 `ref`까지 포함한 `<input>`의 전체 props예요.
+ */
+interface TextFieldProps extends Omit<ComponentProps<"input">, "value"> {
   value: string;
   variant?: InputVariant;
   errorMessage?: string;

@@ -25,6 +25,7 @@ export default function NicknameCard() {
     errorMessage,
     isSubmittable,
     isPending,
+    inputRef,
     handleChange,
     handleSubmit,
   } = useSignUp();
@@ -35,6 +36,7 @@ export default function NicknameCard() {
       <Spacing size={0.75} />
 
       <CountTextField
+        ref={inputRef}
         value={nickname}
         onChange={handleChange}
         maxLength={NICKNAME_MAX_LENGTH}

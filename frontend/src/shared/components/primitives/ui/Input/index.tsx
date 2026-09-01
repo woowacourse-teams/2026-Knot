@@ -1,6 +1,6 @@
 import { css, type Theme } from "@emotion/react";
 import styled from "@emotion/styled";
-import type { InputHTMLAttributes } from "react";
+import type { ComponentProps } from "react";
 
 /**
  * 입력창이 그려야 할 상태.
@@ -21,15 +21,20 @@ export type InputStatus = "empty" | "filled" | "error" | "success";
  */
 export type InputVariant = "text" | "code" | "copy";
 
-interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
+/**
+ * `InputHTMLAttributes` 대신 `ComponentProps<"input">`을 쓰는 이유가 있어요.
+ * 전자에는 `ref`가 없어서, 리액트 19에서 `ref`가 일반 prop이 되었는데도
+ * 타입에서 막힙니다. 후자는 `ref`까지 포함한 `<input>`의 전체 props예요.
+ */
+interface InputProps extends ComponentProps<"input"> {
   status: InputStatus;
   variant?: InputVariant;
 }
 
 const VARIANT_STYLE = {
   text: (theme: Theme) => css`
-    padding: 0.96875rem 1rem; /* 15.5px 16px */
     ${theme.text.body01};
+    padding: 0.96875rem 1rem; /* 15.5px 16px */
 
     &::placeholder {
       ${theme.text.caption02};
