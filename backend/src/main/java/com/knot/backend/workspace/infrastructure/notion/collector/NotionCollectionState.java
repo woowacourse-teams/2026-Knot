@@ -2,7 +2,7 @@ package com.knot.backend.workspace.infrastructure.notion.collector;
 
 import static com.knot.backend.workspace.infrastructure.notion.collector.NotionJson.invalidResponse;
 
-import com.knot.backend.workspace.application.dto.result.CollectedNotionPage;
+import com.knot.backend.workspace.application.dto.result.CollectedPage;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -201,16 +201,16 @@ final class NotionCollectionState {
         return counts;
     }
 
-    List<CollectedNotionPage> toResult() {
+    List<CollectedPage> toResult() {
         validateCompleted();
         normalizeParents();
         Map<String, List<Draft>> childrenByParent = childrenByParent();
         List<Draft> ordered = orderedDrafts(childrenByParent);
-        List<CollectedNotionPage> pages = new ArrayList<>();
+        List<CollectedPage> pages = new ArrayList<>();
         for (int position = 0; position < ordered.size(); position++) {
             Draft draft = ordered.get(position);
             pages.add(
-                    new CollectedNotionPage(
+                    new CollectedPage(
                             draft.id,
                             draft.parentId,
                             draft.title,

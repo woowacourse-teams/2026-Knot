@@ -1,6 +1,6 @@
 package com.knot.backend.workspace.application;
 
-public enum NotionCollectionFailureType {
+public enum ContentCollectionFailureType {
     ACCESS_DENIED,
     NOT_FOUND,
     INVALID_REQUEST,

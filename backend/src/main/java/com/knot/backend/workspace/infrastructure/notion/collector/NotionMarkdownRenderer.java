@@ -1,7 +1,7 @@
 package com.knot.backend.workspace.infrastructure.notion.collector;
 
-import com.knot.backend.workspace.application.NotionCollectionException;
-import com.knot.backend.workspace.application.NotionCollectionFailureType;
+import com.knot.backend.workspace.application.ContentCollectionException;
+import com.knot.backend.workspace.application.ContentCollectionFailureType;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -605,8 +605,8 @@ final class NotionMarkdownRenderer {
         }
     }
 
-    private NotionCollectionException invalidResponse() {
-        return new NotionCollectionException(NotionCollectionFailureType.INVALID_RESPONSE);
+    private ContentCollectionException invalidResponse() {
+        return new ContentCollectionException(ContentCollectionFailureType.INVALID_RESPONSE);
     }
 
     private static Set<String> listTypes() {

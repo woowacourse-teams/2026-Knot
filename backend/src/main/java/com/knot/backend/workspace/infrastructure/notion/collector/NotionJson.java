@@ -1,7 +1,7 @@
 package com.knot.backend.workspace.infrastructure.notion.collector;
 
-import com.knot.backend.workspace.application.NotionCollectionException;
-import com.knot.backend.workspace.application.NotionCollectionFailureType;
+import com.knot.backend.workspace.application.ContentCollectionException;
+import com.knot.backend.workspace.application.ContentCollectionFailureType;
 import java.util.regex.Pattern;
 import tools.jackson.databind.JsonNode;
 
@@ -50,7 +50,7 @@ final class NotionJson {
         }
     }
 
-    static NotionCollectionException invalidResponse() {
-        return new NotionCollectionException(NotionCollectionFailureType.INVALID_RESPONSE);
+    static ContentCollectionException invalidResponse() {
+        return new ContentCollectionException(ContentCollectionFailureType.INVALID_RESPONSE);
     }
 }

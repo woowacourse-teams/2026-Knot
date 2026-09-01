@@ -3,9 +3,9 @@ package com.knot.backend.workspace.application.dto.result;
 import java.util.List;
 import java.util.Objects;
 
-public record NotionCollectionResult(List<CollectedNotionPage> pages) {
+public record ContentCollectionResult(List<CollectedPage> pages) {
 
-    public NotionCollectionResult {
+    public ContentCollectionResult {
         pages = List.copyOf(
                 Objects.requireNonNull(
                         pages,

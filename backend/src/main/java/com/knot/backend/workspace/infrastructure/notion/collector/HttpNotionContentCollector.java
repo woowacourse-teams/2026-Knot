@@ -5,11 +5,11 @@ import static com.knot.backend.workspace.infrastructure.notion.collector.NotionJ
 import static com.knot.backend.workspace.infrastructure.notion.collector.NotionJson.requiredNonBlankString;
 import static com.knot.backend.workspace.infrastructure.notion.collector.NotionJson.requiredNotionId;
 
-import com.knot.backend.workspace.application.NotionCollectionException;
-import com.knot.backend.workspace.application.NotionCollectionFailureType;
-import com.knot.backend.workspace.application.NotionContentCollector;
-import com.knot.backend.workspace.application.dto.result.CollectedNotionPage;
-import com.knot.backend.workspace.application.dto.result.NotionCollectionResult;
+import com.knot.backend.workspace.application.ContentCollectionException;
+import com.knot.backend.workspace.application.ContentCollectionFailureType;
+import com.knot.backend.workspace.application.ContentSourceCollector;
+import com.knot.backend.workspace.application.dto.result.CollectedPage;
+import com.knot.backend.workspace.application.dto.result.ContentCollectionResult;
 import com.knot.backend.workspace.infrastructure.notion.collector.NotionCollectionState.NotionObjectType;
 import com.knot.backend.workspace.infrastructure.notion.collector.NotionCollectionState.PlacementPriority;
 import java.net.URI;
@@ -24,7 +24,7 @@ import java.util.Set;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
-public final class HttpNotionContentCollector implements NotionContentCollector {
+public final class HttpNotionContentCollector implements ContentSourceCollector {
     static final String NOTION_API_VERSION = NotionApiClient.NOTION_API_VERSION;
     static final int MAX_ATTEMPTS = NotionApiClient.MAX_ATTEMPTS;
     private static final int MAX_ACCESS_CREDENTIAL_LENGTH = 4_096;
@@ -56,7 +56,7 @@ public final class HttpNotionContentCollector implements NotionContentCollector 
     }
 
     @Override
-    public NotionCollectionResult collect(String accessCredential) {
+    public ContentCollectionResult collect(String accessCredential) {
         validateAccessCredential(accessCredential);
         NotionCollectionState state = new NotionCollectionState();
         try {
@@ -66,8 +66,8 @@ public final class HttpNotionContentCollector implements NotionContentCollector 
                     state
             );
             state.resolveDataSourceParents();
-            List<CollectedNotionPage> pages = state.toResult();
-            return new NotionCollectionResult(pages);
+            List<CollectedPage> pages = state.toResult();
+            return new ContentCollectionResult(pages);
         } finally {
             recordSkippedElements(state);
         }
@@ -569,7 +569,7 @@ public final class HttpNotionContentCollector implements NotionContentCollector 
         if (accessCredential == null || accessCredential.isBlank()
                 || accessCredential.length() > MAX_ACCESS_CREDENTIAL_LENGTH || accessCredential.indexOf('\r') >= 0
                 || accessCredential.indexOf('\n') >= 0) {
-            throw new NotionCollectionException(NotionCollectionFailureType.INVALID_REQUEST);
+            throw new ContentCollectionException(ContentCollectionFailureType.INVALID_REQUEST);
         }
     }
 

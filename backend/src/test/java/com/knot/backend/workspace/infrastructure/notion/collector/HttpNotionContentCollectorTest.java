@@ -3,10 +3,10 @@ package com.knot.backend.workspace.infrastructure.notion.collector;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
 
-import com.knot.backend.workspace.application.NotionCollectionException;
-import com.knot.backend.workspace.application.NotionCollectionFailureType;
-import com.knot.backend.workspace.application.dto.result.CollectedNotionPage;
-import com.knot.backend.workspace.application.dto.result.NotionCollectionResult;
+import com.knot.backend.workspace.application.ContentCollectionException;
+import com.knot.backend.workspace.application.ContentCollectionFailureType;
+import com.knot.backend.workspace.application.dto.result.CollectedPage;
+import com.knot.backend.workspace.application.dto.result.ContentCollectionResult;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
@@ -64,7 +64,7 @@ class HttpNotionContentCollectorTest {
         );
 
         // when
-        NotionCollectionResult result = collector.collect(ACCESS_CREDENTIAL);
+        ContentCollectionResult result = collector.collect(ACCESS_CREDENTIAL);
 
         // then
         assertThat(result.pages()).containsExactly(
@@ -241,7 +241,7 @@ class HttpNotionContentCollectorTest {
         );
 
         // when
-        NotionCollectionResult result = collector.collect(ACCESS_CREDENTIAL);
+        ContentCollectionResult result = collector.collect(ACCESS_CREDENTIAL);
 
         // then
         assertThat(result.pages()).containsExactly(
@@ -300,7 +300,7 @@ class HttpNotionContentCollectorTest {
         );
 
         // when
-        NotionCollectionResult result = collector.collect(ACCESS_CREDENTIAL);
+        ContentCollectionResult result = collector.collect(ACCESS_CREDENTIAL);
 
         // then
         assertThat(result.pages()).isEmpty();
@@ -340,7 +340,7 @@ class HttpNotionContentCollectorTest {
         // then
         assertFailureType(
                 throwable,
-                NotionCollectionFailureType.RATE_LIMITED
+                ContentCollectionFailureType.RATE_LIMITED
         );
         assertThat(requests).hasValue(1);
         assertThat(sleeps).isEmpty();
@@ -376,7 +376,7 @@ class HttpNotionContentCollectorTest {
         );
 
         // when
-        NotionCollectionResult result = collector.collect(ACCESS_CREDENTIAL);
+        ContentCollectionResult result = collector.collect(ACCESS_CREDENTIAL);
 
         // then
         assertThat(result.pages()).isEmpty();
@@ -549,7 +549,7 @@ class HttpNotionContentCollectorTest {
         // then
         assertFailureType(
                 throwable,
-                NotionCollectionFailureType.INVALID_RESPONSE
+                ContentCollectionFailureType.INVALID_RESPONSE
         );
         assertThat(requests).hasValue(2);
     }
@@ -581,7 +581,7 @@ class HttpNotionContentCollectorTest {
         // then
         assertFailureType(
                 throwable,
-                NotionCollectionFailureType.TEMPORARY
+                ContentCollectionFailureType.TEMPORARY
         );
         assertThat(requests).hasValue(HttpNotionContentCollector.MAX_ATTEMPTS);
         assertThat(sleeps).containsExactly(
@@ -617,7 +617,7 @@ class HttpNotionContentCollectorTest {
         );
 
         // when
-        NotionCollectionResult result = collector.collect(ACCESS_CREDENTIAL);
+        ContentCollectionResult result = collector.collect(ACCESS_CREDENTIAL);
 
         // then
         assertThat(result.pages()).isEmpty();
@@ -652,7 +652,7 @@ class HttpNotionContentCollectorTest {
         // then
         assertFailureType(
                 throwable,
-                NotionCollectionFailureType.TEMPORARY
+                ContentCollectionFailureType.TEMPORARY
         );
         assertThat(requests).hasValue(HttpNotionContentCollector.MAX_ATTEMPTS);
         assertThat(sleeps).hasSize(HttpNotionContentCollector.MAX_ATTEMPTS - 1);
@@ -682,7 +682,7 @@ class HttpNotionContentCollectorTest {
         // then
         assertFailureType(
                 throwable,
-                NotionCollectionFailureType.TEMPORARY
+                ContentCollectionFailureType.TEMPORARY
         );
         assertThat(requests.get()).isBetween(
                 2,
@@ -717,7 +717,7 @@ class HttpNotionContentCollectorTest {
         // then
         assertFailureType(
                 throwable,
-                NotionCollectionFailureType.INVALID_REQUEST
+                ContentCollectionFailureType.INVALID_REQUEST
         );
         assertThat(requests).hasValue(1);
         assertThat(throwable).hasMessageNotContaining(ACCESS_CREDENTIAL)
@@ -788,7 +788,7 @@ class HttpNotionContentCollectorTest {
         // then
         assertFailureType(
                 throwable,
-                NotionCollectionFailureType.NOT_FOUND
+                ContentCollectionFailureType.NOT_FOUND
         );
         assertThat(rootRequests).hasValue(1);
         assertThat(observer.blocks()).containsExactlyEntriesOf(
@@ -831,11 +831,11 @@ class HttpNotionContentCollectorTest {
         // then
         assertFailureType(
                 throwable,
-                NotionCollectionFailureType.INVALID_RESPONSE
+                ContentCollectionFailureType.INVALID_RESPONSE
         );
     }
 
-    private CollectedNotionPage page(
+    private CollectedPage page(
             String id,
             String parentId,
             String title,
@@ -852,7 +852,7 @@ class HttpNotionContentCollectorTest {
         );
     }
 
-    private CollectedNotionPage page(
+    private CollectedPage page(
             String id,
             String parentId,
             String title,
@@ -860,7 +860,7 @@ class HttpNotionContentCollectorTest {
             int position,
             String url
     ) {
-        return new CollectedNotionPage(
+        return new CollectedPage(
                 id,
                 parentId,
                 title,
@@ -1015,10 +1015,10 @@ class HttpNotionContentCollectorTest {
 
     private void assertFailureType(
             Throwable throwable,
-            NotionCollectionFailureType failureType
+            ContentCollectionFailureType failureType
     ) {
         assertThat(throwable).isInstanceOfSatisfying(
-                NotionCollectionException.class,
+                ContentCollectionException.class,
                 exception -> assertThat(exception.getFailureType()).isEqualTo(failureType)
         );
     }
