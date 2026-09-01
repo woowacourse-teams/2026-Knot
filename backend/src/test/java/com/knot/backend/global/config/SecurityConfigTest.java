@@ -11,6 +11,7 @@ import com.knot.backend.auth.presentation.handler.JwtLogoutHandler;
 import com.knot.backend.auth.presentation.handler.OAuth2AuthenticationFailureHandler;
 import com.knot.backend.auth.presentation.handler.OAuth2AuthenticationSuccessHandler;
 import java.time.Duration;
+import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpMethod;
@@ -21,8 +22,8 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 class SecurityConfigTest {
 
     @Test
-    @DisplayName("CORS 설정은 마지막으로 본 워크스페이스 갱신에 필요한 PUT을 허용한다")
-    void corsConfigurationSource_success_allowsPutMethod() {
+    @DisplayName("CORS 설정은 개발 Origin과 마지막으로 본 워크스페이스 갱신에 필요한 PUT을 허용한다")
+    void corsConfigurationSource_success_allowsDevelopmentOriginsAndPutMethod() {
         // given
         SecurityConfig securityConfig = new SecurityConfig(
                 mock(GithubOAuth2UserService.class),
@@ -53,6 +54,10 @@ class SecurityConfigTest {
                 HttpMethod.PUT.name(),
                 HttpMethod.OPTIONS.name()
         );
+        assertThat(configuration.getAllowedOrigins()).containsExactly(
+                "https://dev.knoted.kr",
+                "http://localhost:3000"
+        );
     }
 
     private JwtProperties jwtProperties() {
@@ -67,7 +72,12 @@ class SecurityConfigTest {
 
     private CorsProperties corsProperties() {
         CorsProperties corsProperties = new CorsProperties();
-        corsProperties.setAllowedOrigin("https://knoted.kr");
+        corsProperties.setAllowedOrigins(
+                List.of(
+                        "https://dev.knoted.kr",
+                        "http://localhost:3000"
+                )
+        );
         return corsProperties;
     }
 }

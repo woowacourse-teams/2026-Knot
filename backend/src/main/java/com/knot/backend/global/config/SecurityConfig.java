@@ -46,13 +46,14 @@ public class SecurityConfig {
 
     @Bean
     public UrlBasedCorsConfigurationSource corsConfigurationSource() {
-        String allowedOrigin = corsProperties.getAllowedOrigin();
-        if (isInvalidCorsOrigin(allowedOrigin)) {
+        List<String> allowedOrigins = corsProperties.getAllowedOrigins();
+        if (allowedOrigins == null || allowedOrigins.isEmpty() || allowedOrigins.stream()
+                .anyMatch(this::isInvalidCorsOrigin)) {
             throw new AuthException(AuthErrorCode.OAUTH_CONFIGURATION_INVALID);
         }
 
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of(allowedOrigin));
+        configuration.setAllowedOrigins(allowedOrigins);
         configuration.setAllowedMethods(
                 List.of(
                         HttpMethod.GET.name(),
