@@ -54,8 +54,8 @@ _DEFAULT_GOLD_SET = Path("docs/llm-search-benchmark-gold-set.md")
 _DEFAULT_OUTPUT = Path(".benchmark-data/pgvector-ab-results.jsonl")
 _DEFAULT_DATABASE_URL = "postgresql://knot_benchmark:knot_benchmark@localhost:55432/knot_benchmark"
 _DEFAULT_CORPUS_KEY: Final[str] = "notion-export"
-_DEFAULT_CHUNK_SIZE: Final[int] = 700
-_DEFAULT_CHUNK_OVERLAP: Final[int] = 100
+_DEFAULT_CHUNK_SIZE: Final[int] = 1200
+_DEFAULT_CHUNK_OVERLAP: Final[int] = 180
 
 
 @dataclass(frozen=True, slots=True)

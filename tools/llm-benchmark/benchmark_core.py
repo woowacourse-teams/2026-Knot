@@ -35,11 +35,21 @@ _CREDENTIAL_ASSIGNMENT_PATTERN: Final[re.Pattern[str]] = re.compile(
     r"(?im)^\s*(?:api[_ -]?key|client[_ -]?secret|password|access[_ -]?token|refresh[_ -]?token|private[_ -]?key)\s*[:=]\s*\S+"
 )
 _TOKEN_PATTERN: Final[re.Pattern[str]] = re.compile(r"[0-9A-Za-z가-힣_]+")
+_LATIN_HANGUL_SUFFIX_PATTERN: Final[re.Pattern[str]] = re.compile(
+    r"^(?P<latin>[a-z][a-z0-9_]{2,})(?P<suffix>[가-힣]+)$"
+)
 _TOKEN_ALIASES: Final[Mapping[str, str]] = MappingProxyType(
     {
         "db": "database",
         "데이터베이스": "database",
         "노션": "notion",
+    }
+)
+_COMPOUND_TOKEN_COMPONENTS: Final[Mapping[str, tuple[str, ...]]] = MappingProxyType(
+    {
+        "폴더구조": ("폴더", "구조"),
+        "코드컨벤션": ("코드", "컨벤션"),
+        "결정사항": ("결정", "사항"),
     }
 )
 
@@ -216,19 +226,56 @@ def _is_duplicate_database_export(path: Path) -> bool:
 
 
 def tokenize(text: str) -> tuple[str, ...]:
-    return tuple(_TOKEN_ALIASES.get(token, token) for token in _TOKEN_PATTERN.findall(text.lower()))
+    tokens: list[str] = []
+    for token in _TOKEN_PATTERN.findall(text.lower()):
+        mixed = _LATIN_HANGUL_SUFFIX_PATTERN.fullmatch(token)
+        normalized = mixed.group("latin") if mixed is not None else token
+        normalized = _TOKEN_ALIASES.get(normalized, normalized)
+        tokens.append(normalized)
+        tokens.extend(_COMPOUND_TOKEN_COMPONENTS.get(normalized, ()))
+    return tuple(tokens)
 
 
 def chunk_text(content: str, size: int = 1800, overlap: int = 200) -> tuple[str, ...]:
-    """Split document content into overlapping retrieval units."""
+    """Split content at Markdown headings, then overlap only oversized sections."""
+    if size < 1 or overlap < 0 or overlap >= size:
+        return ()
+    sections = tuple(
+        section.strip()
+        for section in re.split(r"(?m)(?=^#{1,6}\s+)", content)
+        if section.strip()
+    )
+    chunks: list[str] = []
+    pending = ""
+    for section in sections:
+        if len(section) > size:
+            if pending:
+                chunks.append(pending)
+                pending = ""
+            chunks.extend(_split_section(section, size, overlap))
+            continue
+        candidate = section if not pending else f"{pending}\n\n{section}"
+        if pending and len(candidate) > size:
+            chunks.append(pending)
+            pending = section
+        else:
+            pending = candidate
+    if pending:
+        chunks.append(pending)
+    return tuple(chunks)
+
+
+def _split_section(section: str, size: int, overlap: int) -> tuple[str, ...]:
+    if len(section) <= size:
+        return (section,)
     chunks: list[str] = []
     start = 0
-    while start < len(content):
-        end = min(len(content), start + size)
-        chunk = content[start:end].strip()
+    while start < len(section):
+        end = min(len(section), start + size)
+        chunk = section[start:end].strip()
         if chunk:
             chunks.append(chunk)
-        if end == len(content):
+        if end == len(section):
             break
         start = end - overlap
     return tuple(chunks)

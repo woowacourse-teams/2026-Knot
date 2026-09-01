@@ -123,8 +123,10 @@ class PgVectorStore:
         corpus_key: str,
         query_vector: tuple[float, ...],
         top_k: int,
+        *,
+        distinct_sources: bool = True,
     ) -> tuple[StoredChunk, ...]:
-        """Return top-k distinct source documents by cosine similarity."""
+        """Return vector passages, optionally collapsed to distinct sources."""
         if top_k < 1:
             return ()
         dimensions = self._dimensions or self._load_dimensions()
@@ -142,46 +144,50 @@ class PgVectorStore:
                 (list(query_vector), corpus_key, list(query_vector), candidate_limit),
             )
             rows = cursor.fetchall()
-        selected: list[StoredChunk] = []
-        seen_paths: set[str] = set()
-        for source_path, title, content, score in rows:
-            if source_path in seen_paths:
-                continue
-            seen_paths.add(source_path)
-            selected.append(StoredChunk(source_path, title, content, float(score)))
-            if len(selected) == top_k:
-                break
-        return tuple(selected)
+        if distinct_sources:
+            return self._distinct_rows(rows, top_k)
+        return self._stored_rows(rows, top_k)
 
     def search_keyword(
         self,
         corpus_key: str,
         query: str,
         top_k: int,
+        *,
+        distinct_sources: bool = True,
     ) -> tuple[StoredChunk, ...]:
-        """Return top-k distinct source documents using PostgreSQL text matching only."""
+        """Return lexical passages, optionally collapsed to distinct sources."""
         if top_k < 1:
             return ()
         terms = _expanded_terms(query)
         if not terms:
             return ()
         patterns = tuple(f"%{term}%" for term in terms)
-        score_sql = " + ".join("CASE WHEN search_text LIKE %s THEN 1 ELSE 0 END" for _ in terms)
+        content_score_sql = " + ".join(
+            f"{_term_weight(term)} * CASE WHEN lower(content) LIKE %s THEN 1 ELSE 0 END" for term in terms
+        )
+        score_sql = " + ".join(
+            f"{_term_weight(term)} * CASE WHEN search_text LIKE %s THEN 1 ELSE 0 END" for term in terms
+        )
         where_sql = " OR ".join("search_text LIKE %s" for _ in terms)
         candidate_limit = max(top_k * 8, top_k)
         with self._connection.cursor() as cursor:
             cursor.execute(
                 f"""
-                SELECT source_path, title, content, ({score_sql}) AS score
+                SELECT source_path, title, content,
+                    ({content_score_sql}) AS content_score,
+                    ({score_sql}) AS score
                 FROM {_TABLE_NAME}
                 WHERE corpus_key = %s AND ({where_sql})
-                ORDER BY score DESC, source_path
+                ORDER BY content_score DESC, score DESC, source_path, chunk_index
                 LIMIT %s
                 """,
-                (*patterns, corpus_key, *patterns, candidate_limit),
+                (*patterns, *patterns, corpus_key, *patterns, candidate_limit),
             )
             rows = cursor.fetchall()
-        return self._distinct_rows(rows, top_k)
+        if distinct_sources:
+            return self._distinct_keyword_rows(rows, top_k)
+        return self._keyword_rows(rows, top_k)
 
     def _load_dimensions(self) -> int:
         with self._connection.cursor() as cursor:
@@ -211,6 +217,38 @@ class PgVectorStore:
                 break
         return tuple(selected)
 
+    def _stored_rows(self, rows: list[tuple[str, str, str, float]], top_k: int) -> tuple[StoredChunk, ...]:
+        return tuple(
+            StoredChunk(source_path, title, content, float(score))
+            for source_path, title, content, score in rows[:top_k]
+        )
+
+    def _distinct_keyword_rows(
+        self,
+        rows: list[tuple[str, str, str, float, float]],
+        top_k: int,
+    ) -> tuple[StoredChunk, ...]:
+        selected: list[StoredChunk] = []
+        seen_paths: set[str] = set()
+        for source_path, title, content, _content_score, score in rows:
+            if source_path in seen_paths:
+                continue
+            seen_paths.add(source_path)
+            selected.append(StoredChunk(source_path, title, content, float(score)))
+            if len(selected) == top_k:
+                break
+        return tuple(selected)
+
+    def _keyword_rows(
+        self,
+        rows: list[tuple[str, str, str, float, float]],
+        top_k: int,
+    ) -> tuple[StoredChunk, ...]:
+        return tuple(
+            StoredChunk(source_path, title, content, float(score))
+            for source_path, title, content, _content_score, score in rows[:top_k]
+        )
+
 
 def _expanded_terms(query: str) -> tuple[str, ...]:
     return tuple(
@@ -220,3 +258,8 @@ def _expanded_terms(query: str) -> tuple[str, ...]:
             for term in _TERM_ALIASES.get(token, (token,))
         )
     )
+
+
+def _term_weight(term: str) -> int:
+    """Prefer exact technical identifiers over generic Korean question words."""
+    return 10 if len(term) >= 3 and term.isascii() and any(character.isalpha() for character in term) else 1
