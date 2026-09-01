@@ -1,10 +1,10 @@
-import type { GetChatMessagesApiResponse } from "@api/fetch/api/v1/conversations/[sessionId]";
+import type { ChatMessage } from "@api/mock/types/chatMessage";
 
 const SECOND = 1000;
 const MINUTE = 60 * SECOND;
 const HOUR = 60 * MINUTE;
 
-// 지난 시각을 고정값으로 두면 언젠가 전부 "이전"으로 묶이므로 지금을 기준으로 생성해요
+// 고정 시각은 언젠가 전부 "이전"으로 묶이므로 지금 기준으로 만들어요
 const fromNow = (elapsed: number) =>
   new Date(Date.now() - elapsed).toISOString();
 
@@ -35,4 +35,4 @@ export const chatMessagesResponse = [
       "초기 스키마는 제품/스펙 아래 ERD 문서에 정리돼 있어요. 회의록에서 합의한 범위와 같은 내용입니다.",
     createdAt: fromNow(2 * HOUR - 2 * MINUTE - 3 * SECOND),
   },
-] satisfies GetChatMessagesApiResponse;
+] satisfies ChatMessage[];
