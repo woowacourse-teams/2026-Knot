@@ -1,8 +1,8 @@
 # Knot LLM 검색 벤치마크
 
-Notion `Markdown & CSV` 내보내기를 같은 스냅샷으로 고정한 뒤, Raw context·Qwen pgvector RAG·PostgreSQL 직접 검색·MCP replay를 동일한 로컬 채팅 모델로 비교하는 하네스다.
+Notion `Markdown & CSV` 내보내기를 같은 스냅샷으로 고정한 뒤, Raw context·Qwen pgvector RAG·PostgreSQL 직접 검색·MCP replay를 동일한 로컬 채팅 모델로 비교하는 하네스다. LM Studio에서 실제 Notion MCP를 호출하는 smoke test는 별도 절차로 검증한다.
 
-현재 `rag`는 Qwen3-Embedding 0.6B GGUF를 LM Studio의 OpenAI-compatible `/v1/embeddings`로 호출하고 PostgreSQL/pgvector에 저장한다. `db`는 같은 저장소의 텍스트 인덱스만 사용하고, `mcp-replay`는 로컬 lexical 검색 결과를 읽기 도구 응답처럼 전달하는 통제군이다. 실제 Notion 네트워크·권한·페이지네이션을 측정하는 `mcp-live`는 별도 단계다.
+현재 `rag`는 Qwen3-Embedding 0.6B GGUF를 LM Studio의 OpenAI-compatible `/v1/embeddings`로 호출하고 PostgreSQL/pgvector에 저장한다. `db`는 같은 저장소의 텍스트 인덱스만 사용하고, `mcp-replay`는 로컬 lexical 검색 결과를 읽기 도구 응답처럼 전달하는 통제군이다. 실제 Notion 네트워크·권한·페이지네이션을 측정하는 `mcp-live`는 smoke test와 전체 비교를 분리한다.
 
 ## 1. 내보내기 준비
 
@@ -62,6 +62,12 @@ export PGVECTOR_DATABASE_URL="postgresql://knot_benchmark:knot_benchmark@localho
 ```
 
 LM Studio 설정은 컨텍스트 32768, GPU offload 64, Max Concurrent 1로 고정한다. `reasoning_effort=none`은 내부 추론 토큰 때문에 답변이 잘리지 않게 하기 위한 통제 설정이며, 모델 품질 자체를 비교하는 실험이 아니다.
+
+### 실제 LM Studio/Notion MCP smoke test
+
+LM Studio 앱에서 Notion MCP를 OAuth로 연결한 뒤 native `/api/v1/chat`에 `mcp/notion` plugin을 지정한다. 허용 도구는 초기 검증에서 `notion-search`와 `notion-fetch`로 제한한다. LM Studio API token과 Notion MCP OAuth token은 서로 다른 credential이며, 어느 값도 저장소·프롬프트·벤치마크 결과에 기록하지 않는다.
+
+이 방식은 LM Studio가 관리하는 단일 OAuth 연결을 확인하는 용도다. Workspace별 인증을 제품에 넣을 때는 Java가 서버 측에서 해당 Workspace credential을 선택하고, 모델에는 token을 전달하지 않은 채 MCP 결과만 넘기는 별도 경계를 검증해야 한다. 실제 smoke test 결과와 실패 사례는 [`docs/llm-search-ab-test-report.md`](/Users/yongtae/Desktop/knot/docs/llm-search-ab-test-report.md)에 기록한다.
 
 ## 4. pgvector 색인과 네 가지 비교
 

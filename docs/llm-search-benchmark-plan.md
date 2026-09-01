@@ -2,10 +2,10 @@
 
 ## 1. 문서 상태
 
-- 상태: 통제 스냅샷 1차 실행 완료, 실제 Notion MCP-live 검증 전
+- 상태: 통제 스냅샷 1차 실행 및 LM Studio/Notion MCP-live smoke test 완료, Java credential forwarding과 전체 비교 검증 전
 - 목적: Notion 팀 문서 검색에 사용할 아키텍처를 실측으로 결정
 - 최종 도입 방식: 벤치마크 결과 확인 후 결정
-- 현재 범위: Notion Markdown 내보내기 기반 통제 실험 → 실제 Notion 연동 검증
+- 현재 범위: Notion Markdown 내보내기 기반 통제 실험 → LM Studio/실제 Notion MCP smoke test → Java 연동 및 전체 비교 검증
 - 구현 원칙: 이 계획의 결과가 나오기 전에는 특정 검색 아키텍처를 제품 기본값으로 확정하지 않는다.
 
 ## 2. 문제와 목표
@@ -270,6 +270,8 @@ Notion 연결과 백엔드 읽기 도구를 구성한 뒤 다음을 비교한다
 
 실제 연동 단계에서는 Notion API의 검색 지연, 페이지네이션, 하위 블록 순회, 권한 범위, 속도 제한, 네트워크 오류를 별도로 측정한다.
 
+2026-09-01에 LM Studio `mcp/notion` plugin을 통해 `notion-search`와 `notion-fetch`를 실제 호출하는 smoke test를 완료했다. PostgreSQL 결정 근거, 후속 질문, 로드맵 회의 날짜, Redis 예시·충돌, 코드 컨벤션을 확인했으며, 넓은 질문은 잘못된 문서를 선택하는 실패도 재현했다. 이 결과는 LM Studio가 관리하는 OAuth 연결의 기능 검증이며, Java가 Workspace별 credential을 전달하는 경로의 검증이나 최종 5초 성능 판정은 아니다.
+
 원본 직접 전달 방식은 1단계의 통제 기준선으로 유지한다. 실제 Workspace 전체를 매 요청 원본으로 전송하는 것은 운영 방식으로 바로 채택하지 않는다.
 
 ### 3단계 — 아키텍처 판정
@@ -417,8 +419,10 @@ Notion 연결과 백엔드 읽기 도구를 구성한 뒤 다음을 비교한다
 4. 실제 인터뷰 질문과 정답표를 준비한다.
 5. 채팅·스트리밍·도구 호출을 지원하는 NIM 모델을 하나 선정하여 smoke test한다.
 6. 통제 스냅샷에서 원본·RAG·MCP replay를 같은 조건으로 실행한다.
-7. 결과가 확인된 뒤 실제 Notion MCP와 로컬 RAG를 비교한다.
-8. 품질 기준을 통과한 결과만 대상으로 최종 도입 아키텍처를 결정한다.
+7. [완료] LM Studio에서 실제 Notion MCP search/fetch smoke test를 수행한다.
+8. Java가 Workspace별 MCP credential을 선택·전달하는 경로를 별도로 검증한다.
+9. 실제 MCP-live와 마지막 성공 동기화 스냅샷 기반 RAG를 동일 질문으로 비교한다.
+10. 품질 기준을 통과한 결과만 대상으로 최종 도입 아키텍처를 결정한다.
 
 ## 14. 참고 자료
 
@@ -441,3 +445,12 @@ Notion 연결과 백엔드 읽기 도구를 구성한 뒤 다음을 비교한다
 - Qwen query instruction을 적용한 `rag`, PostgreSQL text index를 사용하는 `db`, 로컬 lexical `mcp-replay`, 전체 원문 `raw`를 구현했다.
 - 검색 지연은 10개 질문 × 10회 × 4전략, 총 400개 기록으로 측정했다. 답변 생성은 10개 질문 × 1회로 별도 측정했다.
 - 현재 결과와 통계적 한계는 [`docs/llm-search-ab-test-report.md`](/Users/yongtae/Desktop/knot/docs/llm-search-ab-test-report.md)에 기록했다. 이 기록은 통제 스냅샷 결과이며 실제 Notion MCP-live의 성능·권한 결과가 아니다.
+
+## 16. 2026-09-01 LM Studio/Notion MCP-live smoke test
+
+- LM Studio `0.4.16`의 native `/api/v1/chat`에서 `qwen/qwen3.6-27b`와 `mcp/notion` plugin을 사용했다.
+- LM Studio가 실제 `notion-search`와 `notion-fetch`를 호출하고, PostgreSQL 결정 근거를 `01. 기술 스택과 라이브러리 도입` 문서에서 생성하는 것을 확인했다.
+- 후속 질문은 이전 응답 ID를 사용해 PostgreSQL 문맥을 유지했지만, 추가 MCP 검색과 reasoning으로 약 190초가 걸렸다.
+- 로드맵 날짜·Redis의 예시/공식 결정 부재·구체화한 코드 컨벤션 질의는 동작했지만, 넓은 코드 컨벤션 질의는 관련도가 낮은 백엔드 문서를 선택했다.
+- 관측된 live 요청의 end-to-end 완료 시간은 약 38~77초였고, 후속 질문은 약 190초였다. 따라서 현재 5초 목표를 충족한다고 판정하지 않는다.
+- 이 smoke test는 LM Studio-managed OAuth 연결이며, 실제 Workspace별 Java credential forwarding·권한 격리·전체 A/B 비교는 후속 검증으로 남긴다.
