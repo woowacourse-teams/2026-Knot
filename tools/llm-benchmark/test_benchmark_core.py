@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from benchmark_core import Strategy, build_context, load_snapshot
+from benchmark_core import Strategy, build_context, chunk_text, load_snapshot, tokenize
 from gold_set import load_cases
 
 
@@ -107,3 +107,23 @@ def test_build_context_retrieves_relevant_chunks_and_marks_mcp_call(tmp_path: Pa
     assert len(set(rag_context.source_paths)) == 1
     assert mcp_context.tool_calls == 1
     assert "Redis" in mcp_context.text
+
+
+def test_tokenize_removes_korean_suffixes_from_latin_identifiers() -> None:
+    assert tokenize("PostgreSQL을 camelCase라는데 8월 폴더구조") == (
+        "postgresql",
+        "camelcase",
+        "8월",
+        "폴더구조",
+        "폴더",
+        "구조",
+    )
+
+
+def test_chunk_text_keeps_markdown_sections_as_retrieval_units() -> None:
+    content = "# 기술 문서\n소개\n## PostgreSQL\n관계형 데이터를 안정적으로 관리한다.\n## Redis\n중앙 세션 저장소다."
+
+    chunks = chunk_text(content, size=120, overlap=20)
+
+    assert any("## PostgreSQL" in chunk and "관계형" in chunk for chunk in chunks)
+    assert any("## Redis" in chunk and "세션" in chunk for chunk in chunks)
