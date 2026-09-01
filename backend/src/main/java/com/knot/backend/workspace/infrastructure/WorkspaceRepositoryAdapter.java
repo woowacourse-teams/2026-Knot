@@ -2,6 +2,7 @@ package com.knot.backend.workspace.infrastructure;
 
 import com.knot.backend.workspace.domain.Workspace;
 import com.knot.backend.workspace.domain.WorkspaceRepository;
+import java.util.List;
 import java.util.Optional;
 import org.springframework.stereotype.Repository;
 
@@ -21,5 +22,15 @@ public class WorkspaceRepositoryAdapter implements WorkspaceRepository {
     @Override
     public Optional<Workspace> findById(Long workspaceId) {
         return workspaceJpaRepository.findById(workspaceId);
+    }
+
+    @Override
+    public Optional<Workspace> findByIdForUpdate(Long workspaceId) {
+        return workspaceJpaRepository.findWithLockById(workspaceId);
+    }
+
+    @Override
+    public List<Workspace> findAllByMemberId(Long memberId) {
+        return workspaceJpaRepository.findAllByMemberId(memberId);
     }
 }

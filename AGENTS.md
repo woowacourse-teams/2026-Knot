@@ -46,6 +46,23 @@ merge는 사용자가 명시적으로 요청한 범위에서만 수행한다.
 Issue에는 기존 템플릿의 `구현 기능 설명`, `TODO`, `메모`만 사용한다. 전체 내부 계약,
 ADR 전문과 인터뷰 원문은 Issue에 넣지 않는다.
 
+## 백엔드 Codex 스킬
+
+저장소 공통 Codex 스킬은 루트 `.agents/skills`에, 백엔드 전용 Codex 스킬은
+`backend/.agents/skills`에 둔다. Codex는 현재 작업 디렉터리부터 저장소 루트까지 각
+디렉터리의 `.agents/skills`를 찾으므로, 백엔드 작업은 `backend/`에서 시작해야 공통 스킬과
+백엔드 전용 스킬을 함께 발견한다. 저장소 루트에서 시작한 Codex는 하위 디렉터리인
+`backend/.agents/skills`를 자동으로 찾지 않는다.
+
+대표 자연어 요청은 다음 스킬로 연결한다.
+
+- `커밋해줘`, `작업 단위로 커밋해줘`, `커밋 메시지 작성해줘`: `$knot-commit`
+- `PR 본문 작성해줘`, `PR 준비 상태 확인해줘`, `PR 생성해줘`, `PR 올려줘`: `$knot-pr`
+
+명시적 `$knot-commit`, `$knot-pr` 호출도 fallback으로 유지한다. 메시지나 본문 초안 요청은
+실제 commit 또는 PR 게시 권한이 아니다. 실제 commit과 PR 게시는 각각 해당 쓰기 동작을
+현재 요청에서 명시한 경우에만 수행하며, push와 merge 권한은 별도로 판정한다.
+
 ## 임시 snapshot 안전 규칙
 
 Issue 계약 snapshot은 저장소 밖의 OS 임시 파일에만 쓰고 권한을 현재 사용자로 제한한다.

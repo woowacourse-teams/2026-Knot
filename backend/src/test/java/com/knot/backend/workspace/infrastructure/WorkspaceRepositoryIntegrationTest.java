@@ -2,6 +2,7 @@ package com.knot.backend.workspace.infrastructure;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.tuple;
 
 import com.knot.backend.testsupport.TestcontainersConfiguration;
 import com.knot.backend.workspace.domain.Workspace;
@@ -35,6 +36,7 @@ import org.springframework.transaction.annotation.Transactional;
 class WorkspaceRepositoryIntegrationTest {
     private static final Instant CREATED_AT = Instant.parse("2026-08-24T00:00:00Z");
     private static final Instant JOINED_AT = Instant.parse("2026-08-24T00:01:00Z");
+    private static final Instant RECENT_JOINED_AT = Instant.parse("2026-08-24T00:02:00Z");
 
     @Autowired
     private WorkspaceRepository workspaceRepository;
@@ -91,6 +93,120 @@ class WorkspaceRepositoryIntegrationTest {
                         memberId
                 )
         ).isTrue();
+        assertThat(
+                workspaceMemberRepository.existsByWorkspaceIdAndMemberIdAndRole(
+                        workspace.getId(),
+                        memberId,
+                        WorkspaceMemberRole.OWNER
+                )
+        ).isTrue();
+        assertThat(
+                workspaceMemberRepository.existsByWorkspaceIdAndMemberIdAndRole(
+                        workspace.getId(),
+                        memberId,
+                        WorkspaceMemberRole.MEMBER
+                )
+        ).isFalse();
+    }
+
+    @DisplayName("멤버의 OWNER·MEMBER 워크스페이스만 최근 참여 순서로 조회한다")
+    @Test
+    void findAllByMemberId_success_filtersAndSortsMemberships() {
+        // given
+        long memberId = saveMember(5L);
+        long otherMemberId = saveMember(6L);
+        Workspace olderWorkspace = saveAndFlush(
+                Workspace.create(
+                        "이전 팀",
+                        CREATED_AT
+                )
+        );
+        Workspace tiedLowerWorkspace = saveAndFlush(
+                Workspace.create(
+                        "최근 한 팀",
+                        CREATED_AT
+                )
+        );
+        Workspace tiedHigherWorkspace = saveAndFlush(
+                Workspace.create(
+                        "최근 두 팀",
+                        CREATED_AT
+                )
+        );
+        Workspace otherWorkspace = saveAndFlush(
+                Workspace.create(
+                        "다른 팀",
+                        CREATED_AT
+                )
+        );
+        saveAndFlush(
+                WorkspaceMember.create(
+                        olderWorkspace.getId(),
+                        memberId,
+                        WorkspaceMemberRole.OWNER,
+                        JOINED_AT
+                )
+        );
+        saveAndFlush(
+                WorkspaceMember.create(
+                        tiedLowerWorkspace.getId(),
+                        memberId,
+                        WorkspaceMemberRole.MEMBER,
+                        RECENT_JOINED_AT
+                )
+        );
+        saveAndFlush(
+                WorkspaceMember.create(
+                        tiedHigherWorkspace.getId(),
+                        memberId,
+                        WorkspaceMemberRole.OWNER,
+                        RECENT_JOINED_AT
+                )
+        );
+        saveAndFlush(
+                WorkspaceMember.create(
+                        otherWorkspace.getId(),
+                        otherMemberId,
+                        WorkspaceMemberRole.MEMBER,
+                        RECENT_JOINED_AT
+                )
+        );
+
+        // when
+        List<Workspace> workspaces = workspaceRepository.findAllByMemberId(memberId);
+
+        // then
+        assertThat(workspaces).extracting(
+                Workspace::getId,
+                Workspace::getName
+        )
+                .containsExactly(
+                        tuple(
+                                tiedHigherWorkspace.getId(),
+                                "최근 두 팀"
+                        ),
+                        tuple(
+                                tiedLowerWorkspace.getId(),
+                                "최근 한 팀"
+                        ),
+                        tuple(
+                                olderWorkspace.getId(),
+                                "이전 팀"
+                        )
+                );
+    }
+
+    @DisplayName("소속 워크스페이스가 없으면 빈 목록을 조회한다")
+    @Test
+    void findAllByMemberId_success_emptyMemberships() {
+        // given
+        long memberId = saveMember(7L);
+
+        // when
+        List<Workspace> workspaces = workspaceRepository.findAllByMemberId(memberId);
+
+        // then
+        assertThat(workspaces).isEmpty();
     }
 
     @DisplayName("같은 워크스페이스와 멤버 조합은 중복 저장할 수 없다")

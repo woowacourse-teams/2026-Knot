@@ -1,0 +1,181 @@
+package com.knot.backend.workspace.presentation;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import com.knot.backend.auth.domain.AuthenticatedMember;
+import com.knot.backend.workspace.application.ContentSourceConnectionQueryService;
+import com.knot.backend.workspace.application.ContentSourceAuthorizationService;
+import com.knot.backend.workspace.application.ContentSourceCallbackService;
+import com.knot.backend.workspace.application.ContentSourceAuthorizationSettings;
+import com.knot.backend.workspace.application.dto.result.ContentSourceConnectionStatusResult;
+import com.knot.backend.workspace.application.dto.result.ContentSourceAuthorizationResult;
+import com.knot.backend.workspace.application.dto.result.ContentSourceCallbackResult;
+import com.knot.backend.workspace.domain.ContentSourceConnectionStatus;
+import com.knot.backend.workspace.domain.ContentSourceProvider;
+import com.knot.backend.workspace.presentation.dto.response.NotionConnectionStatusResponse;
+import com.knot.backend.workspace.presentation.dto.response.NotionOAuthAuthorizationResponse;
+import java.net.URI;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseEntity;
+
+class NotionOAuthControllerTest {
+    private static final Long WORKSPACE_ID = 1L;
+    private static final long MEMBER_ID = 2L;
+    private static final URI AUTHORIZATION_URI = URI.create("https://api.notion.test/oauth?state=raw-state");
+    private static final URI SUCCESS_REDIRECT_URI = URI.create("https://app.example.com/notion?result=connected");
+    private static final URI FAILURE_REDIRECT_URI = URI.create("https://app.example.com/notion?result=failed");
+
+    private final ContentSourceAuthorizationService authorizationService = mock(
+            ContentSourceAuthorizationService.class
+    );
+    private final ContentSourceCallbackService callbackService = mock(ContentSourceCallbackService.class);
+    private final ContentSourceConnectionQueryService connectionQueryService = mock(
+            ContentSourceConnectionQueryService.class
+    );
+    private final ContentSourceAuthorizationSettings settings = mock(ContentSourceAuthorizationSettings.class);
+    private final NotionOAuthController controller = new NotionOAuthController(
+            authorizationService,
+            callbackService,
+            connectionQueryService,
+            settings
+    );
+    private final AuthenticatedMember authenticatedMember = AuthenticatedMember.of(
+            MEMBER_ID,
+            "현성",
+            null
+    );
+
+    @DisplayName("Notion OAuth 시작은 201, authorization URL, no-store를 반환한다")
+    @Test
+    void start_success_returnsCreatedAuthorizationUrl() {
+        // given
+        when(
+                authorizationService.start(
+                        WORKSPACE_ID,
+                        MEMBER_ID,
+                        ContentSourceProvider.NOTION
+                )
+        ).thenReturn(new ContentSourceAuthorizationResult(AUTHORIZATION_URI));
+
+        // when
+        ResponseEntity<NotionOAuthAuthorizationResponse> response = controller.start(
+                WORKSPACE_ID,
+                authenticatedMember
+        );
+
+        // then
+        assertThat(
+                response.getStatusCode()
+                        .value()
+        ).isEqualTo(201);
+        assertThat(response.getBody()).isEqualTo(new NotionOAuthAuthorizationResponse(AUTHORIZATION_URI.toString()));
+        assertThat(
+                response.getHeaders()
+                        .getFirst(HttpHeaders.CACHE_CONTROL)
+        ).isEqualTo("no-store");
+        verify(authorizationService).start(
+                WORKSPACE_ID,
+                MEMBER_ID,
+                ContentSourceProvider.NOTION
+        );
+    }
+
+    @DisplayName("Notion OAuth callback 성공은 성공 화면으로 303 redirect하고 no-store를 반환한다")
+    @Test
+    void callback_success_redirectsSuccessUri() {
+        // given
+        when(
+                callbackService.complete(
+                        ContentSourceProvider.NOTION,
+                        "oauth-code",
+                        "oauth-state",
+                        null
+                )
+        ).thenReturn(ContentSourceCallbackResult.connected(WORKSPACE_ID));
+        when(settings.successRedirectUri(WORKSPACE_ID)).thenReturn(SUCCESS_REDIRECT_URI);
+
+        // when
+        ResponseEntity<Void> response = controller.callback(
+                "oauth-code",
+                "oauth-state",
+                null
+        );
+
+        // then
+        assertThat(
+                response.getStatusCode()
+                        .value()
+        ).isEqualTo(303);
+        assertThat(
+                response.getHeaders()
+                        .getLocation()
+        ).isEqualTo(SUCCESS_REDIRECT_URI);
+        assertThat(
+                response.getHeaders()
+                        .getFirst(HttpHeaders.CACHE_CONTROL)
+        ).isEqualTo("no-store");
+    }
+
+    @DisplayName("Notion OAuth callback 실패는 실패 화면으로 303 redirect하고 no-store를 반환한다")
+    @Test
+    void callback_failure_redirectsFailureUri() {
+        // given
+        when(
+                callbackService.complete(
+                        ContentSourceProvider.NOTION,
+                        null,
+                        "oauth-state",
+                        "access_denied"
+                )
+        ).thenReturn(ContentSourceCallbackResult.failed(WORKSPACE_ID));
+        when(settings.failureRedirectUri(WORKSPACE_ID)).thenReturn(FAILURE_REDIRECT_URI);
+
+        // when
+        ResponseEntity<Void> response = controller.callback(
+                null,
+                "oauth-state",
+                "access_denied"
+        );
+
+        // then
+        assertThat(
+                response.getStatusCode()
+                        .value()
+        ).isEqualTo(303);
+        assertThat(
+                response.getHeaders()
+                        .getLocation()
+        ).isEqualTo(FAILURE_REDIRECT_URI);
+        assertThat(
+                response.getHeaders()
+                        .getFirst(HttpHeaders.CACHE_CONTROL)
+        ).isEqualTo("no-store");
+    }
+
+    @DisplayName("Notion connection 상태 조회는 service 결과를 응답 DTO로 반환한다")
+    @Test
+    void status_success_returnsConnectionStatus() {
+        // given
+        when(
+                connectionQueryService.findStatus(
+                        WORKSPACE_ID,
+                        MEMBER_ID,
+                        ContentSourceProvider.NOTION
+                )
+        ).thenReturn(new ContentSourceConnectionStatusResult(ContentSourceConnectionStatus.CONNECTED));
+
+        // when
+        NotionConnectionStatusResponse response = controller.status(
+                WORKSPACE_ID,
+                authenticatedMember
+        );
+
+        // then
+        assertThat(response).isEqualTo(new NotionConnectionStatusResponse(ContentSourceConnectionStatus.CONNECTED));
+    }
+}
