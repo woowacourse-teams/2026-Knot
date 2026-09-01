@@ -13,7 +13,7 @@ import Stack from "@primitives/layout/Stack";
  */
 export default function LoginPage() {
   return (
-    <Root align="center">
+    <Container align="center">
       <Title>
         팀의 기록을 문서로 바꾸는
         <br />
@@ -28,7 +28,7 @@ export default function LoginPage() {
           로그인하면 서비스 이용약관과 개인정보 처리방침에 동의하게 됩니다.
         </Terms>
       </Actions>
-    </Root>
+    </Container>
   );
 }
 
@@ -36,7 +36,7 @@ export default function LoginPage() {
  * 자식이 `width: 100%`로 너비를 정할 수 있도록 레이아웃의 가로를 그대로 물려받아요.
  * 이게 없으면 부모 너비가 내용에 따라 정해져서 자식의 `100%`가 기준을 잃습니다.
  */
-const Root = styled(Stack)`
+const Container = styled(Stack)`
   width: 100%;
 `;
 

@@ -37,7 +37,7 @@ export default function OnboardingCompletePage() {
   }
 
   return (
-    <Root align="center">
+    <Container align="center">
       <Clap />
       <Spacing size={1.25} />
 
@@ -54,12 +54,12 @@ export default function OnboardingCompletePage() {
       <StartButton size="lg" isFullWidth onClick={handleStart}>
         시작하기
       </StartButton>
-    </Root>
+    </Container>
   );
 }
 
 /** 버튼이 `width: 100%`로 너비를 정할 수 있도록 레이아웃의 가로를 물려받아요. */
-const Root = styled(Stack)`
+const Container = styled(Stack)`
   width: 100%;
 `;
 
