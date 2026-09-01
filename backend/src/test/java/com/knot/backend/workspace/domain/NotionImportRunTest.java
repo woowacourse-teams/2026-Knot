@@ -10,6 +10,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.MethodSource;
 
 class NotionImportRunTest {
@@ -67,6 +68,36 @@ class NotionImportRunTest {
 
         // then
         assertThat(publicFailureReason).isNull();
+    }
+
+    @DisplayName("FAILED Run은 재시도할 수 있다")
+    @Test
+    void validateRetryable_success_failedStatus() {
+        // given
+        NotionImportRun importRun = createImportRun(NotionImportStatus.FAILED);
+
+        // when
+        Throwable thrown = catchThrowable(importRun::validateRetryable);
+
+        // then
+        assertThat(thrown).isNull();
+    }
+
+    @DisplayName("FAILED가 아닌 Run은 재시도할 수 없다")
+    @EnumSource(value = NotionImportStatus.class, names = "FAILED", mode = EnumSource.Mode.EXCLUDE)
+    @ParameterizedTest(name = "{0}")
+    void validateRetryable_failure_nonFailedStatus(NotionImportStatus status) {
+        // given
+        NotionImportRun importRun = createImportRun(status);
+        ThrowingCallable action = importRun::validateRetryable;
+
+        // when
+        Throwable thrown = catchThrowable(action);
+
+        // then
+        assertThat(thrown).isInstanceOf(NotionImportException.class)
+                .extracting(exception -> ((NotionImportException) exception).getErrorCode())
+                .isEqualTo(NotionImportErrorCode.NOTION_IMPORT_NOT_RETRYABLE);
     }
 
     @DisplayName("처리한 Page 수가 전체 Page 수보다 크면 생성할 수 없다")

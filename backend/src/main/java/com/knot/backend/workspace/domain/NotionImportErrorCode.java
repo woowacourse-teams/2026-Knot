@@ -34,6 +34,12 @@ public enum NotionImportErrorCode implements ErrorCode {
             ErrorCategory.NOT_FOUND,
             "NOTION_IMPORT_RUN_NOT_FOUND",
             "Notion Import 실행을 찾을 수 없습니다"
+    ),
+
+    NOTION_IMPORT_NOT_RETRYABLE(
+            ErrorCategory.CONFLICT,
+            "NOTION_IMPORT_NOT_RETRYABLE",
+            "실패한 Notion Import만 재시도할 수 있습니다"
     );
 
     private final ErrorCategory category;

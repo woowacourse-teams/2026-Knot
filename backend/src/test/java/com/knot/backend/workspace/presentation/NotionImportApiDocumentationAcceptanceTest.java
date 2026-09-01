@@ -186,4 +186,64 @@ class NotionImportApiDocumentationAcceptanceTest {
                 )
                 .andExpect(jsonPath(schemaPath + ".properties.id").exists());
     }
+
+    @DisplayName("OpenAPI JSON에 실패 Import 재시도의 빈 요청, 보안, 성공과 충돌 응답 계약을 공개한다")
+    @Test
+    void openApi_success_notionImportRetryContract() throws Exception {
+        // given
+        String openApiPath = "/v3/api-docs";
+        String operationPath = "$.paths['/api/v1/imports/{importRunId}/retry'].post";
+
+        // when
+        ResultActions result = mockMvc.perform(get(openApiPath));
+
+        // then
+        result.andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith("application/json"))
+                .andExpect(jsonPath(operationPath + ".summary").value("실패한 Notion Import 재시도"))
+                .andExpect(jsonPath(operationPath + ".security[0].accessTokenCookie").exists())
+                .andExpect(jsonPath(operationPath + ".requestBody").doesNotExist())
+                .andExpect(jsonPath(operationPath + ".parameters[?(@.name == 'importRunId')]").exists())
+                .andExpect(
+                        jsonPath(operationPath + ".parameters[?(@.name == 'importRunId')].required")
+                                .value(hasItem(true))
+                )
+                .andExpect(jsonPath(operationPath + ".parameters[?(@.name == 'X-XSRF-TOKEN')]").exists())
+                .andExpect(
+                        jsonPath(operationPath + ".parameters[?(@.name == 'X-XSRF-TOKEN')].required")
+                                .value(hasItem(true))
+                )
+                .andExpect(
+                        jsonPath(operationPath + ".responses['202'].content['application/json'].schema['$ref']")
+                                .value(START_RESPONSE_REF)
+                )
+                .andExpect(jsonPath(operationPath + ".responses['202'].headers.Location").exists())
+                .andExpect(
+                        jsonPath(operationPath + ".responses['400'].content['application/json'].schema['$ref']")
+                                .value(ERROR_RESPONSE_REF)
+                )
+                .andExpect(
+                        jsonPath(operationPath + ".responses['401'].content['application/json'].schema['$ref']")
+                                .value(ERROR_RESPONSE_REF)
+                )
+                .andExpect(
+                        jsonPath(operationPath + ".responses['403'].content['application/json'].schema['$ref']")
+                                .value(ERROR_RESPONSE_REF)
+                )
+                .andExpect(
+                        jsonPath(operationPath + ".responses['404'].content['application/json'].schema['$ref']")
+                                .value(ERROR_RESPONSE_REF)
+                )
+                .andExpect(jsonPath(operationPath + ".responses['409'].headers.Location").exists())
+                .andExpect(
+                        jsonPath(
+                                operationPath + ".responses['409'].content['application/json'].schema.oneOf[*]['$ref']"
+                        ).value(
+                                containsInAnyOrder(
+                                        START_RESPONSE_REF,
+                                        ERROR_RESPONSE_REF
+                                )
+                        )
+                );
+    }
 }

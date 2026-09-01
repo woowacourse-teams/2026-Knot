@@ -98,6 +98,68 @@ class NotionImportCommandServiceIntegrationTest {
         assertThat(importRunCount()).isOne();
     }
 
+    @DisplayName("FAILED Run 재시도는 원본을 보존하고 PostgreSQL에 새 PENDING Run을 저장한다")
+    @Test
+    void retry_success_persistsNewPendingRun() {
+        // given
+        TestContext context = saveContext("owner");
+        long originalImportRunId = saveFailedImportRun(context);
+        String originalSnapshot = importRunSnapshot(originalImportRunId);
+
+        // when
+        NotionImportRunRequestResult result = service.retry(
+                originalImportRunId,
+                context.memberId()
+        );
+
+        // then
+        assertThat(result.created()).isTrue();
+        assertThat(result.id()).isNotEqualTo(originalImportRunId);
+        assertThat(importRunSnapshot(result.id())).isEqualTo(
+                "%d|%d|%d|PENDING|null|0|null|null".formatted(
+                        context.workspaceId(),
+                        context.connectionId(),
+                        context.memberId()
+                )
+        );
+        assertThat(importRunSnapshot(originalImportRunId)).isEqualTo(originalSnapshot);
+        assertThat(importRunCount()).isEqualTo(2);
+    }
+
+    @DisplayName("같은 FAILED Run의 동시 재시도는 원본을 보존하고 하나의 새 활성 Run ID로 수렴한다")
+    @Test
+    void retry_success_concurrentRequestsConverge() throws Exception {
+        // given
+        TestContext context = saveContext("owner");
+        long originalImportRunId = saveFailedImportRun(context);
+        String originalSnapshot = importRunSnapshot(originalImportRunId);
+
+        // when
+        List<NotionImportRunRequestResult> results = retryConcurrently(
+                originalImportRunId,
+                context
+        );
+
+        // then
+        assertThat(results).extracting(NotionImportRunRequestResult::created)
+                .containsExactlyInAnyOrder(
+                        true,
+                        false
+                );
+        assertThat(results).extracting(NotionImportRunRequestResult::id)
+                .containsOnly(
+                        results.getFirst()
+                                .id()
+                );
+        assertThat(
+                results.getFirst()
+                        .id()
+        ).isNotEqualTo(originalImportRunId);
+        assertThat(activeImportRunCount(context.connectionId())).isOne();
+        assertThat(importRunCount()).isEqualTo(2);
+        assertThat(importRunSnapshot(originalImportRunId)).isEqualTo(originalSnapshot);
+    }
+
     private List<NotionImportRunRequestResult> startConcurrently(TestContext context) throws Exception {
         ExecutorService executorService = Executors.newFixedThreadPool(2);
         CountDownLatch ready = new CountDownLatch(2);
@@ -124,6 +186,52 @@ class NotionImportCommandServiceIntegrationTest {
                     TimeUnit.SECONDS
             )) {
                 throw new IllegalStateException("동시 시작 작업이 준비되지 않았습니다");
+            }
+            start.countDown();
+            List<NotionImportRunRequestResult> results = new ArrayList<>();
+            for (Future<NotionImportRunRequestResult> future : futures) {
+                results.add(
+                        future.get(
+                                10,
+                                TimeUnit.SECONDS
+                        )
+                );
+            }
+            return results;
+        } finally {
+            executorService.shutdownNow();
+        }
+    }
+
+    private List<NotionImportRunRequestResult> retryConcurrently(
+            long originalImportRunId,
+            TestContext context
+    ) throws Exception {
+        ExecutorService executorService = Executors.newFixedThreadPool(2);
+        CountDownLatch ready = new CountDownLatch(2);
+        CountDownLatch start = new CountDownLatch(1);
+        try {
+            List<Future<NotionImportRunRequestResult>> futures = new ArrayList<>();
+            for (int index = 0; index < 2; index++) {
+                futures.add(executorService.submit(() -> {
+                    ready.countDown();
+                    if (!start.await(
+                            10,
+                            TimeUnit.SECONDS
+                    )) {
+                        throw new IllegalStateException("동시 재시도 준비가 완료되지 않았습니다");
+                    }
+                    return service.retry(
+                            originalImportRunId,
+                            context.memberId()
+                    );
+                }));
+            }
+            if (!ready.await(
+                    10,
+                    TimeUnit.SECONDS
+            )) {
+                throw new IllegalStateException("동시 재시도 작업이 준비되지 않았습니다");
             }
             start.countDown();
             List<NotionImportRunRequestResult> results = new ArrayList<>();
@@ -259,6 +367,61 @@ class NotionImportCommandServiceIntegrationTest {
                 .param(
                         "authorizingMemberId",
                         authorizingMemberId
+                )
+                .param(
+                        "createdAt",
+                        CREATED_AT.toString()
+                )
+                .query(Long.class)
+                .single();
+    }
+
+    private long saveFailedImportRun(TestContext context) {
+        return jdbcClient.sql("""
+                INSERT INTO notion_import_runs (
+                    workspace_id,
+                    content_source_connection_id,
+                    requested_by_member_id,
+                    status,
+                    total_page_count,
+                    processed_page_count,
+                    started_at,
+                    completed_at,
+                    created_at
+                ) VALUES (
+                    :workspaceId,
+                    :connectionId,
+                    :memberId,
+                    'FAILED',
+                    10,
+                    4,
+                    CAST(:startedAt AS TIMESTAMPTZ),
+                    CAST(:completedAt AS TIMESTAMPTZ),
+                    CAST(:createdAt AS TIMESTAMPTZ)
+                )
+                RETURNING id
+                """)
+                .param(
+                        "workspaceId",
+                        context.workspaceId()
+                )
+                .param(
+                        "connectionId",
+                        context.connectionId()
+                )
+                .param(
+                        "memberId",
+                        context.memberId()
+                )
+                .param(
+                        "startedAt",
+                        CREATED_AT.plusSeconds(1)
+                                .toString()
+                )
+                .param(
+                        "completedAt",
+                        CREATED_AT.plusSeconds(2)
+                                .toString()
                 )
                 .param(
                         "createdAt",

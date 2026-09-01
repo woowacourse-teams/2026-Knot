@@ -137,6 +137,12 @@ public class NotionImportRun {
         return null;
     }
 
+    public void validateRetryable() {
+        if (status != NotionImportStatus.FAILED) {
+            throw new NotionImportException(NotionImportErrorCode.NOTION_IMPORT_NOT_RETRYABLE);
+        }
+    }
+
     private void validateId(Long id) {
         if (id == null || id <= 0) {
             throw invalidImportRun();

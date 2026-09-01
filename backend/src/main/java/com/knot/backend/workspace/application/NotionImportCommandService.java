@@ -40,6 +40,37 @@ public class NotionImportCommandService {
                 workspaceId,
                 memberId
         );
+        return requestPendingRun(
+                workspaceId,
+                memberId
+        );
+    }
+
+    @Transactional
+    public NotionImportRunRequestResult retry(
+            Long importRunId,
+            long memberId
+    ) {
+        validateImportRunId(importRunId);
+        NotionImportRun originalImportRun = findVisibleImportRun(
+                importRunId,
+                memberId
+        );
+        validateOwner(
+                originalImportRun.getWorkspaceId(),
+                memberId
+        );
+        originalImportRun.validateRetryable();
+        return requestPendingRun(
+                originalImportRun.getWorkspaceId(),
+                memberId
+        );
+    }
+
+    private NotionImportRunRequestResult requestPendingRun(
+            Long workspaceId,
+            long memberId
+    ) {
         ContentSourceConnection connection = connectedNotionConnectionForUpdate(workspaceId);
         validateConnectionAuthorization(connection);
         return importRunRepository.findActiveByContentSourceConnectionId(connection.getId())
@@ -51,6 +82,23 @@ public class NotionImportCommandService {
                                 memberId
                         )
                 );
+    }
+
+    private void validateImportRunId(Long importRunId) {
+        if (importRunId == null || importRunId <= 0) {
+            throw new NotionImportException(NotionImportErrorCode.INVALID_NOTION_IMPORT_RUN_ID);
+        }
+    }
+
+    private NotionImportRun findVisibleImportRun(
+            Long importRunId,
+            long memberId
+    ) {
+        return importRunRepository.findVisibleByIdAndMemberId(
+                importRunId,
+                memberId
+        )
+                .orElseThrow(() -> new NotionImportException(NotionImportErrorCode.NOTION_IMPORT_RUN_NOT_FOUND));
     }
 
     private void validateWorkspaceId(Long workspaceId) {
