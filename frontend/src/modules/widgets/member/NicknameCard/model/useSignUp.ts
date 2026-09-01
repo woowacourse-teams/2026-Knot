@@ -1,14 +1,12 @@
 import usePostNicknameMutation from "@api/mutations/usePostNicknameMutation";
 import useNavigateToLogin from "@hooks/domain/auth/useNavigateToLogin";
 import useNavigateToOnboardingComplete from "@hooks/domain/member/useNavigateToOnboardingComplete";
+import { isUnauthorizedError } from "@utils/isUnauthorizedError";
 import type { ChangeEvent } from "react";
 import { useRef, useState } from "react";
 
 import { getNicknameErrorMessage } from "../utils/getNicknameErrorMessage";
-import {
-  getSubmitErrorMessage,
-  isUnauthorizedError,
-} from "../utils/getSubmitErrorMessage";
+import { getSubmitErrorMessage } from "../utils/getSubmitErrorMessage";
 
 /**
  * 닉네임을 입력받아 회원가입을 완료하는 흐름.

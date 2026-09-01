@@ -2,10 +2,6 @@ import axios from "axios";
 
 import { NICKNAME_SUBMIT_ERROR_MESSAGE } from "../constants/nickname";
 
-/** 온보딩 토큰이 없거나 유효하지 않은 상태. 문구 대신 로그인 화면으로 돌려보내야 해요. */
-export const isUnauthorizedError = (error: unknown) =>
-  axios.isAxiosError(error) && error.response?.status === 401;
-
 /**
  * 닉네임 등록 실패를 사용자에게 보여줄 문구로 바꿉니다.
  *
