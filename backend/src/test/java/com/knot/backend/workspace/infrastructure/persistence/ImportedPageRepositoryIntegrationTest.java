@@ -579,6 +579,7 @@ class ImportedPageRepositoryIntegrationTest {
                     processed_page_count,
                     started_at,
                     completed_at,
+                    last_heartbeat_at,
                     created_at
                 ) VALUES (
                     :workspaceId,
@@ -589,6 +590,7 @@ class ImportedPageRepositoryIntegrationTest {
                     1,
                     CAST(:startedAt AS TIMESTAMPTZ),
                     CAST(:completedAt AS TIMESTAMPTZ),
+                    CAST(:lastHeartbeatAt AS TIMESTAMPTZ),
                     CAST(:createdAt AS TIMESTAMPTZ)
                 )
                 RETURNING id
@@ -618,6 +620,13 @@ class ImportedPageRepositoryIntegrationTest {
                         "completedAt",
                         status.equals("COMPLETED")
                                 ? CREATED_AT.plusSeconds(2)
+                                        .toString()
+                                : null
+                )
+                .param(
+                        "lastHeartbeatAt",
+                        status.equals("RUNNING")
+                                ? CREATED_AT.plusSeconds(1)
                                         .toString()
                                 : null
                 )

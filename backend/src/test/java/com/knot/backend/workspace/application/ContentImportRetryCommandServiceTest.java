@@ -435,7 +435,11 @@ class ContentImportRetryCommandServiceTest {
             case PENDING, RUNNING -> null;
             case COMPLETED, FAILED -> CREATED_AT.minusSeconds(1);
         };
-        int processedPageCount = status == ContentImportStatus.COMPLETED ? 10 : 4;
+        int processedPageCount = switch (status) {
+            case PENDING -> 0;
+            case RUNNING, FAILED -> 4;
+            case COMPLETED -> 10;
+        };
         return ContentImportRun.create(
                 WORKSPACE_ID,
                 CONNECTION_ID,

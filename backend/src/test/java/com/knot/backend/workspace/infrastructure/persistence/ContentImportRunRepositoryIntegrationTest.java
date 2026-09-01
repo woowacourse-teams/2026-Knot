@@ -258,6 +258,7 @@ class ContentImportRunRepositoryIntegrationTest {
                     processed_page_count,
                     started_at,
                     completed_at,
+                    last_heartbeat_at,
                     created_at
                 ) VALUES (
                     :workspaceId,
@@ -268,6 +269,7 @@ class ContentImportRunRepositoryIntegrationTest {
                     :processedPageCount,
                     CAST(:startedAt AS TIMESTAMPTZ),
                     CAST(:completedAt AS TIMESTAMPTZ),
+                    CAST(:lastHeartbeatAt AS TIMESTAMPTZ),
                     CAST(:createdAt AS TIMESTAMPTZ)
                 )
                 """)
@@ -302,6 +304,10 @@ class ContentImportRunRepositoryIntegrationTest {
                 .param(
                         "completedAt",
                         completedAt
+                )
+                .param(
+                        "lastHeartbeatAt",
+                        "RUNNING".equals(status) ? startedAt : null
                 )
                 .param(
                         "createdAt",

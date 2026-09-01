@@ -3,7 +3,9 @@ package com.knot.backend.workspace.presentation;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.reset;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -14,6 +16,20 @@ import com.knot.backend.auth.domain.AuthenticatedMember;
 import com.knot.backend.testsupport.TestApplicationProperties;
 import com.knot.backend.testsupport.TestcontainersConfiguration;
 import com.knot.backend.workspace.application.ContentSourceAuthorizationClient;
+import com.knot.backend.workspace.application.ContentSourceCredentialKind;
+import com.knot.backend.workspace.application.ContentSourceSecretProtector;
+import com.knot.backend.workspace.application.ContentSourceCollector;
+import com.knot.backend.workspace.application.ContentImportFailureCategory;
+import com.knot.backend.workspace.application.ContentImportHeartbeatLease;
+import com.knot.backend.workspace.application.ContentImportPublicationService;
+import com.knot.backend.workspace.application.ContentImportRunLifecycleService;
+import com.knot.backend.workspace.application.ContentImportSnapshotStagingService;
+import com.knot.backend.workspace.application.ContentImportWorker;
+import com.knot.backend.workspace.application.ContentImportWorkerObserver;
+import com.knot.backend.workspace.application.dto.result.CollectedPage;
+import com.knot.backend.workspace.application.dto.result.ContentCollectionResult;
+import com.knot.backend.workspace.domain.ContentSourceConnectionRepository;
+import com.knot.backend.workspace.domain.ContentSourceProvider;
 import jakarta.servlet.http.Cookie;
 import java.time.Instant;
 import java.util.List;
@@ -34,6 +50,7 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.test.context.TestConstructor;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @Tag("acceptance")
 @Import({TestcontainersConfiguration.class,
@@ -50,17 +67,29 @@ class NotionPageTreeAcceptanceTest {
     private final AuthTokenProvider authTokenProvider;
     private final JdbcClient jdbcClient;
     private final ContentSourceAuthorizationClient contentSourceAuthorizationClient;
+    private final ContentSourceSecretProtector secretProtector;
+    private final ContentSourceCollector contentCollector;
+    private final ContentImportWorkerObserver workerObserver;
+    private final ContentImportWorker importWorker;
 
     NotionPageTreeAcceptanceTest(
             MockMvc mockMvc,
             AuthTokenProvider authTokenProvider,
             JdbcClient jdbcClient,
-            ContentSourceAuthorizationClient contentSourceAuthorizationClient
+            ContentSourceAuthorizationClient contentSourceAuthorizationClient,
+            ContentSourceSecretProtector secretProtector,
+            ContentSourceCollector contentCollector,
+            ContentImportWorkerObserver workerObserver,
+            ContentImportWorker importWorker
     ) {
         this.mockMvc = mockMvc;
         this.authTokenProvider = authTokenProvider;
         this.jdbcClient = jdbcClient;
         this.contentSourceAuthorizationClient = contentSourceAuthorizationClient;
+        this.secretProtector = secretProtector;
+        this.contentCollector = contentCollector;
+        this.workerObserver = workerObserver;
+        this.importWorker = importWorker;
     }
 
     @BeforeEach
@@ -72,7 +101,12 @@ class NotionPageTreeAcceptanceTest {
                 RESTART IDENTITY CASCADE
                 """)
                 .update();
-        reset(contentSourceAuthorizationClient);
+        reset(
+                contentSourceAuthorizationClient,
+                secretProtector,
+                contentCollector,
+                workerObserver
+        );
     }
 
     @DisplayName("OWNER와 MEMBER는 발행된 Page Tree를 같은 계약으로 조회하고 데이터를 변경하지 않는다")
@@ -292,6 +326,165 @@ class NotionPageTreeAcceptanceTest {
         verifyNoInteractions(contentSourceAuthorizationClient);
     }
 
+    @DisplayName("작업자가 전체 Snapshot을 저장하면 성공 Run을 공개하고 이전 Row를 보존한다")
+    @Test
+    void tree_success_workerPublishesCompleteSnapshot() throws Exception {
+        // given
+        WorkerFixture fixture = saveWorkerFixture();
+        allowWorkerCredential(fixture.workspaceId());
+        ContentCollectionResult collectionResult = new ContentCollectionResult(
+                List.of(
+                        collectedPage(
+                                "new-root",
+                                null,
+                                "새 루트",
+                                "# 새 루트",
+                                0
+                        ),
+                        collectedPage(
+                                "new-child",
+                                "new-root",
+                                "새 자식",
+                                "새 자식 본문",
+                                1
+                        )
+                )
+        );
+        when(contentCollector.collect("worker-access-credential")).thenAnswer(invocation -> {
+            assertThat(TransactionSynchronizationManager.isActualTransactionActive()).isFalse();
+            return collectionResult;
+        });
+
+        // when
+        boolean processed = importWorker.processNext();
+        ResultActions result = getTree(fixture);
+
+        // then
+        long newRootPageId = notionPageId(
+                fixture.pendingImportRunId(),
+                "new-root"
+        );
+        assertThat(processed).isTrue();
+        result.andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].id").value(newRootPageId))
+                .andExpect(jsonPath("$[0].title").value("새 루트"))
+                .andExpect(jsonPath("$[1].parentPageId").value(newRootPageId))
+                .andExpect(jsonPath("$[1].title").value("새 자식"));
+        assertThat(importRunStatus(fixture.pendingImportRunId())).isEqualTo("COMPLETED");
+        assertThat(importRunPageCounts(fixture.pendingImportRunId())).isEqualTo(
+                new ImportRunPageCounts(
+                        2,
+                        2
+                )
+        );
+        assertThat(publishedImportRunId(fixture.workspaceId())).isEqualTo(fixture.pendingImportRunId());
+        assertThat(countNotionPages(fixture.publishedImportRunId())).isEqualTo(1);
+        assertThat(countNotionPages(fixture.pendingImportRunId())).isEqualTo(2);
+        verify(workerObserver).completed(
+                fixture.pendingImportRunId(),
+                fixture.workspaceId(),
+                2
+        );
+        verifyNoInteractions(contentSourceAuthorizationClient);
+    }
+
+    @DisplayName("수집 결과가 0건이면 작업자는 실패 처리하고 이전 Tree를 유지한다")
+    @Test
+    void tree_success_workerKeepsPreviousPublicationForEmptyResult() throws Exception {
+        // given
+        WorkerFixture fixture = saveWorkerFixture();
+        allowWorkerCredential(fixture.workspaceId());
+        when(contentCollector.collect("worker-access-credential")).thenReturn(new ContentCollectionResult(List.of()));
+
+        // when
+        boolean processed = importWorker.processNext();
+        ResultActions result = getTree(fixture);
+
+        // then
+        assertThat(processed).isTrue();
+        result.andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].title").value("기존 발행 Page"));
+        assertThat(importRunStatus(fixture.pendingImportRunId())).isEqualTo("FAILED");
+        assertThat(importRunPageCounts(fixture.pendingImportRunId())).isEqualTo(
+                new ImportRunPageCounts(
+                        null,
+                        0
+                )
+        );
+        assertThat(publishedImportRunId(fixture.workspaceId())).isEqualTo(fixture.publishedImportRunId());
+        assertThat(countNotionPages(fixture.pendingImportRunId())).isZero();
+        verify(workerObserver).failed(
+                fixture.pendingImportRunId(),
+                fixture.workspaceId(),
+                ContentImportFailureCategory.EMPTY_RESULT
+        );
+        verifyNoInteractions(contentSourceAuthorizationClient);
+    }
+
+    @DisplayName("Page 일부 저장 뒤 충돌하면 작업자는 실패 처리하고 이전 Tree와 staging Row를 보존한다")
+    @Test
+    void tree_success_workerKeepsPreviousPublicationForPartialStorageFailure() throws Exception {
+        // given
+        WorkerFixture fixture = saveWorkerFixture();
+        saveNotionPage(
+                fixture.workspaceId(),
+                fixture.pendingImportRunId(),
+                "duplicate-child",
+                null,
+                "기존 staging Page",
+                "기존 staging 본문",
+                1
+        );
+        allowWorkerCredential(fixture.workspaceId());
+        when(contentCollector.collect("worker-access-credential")).thenReturn(
+                new ContentCollectionResult(
+                        List.of(
+                                collectedPage(
+                                        "partial-root",
+                                        null,
+                                        "부분 루트",
+                                        "# 부분 루트",
+                                        0
+                                ),
+                                collectedPage(
+                                        "duplicate-child",
+                                        "partial-root",
+                                        "충돌 자식",
+                                        "충돌 본문",
+                                        1
+                                )
+                        )
+                )
+        );
+
+        // when
+        boolean processed = importWorker.processNext();
+        ResultActions result = getTree(fixture);
+
+        // then
+        assertThat(processed).isTrue();
+        result.andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].title").value("기존 발행 Page"));
+        assertThat(importRunStatus(fixture.pendingImportRunId())).isEqualTo("FAILED");
+        assertThat(importRunPageCounts(fixture.pendingImportRunId())).isEqualTo(
+                new ImportRunPageCounts(
+                        2,
+                        1
+                )
+        );
+        assertThat(publishedImportRunId(fixture.workspaceId())).isEqualTo(fixture.publishedImportRunId());
+        assertThat(countNotionPages(fixture.pendingImportRunId())).isEqualTo(2);
+        verify(workerObserver).failed(
+                fixture.pendingImportRunId(),
+                fixture.workspaceId(),
+                ContentImportFailureCategory.STORAGE
+        );
+        verifyNoInteractions(contentSourceAuthorizationClient);
+    }
+
     @DisplayName("인증되지 않은 Page Tree 조회는 no-store와 401을 반환한다")
     @Test
     void tree_failure_unauthenticated() throws Exception {
@@ -486,6 +679,234 @@ class NotionPageTreeAcceptanceTest {
                 .andExpect(jsonPath("$.code").value("NOTION_PAGE_TREE_INVALID"))
                 .andExpect(jsonPath("$.message").value("Notion Page Tree를 조회할 수 없습니다"));
         verifyNoInteractions(contentSourceAuthorizationClient);
+    }
+
+    private WorkerFixture saveWorkerFixture() {
+        long memberId = saveMember("worker");
+        long workspaceId = saveWorkspace("Worker 팀");
+        saveWorkspaceMember(
+                workspaceId,
+                memberId,
+                "OWNER"
+        );
+        long connectionId = saveConnection(
+                workspaceId,
+                memberId
+        );
+        long publishedImportRunId = saveImportRun(
+                workspaceId,
+                connectionId,
+                memberId,
+                "COMPLETED"
+        );
+        saveNotionPage(
+                workspaceId,
+                publishedImportRunId,
+                "previous-published",
+                null,
+                "기존 발행 Page",
+                "기존 발행 본문",
+                0
+        );
+        publish(
+                workspaceId,
+                publishedImportRunId
+        );
+        long pendingImportRunId = savePendingImportRun(
+                workspaceId,
+                connectionId,
+                memberId
+        );
+        return new WorkerFixture(
+                memberId,
+                workspaceId,
+                publishedImportRunId,
+                pendingImportRunId
+        );
+    }
+
+    private void allowWorkerCredential(long workspaceId) {
+        when(
+                secretProtector.decrypt(
+                        workspaceId,
+                        ContentSourceProvider.NOTION,
+                        ContentSourceCredentialKind.ACCESS_CREDENTIAL,
+                        "encrypted-access-token"
+                )
+        ).thenAnswer(invocation -> {
+            assertThat(TransactionSynchronizationManager.isActualTransactionActive()).isFalse();
+            return "worker-access-credential";
+        });
+    }
+
+    private CollectedPage collectedPage(
+            String notionPageId,
+            String parentNotionPageId,
+            String title,
+            String markdownContent,
+            int position
+    ) {
+        return new CollectedPage(
+                notionPageId,
+                parentNotionPageId,
+                title,
+                markdownContent,
+                position,
+                "https://www.notion.so/" + notionPageId
+        );
+    }
+
+    private ResultActions getTree(WorkerFixture fixture) throws Exception {
+        return mockMvc.perform(
+                get(
+                        "/api/v1/workspaces/{workspaceId}/notion-pages/tree",
+                        fixture.workspaceId()
+                ).cookie(
+                        accessTokenCookie(
+                                fixture.memberId(),
+                                "worker"
+                        )
+                )
+        );
+    }
+
+    private String importRunStatus(long importRunId) {
+        return jdbcClient.sql("""
+                SELECT status
+                FROM content_import_runs
+                WHERE id = :importRunId
+                """)
+                .param(
+                        "importRunId",
+                        importRunId
+                )
+                .query(String.class)
+                .single();
+    }
+
+    private ImportRunPageCounts importRunPageCounts(long importRunId) {
+        return jdbcClient.sql("""
+                SELECT total_page_count, processed_page_count
+                FROM content_import_runs
+                WHERE id = :importRunId
+                """)
+                .param(
+                        "importRunId",
+                        importRunId
+                )
+                .query(
+                        (
+                                resultSet,
+                                rowNumber
+                        ) -> new ImportRunPageCounts(
+                                resultSet.getObject(
+                                        "total_page_count",
+                                        Integer.class
+                                ),
+                                resultSet.getInt("processed_page_count")
+                        )
+                )
+                .single();
+    }
+
+    private long publishedImportRunId(long workspaceId) {
+        return jdbcClient.sql("""
+                SELECT published_import_run_id
+                FROM imported_page_publications
+                WHERE workspace_id = :workspaceId
+                """)
+                .param(
+                        "workspaceId",
+                        workspaceId
+                )
+                .query(Long.class)
+                .single();
+    }
+
+    private long countNotionPages(long importRunId) {
+        return jdbcClient.sql("""
+                SELECT COUNT(*)
+                FROM imported_pages
+                WHERE import_run_id = :importRunId
+                """)
+                .param(
+                        "importRunId",
+                        importRunId
+                )
+                .query(Long.class)
+                .single();
+    }
+
+    private long notionPageId(
+            long importRunId,
+            String notionPageId
+    ) {
+        return jdbcClient.sql("""
+                SELECT id
+                FROM imported_pages
+                WHERE import_run_id = :importRunId
+                    AND external_page_id = :notionPageId
+                """)
+                .param(
+                        "importRunId",
+                        importRunId
+                )
+                .param(
+                        "notionPageId",
+                        notionPageId
+                )
+                .query(Long.class)
+                .single();
+    }
+
+    private long savePendingImportRun(
+            long workspaceId,
+            long connectionId,
+            long memberId
+    ) {
+        return jdbcClient.sql("""
+                INSERT INTO content_import_runs (
+                    workspace_id,
+                    content_source_connection_id,
+                    requested_by_member_id,
+                    status,
+                    total_page_count,
+                    processed_page_count,
+                    started_at,
+                    completed_at,
+                    created_at
+                ) VALUES (
+                    :workspaceId,
+                    :connectionId,
+                    :memberId,
+                    'PENDING',
+                    NULL,
+                    0,
+                    NULL,
+                    NULL,
+                    CAST(:createdAt AS TIMESTAMPTZ)
+                )
+                RETURNING id
+                """)
+                .param(
+                        "workspaceId",
+                        workspaceId
+                )
+                .param(
+                        "connectionId",
+                        connectionId
+                )
+                .param(
+                        "memberId",
+                        memberId
+                )
+                .param(
+                        "createdAt",
+                        CREATED_AT.plusSeconds(4)
+                                .toString()
+                )
+                .query(Long.class)
+                .single();
     }
 
     private long saveMember(String nickname) {
@@ -695,6 +1116,7 @@ class NotionPageTreeAcceptanceTest {
                     processed_page_count,
                     started_at,
                     completed_at,
+                    last_heartbeat_at,
                     created_at
                 ) VALUES (
                     :workspaceId,
@@ -705,6 +1127,7 @@ class NotionPageTreeAcceptanceTest {
                     :processedPageCount,
                     CAST(:startedAt AS TIMESTAMPTZ),
                     CAST(:completedAt AS TIMESTAMPTZ),
+                    CAST(:lastHeartbeatAt AS TIMESTAMPTZ),
                     CAST(:createdAt AS TIMESTAMPTZ)
                 )
                 RETURNING id
@@ -738,6 +1161,13 @@ class NotionPageTreeAcceptanceTest {
                         "completedAt",
                         finished
                                 ? CREATED_AT.plusSeconds(2)
+                                        .toString()
+                                : null
+                )
+                .param(
+                        "lastHeartbeatAt",
+                        status.equals("RUNNING")
+                                ? CREATED_AT.plusSeconds(1)
                                         .toString()
                                 : null
                 )
@@ -910,6 +1340,20 @@ class NotionPageTreeAcceptanceTest {
         );
     }
 
+    private record WorkerFixture(
+            long memberId,
+            long workspaceId,
+            long publishedImportRunId,
+            long pendingImportRunId
+    ) {
+    }
+
+    private record ImportRunPageCounts(
+            Integer totalPageCount,
+            int processedPageCount
+    ) {
+    }
+
     @TestConfiguration(proxyBeanMethods = false)
     static class ContentSourceAuthorizationClientTestConfiguration {
 
@@ -917,6 +1361,64 @@ class NotionPageTreeAcceptanceTest {
         @Primary
         ContentSourceAuthorizationClient notionPageTreeNoCallClient() {
             return mock(ContentSourceAuthorizationClient.class);
+        }
+
+        @Bean
+        @Primary
+        ContentSourceSecretProtector notionPageTreeSecretProtector() {
+            return mock(ContentSourceSecretProtector.class);
+        }
+
+        @Bean
+        @Primary
+        ContentSourceCollector notionPageTreeContentCollector() {
+            return mock(ContentSourceCollector.class);
+        }
+
+        @Bean
+        @Primary
+        ContentImportWorkerObserver notionPageTreeWorkerObserver() {
+            return mock(ContentImportWorkerObserver.class);
+        }
+
+        @Bean
+        @Primary
+        ContentImportHeartbeatLease notionPageTreeHeartbeatLease() {
+            return (
+                    importRunId,
+                    workspaceId
+            ) -> new ContentImportHeartbeatLease.Handle() {
+                @Override
+                public boolean isActive() {
+                    return true;
+                }
+
+                @Override
+                public void close() {}
+            };
+        }
+
+        @Bean
+        ContentImportWorker notionPageTreeImportWorker(
+                ContentImportRunLifecycleService lifecycleService,
+                ContentSourceConnectionRepository connectionRepository,
+                ContentSourceSecretProtector secretProtector,
+                ContentSourceCollector contentCollector,
+                ContentImportSnapshotStagingService stagingService,
+                ContentImportPublicationService publicationService,
+                ContentImportWorkerObserver observer,
+                ContentImportHeartbeatLease heartbeatLease
+        ) {
+            return new ContentImportWorker(
+                    lifecycleService,
+                    connectionRepository,
+                    secretProtector,
+                    contentCollector,
+                    stagingService,
+                    publicationService,
+                    observer,
+                    heartbeatLease
+            );
         }
     }
 }

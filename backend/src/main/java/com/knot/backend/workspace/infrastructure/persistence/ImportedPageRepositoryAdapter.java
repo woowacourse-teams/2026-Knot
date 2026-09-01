@@ -1,7 +1,9 @@
 package com.knot.backend.workspace.infrastructure.persistence;
 
 import com.knot.backend.workspace.domain.ImportedPageMetadata;
+import com.knot.backend.workspace.domain.ImportedPage;
 import com.knot.backend.workspace.domain.ImportedPageRepository;
+import java.time.Instant;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
@@ -10,6 +12,35 @@ import org.springframework.stereotype.Repository;
 @RequiredArgsConstructor
 public class ImportedPageRepositoryAdapter implements ImportedPageRepository {
     private final ImportedPageJpaRepository importedPageJpaRepository;
+
+    @Override
+    public ImportedPage save(ImportedPage importedPage) {
+        return importedPageJpaRepository.saveAndFlush(importedPage);
+    }
+
+    @Override
+    public long countByWorkspaceIdAndImportRunId(
+            Long workspaceId,
+            Long importRunId
+    ) {
+        return importedPageJpaRepository.countByWorkspaceIdAndImportRunId(
+                workspaceId,
+                importRunId
+        );
+    }
+
+    @Override
+    public void publish(
+            Long workspaceId,
+            Long importRunId,
+            Instant publishedAt
+    ) {
+        importedPageJpaRepository.publish(
+                workspaceId,
+                importRunId,
+                publishedAt
+        );
+    }
 
     @Override
     public List<ImportedPageMetadata> findPublishedMetadataByWorkspaceIdOrderByPositionAscIdAsc(Long workspaceId) {

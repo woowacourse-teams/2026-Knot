@@ -1,12 +1,40 @@
 package com.knot.backend.workspace.infrastructure.persistence;
 
 import com.knot.backend.workspace.domain.ImportedPage;
+import java.time.Instant;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 interface ImportedPageJpaRepository extends JpaRepository<ImportedPage, Long> {
+
+    long countByWorkspaceIdAndImportRunId(
+            Long workspaceId,
+            Long importRunId
+    );
+
+    @Modifying
+    @Query(value = """
+            INSERT INTO imported_page_publications (
+                workspace_id,
+                published_import_run_id,
+                published_at
+            ) VALUES (
+                :workspaceId,
+                :importRunId,
+                :publishedAt
+            )
+            ON CONFLICT (workspace_id) DO UPDATE
+            SET published_import_run_id = EXCLUDED.published_import_run_id,
+                published_at = EXCLUDED.published_at
+            """, nativeQuery = true)
+    void publish(
+            @Param("workspaceId") Long workspaceId,
+            @Param("importRunId") Long importRunId,
+            @Param("publishedAt") Instant publishedAt
+    );
 
     @Query(value = """
             SELECT
