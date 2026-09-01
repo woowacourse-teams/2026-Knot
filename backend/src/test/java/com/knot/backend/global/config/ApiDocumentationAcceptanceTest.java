@@ -205,7 +205,9 @@ class ApiDocumentationAcceptanceTest {
         String listResponseRef = "#/components/schemas/WorkspaceListResponse";
         String listItemResponseRef = "#/components/schemas/WorkspaceListItemResponse";
         String errorResponseRef = "#/components/schemas/ErrorResponse";
-        String workspacesSchemaPath = "$.components.schemas.WorkspaceListResponse.properties.workspaces";
+        String listResponsePropertiesPath = "$.components.schemas.WorkspaceListResponse.properties";
+        String workspacesSchemaPath = listResponsePropertiesPath + ".workspaces";
+        String lastViewedWorkspaceIdSchemaPath = listResponsePropertiesPath + ".lastViewedWorkspaceId";
         String itemSchemaPath = "$.components.schemas.WorkspaceListItemResponse.properties";
 
         // when
@@ -224,6 +226,8 @@ class ApiDocumentationAcceptanceTest {
                                 .value(errorResponseRef)
                 )
                 .andExpect(jsonPath(listPath + ".security[*].accessTokenCookie").exists())
+                .andExpect(jsonPath(lastViewedWorkspaceIdSchemaPath).exists())
+                .andExpect(jsonPath(lastViewedWorkspaceIdSchemaPath + ".type").value(hasItem("null")))
                 .andExpect(jsonPath(workspacesSchemaPath + ".type").value("array"))
                 .andExpect(jsonPath(workspacesSchemaPath + ".items['$ref']").value(listItemResponseRef))
                 .andExpect(jsonPath(itemSchemaPath + ".id").exists())
@@ -231,6 +235,59 @@ class ApiDocumentationAcceptanceTest {
                 .andExpect(jsonPath(itemSchemaPath + ".role").doesNotExist())
                 .andExpect(jsonPath(itemSchemaPath + ".joinedAt").doesNotExist())
                 .andExpect(jsonPath(itemSchemaPath + ".createdAt").doesNotExist());
+    }
+
+    @Test
+    @DisplayName("OpenAPI JSON에 마지막으로 본 워크스페이스 갱신 계약을 공개한다")
+    void openApi_success_lastViewedWorkspaceContract() throws Exception {
+        // given
+        String openApiPath = "/v3/api-docs";
+        String updatePath = "$.paths['/api/v1/members/me/last-viewed-workspace'].put";
+        String requestRef = "#/components/schemas/WorkspaceLastViewedUpdateRequest";
+        String errorResponseRef = "#/components/schemas/ErrorResponse";
+
+        // when
+        ResultActions result = mockMvc.perform(get(openApiPath));
+
+        // then
+        result.andExpect(status().isOk())
+                .andExpect(jsonPath(updatePath).exists())
+                .andExpect(jsonPath(updatePath + ".summary").value("마지막으로 본 워크스페이스 갱신"))
+                .andExpect(jsonPath(updatePath + ".security[*].accessTokenCookie").exists())
+                .andExpect(jsonPath(updatePath + ".parameters[?(@.name == 'X-XSRF-TOKEN')]").exists())
+                .andExpect(
+                        jsonPath(updatePath + ".parameters[?(@.name == 'X-XSRF-TOKEN')].required").value(hasItem(true))
+                )
+                .andExpect(
+                        jsonPath(updatePath + ".requestBody.content['application/json'].schema['$ref']")
+                                .value(requestRef)
+                )
+                .andExpect(jsonPath(updatePath + ".responses['204']").exists())
+                .andExpect(jsonPath(updatePath + ".responses['204'].content").doesNotExist())
+                .andExpect(
+                        jsonPath(updatePath + ".responses['400'].content['application/json'].schema['$ref']")
+                                .value(errorResponseRef)
+                )
+                .andExpect(
+                        jsonPath(updatePath + ".responses['401'].content['application/json'].schema['$ref']")
+                                .value(errorResponseRef)
+                )
+                .andExpect(
+                        jsonPath(updatePath + ".responses['403'].content['application/json'].schema['$ref']")
+                                .value(errorResponseRef)
+                )
+                .andExpect(
+                        jsonPath(updatePath + ".responses['404'].content['application/json'].schema['$ref']")
+                                .value(errorResponseRef)
+                )
+                .andExpect(
+                        jsonPath("$.components.schemas.WorkspaceLastViewedUpdateRequest.required")
+                                .value(hasItem("workspaceId"))
+                )
+                .andExpect(
+                        jsonPath("$.components.schemas.WorkspaceLastViewedUpdateRequest.properties.workspaceId.minimum")
+                                .value(1)
+                );
     }
 
     @Test

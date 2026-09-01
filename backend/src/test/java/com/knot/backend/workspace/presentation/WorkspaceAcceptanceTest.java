@@ -103,6 +103,7 @@ class WorkspaceAcceptanceTest {
         assertThat(count("workspace_members")).isEqualTo(1);
         assertThat(singleWorkspaceMemberRole()).isEqualTo("OWNER");
         assertThat(singleWorkspaceMemberId()).isEqualTo(memberId);
+        assertThat(singleWorkspaceMemberLastViewed()).isFalse();
     }
 
     @Test
@@ -280,6 +281,12 @@ class WorkspaceAcceptanceTest {
     private long singleWorkspaceMemberId() {
         return jdbcClient.sql("SELECT member_id FROM workspace_members")
                 .query(Long.class)
+                .single();
+    }
+
+    private boolean singleWorkspaceMemberLastViewed() {
+        return jdbcClient.sql("SELECT last_viewed FROM workspace_members")
+                .query(Boolean.class)
                 .single();
     }
 

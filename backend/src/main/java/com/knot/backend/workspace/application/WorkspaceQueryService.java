@@ -5,6 +5,7 @@ import com.knot.backend.workspace.application.dto.result.WorkspaceListResult;
 import com.knot.backend.workspace.domain.Workspace;
 import com.knot.backend.workspace.domain.WorkspaceErrorCode;
 import com.knot.backend.workspace.domain.WorkspaceException;
+import com.knot.backend.workspace.domain.WorkspaceMember;
 import com.knot.backend.workspace.domain.WorkspaceMemberRepository;
 import com.knot.backend.workspace.domain.WorkspaceRepository;
 import java.util.List;
@@ -35,7 +36,30 @@ public class WorkspaceQueryService {
 
     public WorkspaceListResult findAllByMemberId(long memberId) {
         List<Workspace> workspaces = workspaceRepository.findAllByMemberId(memberId);
-        return WorkspaceListResult.from(workspaces);
+        Long lastViewedWorkspaceId = workspaceMemberRepository.findLastViewedByMemberId(memberId)
+                .map(WorkspaceMember::getWorkspaceId)
+                .filter(
+                        workspaceId -> containsWorkspace(
+                                workspaces,
+                                workspaceId
+                        )
+                )
+                .orElse(null);
+        return WorkspaceListResult.from(
+                lastViewedWorkspaceId,
+                workspaces
+        );
+    }
+
+    private boolean containsWorkspace(
+            List<Workspace> workspaces,
+            Long workspaceId
+    ) {
+        return workspaces.stream()
+                .anyMatch(
+                        workspace -> workspace.getId()
+                                .equals(workspaceId)
+                );
     }
 
     private void validateWorkspaceId(Long workspaceId) {

@@ -57,6 +57,7 @@ public class SecurityConfig {
                 List.of(
                         HttpMethod.GET.name(),
                         HttpMethod.POST.name(),
+                        HttpMethod.PUT.name(),
                         HttpMethod.OPTIONS.name()
                 )
         );
@@ -115,7 +116,8 @@ public class SecurityConfig {
                             .permitAll()
                             .requestMatchers(
                                     HttpMethod.GET,
-                                    "/api/v1/invitations/*"
+                                    "/api/v1/invitations/*",
+                                    "/api/v1/notion/oauth/callback"
                             )
                             .permitAll()
                             .anyRequest()

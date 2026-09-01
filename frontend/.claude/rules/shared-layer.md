@@ -23,7 +23,7 @@ description: shared 레이어의 최상위 구성(api / components / hooks / pro
 
 | 폴더         | 역할                                                                                                                                                                                    | 세부 규칙                                                                                                                          |
 | ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| `api`        | `httpClient` · 요청 함수(`fetch`) · 쿼리 키(`queryKey`) · 쿼리/뮤테이션 훅(`queries` / `mutations`) · `suspense` · `prefetch`. API 코드는 컴포넌트 폴더가 아니라 여기서 계층적으로 관리 | `.claude/rules/api-guide.md`, `.claude/rules/query-hooks.md`                                                                       |
+| `api`        | `httpClient` · 요청 함수(`fetch`) · 쿼리 키(`queryKey`) · 쿼리/뮤테이션 훅(`queries` / `mutations`) · `suspense` · `prefetch` · mock API(`mock`). API 코드는 컴포넌트 폴더가 아니라 여기서 계층적으로 관리 | `.claude/rules/api-guide.md`, `.claude/rules/query-hooks.md`                                                                       |
 | `components` | 도메인 로직을 다루지 않는 공통 컴포넌트. `composites`(ui 로직 포함) / `primitives`(ui만, `ui` · `layout` · `animation`으로 분류). 컴포넌트 폴더 내부는 세그먼트 규칙을 따름             | `.claude/rules/component-abstract-pattern.md`, `.claude/rules/component-colocation-pattern.md`, `.claude/rules/segment-pattern.md` |
 | `hooks`      | 특정 컴포넌트에 강결합되지 않은 훅. `domain`(도메인 로직 O, 도메인별 디렉토리) / `common`(도메인 로직 X). 쿼리·뮤테이션 훅은 여기가 아니라 `api`에서 관리                               | `.claude/rules/hook-guide.md`                                                                                                      |
 | `provider`   | 전역 QueryClient(`queryClient`) · ThemeProvider(디자인 토큰, `themeProvider`) · 전역 컨텍스트(`context/{이름}Context/index.tsx`)                                                        | —                                                                                                                                  |
@@ -58,3 +58,4 @@ description: shared 레이어의 최상위 구성(api / components / hooks / pro
 - 도메인이 겹치는 상황에서는 컴포넌트를 재사용하지 않고, 도메인 로직을 훅으로 만들어 `shared/hooks/domain`으로 내려서 재사용.
 - 특정 컴포넌트 전용 컨텍스트를 `shared/provider/context`에 두지 않음.
 - 쿼리·뮤테이션 훅은 `shared/hooks`가 아니라 `shared/api`의 `queries` / `mutations`에서 관리. (`.claude/rules/query-hooks.md` 참고)
+- mock 데이터는 컴포넌트가 아니라 `shared/api/mock`에서 msw 핸들러로 관리하고, 프로덕션 코드는 `mock/`을 import하지 않음. `mock/`은 실제 API 연동 후에도 테스트용으로 유지. (`.claude/rules/api-guide.md` 참고)

@@ -1,6 +1,7 @@
 package com.knot.backend;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.startsWith;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
@@ -233,6 +234,49 @@ class KnotApplicationTests {
                         header().string(
                                 HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN,
                                 FRONTEND_ORIGIN
+                        )
+                )
+                .andExpect(
+                        header().string(
+                                HttpHeaders.ACCESS_CONTROL_ALLOW_CREDENTIALS,
+                                "true"
+                        )
+                );
+    }
+
+    @Test
+    @DisplayName("허용된 프론트 Origin의 마지막 워크스페이스 PUT preflight 요청을 허용한다")
+    void lastViewedWorkspacePreflight_success_allowedOrigin() throws Exception {
+        // given
+
+        // when
+        ResultActions result = mockMvc.perform(
+                options("/api/v1/members/me/last-viewed-workspace").header(
+                        HttpHeaders.ORIGIN,
+                        FRONTEND_ORIGIN
+                )
+                        .header(
+                                HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD,
+                                HttpMethod.PUT.name()
+                        )
+                        .header(
+                                HttpHeaders.ACCESS_CONTROL_REQUEST_HEADERS,
+                                "content-type,x-xsrf-token"
+                        )
+        );
+
+        // then
+        result.andExpect(status().isOk())
+                .andExpect(
+                        header().string(
+                                HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN,
+                                FRONTEND_ORIGIN
+                        )
+                )
+                .andExpect(
+                        header().string(
+                                HttpHeaders.ACCESS_CONTROL_ALLOW_METHODS,
+                                containsString(HttpMethod.PUT.name())
                         )
                 )
                 .andExpect(
