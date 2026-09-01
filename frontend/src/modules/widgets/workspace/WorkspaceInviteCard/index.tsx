@@ -2,6 +2,7 @@ import styled from "@emotion/styled";
 import Button from "@primitives/ui/Button";
 import Divider from "@primitives/ui/Divider";
 import Input from "@primitives/ui/Input";
+import Spinner from "@primitives/ui/Spinner";
 
 import CheckIcon from "@/assets/icons/check.svg";
 import CopyIcon from "@/assets/icons/copy.svg";
@@ -15,8 +16,9 @@ import { useWorkspaceInvite } from "./model/useWorkspaceInvite";
  * 코드 상자는 아이콘이 check로, 링크 버튼은 `복사됨`으로 잠시 바뀌어 결과를 알리고,
  * 클립보드에 쓰지 못하면 화면 변화 없이 조용히 넘어갑니다.
  *
- * 초대 API(#229)가 아직 없어 코드는 임시 상수이고, `다음`은 현재 `:workspaceId`로
- * 노션 연동(`/workspace/:workspaceId/notion-connection`)으로 이어져요.
+ * 코드와 링크는 현재 `:workspaceId`의 활성 초대 조회 응답에서 오고, 응답 전에는 복사를 막아요.
+ * 조회가 401이면 로그인으로, 403·404면 워크스페이스 선택 화면으로 돌려보냅니다.
+ * `다음`은 현재 `:workspaceId`로 노션 연동(`/workspace/:workspaceId/notion-connection`)으로 이어져요.
  *
  * 로고와 중앙 배치는 `CenteredLayout`이 맡으므로 이 카드는 자기 모양만 그려요.
  *
@@ -27,6 +29,7 @@ import { useWorkspaceInvite } from "./model/useWorkspaceInvite";
 export default function WorkspaceInviteCard() {
   const {
     inviteCode,
+    isLoading,
     isCodeCopied,
     isLinkCopied,
     displayInviteLink,
@@ -34,6 +37,8 @@ export default function WorkspaceInviteCard() {
     handleNext,
     handleCopyCode,
   } = useWorkspaceInvite();
+
+  const isInviteReady = inviteCode !== undefined;
 
   return (
     <Container>
@@ -46,11 +51,15 @@ export default function WorkspaceInviteCard() {
         <ShareOptions>
           <CodeBox
             type="button"
-            aria-label={`참여 코드 ${inviteCode} 복사`}
+            aria-label={
+              isInviteReady ? `참여 코드 ${inviteCode} 복사` : "참여 코드 복사"
+            }
+            aria-busy={isLoading}
+            disabled={!isInviteReady}
             onClick={handleCopyCode}
           >
-            <Code>{inviteCode}</Code>
-            {isCodeCopied ? <CheckIcon /> : <CopyIcon />}
+            {isLoading ? <Spinner /> : <Code>{inviteCode}</Code>}
+            {!isLoading && (isCodeCopied ? <CheckIcon /> : <CopyIcon />)}
           </CodeBox>
 
           <Divider label="또는" />
@@ -59,13 +68,15 @@ export default function WorkspaceInviteCard() {
             <LinkInput
               variant="copy"
               status="filled"
-              value={displayInviteLink}
+              value={displayInviteLink ?? ""}
               readOnly
               aria-label="초대 링크"
             />
             <CopyButton
               size="sm"
               variant={isLinkCopied ? "accent" : "filled"}
+              isLoading={isLoading}
+              disabled={!isInviteReady}
               onClick={handleCopyLink}
             >
               {isLinkCopied ? (
@@ -156,6 +167,14 @@ const CodeBox = styled.button`
     width: 1.5rem; /* 24px */
     height: 1.5rem;
     transform: translateY(-50%);
+  }
+
+  &:disabled {
+    cursor: default;
+  }
+
+  &[aria-busy="true"] {
+    cursor: progress;
   }
 
   &:focus-visible {

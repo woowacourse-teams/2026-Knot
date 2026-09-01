@@ -3,11 +3,9 @@ import { authKeys } from "@api/queryKey/auth";
 import { useQuery } from "@tanstack/react-query";
 
 /**
- * 로그인한 회원 정보를 조회합니다.
+ * 로그인한 회원의 정보(닉네임·프로필 이미지 URL)를 조회하는 쿼리 훅.
  *
- * 인증 쿠키는 `httpOnly`라 자바스크립트가 읽을 수 없어요. 그래서 로그인했는지 여부도
- * 이 조회의 성공·실패로 판단합니다. 로그인하지 않았으면 401이 오고 `error`에 담겨요.
- * 401은 `queryClient`가 재시도하지 않습니다.
+ * 홈 인사말처럼 로그인한 회원 자신을 보여주는 곳에서 써요. 인자가 없어 키도 `me` 하나예요.
  */
 const useMeQuery = () => {
   return useQuery({

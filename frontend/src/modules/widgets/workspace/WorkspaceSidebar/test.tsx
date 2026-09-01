@@ -1,19 +1,48 @@
+import { GetWorkspaceResponseDto } from "@api/dto/workspace";
+import { workspaceDetailResponse } from "@api/mock/responses/workspace";
 import { ThemeProvider } from "@emotion/react";
 import { WorkspaceSidebarProvider } from "@provider/context/workspaceSidebarContext";
 import { theme } from "@provider/themeProvider";
+import { getRouterPath, PATH_ROUTE } from "@routes/PATH_ROUTE";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import WorkspaceGnb from "@widgets/workspace/WorkspaceGnb";
+import { createMemoryRouter, RouterProvider } from "react-router";
 import { describe, expect, it } from "vitest";
 
 import WorkspaceSidebar from ".";
 
+const expected = new GetWorkspaceResponseDto(workspaceDetailResponse);
+const WORKSPACE_ID = 1;
+const HOME_PATH = getRouterPath({
+  routeKey: "WORKSPACE_HOME",
+  params: { workspaceId: String(WORKSPACE_ID) },
+});
+
 const renderSidebar = () => {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  const router = createMemoryRouter(
+    [
+      {
+        path: PATH_ROUTE.WORKSPACE_HOME,
+        element: (
+          <WorkspaceSidebarProvider>
+            <WorkspaceGnb />
+            <WorkspaceSidebar />
+          </WorkspaceSidebarProvider>
+        ),
+      },
+    ],
+    { initialEntries: [HOME_PATH] },
+  );
+
   render(
     <ThemeProvider theme={theme}>
-      <WorkspaceSidebarProvider>
-        <WorkspaceGnb />
-        <WorkspaceSidebar />
-      </WorkspaceSidebarProvider>
+      <QueryClientProvider client={queryClient}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>
     </ThemeProvider>,
   );
 
@@ -38,13 +67,13 @@ describe("WorkspaceSidebar", () => {
     renderSidebar();
 
     expect(screen.queryByRole("complementary")).not.toBeInTheDocument();
-    expect(screen.queryByText("팀 노트")).not.toBeInTheDocument();
+    expect(screen.queryByText(expected.name)).not.toBeInTheDocument();
   });
 
-  it("열리면 워크스페이스 헤더, 폴더 라벨, 임시 트리와 동기화 안내를 보여준다", () => {
+  it("열리면 조회 응답의 워크스페이스 이름, 폴더 라벨, 임시 트리와 동기화 안내를 보여준다", async () => {
     const sidebar = openSidebar();
 
-    expect(within(sidebar).getByText("팀 노트")).toBeInTheDocument();
+    expect(await within(sidebar).findByText(expected.name)).toBeInTheDocument();
     expect(within(sidebar).getByText("폴더")).toBeInTheDocument();
 
     expect(within(getFolderRow("제품")).getByText("24")).toBeInTheDocument();

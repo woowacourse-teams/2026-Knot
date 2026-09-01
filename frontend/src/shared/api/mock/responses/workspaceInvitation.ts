@@ -10,7 +10,8 @@ const DAY = 24 * 60 * 60 * 1000;
 const afterNow = (remaining: number) =>
   new Date(Date.now() + remaining).toISOString();
 
-// 위젯의 임시 상수와 같은 값이에요. API 연결 시 위젯 테스트 기대값을 이 응답으로 바꿔요
+// 초대 카드·홈 초대 카드 테스트가 이 응답을 DTO로 변환해 기대값으로 쓰고,
+// 홈 E2E(workspaceHomePage)는 code와 `/invite/<linkToken>`을 복사 기대값으로 써요
 export const workspaceInvitationResponse = {
   code: "X35D3S",
   linkToken: "Xk3vQ9mZp2LrT7wB1nHc4A",

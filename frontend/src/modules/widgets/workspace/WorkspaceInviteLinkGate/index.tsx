@@ -13,7 +13,8 @@ import { useWorkspaceInviteLinkGate } from "./model/useWorkspaceInviteLinkGate";
  * 마운트되어 있는 동안은 곧 판정 중이므로 스피너를 조건 없이 그리고,
  * 스크린리더에는 `role="status"` 안의 숨긴 문구로 확인 중임을 알려요.
  *
- * 미리보기 API(#243)가 아직 없어 짧은 지연 뒤 임시 linkToken과 비교하는 것으로 대신해요.
+ * 판정은 미리보기 조회(`GET /invitations/{token}`)로 해요. 통과하면 응답의 workspaceId로 가면서
+ * 토큰과 워크스페이스 이름을 라우터 state로 넘기고, 어떤 이유로든 실패하면 오류 화면으로 보내요.
  *
  * 로고와 중앙 배치는 `CenteredLayout`이 맡으므로 이 위젯은 스피너 자리만 잡아요.
  *

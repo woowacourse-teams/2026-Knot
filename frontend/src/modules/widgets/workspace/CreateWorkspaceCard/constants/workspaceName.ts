@@ -13,8 +13,15 @@ export const WORKSPACE_NAME_ERROR_MESSAGE =
   "한글, 영어와 공백만 사용할 수 있어요.";
 
 /**
- * 초대 화면으로 넘어갈 때 쓰는 임시 workspaceId.
+ * 생성 요청이 실패했을 때 입력창 아래에 띄울 문구.
  *
- * 워크스페이스 생성 API(#216)가 붙으면 응답의 id로 교체하고 이 상수는 지워요.
+ * 형식 오류(400)는 클라이언트 검사를 통과한 값이 서버에서 걸린 경우예요.
+ * 규칙이 어긋났다는 뜻이라 같은 문구를 다시 보여줍니다.
+ *
+ * 인증이 풀린 401은 문구 대신 로그인 화면으로 돌려보내므로 여기 없습니다.
  */
-export const TEMP_WORKSPACE_ID = "temp";
+export const WORKSPACE_SUBMIT_ERROR_MESSAGE = {
+  invalid: WORKSPACE_NAME_ERROR_MESSAGE,
+  forbidden: "보안 확인에 실패했어요. 새로고침 후 다시 시도해 주세요.",
+  unknown: "잠시 후 다시 시도해 주세요.",
+} as const;

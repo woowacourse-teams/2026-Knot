@@ -1,14 +1,25 @@
+import useCreateChatSessionMutation from "@api/mutations/useCreateChatSessionMutation";
+import useNavigateToChatSession from "@hooks/domain/chat/useNavigateToChatSession";
 import { ChangeEvent, KeyboardEvent, SubmitEvent, useState } from "react";
 import { useParams } from "react-router";
-import useNavigateToChatSession from "@hooks/domain/chat/useNavigateToChatSession";
 
+/**
+ * 질문 입력과 제출을 다룹니다.
+ *
+ * 세션 없이 들어온 새 대화에서는 첫 질문을 보낼 때 세션을 만들고 그 대화로 옮겨 갑니다.
+ * 세션이 생기기 전에는 메시지를 보낼 곳이 없기 때문입니다.
+ */
 export const useChatField = () => {
   const { workspaceId, sessionId } = useParams();
   const { navigateToChatSession } = useNavigateToChatSession();
 
+  const { mutate: createChatSession, isPending } = useCreateChatSessionMutation(
+    { workspaceId: Number(workspaceId) },
+  );
+
   const [message, setMessage] = useState("");
 
-  const canSubimt = message.trim().length > 0;
+  const canSubmit = message.trim().length > 0 && !isPending;
 
   const handleChange = (e: ChangeEvent<HTMLTextAreaElement>) =>
     setMessage(e.target.value);
@@ -23,19 +34,25 @@ export const useChatField = () => {
 
   const handleSubmit = (e: SubmitEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (message.trim().length === 0) return;
+    if (!canSubmit || !workspaceId) return;
 
-    // TODO: 메시지 전송 mutation 연결
+    // TODO: 메시지 전송 mutation 연결 (SSE)
     setMessage("");
 
-    // 첫 질문일 때. mutate 응답 대신 임시 ID로 url 이동
-    if (!workspaceId || sessionId) return;
-    navigateToChatSession({ workspaceId, sessionId: String(Date.now()) });
+    if (sessionId) return;
+
+    createChatSession(
+      {},
+      {
+        onSuccess: ({ id }) =>
+          navigateToChatSession({ workspaceId, sessionId: String(id) }),
+      },
+    );
   };
 
   return {
     message,
-    canSubimt,
+    canSubmit,
     handleChange,
     handleKeyDown,
     handleSubmit,
