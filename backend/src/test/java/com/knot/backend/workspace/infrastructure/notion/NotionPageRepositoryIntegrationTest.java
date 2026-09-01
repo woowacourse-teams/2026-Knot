@@ -139,6 +139,54 @@ class NotionPageRepositoryIntegrationTest {
                 );
     }
 
+    @DisplayName("완료되지 않은 Import Run은 공개할 수 없다")
+    @Test
+    void publishImportRun_failure_nonCompletedRun() {
+        // given
+        TestContext context = saveContext("Knot 팀");
+        long runningRunId = saveImportRun(
+                context.workspaceId(),
+                context.connectionId(),
+                context.memberId(),
+                "RUNNING"
+        );
+
+        // when
+        ThrowingCallable action = () -> publishImportRun(
+                context.workspaceId(),
+                runningRunId
+        );
+
+        // then
+        assertThatThrownBy(action).isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @DisplayName("공개된 Import Run의 완료 상태는 변경할 수 없다")
+    @Test
+    void updateImportRun_failure_publishedRunStatusChange() {
+        // given
+        TestContext context = saveContext("Knot 팀");
+        publishImportRun(
+                context.workspaceId(),
+                context.importRunId()
+        );
+
+        // when
+        ThrowingCallable action = () -> jdbcClient.sql("""
+                UPDATE notion_import_runs
+                SET status = 'FAILED'
+                WHERE id = :importRunId
+                """)
+                .param(
+                        "importRunId",
+                        context.importRunId()
+                )
+                .update();
+
+        // then
+        assertThatThrownBy(action).isInstanceOf(DataIntegrityViolationException.class);
+    }
+
     @DisplayName("부모 Page와 자식 Page의 Import Run이 다르면 저장할 수 없다")
     @Test
     void save_failure_parentImportRunMismatch() {
