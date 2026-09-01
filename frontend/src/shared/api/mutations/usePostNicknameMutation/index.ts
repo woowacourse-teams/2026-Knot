@@ -1,4 +1,4 @@
-import { postNicknameApi } from "@api/fetch/api/v1/auth/nickname";
+import { completeNicknameApi } from "@api/fetch/api/v1/auth/nickname";
 import { useMutation } from "@tanstack/react-query";
 
 /**
@@ -8,7 +8,7 @@ import { useMutation } from "@tanstack/react-query";
  */
 const usePostNicknameMutation = () => {
   return useMutation({
-    mutationFn: postNicknameApi,
+    mutationFn: completeNicknameApi,
   });
 };
 
