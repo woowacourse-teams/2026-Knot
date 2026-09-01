@@ -10,15 +10,14 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
-import com.knot.backend.workspace.application.dto.result.NotionImportRunRequestResult;
+import com.knot.backend.workspace.application.dto.result.ContentImportRunRequestResult;
+import com.knot.backend.workspace.domain.ContentImportErrorCode;
+import com.knot.backend.workspace.domain.ContentImportException;
+import com.knot.backend.workspace.domain.ContentImportRun;
+import com.knot.backend.workspace.domain.ContentImportRunRepository;
+import com.knot.backend.workspace.domain.ContentImportStatus;
 import com.knot.backend.workspace.domain.ContentSourceConnection;
 import com.knot.backend.workspace.domain.ContentSourceConnectionRepository;
-import com.knot.backend.workspace.domain.ContentSourceProvider;
-import com.knot.backend.workspace.domain.NotionImportErrorCode;
-import com.knot.backend.workspace.domain.NotionImportException;
-import com.knot.backend.workspace.domain.NotionImportRun;
-import com.knot.backend.workspace.domain.NotionImportRunRepository;
-import com.knot.backend.workspace.domain.NotionImportStatus;
 import com.knot.backend.workspace.domain.WorkspaceErrorCode;
 import com.knot.backend.workspace.domain.WorkspaceException;
 import com.knot.backend.workspace.domain.WorkspaceMemberRepository;
@@ -36,8 +35,9 @@ import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
 
-class NotionImportRetryCommandServiceTest {
+class ContentImportRetryCommandServiceTest {
     private static final Long WORKSPACE_ID = 1L;
+    private static final Long OTHER_WORKSPACE_ID = 7L;
     private static final long MEMBER_ID = 2L;
     private static final long AUTHORIZING_MEMBER_ID = 3L;
     private static final Long CONNECTION_ID = 4L;
@@ -50,12 +50,12 @@ class NotionImportRetryCommandServiceTest {
     private final ContentSourceConnectionRepository connectionRepository = mock(
             ContentSourceConnectionRepository.class
     );
-    private final NotionImportRunRepository importRunRepository = mock(NotionImportRunRepository.class);
+    private final ContentImportRunRepository importRunRepository = mock(ContentImportRunRepository.class);
     private final Clock clock = Clock.fixed(
             CREATED_AT,
             ZoneOffset.UTC
     );
-    private final NotionImportCommandService service = new NotionImportCommandService(
+    private final ContentImportCommandService service = new ContentImportCommandService(
             workspaceRepository,
             workspaceMemberRepository,
             connectionRepository,
@@ -67,24 +67,24 @@ class NotionImportRetryCommandServiceTest {
     @Test
     void retry_success_createdPendingRun() {
         // given
-        NotionImportRun originalImportRun = stubRetryableOriginalRun();
-        ContentSourceConnection connection = stubConnectedOwner();
+        ContentImportRun originalImportRun = stubRetryableOriginalRun();
+        ContentSourceConnection connection = stubOriginalConnectionOwner();
         when(importRunRepository.findActiveByContentSourceConnectionId(CONNECTION_ID)).thenReturn(Optional.empty());
-        NotionImportRun savedImportRun = mock(NotionImportRun.class);
+        ContentImportRun savedImportRun = mock(ContentImportRun.class);
         when(savedImportRun.getId()).thenReturn(NEW_IMPORT_RUN_ID);
-        when(importRunRepository.save(any(NotionImportRun.class))).thenReturn(savedImportRun);
-        ArgumentCaptor<NotionImportRun> importRunCaptor = ArgumentCaptor.forClass(NotionImportRun.class);
+        when(importRunRepository.save(any(ContentImportRun.class))).thenReturn(savedImportRun);
+        ArgumentCaptor<ContentImportRun> importRunCaptor = ArgumentCaptor.forClass(ContentImportRun.class);
         String originalSnapshot = snapshot(originalImportRun);
 
         // when
-        NotionImportRunRequestResult result = service.retry(
+        ContentImportRunRequestResult result = service.retry(
                 ORIGINAL_IMPORT_RUN_ID,
                 MEMBER_ID
         );
 
         // then
         assertThat(result).isEqualTo(
-                new NotionImportRunRequestResult(
+                new ContentImportRunRequestResult(
                         NEW_IMPORT_RUN_ID,
                         true
                 )
@@ -106,16 +106,13 @@ class NotionImportRetryCommandServiceTest {
                         WorkspaceMemberRole.OWNER
                 );
         validationOrder.verify(connectionRepository)
-                .findByWorkspaceIdAndProviderForUpdate(
-                        WORKSPACE_ID,
-                        ContentSourceProvider.NOTION
-                );
+                .findByIdForUpdate(CONNECTION_ID);
         verify(importRunRepository).save(importRunCaptor.capture());
-        NotionImportRun createdImportRun = importRunCaptor.getValue();
+        ContentImportRun createdImportRun = importRunCaptor.getValue();
         assertThat(createdImportRun.getWorkspaceId()).isEqualTo(WORKSPACE_ID);
         assertThat(createdImportRun.getContentSourceConnectionId()).isEqualTo(connection.getId());
         assertThat(createdImportRun.getRequestedByMemberId()).isEqualTo(MEMBER_ID);
-        assertThat(createdImportRun.getStatus()).isEqualTo(NotionImportStatus.PENDING);
+        assertThat(createdImportRun.getStatus()).isEqualTo(ContentImportStatus.PENDING);
         assertThat(createdImportRun.getTotalPageCount()).isNull();
         assertThat(createdImportRun.getProcessedPageCount()).isZero();
         assertThat(createdImportRun.getStartedAt()).isNull();
@@ -129,23 +126,23 @@ class NotionImportRetryCommandServiceTest {
     @Test
     void retry_success_existingActiveRun() {
         // given
-        NotionImportRun originalImportRun = stubRetryableOriginalRun();
-        stubConnectedOwner();
-        NotionImportRun activeImportRun = mock(NotionImportRun.class);
+        ContentImportRun originalImportRun = stubRetryableOriginalRun();
+        stubOriginalConnectionOwner();
+        ContentImportRun activeImportRun = mock(ContentImportRun.class);
         when(activeImportRun.getId()).thenReturn(NEW_IMPORT_RUN_ID);
         when(importRunRepository.findActiveByContentSourceConnectionId(CONNECTION_ID))
                 .thenReturn(Optional.of(activeImportRun));
         String originalSnapshot = snapshot(originalImportRun);
 
         // when
-        NotionImportRunRequestResult result = service.retry(
+        ContentImportRunRequestResult result = service.retry(
                 ORIGINAL_IMPORT_RUN_ID,
                 MEMBER_ID
         );
 
         // then
         assertThat(result).isEqualTo(
-                new NotionImportRunRequestResult(
+                new ContentImportRunRequestResult(
                         NEW_IMPORT_RUN_ID,
                         false
                 )
@@ -153,7 +150,7 @@ class NotionImportRetryCommandServiceTest {
         verify(
                 importRunRepository,
                 never()
-        ).save(any(NotionImportRun.class));
+        ).save(any(ContentImportRun.class));
         assertThat(snapshot(originalImportRun)).isEqualTo(originalSnapshot);
     }
 
@@ -170,9 +167,9 @@ class NotionImportRetryCommandServiceTest {
         Throwable thrown = catchThrowable(action);
 
         // then
-        assertThat(thrown).isInstanceOf(NotionImportException.class)
-                .extracting(exception -> ((NotionImportException) exception).getErrorCode())
-                .isEqualTo(NotionImportErrorCode.INVALID_NOTION_IMPORT_RUN_ID);
+        assertThat(thrown).isInstanceOf(ContentImportException.class)
+                .extracting(exception -> ((ContentImportException) exception).contentImportErrorCode())
+                .isEqualTo(ContentImportErrorCode.INVALID_CONTENT_IMPORT_RUN_ID);
         verifyNoInteractions(
                 workspaceRepository,
                 workspaceMemberRepository,
@@ -200,9 +197,9 @@ class NotionImportRetryCommandServiceTest {
         Throwable thrown = catchThrowable(action);
 
         // then
-        assertThat(thrown).isInstanceOf(NotionImportException.class)
-                .extracting(exception -> ((NotionImportException) exception).getErrorCode())
-                .isEqualTo(NotionImportErrorCode.NOTION_IMPORT_RUN_NOT_FOUND);
+        assertThat(thrown).isInstanceOf(ContentImportException.class)
+                .extracting(exception -> ((ContentImportException) exception).contentImportErrorCode())
+                .isEqualTo(ContentImportErrorCode.CONTENT_IMPORT_RUN_NOT_FOUND);
         verifyNoInteractions(
                 workspaceRepository,
                 workspaceMemberRepository,
@@ -211,14 +208,14 @@ class NotionImportRetryCommandServiceTest {
         verify(
                 importRunRepository,
                 never()
-        ).save(any(NotionImportRun.class));
+        ).save(any(ContentImportRun.class));
     }
 
     @DisplayName("현재 MEMBER는 원본 Run을 볼 수 있어도 재시도할 수 없다")
     @Test
     void retry_failure_ownerRequired() {
         // given
-        NotionImportRun originalImportRun = failedImportRun();
+        ContentImportRun originalImportRun = failedImportRun();
         when(
                 importRunRepository.findVisibleByIdAndMemberId(
                         ORIGINAL_IMPORT_RUN_ID,
@@ -255,11 +252,11 @@ class NotionImportRetryCommandServiceTest {
     }
 
     @DisplayName("FAILED가 아닌 원본 Run은 Connection을 조회하기 전에 재시도를 거부한다")
-    @EnumSource(value = NotionImportStatus.class, names = "FAILED", mode = EnumSource.Mode.EXCLUDE)
+    @EnumSource(value = ContentImportStatus.class, names = "FAILED", mode = EnumSource.Mode.EXCLUDE)
     @ParameterizedTest(name = "{0}")
-    void retry_failure_originalImportRunNotRetryable(NotionImportStatus status) {
+    void retry_failure_originalImportRunNotRetryable(ContentImportStatus status) {
         // given
-        NotionImportRun originalImportRun = importRun(status);
+        ContentImportRun originalImportRun = importRun(status);
         when(
                 importRunRepository.findVisibleByIdAndMemberId(
                         ORIGINAL_IMPORT_RUN_ID,
@@ -282,9 +279,9 @@ class NotionImportRetryCommandServiceTest {
         Throwable thrown = catchThrowable(action);
 
         // then
-        assertThat(thrown).isInstanceOf(NotionImportException.class)
-                .extracting(exception -> ((NotionImportException) exception).getErrorCode())
-                .isEqualTo(NotionImportErrorCode.NOTION_IMPORT_NOT_RETRYABLE);
+        assertThat(thrown).isInstanceOf(ContentImportException.class)
+                .extracting(exception -> ((ContentImportException) exception).contentImportErrorCode())
+                .isEqualTo(ContentImportErrorCode.CONTENT_IMPORT_NOT_RETRYABLE);
         verifyNoInteractions(
                 workspaceRepository,
                 connectionRepository
@@ -295,17 +292,12 @@ class NotionImportRetryCommandServiceTest {
         ).findActiveByContentSourceConnectionId(any());
     }
 
-    @DisplayName("Notion Connection이 없으면 FAILED 원본을 보존하고 재시도를 거부한다")
+    @DisplayName("원본 Run의 Content Source Connection이 없으면 원본을 보존하고 재시도를 거부한다")
     @Test
-    void retry_failure_notionConnectionNotConnected() {
+    void retry_failure_contentSourceConnectionNotConnected() {
         // given
-        NotionImportRun originalImportRun = stubRetryableOriginalRun();
-        when(
-                connectionRepository.findByWorkspaceIdAndProviderForUpdate(
-                        WORKSPACE_ID,
-                        ContentSourceProvider.NOTION
-                )
-        ).thenReturn(Optional.empty());
+        ContentImportRun originalImportRun = stubRetryableOriginalRun();
+        when(connectionRepository.findByIdForUpdate(CONNECTION_ID)).thenReturn(Optional.empty());
         String originalSnapshot = snapshot(originalImportRun);
         ThrowingCallable action = () -> service.retry(
                 ORIGINAL_IMPORT_RUN_ID,
@@ -316,9 +308,36 @@ class NotionImportRetryCommandServiceTest {
         Throwable thrown = catchThrowable(action);
 
         // then
-        assertThat(thrown).isInstanceOf(NotionImportException.class)
-                .extracting(exception -> ((NotionImportException) exception).getErrorCode())
-                .isEqualTo(NotionImportErrorCode.NOTION_CONNECTION_NOT_CONNECTED);
+        assertThat(thrown).isInstanceOf(ContentImportException.class)
+                .extracting(exception -> ((ContentImportException) exception).contentImportErrorCode())
+                .isEqualTo(ContentImportErrorCode.CONTENT_SOURCE_CONNECTION_NOT_CONNECTED);
+        assertThat(snapshot(originalImportRun)).isEqualTo(originalSnapshot);
+        verify(
+                importRunRepository,
+                never()
+        ).findActiveByContentSourceConnectionId(any());
+    }
+
+    @DisplayName("원본 Run과 Connection의 Workspace가 다르면 잘못된 Run으로 처리한다")
+    @Test
+    void retry_failure_contentSourceConnectionWorkspaceMismatch() {
+        // given
+        ContentImportRun originalImportRun = stubRetryableOriginalRun();
+        ContentSourceConnection connection = connection(OTHER_WORKSPACE_ID);
+        when(connectionRepository.findByIdForUpdate(CONNECTION_ID)).thenReturn(Optional.of(connection));
+        String originalSnapshot = snapshot(originalImportRun);
+        ThrowingCallable action = () -> service.retry(
+                ORIGINAL_IMPORT_RUN_ID,
+                MEMBER_ID
+        );
+
+        // when
+        Throwable thrown = catchThrowable(action);
+
+        // then
+        assertThat(thrown).isInstanceOf(ContentImportException.class)
+                .extracting(exception -> ((ContentImportException) exception).contentImportErrorCode())
+                .isEqualTo(ContentImportErrorCode.INVALID_CONTENT_IMPORT_RUN);
         assertThat(snapshot(originalImportRun)).isEqualTo(originalSnapshot);
         verify(
                 importRunRepository,
@@ -328,16 +347,11 @@ class NotionImportRetryCommandServiceTest {
 
     @DisplayName("Connection 승인자가 현재 OWNER가 아니면 FAILED 원본을 보존하고 재인증 오류를 반환한다")
     @Test
-    void retry_failure_notionConnectionReauthenticationRequired() {
+    void retry_failure_contentSourceConnectionReauthenticationRequired() {
         // given
-        NotionImportRun originalImportRun = stubRetryableOriginalRun();
+        ContentImportRun originalImportRun = stubRetryableOriginalRun();
         ContentSourceConnection connection = connection();
-        when(
-                connectionRepository.findByWorkspaceIdAndProviderForUpdate(
-                        WORKSPACE_ID,
-                        ContentSourceProvider.NOTION
-                )
-        ).thenReturn(Optional.of(connection));
+        when(connectionRepository.findByIdForUpdate(CONNECTION_ID)).thenReturn(Optional.of(connection));
         when(
                 workspaceMemberRepository.existsByWorkspaceIdAndMemberIdAndRole(
                         WORKSPACE_ID,
@@ -355,9 +369,9 @@ class NotionImportRetryCommandServiceTest {
         Throwable thrown = catchThrowable(action);
 
         // then
-        assertThat(thrown).isInstanceOf(NotionImportException.class)
-                .extracting(exception -> ((NotionImportException) exception).getErrorCode())
-                .isEqualTo(NotionImportErrorCode.NOTION_CONNECTION_REAUTHENTICATION_REQUIRED);
+        assertThat(thrown).isInstanceOf(ContentImportException.class)
+                .extracting(exception -> ((ContentImportException) exception).contentImportErrorCode())
+                .isEqualTo(ContentImportErrorCode.CONTENT_SOURCE_CONNECTION_REAUTHENTICATION_REQUIRED);
         assertThat(snapshot(originalImportRun)).isEqualTo(originalSnapshot);
         verify(
                 importRunRepository,
@@ -365,8 +379,8 @@ class NotionImportRetryCommandServiceTest {
         ).findActiveByContentSourceConnectionId(any());
     }
 
-    private NotionImportRun stubRetryableOriginalRun() {
-        NotionImportRun originalImportRun = failedImportRun();
+    private ContentImportRun stubRetryableOriginalRun() {
+        ContentImportRun originalImportRun = failedImportRun();
         when(
                 importRunRepository.findVisibleByIdAndMemberId(
                         ORIGINAL_IMPORT_RUN_ID,
@@ -383,14 +397,9 @@ class NotionImportRetryCommandServiceTest {
         return originalImportRun;
     }
 
-    private ContentSourceConnection stubConnectedOwner() {
+    private ContentSourceConnection stubOriginalConnectionOwner() {
         ContentSourceConnection connection = connection();
-        when(
-                connectionRepository.findByWorkspaceIdAndProviderForUpdate(
-                        WORKSPACE_ID,
-                        ContentSourceProvider.NOTION
-                )
-        ).thenReturn(Optional.of(connection));
+        when(connectionRepository.findByIdForUpdate(CONNECTION_ID)).thenReturn(Optional.of(connection));
         when(
                 workspaceMemberRepository.existsByWorkspaceIdAndMemberIdAndRole(
                         WORKSPACE_ID,
@@ -402,18 +411,22 @@ class NotionImportRetryCommandServiceTest {
     }
 
     private ContentSourceConnection connection() {
+        return connection(WORKSPACE_ID);
+    }
+
+    private ContentSourceConnection connection(Long workspaceId) {
         ContentSourceConnection connection = mock(ContentSourceConnection.class);
         when(connection.getId()).thenReturn(CONNECTION_ID);
-        when(connection.getWorkspaceId()).thenReturn(WORKSPACE_ID);
+        when(connection.getWorkspaceId()).thenReturn(workspaceId);
         when(connection.getAuthorizingMemberId()).thenReturn(AUTHORIZING_MEMBER_ID);
         return connection;
     }
 
-    private NotionImportRun failedImportRun() {
-        return importRun(NotionImportStatus.FAILED);
+    private ContentImportRun failedImportRun() {
+        return importRun(ContentImportStatus.FAILED);
     }
 
-    private NotionImportRun importRun(NotionImportStatus status) {
+    private ContentImportRun importRun(ContentImportStatus status) {
         Instant startedAt = switch (status) {
             case PENDING -> null;
             case RUNNING, COMPLETED, FAILED -> CREATED_AT.minusSeconds(2);
@@ -422,7 +435,7 @@ class NotionImportRetryCommandServiceTest {
             case PENDING, RUNNING -> null;
             case COMPLETED, FAILED -> CREATED_AT.minusSeconds(1);
         };
-        return NotionImportRun.create(
+        return ContentImportRun.create(
                 WORKSPACE_ID,
                 CONNECTION_ID,
                 AUTHORIZING_MEMBER_ID,
@@ -435,7 +448,7 @@ class NotionImportRetryCommandServiceTest {
         );
     }
 
-    private String snapshot(NotionImportRun importRun) {
+    private String snapshot(ContentImportRun importRun) {
         return "%s|%s|%s|%s|%s|%s|%s|%s".formatted(
                 importRun.getWorkspaceId(),
                 importRun.getContentSourceConnectionId(),

@@ -62,7 +62,7 @@ class NotionImportRetryAcceptanceTest {
     @BeforeEach
     void clearTables() {
         jdbcClient.sql("""
-                TRUNCATE TABLE notion_pages, notion_import_runs, content_source_connections,
+                TRUNCATE TABLE imported_pages, content_import_runs, content_source_connections,
                     content_source_authorizations, workspace_members, workspaces, oauth_identities, members
                 RESTART IDENTITY CASCADE
                 """)
@@ -180,7 +180,8 @@ class NotionImportRetryAcceptanceTest {
 
         // then
         result.andExpect(status().isConflict())
-                .andExpect(jsonPath("$.code").value("NOTION_IMPORT_NOT_RETRYABLE"));
+                .andExpect(jsonPath("$.code").value("NOTION_IMPORT_NOT_RETRYABLE"))
+                .andExpect(jsonPath("$.message").value("실패한 Notion Import만 재시도할 수 있습니다"));
         assertThat(importRunSnapshot(originalImportRunId)).isEqualTo(originalSnapshot);
         assertThat(importRunCount()).isOne();
     }
@@ -286,6 +287,10 @@ class NotionImportRetryAcceptanceTest {
                 missingBody.get("code")
                         .asText()
         ).isEqualTo("NOTION_IMPORT_RUN_NOT_FOUND");
+        assertThat(
+                missingBody.get("message")
+                        .asText()
+        ).isEqualTo("Notion Import 실행을 찾을 수 없습니다");
         assertThat(importRunSnapshot(otherImportRunId)).isEqualTo(otherSnapshot);
         assertThat(importRunCount()).isOne();
     }
@@ -309,7 +314,8 @@ class NotionImportRetryAcceptanceTest {
 
         // then
         result.andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value("INVALID_NOTION_IMPORT_RUN_ID"));
+                .andExpect(jsonPath("$.code").value("INVALID_NOTION_IMPORT_RUN_ID"))
+                .andExpect(jsonPath("$.message").value("Notion Import 실행 ID가 올바르지 않습니다"));
         assertThat(importRunCount()).isZero();
     }
 
@@ -420,7 +426,8 @@ class NotionImportRetryAcceptanceTest {
 
         // then
         result.andExpect(status().isConflict())
-                .andExpect(jsonPath("$.code").value("NOTION_CONNECTION_REAUTHENTICATION_REQUIRED"));
+                .andExpect(jsonPath("$.code").value("NOTION_CONNECTION_REAUTHENTICATION_REQUIRED"))
+                .andExpect(jsonPath("$.message").value("Notion 연결 재인증이 필요합니다"));
         assertThat(importRunSnapshot(originalImportRunId)).isEqualTo(originalSnapshot);
         assertThat(importRunCount()).isOne();
     }
@@ -606,7 +613,7 @@ class NotionImportRetryAcceptanceTest {
             default -> throw new IllegalArgumentException("지원하지 않는 Import 상태입니다");
         };
         return jdbcClient.sql("""
-                INSERT INTO notion_import_runs (
+                INSERT INTO content_import_runs (
                     workspace_id,
                     content_source_connection_id,
                     requested_by_member_id,
@@ -682,7 +689,7 @@ class NotionImportRetryAcceptanceTest {
                     COALESCE(started_at::text, 'null'),
                     COALESCE(completed_at::text, 'null')
                 )
-                FROM notion_import_runs
+                FROM content_import_runs
                 WHERE id = :importRunId
                 """)
                 .param(
@@ -696,7 +703,7 @@ class NotionImportRetryAcceptanceTest {
     private long activeImportRunId(long connectionId) {
         return jdbcClient.sql("""
                 SELECT id
-                FROM notion_import_runs
+                FROM content_import_runs
                 WHERE content_source_connection_id = :connectionId
                     AND status IN ('PENDING', 'RUNNING')
                 """)
@@ -709,7 +716,7 @@ class NotionImportRetryAcceptanceTest {
     }
 
     private long importRunCount() {
-        return jdbcClient.sql("SELECT COUNT(*) FROM notion_import_runs")
+        return jdbcClient.sql("SELECT COUNT(*) FROM content_import_runs")
                 .query(Long.class)
                 .single();
     }
