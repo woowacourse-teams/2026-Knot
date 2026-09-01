@@ -1,5 +1,6 @@
 import styled from "@emotion/styled";
 import GithubLoginButton from "@features/auth/GithubLoginButton";
+import OAuthErrorNotice from "@features/auth/OAuthErrorNotice";
 import Spacing from "@primitives/layout/Spacing";
 import Stack from "@primitives/layout/Stack";
 
@@ -22,6 +23,7 @@ export default function LoginPage() {
       <Spacing size={4.5} />
 
       <Actions>
+        <OAuthErrorNotice />
         <GithubLoginButton />
         <Spacing size={1} />
         <Terms>
