@@ -32,6 +32,9 @@ public class WorkspaceMember {
     @Column(name = "joined_at", nullable = false, updatable = false)
     private Instant joinedAt;
 
+    @Column(name = "last_viewed", nullable = false)
+    private boolean lastViewed;
+
     protected WorkspaceMember() {}
 
     private WorkspaceMember(
@@ -48,6 +51,7 @@ public class WorkspaceMember {
         this.memberId = memberId;
         this.role = role;
         this.joinedAt = joinedAt;
+        this.lastViewed = false;
     }
 
     public static WorkspaceMember create(
@@ -62,6 +66,14 @@ public class WorkspaceMember {
                 role,
                 joinedAt
         );
+    }
+
+    public void markLastViewed() {
+        lastViewed = true;
+    }
+
+    public void clearLastViewed() {
+        lastViewed = false;
     }
 
     private void validateWorkspaceId(Long workspaceId) {

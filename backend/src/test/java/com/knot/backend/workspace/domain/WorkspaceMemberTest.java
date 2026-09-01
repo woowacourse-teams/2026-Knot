@@ -31,6 +31,44 @@ class WorkspaceMemberTest {
         assertThat(workspaceMember.getMemberId()).isEqualTo(memberId);
         assertThat(workspaceMember.getRole()).isEqualTo(WorkspaceMemberRole.OWNER);
         assertThat(workspaceMember.getJoinedAt()).isEqualTo(JOINED_AT);
+        assertThat(workspaceMember.isLastViewed()).isFalse();
+    }
+
+    @DisplayName("마지막으로 본 워크스페이스 멤버십으로 표시한다")
+    @Test
+    void markLastViewed_success() {
+        // given
+        WorkspaceMember workspaceMember = WorkspaceMember.create(
+                1L,
+                2L,
+                WorkspaceMemberRole.OWNER,
+                JOINED_AT
+        );
+
+        // when
+        workspaceMember.markLastViewed();
+
+        // then
+        assertThat(workspaceMember.isLastViewed()).isTrue();
+    }
+
+    @DisplayName("마지막으로 본 워크스페이스 멤버십 표시를 해제한다")
+    @Test
+    void clearLastViewed_success() {
+        // given
+        WorkspaceMember workspaceMember = WorkspaceMember.create(
+                1L,
+                2L,
+                WorkspaceMemberRole.OWNER,
+                JOINED_AT
+        );
+        workspaceMember.markLastViewed();
+
+        // when
+        workspaceMember.clearLastViewed();
+
+        // then
+        assertThat(workspaceMember.isLastViewed()).isFalse();
     }
 
     @DisplayName("워크스페이스 ID가 양수가 아니면 멤버십 생성을 거부한다")
