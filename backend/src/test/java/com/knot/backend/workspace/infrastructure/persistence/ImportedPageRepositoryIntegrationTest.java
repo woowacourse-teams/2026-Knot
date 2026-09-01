@@ -1,13 +1,13 @@
-package com.knot.backend.workspace.infrastructure.notion;
+package com.knot.backend.workspace.infrastructure.persistence;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.tuple;
 
 import com.knot.backend.testsupport.TestcontainersConfiguration;
-import com.knot.backend.workspace.domain.NotionPage;
-import com.knot.backend.workspace.domain.NotionPageMetadata;
-import com.knot.backend.workspace.domain.NotionPageRepository;
+import com.knot.backend.workspace.domain.ImportedPage;
+import com.knot.backend.workspace.domain.ImportedPageMetadata;
+import com.knot.backend.workspace.domain.ImportedPageRepository;
 import jakarta.persistence.EntityManager;
 import java.time.Instant;
 import java.util.List;
@@ -23,16 +23,16 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.simple.JdbcClient;
 
 @Tag("integration")
-@Import({TestcontainersConfiguration.class, NotionPageRepositoryAdapter.class})
+@Import({TestcontainersConfiguration.class, ImportedPageRepositoryAdapter.class})
 @DataJpaTest(properties = "spring.jpa.properties.hibernate.session_factory.statement_inspector="
-        + "com.knot.backend.workspace.infrastructure.notion.NotionPageQueryStatementInspector")
-class NotionPageRepositoryIntegrationTest {
+        + "com.knot.backend.workspace.infrastructure.persistence.ImportedPageQueryStatementInspector")
+class ImportedPageRepositoryIntegrationTest {
     private static final Instant CREATED_AT = Instant.parse("2026-08-31T00:00:00Z");
 
     @Autowired
-    private NotionPageRepository notionPageRepository;
+    private ImportedPageRepository importedPageRepository;
     @Autowired
-    private NotionPageJpaRepository notionPageJpaRepository;
+    private ImportedPageJpaRepository importedPageJpaRepository;
     @Autowired
     private EntityManager entityManager;
     @Autowired
@@ -40,7 +40,7 @@ class NotionPageRepositoryIntegrationTest {
 
     @BeforeEach
     void clearCapturedSql() {
-        NotionPageQueryStatementInspector.clear();
+        ImportedPageQueryStatementInspector.clear();
     }
 
     @DisplayName("발행된 Import Run의 Page metadata만 position과 ID 오름차순으로 조회한다")
@@ -55,7 +55,7 @@ class NotionPageRepositoryIntegrationTest {
                 context.memberId(),
                 "RUNNING"
         );
-        NotionPage firstPage = savePage(
+        ImportedPage firstPage = savePage(
                 context.workspaceId(),
                 context.importRunId(),
                 "first",
@@ -63,7 +63,7 @@ class NotionPageRepositoryIntegrationTest {
                 "첫 Page",
                 0
         );
-        NotionPage tiedPage = savePage(
+        ImportedPage tiedPage = savePage(
                 context.workspaceId(),
                 context.importRunId(),
                 "tied",
@@ -71,11 +71,11 @@ class NotionPageRepositoryIntegrationTest {
                 "같은 순서 Page",
                 0
         );
-        NotionPage lastPage = savePage(
+        ImportedPage lastPage = savePage(
                 context.workspaceId(),
                 context.importRunId(),
                 "last",
-                firstPage.getId(),
+                firstPage.getExternalPageId(),
                 "마지막 Page",
                 2
         );
@@ -107,15 +107,15 @@ class NotionPageRepositoryIntegrationTest {
         entityManager.clear();
 
         // when
-        List<NotionPageMetadata> result = notionPageRepository
+        List<ImportedPageMetadata> result = importedPageRepository
                 .findPublishedMetadataByWorkspaceIdOrderByPositionAscIdAsc(context.workspaceId());
 
         // then
         assertThat(result).extracting(
-                NotionPageMetadata::id,
-                NotionPageMetadata::title,
-                NotionPageMetadata::parentPageId,
-                NotionPageMetadata::position
+                ImportedPageMetadata::id,
+                ImportedPageMetadata::title,
+                ImportedPageMetadata::parentId,
+                ImportedPageMetadata::position
         )
                 .containsExactly(
                         tuple(
@@ -173,7 +173,7 @@ class NotionPageRepositoryIntegrationTest {
 
         // when
         ThrowingCallable action = () -> jdbcClient.sql("""
-                UPDATE notion_import_runs
+                UPDATE content_import_runs
                 SET status = 'FAILED'
                 WHERE id = :importRunId
                 """)
@@ -198,7 +198,7 @@ class NotionPageRepositoryIntegrationTest {
                 context.memberId(),
                 "RUNNING"
         );
-        NotionPage parentPage = savePage(
+        ImportedPage parentPage = savePage(
                 context.workspaceId(),
                 context.importRunId(),
                 "parent",
@@ -207,17 +207,17 @@ class NotionPageRepositoryIntegrationTest {
                 0
         );
         entityManager.flush();
-        NotionPage childPage = notionPage(
+        ImportedPage childPage = importedPage(
                 context.workspaceId(),
                 runningRunId,
                 "child",
-                parentPage.getId(),
+                parentPage.getExternalPageId(),
                 "자식",
                 0
         );
 
         // when
-        ThrowingCallable action = () -> notionPageJpaRepository.saveAndFlush(childPage);
+        ThrowingCallable action = () -> importedPageJpaRepository.saveAndFlush(childPage);
 
         // then
         assertThatThrownBy(action).isInstanceOf(DataIntegrityViolationException.class);
@@ -229,7 +229,7 @@ class NotionPageRepositoryIntegrationTest {
         // given
         TestContext context = saveContext("Knot 팀");
         TestContext otherContext = saveContext("다른 팀");
-        NotionPage parentPage = savePage(
+        ImportedPage parentPage = savePage(
                 context.workspaceId(),
                 context.importRunId(),
                 "parent",
@@ -238,17 +238,17 @@ class NotionPageRepositoryIntegrationTest {
                 0
         );
         entityManager.flush();
-        NotionPage childPage = notionPage(
+        ImportedPage childPage = importedPage(
                 otherContext.workspaceId(),
                 otherContext.importRunId(),
                 "child",
-                parentPage.getId(),
+                parentPage.getExternalPageId(),
                 "자식",
                 0
         );
 
         // when
-        ThrowingCallable action = () -> notionPageJpaRepository.saveAndFlush(childPage);
+        ThrowingCallable action = () -> importedPageJpaRepository.saveAndFlush(childPage);
 
         // then
         assertThatThrownBy(action).isInstanceOf(DataIntegrityViolationException.class);
@@ -259,17 +259,17 @@ class NotionPageRepositoryIntegrationTest {
     void save_failure_missingParent() {
         // given
         TestContext context = saveContext("Knot 팀");
-        NotionPage childPage = notionPage(
+        ImportedPage childPage = importedPage(
                 context.workspaceId(),
                 context.importRunId(),
                 "child",
-                Long.MAX_VALUE,
+                "missing-parent",
                 "자식",
                 0
         );
 
         // when
-        ThrowingCallable action = () -> notionPageJpaRepository.saveAndFlush(childPage);
+        ThrowingCallable action = () -> importedPageJpaRepository.saveAndFlush(childPage);
 
         // then
         assertThatThrownBy(action).isInstanceOf(DataIntegrityViolationException.class);
@@ -279,14 +279,14 @@ class NotionPageRepositoryIntegrationTest {
     @Test
     void schema_success_constraintsAndQueryIndex() {
         // given
-        String indexName = "idx_notion_pages_workspace_run_order";
+        String indexName = "idx_imported_pages_workspace_run_order";
 
         // when
         String indexDefinition = jdbcClient.sql("""
                 SELECT indexdef
                 FROM pg_indexes
                 WHERE schemaname = current_schema()
-                    AND tablename = 'notion_pages'
+                    AND tablename = 'imported_pages'
                     AND indexname = :indexName
                 """)
                 .param(
@@ -320,100 +320,100 @@ class NotionPageRepositoryIntegrationTest {
         );
         entityManager.flush();
         entityManager.clear();
-        NotionPageQueryStatementInspector.clear();
+        ImportedPageQueryStatementInspector.clear();
 
         // when
-        List<NotionPageMetadata> result = notionPageRepository
+        List<ImportedPageMetadata> result = importedPageRepository
                 .findPublishedMetadataByWorkspaceIdOrderByPositionAscIdAsc(context.workspaceId());
 
         // then
         assertThat(result).singleElement()
-                .extracting(NotionPageMetadata::title)
+                .extracting(ImportedPageMetadata::title)
                 .isEqualTo("큰 본문 Page");
-        assertThat(NotionPageQueryStatementInspector.selectsFromNotionPages()).singleElement()
+        assertThat(ImportedPageQueryStatementInspector.selectsFromImportedPages()).singleElement()
                 .asString()
                 .doesNotContainIgnoringCase("markdown_content");
     }
 
-    private NotionPage savePage(
+    private ImportedPage savePage(
             long workspaceId,
             long importRunId,
-            String notionPageId,
-            Long parentPageId,
+            String externalPageId,
+            String parentExternalPageId,
             String title,
             int position
     ) {
         return savePage(
                 workspaceId,
                 importRunId,
-                notionPageId,
-                parentPageId,
+                externalPageId,
+                parentExternalPageId,
                 title,
                 "# " + title,
                 position
         );
     }
 
-    private NotionPage savePage(
+    private ImportedPage savePage(
             long workspaceId,
             long importRunId,
-            String notionPageId,
-            Long parentPageId,
+            String externalPageId,
+            String parentExternalPageId,
             String title,
             String markdownContent,
             int position
     ) {
-        NotionPage notionPage = notionPage(
+        ImportedPage importedPage = importedPage(
                 workspaceId,
                 importRunId,
-                notionPageId,
-                parentPageId,
+                externalPageId,
+                parentExternalPageId,
                 title,
                 markdownContent,
                 position
         );
-        entityManager.persist(notionPage);
+        entityManager.persist(importedPage);
         entityManager.flush();
-        return notionPage;
+        return importedPage;
     }
 
-    private NotionPage notionPage(
+    private ImportedPage importedPage(
             long workspaceId,
             long importRunId,
-            String notionPageId,
-            Long parentPageId,
+            String externalPageId,
+            String parentExternalPageId,
             String title,
             int position
     ) {
-        return notionPage(
+        return importedPage(
                 workspaceId,
                 importRunId,
-                notionPageId,
-                parentPageId,
+                externalPageId,
+                parentExternalPageId,
                 title,
                 "# " + title,
                 position
         );
     }
 
-    private NotionPage notionPage(
+    private ImportedPage importedPage(
             long workspaceId,
             long importRunId,
-            String notionPageId,
-            Long parentPageId,
+            String externalPageId,
+            String parentExternalPageId,
             String title,
             String markdownContent,
             int position
     ) {
-        return NotionPage.create(
+        return ImportedPage.create(
                 workspaceId,
                 importRunId,
-                notionPageId,
-                parentPageId,
+                externalPageId,
+                parentExternalPageId,
                 title,
                 markdownContent,
                 position,
-                "https://www.notion.so/" + notionPageId,
+                "https://content.example/pages/" + externalPageId,
                 CREATED_AT,
                 CREATED_AT
         );
@@ -566,7 +566,7 @@ class NotionPageRepositoryIntegrationTest {
             String status
     ) {
         return jdbcClient.sql("""
-                INSERT INTO notion_import_runs (
+                INSERT INTO content_import_runs (
                     workspace_id,
                     content_source_connection_id,
                     requested_by_member_id,
@@ -630,7 +630,7 @@ class NotionPageRepositoryIntegrationTest {
             long importRunId
     ) {
         jdbcClient.sql("""
-                INSERT INTO notion_page_publications (workspace_id, published_import_run_id, published_at)
+                INSERT INTO imported_page_publications (workspace_id, published_import_run_id, published_at)
                 VALUES (:workspaceId, :importRunId, CAST(:publishedAt AS TIMESTAMPTZ))
                 """)
                 .param(

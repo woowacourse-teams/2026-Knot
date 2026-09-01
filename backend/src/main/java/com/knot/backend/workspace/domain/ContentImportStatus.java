@@ -1,6 +1,6 @@
 package com.knot.backend.workspace.domain;
 
-public enum NotionImportStatus {
+public enum ContentImportStatus {
     PENDING,
     RUNNING,
     COMPLETED,

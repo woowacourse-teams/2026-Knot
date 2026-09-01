@@ -11,11 +11,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.knot.backend.auth.domain.AuthenticatedMember;
 import com.knot.backend.global.exception.GlobalExceptionHandler;
-import com.knot.backend.workspace.application.NotionImportQueryService;
-import com.knot.backend.workspace.application.dto.result.NotionImportStatusResult;
-import com.knot.backend.workspace.domain.NotionImportErrorCode;
-import com.knot.backend.workspace.domain.NotionImportException;
-import com.knot.backend.workspace.domain.NotionImportStatus;
+import com.knot.backend.workspace.application.ContentImportQueryService;
+import com.knot.backend.workspace.application.dto.result.ContentImportStatusResult;
+import com.knot.backend.workspace.domain.ContentImportErrorCode;
+import com.knot.backend.workspace.domain.ContentImportException;
+import com.knot.backend.workspace.domain.ContentImportStatus;
 import java.time.Instant;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
@@ -34,12 +34,12 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 class NotionImportControllerTest {
     private static final Instant CREATED_AT = Instant.parse("2026-08-31T00:00:00Z");
 
-    private NotionImportQueryService importQueryService;
+    private ContentImportQueryService importQueryService;
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
-        importQueryService = mock(NotionImportQueryService.class);
+        importQueryService = mock(ContentImportQueryService.class);
         mockMvc = MockMvcBuilders.standaloneSetup(new NotionImportController(importQueryService))
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .setCustomArgumentResolvers(new AuthenticationPrincipalArgumentResolver())
@@ -63,12 +63,11 @@ class NotionImportControllerTest {
                         10L
                 )
         ).thenReturn(
-                new NotionImportStatusResult(
+                new ContentImportStatusResult(
                         1L,
-                        NotionImportStatus.RUNNING,
+                        ContentImportStatus.RUNNING,
                         10,
                         4,
-                        null,
                         CREATED_AT,
                         CREATED_AT.plusSeconds(1),
                         null
@@ -105,6 +104,40 @@ class NotionImportControllerTest {
         );
     }
 
+    @DisplayName("실패한 Import 상태는 기존 Notion 공개 실패 사유를 반환한다")
+    @Test
+    void status_success_failedReasonCompatibility() throws Exception {
+        // given
+        when(
+                importQueryService.findStatus(
+                        1L,
+                        10L
+                )
+        ).thenReturn(
+                new ContentImportStatusResult(
+                        1L,
+                        ContentImportStatus.FAILED,
+                        10,
+                        4,
+                        CREATED_AT,
+                        CREATED_AT.plusSeconds(1),
+                        CREATED_AT.plusSeconds(2)
+                )
+        );
+
+        // when
+        ResultActions result = mockMvc.perform(
+                get(
+                        "/api/v1/imports/{importRunId}",
+                        1L
+                )
+        );
+
+        // then
+        result.andExpect(status().isOk())
+                .andExpect(jsonPath("$.failureReason").value("Notion 문서를 가져오지 못했습니다"));
+    }
+
     @DisplayName("Import Run ID 형식이 잘못되면 INVALID_PARAMETER 400을 반환한다")
     @Test
     void status_failure_invalidImportRunIdType() throws Exception {
@@ -135,7 +168,7 @@ class NotionImportControllerTest {
                         1L,
                         10L
                 )
-        ).thenThrow(new NotionImportException(NotionImportErrorCode.NOTION_IMPORT_RUN_NOT_FOUND));
+        ).thenThrow(new ContentImportException(ContentImportErrorCode.CONTENT_IMPORT_RUN_NOT_FOUND));
 
         // when
         ResultActions result = mockMvc.perform(

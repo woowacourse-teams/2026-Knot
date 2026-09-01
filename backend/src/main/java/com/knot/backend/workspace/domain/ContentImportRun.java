@@ -13,10 +13,8 @@ import lombok.Getter;
 
 @Getter
 @Entity
-@Table(name = "notion_import_runs")
-public class NotionImportRun {
-    private static final String PUBLIC_FAILURE_REASON = "Notion 문서를 가져오지 못했습니다";
-
+@Table(name = "content_import_runs")
+public class ContentImportRun {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -32,7 +30,7 @@ public class NotionImportRun {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 10)
-    private NotionImportStatus status;
+    private ContentImportStatus status;
 
     @Column(name = "total_page_count")
     private Integer totalPageCount;
@@ -49,13 +47,13 @@ public class NotionImportRun {
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
-    protected NotionImportRun() {}
+    protected ContentImportRun() {}
 
-    private NotionImportRun(
+    private ContentImportRun(
             Long workspaceId,
             Long contentSourceConnectionId,
             Long requestedByMemberId,
-            NotionImportStatus status,
+            ContentImportStatus status,
             Integer totalPageCount,
             int processedPageCount,
             Instant startedAt,
@@ -87,18 +85,18 @@ public class NotionImportRun {
         this.createdAt = createdAt;
     }
 
-    public static NotionImportRun create(
+    public static ContentImportRun create(
             Long workspaceId,
             Long contentSourceConnectionId,
             Long requestedByMemberId,
-            NotionImportStatus status,
+            ContentImportStatus status,
             Integer totalPageCount,
             int processedPageCount,
             Instant startedAt,
             Instant completedAt,
             Instant createdAt
     ) {
-        return new NotionImportRun(
+        return new ContentImportRun(
                 workspaceId,
                 contentSourceConnectionId,
                 requestedByMemberId,
@@ -111,20 +109,13 @@ public class NotionImportRun {
         );
     }
 
-    public String publicFailureReason() {
-        if (status == NotionImportStatus.FAILED) {
-            return PUBLIC_FAILURE_REASON;
-        }
-        return null;
-    }
-
     private void validateId(Long id) {
         if (id == null || id <= 0) {
             throw invalidImportRun();
         }
     }
 
-    private void validateStatus(NotionImportStatus status) {
+    private void validateStatus(ContentImportStatus status) {
         if (status == null) {
             throw invalidImportRun();
         }
@@ -143,7 +134,7 @@ public class NotionImportRun {
     }
 
     private void validateStatusTimestamps(
-            NotionImportStatus status,
+            ContentImportStatus status,
             Instant startedAt,
             Instant completedAt
     ) {
@@ -163,7 +154,7 @@ public class NotionImportRun {
         }
     }
 
-    private NotionImportException invalidImportRun() {
-        return new NotionImportException(NotionImportErrorCode.INVALID_NOTION_IMPORT_RUN);
+    private ContentImportException invalidImportRun() {
+        return new ContentImportException(ContentImportErrorCode.INVALID_CONTENT_IMPORT_RUN);
     }
 }

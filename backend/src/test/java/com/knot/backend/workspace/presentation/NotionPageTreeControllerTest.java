@@ -12,10 +12,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.knot.backend.auth.domain.AuthenticatedMember;
 import com.knot.backend.global.exception.GlobalExceptionHandler;
-import com.knot.backend.workspace.application.NotionPageTreeQueryService;
-import com.knot.backend.workspace.application.dto.result.NotionPageTreeItemResult;
-import com.knot.backend.workspace.domain.NotionPageErrorCode;
-import com.knot.backend.workspace.domain.NotionPageException;
+import com.knot.backend.workspace.application.ImportedPageTreeQueryService;
+import com.knot.backend.workspace.application.dto.result.ImportedPageTreeItemResult;
+import com.knot.backend.workspace.domain.ImportedPageErrorCode;
+import com.knot.backend.workspace.domain.ImportedPageException;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -31,12 +31,12 @@ import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 class NotionPageTreeControllerTest {
-    private NotionPageTreeQueryService pageTreeQueryService;
+    private ImportedPageTreeQueryService pageTreeQueryService;
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
-        pageTreeQueryService = mock(NotionPageTreeQueryService.class);
+        pageTreeQueryService = mock(ImportedPageTreeQueryService.class);
         mockMvc = MockMvcBuilders.standaloneSetup(new NotionPageTreeController(pageTreeQueryService))
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .setCustomArgumentResolvers(new AuthenticationPrincipalArgumentResolver())
@@ -62,14 +62,14 @@ class NotionPageTreeControllerTest {
                 )
         ).thenReturn(
                 List.of(
-                        new NotionPageTreeItemResult(
+                        new ImportedPageTreeItemResult(
                                 1L,
                                 null,
                                 "루트",
                                 0,
                                 "https://www.notion.so/root"
                         ),
-                        new NotionPageTreeItemResult(
+                        new ImportedPageTreeItemResult(
                                 2L,
                                 1L,
                                 "자식",
@@ -144,7 +144,7 @@ class NotionPageTreeControllerTest {
                         1L,
                         10L
                 )
-        ).thenThrow(new NotionPageException(NotionPageErrorCode.NOTION_PAGE_TREE_INVALID));
+        ).thenThrow(new ImportedPageException(ImportedPageErrorCode.IMPORTED_PAGE_TREE_INVALID));
 
         // when
         ResultActions result = mockMvc.perform(
