@@ -12,6 +12,21 @@
 - temperature: `0`, Qwen 질의 instruction: 영어 한 문장 사용
 - 실제 MCP smoke test: LM Studio `mcp/notion` + Notion OAuth, `notion-search`/`notion-fetch`
 
+## 최신 RAG 품질 게이트
+
+초기 검색 오류를 보정한 뒤 `tools/llm-benchmark`에서 동일한 Notion export snapshot을 다시 평가했다. benchmark 코드는 Java `src/main`에 포함하지 않고 테스트 하네스 디렉터리에만 둔다.
+
+- 코퍼스: 461개 문서, heading-aware metadata 보존 청크 1,788개, 기본 `1200자 / overlap 180자`
+- 검색 구조: vector·PostgreSQL lexical 후보를 각각 수집 → 출처 단위 union/rerank → 출처별 근거 passage를 최대 4개까지 결합
+- retrieval-only: 13개 case, 16개 turn을 10회 반복한 160개 관측
+- retrieval gate: **160/160 PASS** — 기대 page ID, 중복 출처, 최대 3개 문서, MongoDB 무응답, 광범위 질문 명확화를 검사
+- 검색 지연: `search_ms` p50 **343.0ms**, p95 **968.1ms**; embedding p50 **157.3ms**, DB 단계 p50 **185.9ms**
+- Qwen e2e: 16개 turn 1회 생성, 무응답·명확화 2개는 결정형 응답으로 처리
+- answer policy gate: **16/16 PASS** — 질문 유형별 필수 사실·후속 맥락·충돌·무응답 형식을 검사
+- e2e TTFT: p50 **4,469.9ms**, p95 **9,137.5ms**, 5초 이내 **9/14**. 따라서 검색 자체는 1초 안쪽이지만 Qwen 27B 생성 지연 때문에 전체 5초 목표는 아직 보장하지 않는다.
+
+이 gate는 gold set의 출처·정책·필수 표현을 자동 검사한 결과이며, 다른 Workspace로 일반화하려면 30개 이상 독립 질문과 사람이 원문을 대조한 의미 정확성 라벨이 추가로 필요하다.
+
 ## 전략별 결과
 
 | 전략 | 검색 기록 | 생성 성공 | 생성 오류 | 검색 p50 | 검색 p95 | 임베딩 p50 | DB/구성 p50 | 5초 내 TTFT | 정답 source hit@5 |
@@ -86,12 +101,18 @@
 - 5초 목표는 end-to-end TTFT 기준이어야 한다. 검색만 빠른 DB/RAG가 곧 사용자 답변 성공을 뜻하지 않으며, 관련 문서·답변 의미·충돌·무응답은 사람이 원문과 대조해야 한다.
 - 이번 `mcp-replay`는 snapshot을 로컬 함수로 재생했다. 실제 Notion MCP/API의 네트워크·페이지네이션·권한·rate limit은 측정하지 않았다.
 
-## 관찰된 품질 이슈
+## 초기 실행에서 확인된 품질 이슈 (개선 전)
 
 - RAG는 G-001/G-003에서 요구사항 문서의 예시 문장인 ‘팀원들의 PostgreSQL 사용 경험’을 실제 선정 이유처럼 답했다. 기술 스택 원문이 말하는 관계형 데이터 관리와 pgvector 확장 이유와 구분하지 못했으므로, 검색 속도와 별개로 source 유형/예시 판별 또는 reranker가 필요하다.
 - G-004의 Redis 결정 이유와 G-006의 문서 위치는 상위 5개 후보에 안정적으로 들어오지 않았다. 현재 Qwen 임베딩을 한국어에 쓸 수 있다는 사실만으로 검색 품질이 충분하다고 결론내릴 수 없다.
 - G-009는 DB 규칙과 Java 규칙을 함께 보여야 하는데 일부 전략은 한 규칙만 제공하거나 문서 충돌로 잘못 분류했다.
 
+위 문제는 최신 RAG gate에서 다음처럼 보정했다.
+
+- 기술 식별자 exact-match와 문서 권위 점수를 반영해 PostgreSQL 선정 이유와 Redis 세션 근거를 분리했다.
+- Markdown heading과 문서 날짜 메타데이터를 청크에 보존하고, 동일 출처의 근거 passage를 함께 전달해 날짜·요약·미결 사항 누락을 줄였다.
+- 후속 질문은 이전 turn을 검색어와 답변 체크리스트에 반영하고, MongoDB 부재 질문과 너무 넓은 질문은 모델 호출 전에 결정형으로 종료한다.
+
 ## 다음 판정
 
-MVP 기본 경로는 `마지막 성공 동기화 스냅샷 → DB/키워드 pre-filter → Qwen pgvector RAG → 필요 시 rerank`의 단계형 구조로 결정했다. 실제 Notion MCP 연결은 가능하다는 것을 확인했지만, 현재 live smoke test는 end-to-end 5초 목표를 만족하지 못했고 LM Studio-managed OAuth만 검증했다. 전체 사용자 대상 운영 전환 전에는 Java credential forwarding, 30개 이상 독립 질문, 사람이 검증한 answer/source 품질 라벨을 추가해야 한다.
+MVP 구현 후보는 `마지막 성공 동기화 스냅샷 → PostgreSQL lexical/vector 후보 union → Qwen pgvector RAG → 필요 시 rerank`의 단계형 구조로 검증했다. 실제 Notion MCP 연결은 가능하다는 것을 확인했지만, 현재 live smoke test는 end-to-end 5초 목표를 만족하지 못했고 LM Studio-managed OAuth만 검증했다. 전체 사용자 대상 운영 전환 전에는 Java credential forwarding, 30개 이상 독립 질문, 사람이 검증한 answer/source 품질 라벨을 추가해야 한다.
