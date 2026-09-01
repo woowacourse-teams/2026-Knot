@@ -2,9 +2,9 @@
 
 Notion `Markdown & CSV` 내보내기를 같은 스냅샷으로 고정한 뒤, Raw context·Qwen pgvector RAG·PostgreSQL 직접 검색·MCP replay를 동일한 로컬 채팅 모델로 비교하는 하네스다. LM Studio에서 실제 Notion MCP를 호출하는 smoke test는 별도 절차로 검증한다.
 
-현재 `rag`는 Qwen3-Embedding 0.6B GGUF를 LM Studio의 OpenAI-compatible `/v1/embeddings`로 호출하고 PostgreSQL/pgvector에 저장한다. `db`는 같은 저장소의 텍스트 인덱스만 사용하고, `mcp-replay`는 로컬 lexical 검색 결과를 읽기 도구 응답처럼 전달하는 통제군이다. 실제 Notion 네트워크·권한·페이지네이션을 측정하는 `mcp-live`는 smoke test와 전체 비교를 분리한다.
+현재 `rag`는 Qwen3-Embedding 0.6B GGUF를 LM Studio의 OpenAI-compatible `/v1/embeddings`로 호출하고 PostgreSQL/pgvector에 저장한다. benchmark 하네스는 제품 런타임에 포함하지 않고 이 디렉터리에서만 실행한다. `db`는 같은 저장소의 텍스트 인덱스만 사용하고, `mcp-replay`는 로컬 lexical 검색 결과를 읽기 도구 응답처럼 전달하는 통제군이다. 실제 Notion 네트워크·권한·페이지네이션을 측정하는 `mcp-live`는 smoke test와 전체 비교를 분리한다.
 
-MVP 제품 방향은 `PostgreSQL 키워드 pre-filter → pgvector RAG → 필요한 청크만 채팅 모델에 전달`하는 하이브리드 RAG다. 기능 계약은 [`docs/llm-search-feature-spec.md`](/Users/yongtae/Desktop/knot/docs/llm-search-feature-spec.md), 비교 결과는 [`docs/llm-search-ab-test-report.md`](/Users/yongtae/Desktop/knot/docs/llm-search-ab-test-report.md)에서 확인한다.
+MVP 제품 방향은 `PostgreSQL 키워드 pre-filter → pgvector RAG → 필요한 청크만 채팅 모델에 전달`하는 하이브리드 RAG다. 기본 Markdown 청크는 heading 경계를 우선하고 `1200자 / overlap 180자`로 생성한다. 질의마다 vector·lexical 후보를 각각 최대 50개 모은 뒤 출처별로 합치고, 질문 유형·문서 권위·정확한 기술 식별자·대화 맥락을 반영해 재정렬한다. 근거가 없는 기술명은 무응답으로, 범위가 넓은 질문은 명확화로 종료한다. 기능 계약은 [`docs/llm-search-feature-spec.md`](/Users/yongtae/Desktop/knot/docs/llm-search-feature-spec.md), 비교 결과는 [`docs/llm-search-ab-test-report.md`](/Users/yongtae/Desktop/knot/docs/llm-search-ab-test-report.md)에서 확인한다.
 
 ## 1. 내보내기 준비
 
@@ -85,9 +85,26 @@ uv run --python 3.14 tools/llm-benchmark/run_four_way_benchmark.py \
   --repeats 10 \
   --retrieval-only \
   --output .benchmark-data/four-way-retrieval-10x.jsonl
+
+uv run --python 3.14 tools/llm-benchmark/evaluate_rag_quality.py \
+  --results .benchmark-data/rag-quality-retrieval-final-10x.jsonl
 ```
 
 `--retrieval-only` 실행은 모델을 호출하지 않고 네 전략의 검색·컨텍스트 구성 시간을 10개 질문 × 10회씩 기록한다. 실제 답변 생성은 다음처럼 실행한다.
+
+품질 평가기는 gold set의 모든 case/turn/repeat가 생성됐는지, 출처 page ID가 기대값과 일치하는지, 출처가 3개를 넘지 않는지, 무응답·명확화 케이스가 빈 출처로 종료되는지를 검사한다. retrieval-only 결과에서는 답변 의미 품질을 `NOT_EVALUATED`로 표시하므로, 생성 결과는 `--require-answer`로 별도 검사하고 최종 의미 왜곡 여부는 사람이 원문과 대조한다.
+
+그룹별 e2e 결과를 합치지 않고도 다음처럼 `--results`를 반복해 한 번에 검사할 수 있다.
+
+```bash
+uv run --python 3.14 tools/llm-benchmark/evaluate_rag_quality.py \
+  --results .benchmark-data/rag-quality-e2e-final-core-guided.jsonl \
+  --results .benchmark-data/rag-quality-e2e-final-policy-guided.jsonl \
+  --results .benchmark-data/rag-quality-e2e-g007-guided-final.jsonl \
+  --results .benchmark-data/rag-quality-e2e-g013-guided-final.jsonl \
+  --repeats 1 \
+  --require-answer
+```
 
 ```bash
 uv run --python 3.14 tools/llm-benchmark/run_four_way_benchmark.py \
