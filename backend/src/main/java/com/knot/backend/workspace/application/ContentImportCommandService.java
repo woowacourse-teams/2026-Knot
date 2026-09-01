@@ -45,6 +45,47 @@ public class ContentImportCommandService {
                 workspaceId,
                 provider
         );
+        return requestPendingRun(
+                workspaceId,
+                memberId,
+                connection
+        );
+    }
+
+    @Transactional
+    public ContentImportRunRequestResult retry(
+            Long importRunId,
+            long memberId
+    ) {
+        validateImportRunId(importRunId);
+        ContentImportRun originalImportRun = findVisibleImportRun(
+                importRunId,
+                memberId
+        );
+        validateOwner(
+                originalImportRun.getWorkspaceId(),
+                memberId
+        );
+        originalImportRun.validateRetryable();
+        ContentSourceConnection connection = connectedContentSourceConnectionForUpdate(
+                originalImportRun.getContentSourceConnectionId()
+        );
+        validateConnectionWorkspace(
+                originalImportRun,
+                connection
+        );
+        return requestPendingRun(
+                originalImportRun.getWorkspaceId(),
+                memberId,
+                connection
+        );
+    }
+
+    private ContentImportRunRequestResult requestPendingRun(
+            Long workspaceId,
+            long memberId,
+            ContentSourceConnection connection
+    ) {
         validateConnectionAuthorization(connection);
         return importRunRepository.findActiveByContentSourceConnectionId(connection.getId())
                 .map(this::existingResult)
@@ -55,6 +96,23 @@ public class ContentImportCommandService {
                                 memberId
                         )
                 );
+    }
+
+    private void validateImportRunId(Long importRunId) {
+        if (importRunId == null || importRunId <= 0) {
+            throw new ContentImportException(ContentImportErrorCode.INVALID_CONTENT_IMPORT_RUN_ID);
+        }
+    }
+
+    private ContentImportRun findVisibleImportRun(
+            Long importRunId,
+            long memberId
+    ) {
+        return importRunRepository.findVisibleByIdAndMemberId(
+                importRunId,
+                memberId
+        )
+                .orElseThrow(() -> new ContentImportException(ContentImportErrorCode.CONTENT_IMPORT_RUN_NOT_FOUND));
     }
 
     private void validateWorkspaceId(Long workspaceId) {
@@ -89,9 +147,22 @@ public class ContentImportCommandService {
                 workspaceId,
                 provider
         )
-                .orElseThrow(
-                        () -> new ContentImportException(ContentImportErrorCode.CONTENT_SOURCE_CONNECTION_NOT_CONNECTED)
-                );
+                .orElseThrow(this::connectionNotConnected);
+    }
+
+    private ContentSourceConnection connectedContentSourceConnectionForUpdate(Long connectionId) {
+        return connectionRepository.findByIdForUpdate(connectionId)
+                .orElseThrow(this::connectionNotConnected);
+    }
+
+    private void validateConnectionWorkspace(
+            ContentImportRun importRun,
+            ContentSourceConnection connection
+    ) {
+        if (!importRun.getWorkspaceId()
+                .equals(connection.getWorkspaceId())) {
+            throw new ContentImportException(ContentImportErrorCode.INVALID_CONTENT_IMPORT_RUN);
+        }
     }
 
     private void validateConnectionAuthorization(ContentSourceConnection connection) {
@@ -134,5 +205,9 @@ public class ContentImportCommandService {
     private Instant currentTime() {
         return Instant.now(clock)
                 .truncatedTo(ChronoUnit.MICROS);
+    }
+
+    private ContentImportException connectionNotConnected() {
+        return new ContentImportException(ContentImportErrorCode.CONTENT_SOURCE_CONNECTION_NOT_CONNECTED);
     }
 }

@@ -137,6 +137,11 @@ public class ContentImportRun {
                 createdAt
         );
     }
+    public void validateRetryable() {
+        if (status != ContentImportStatus.FAILED) {
+            throw new ContentImportException(ContentImportErrorCode.CONTENT_IMPORT_NOT_RETRYABLE);
+        }
+    }
     private void validateId(Long id) {
         if (id == null || id <= 0) {
             throw invalidImportRun();

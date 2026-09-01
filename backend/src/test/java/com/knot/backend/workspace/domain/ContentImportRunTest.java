@@ -10,6 +10,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.MethodSource;
 
 class ContentImportRunTest {
@@ -43,6 +44,35 @@ class ContentImportRunTest {
         assertThat(importRun.getCreatedAt()).isEqualTo(CREATED_AT);
     }
 
+    @DisplayName("FAILED Run은 재시도할 수 있다")
+    @Test
+    void validateRetryable_success_failedStatus() {
+        // given
+        ContentImportRun importRun = createImportRun(ContentImportStatus.FAILED);
+
+        // when
+        Throwable thrown = catchThrowable(importRun::validateRetryable);
+
+        // then
+        assertThat(thrown).isNull();
+    }
+
+    @DisplayName("FAILED가 아닌 Run은 재시도할 수 없다")
+    @EnumSource(value = ContentImportStatus.class, names = "FAILED", mode = EnumSource.Mode.EXCLUDE)
+    @ParameterizedTest(name = "{0}")
+    void validateRetryable_failure_nonFailedStatus(ContentImportStatus status) {
+        // given
+        ContentImportRun importRun = createImportRun(status);
+        ThrowingCallable action = importRun::validateRetryable;
+
+        // when
+        Throwable thrown = catchThrowable(action);
+
+        // then
+        assertThat(thrown).isInstanceOf(ContentImportException.class)
+                .extracting(exception -> ((ContentImportException) exception).contentImportErrorCode())
+                .isEqualTo(ContentImportErrorCode.CONTENT_IMPORT_NOT_RETRYABLE);
+    }
     @DisplayName("처리한 Page 수가 전체 Page 수보다 크면 생성할 수 없다")
     @Test
     void create_failure_processedPageCountExceedsTotal() {

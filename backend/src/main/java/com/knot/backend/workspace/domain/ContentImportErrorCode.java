@@ -34,6 +34,12 @@ public enum ContentImportErrorCode implements ErrorCode {
             ErrorCategory.NOT_FOUND,
             "CONTENT_IMPORT_RUN_NOT_FOUND",
             "콘텐츠 가져오기 실행을 찾을 수 없습니다"
+    ),
+
+    CONTENT_IMPORT_NOT_RETRYABLE(
+            ErrorCategory.CONFLICT,
+            "CONTENT_IMPORT_NOT_RETRYABLE",
+            "실패한 콘텐츠 가져오기만 재시도할 수 있습니다"
     );
 
     private final ErrorCategory category;

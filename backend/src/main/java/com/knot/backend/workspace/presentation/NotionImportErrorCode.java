@@ -35,6 +35,12 @@ public enum NotionImportErrorCode implements ErrorCode {
             ErrorCategory.NOT_FOUND,
             "NOTION_IMPORT_RUN_NOT_FOUND",
             "Notion Import 실행을 찾을 수 없습니다"
+    ),
+
+    NOTION_IMPORT_NOT_RETRYABLE(
+            ErrorCategory.CONFLICT,
+            "NOTION_IMPORT_NOT_RETRYABLE",
+            "실패한 Notion Import만 재시도할 수 있습니다"
     );
 
     private final ErrorCategory category;
@@ -58,6 +64,7 @@ public enum NotionImportErrorCode implements ErrorCode {
             case CONTENT_SOURCE_CONNECTION_NOT_CONNECTED -> NOTION_CONNECTION_NOT_CONNECTED;
             case CONTENT_SOURCE_CONNECTION_REAUTHENTICATION_REQUIRED -> NOTION_CONNECTION_REAUTHENTICATION_REQUIRED;
             case CONTENT_IMPORT_RUN_NOT_FOUND -> NOTION_IMPORT_RUN_NOT_FOUND;
+            case CONTENT_IMPORT_NOT_RETRYABLE -> NOTION_IMPORT_NOT_RETRYABLE;
         };
     }
 }

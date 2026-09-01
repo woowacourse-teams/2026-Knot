@@ -10,6 +10,11 @@ import org.springframework.data.jpa.repository.Query;
 
 interface ContentSourceConnectionJpaRepository extends JpaRepository<ContentSourceConnection, Long> {
 
+    Optional<ContentSourceConnection> findByIdAndWorkspaceId(
+            Long connectionId,
+            Long workspaceId
+    );
+
     Optional<ContentSourceConnection> findByWorkspaceIdAndProvider(
             Long workspaceId,
             ContentSourceProvider provider
@@ -26,4 +31,12 @@ interface ContentSourceConnectionJpaRepository extends JpaRepository<ContentSour
             Long workspaceId,
             ContentSourceProvider provider
     );
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+            select connection
+            from ContentSourceConnection connection
+            where connection.id = :connectionId
+            """)
+    Optional<ContentSourceConnection> findByIdForUpdate(Long connectionId);
 }
