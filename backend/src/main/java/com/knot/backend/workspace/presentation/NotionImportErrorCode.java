@@ -1,0 +1,70 @@
+package com.knot.backend.workspace.presentation;
+
+import com.knot.backend.global.exception.ErrorCategory;
+import com.knot.backend.global.exception.ErrorCode;
+import com.knot.backend.workspace.domain.ContentImportErrorCode;
+import lombok.Getter;
+
+@Getter
+public enum NotionImportErrorCode implements ErrorCode {
+    INVALID_NOTION_IMPORT_RUN_ID(
+            ErrorCategory.INVALID_INPUT,
+            "INVALID_NOTION_IMPORT_RUN_ID",
+            "Notion Import 실행 ID가 올바르지 않습니다"
+    ),
+
+    INVALID_NOTION_IMPORT_RUN(
+            ErrorCategory.INVALID_INPUT,
+            "INVALID_NOTION_IMPORT_RUN",
+            "Notion Import 실행 정보가 올바르지 않습니다"
+    ),
+
+    NOTION_CONNECTION_NOT_CONNECTED(
+            ErrorCategory.CONFLICT,
+            "NOTION_CONNECTION_NOT_CONNECTED",
+            "Notion 연결이 필요합니다"
+    ),
+
+    NOTION_CONNECTION_REAUTHENTICATION_REQUIRED(
+            ErrorCategory.CONFLICT,
+            "NOTION_CONNECTION_REAUTHENTICATION_REQUIRED",
+            "Notion 연결 재인증이 필요합니다"
+    ),
+
+    NOTION_IMPORT_RUN_NOT_FOUND(
+            ErrorCategory.NOT_FOUND,
+            "NOTION_IMPORT_RUN_NOT_FOUND",
+            "Notion Import 실행을 찾을 수 없습니다"
+    ),
+
+    NOTION_IMPORT_NOT_RETRYABLE(
+            ErrorCategory.CONFLICT,
+            "NOTION_IMPORT_NOT_RETRYABLE",
+            "실패한 Notion Import만 재시도할 수 있습니다"
+    );
+
+    private final ErrorCategory category;
+    private final String code;
+    private final String message;
+
+    NotionImportErrorCode(
+            ErrorCategory category,
+            String code,
+            String message
+    ) {
+        this.category = category;
+        this.code = code;
+        this.message = message;
+    }
+
+    public static NotionImportErrorCode from(ContentImportErrorCode errorCode) {
+        return switch (errorCode) {
+            case INVALID_CONTENT_IMPORT_RUN_ID -> INVALID_NOTION_IMPORT_RUN_ID;
+            case INVALID_CONTENT_IMPORT_RUN -> INVALID_NOTION_IMPORT_RUN;
+            case CONTENT_SOURCE_CONNECTION_NOT_CONNECTED -> NOTION_CONNECTION_NOT_CONNECTED;
+            case CONTENT_SOURCE_CONNECTION_REAUTHENTICATION_REQUIRED -> NOTION_CONNECTION_REAUTHENTICATION_REQUIRED;
+            case CONTENT_IMPORT_RUN_NOT_FOUND -> NOTION_IMPORT_RUN_NOT_FOUND;
+            case CONTENT_IMPORT_NOT_RETRYABLE -> NOTION_IMPORT_NOT_RETRYABLE;
+        };
+    }
+}

@@ -37,11 +37,14 @@ Notion Import 상태는 현재 Workspace의 모든 멤버에게 공개하고, �
 
 Import 결과는 Workspace 공동 데이터이며 역할별 차등의 제품 이점이 작다. 현재 멤버십 하나로 권한을 판정하고 타 tenant에는 동일한 404를 반환하면 구현은 단순하면서 tenant 격리를 유지할 수 있다.
 
+core domain/application은 특정 외부 공급자에 묶이지 않도록 `ContentImportRun`, `ContentImportStatus`, `ContentImportQueryService`, `ContentImportStatusResult` 이름을 사용한다. 기존 Notion API 이름, HTTP 경로, JSON 필드와 오류 메시지는 Presentation mapping boundary에만 남긴다.
+
 ## 결과
 
 - OWNER와 MEMBER가 같은 상태 응답으로 공동 문서 준비 여부를 확인한다.
 - 타 Workspace 사용자는 Import Run의 존재 여부를 구분할 수 없다.
-- MVP에서는 실패 원문 저장 컬럼을 두지 않고, FAILED 상태의 failureReason을 고정 공개 문구로 계산한다.
+- MVP에서는 실패 원문 저장 컬럼을 두지 않고, FAILED 상태의 `failureReason`은 Presentation 응답 매핑에서 `Notion 문서를 가져오지 못했습니다`로 계산한다.
+- domain/application의 오류 코드는 `ContentImport*` 기준으로 유지하고, 기존 `NOTION_IMPORT_*` API 오류 코드와 메시지는 Presentation 예외 매핑에서만 노출한다.
 - 새 역할이나 더 민감한 진단 필드가 추가되면 공개 범위를 다시 검토해야 한다.
 
 ## 다시 논의해야 할 조건

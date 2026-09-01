@@ -1,8 +1,10 @@
 package com.knot.backend.workspace.presentation;
 
 import com.knot.backend.auth.domain.AuthenticatedMember;
-import com.knot.backend.workspace.application.NotionImportCommandService;
-import com.knot.backend.workspace.application.dto.result.NotionImportRunRequestResult;
+import com.knot.backend.workspace.application.ContentImportCommandService;
+import com.knot.backend.workspace.application.dto.result.ContentImportRunRequestResult;
+import com.knot.backend.workspace.domain.ContentImportException;
+import com.knot.backend.workspace.domain.ContentSourceProvider;
 import com.knot.backend.workspace.presentation.dto.response.NotionImportStartResponse;
 import java.net.URI;
 import lombok.RequiredArgsConstructor;
@@ -19,7 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/workspaces/{workspaceId}/imports")
 @RequiredArgsConstructor
 public class NotionImportStartController implements NotionImportStartApi {
-    private final NotionImportCommandService importCommandService;
+    private final ContentImportCommandService importCommandService;
 
     @Override
     @PostMapping(produces = MediaType.APPLICATION_JSON_VALUE)
@@ -27,10 +29,16 @@ public class NotionImportStartController implements NotionImportStartApi {
             @PathVariable Long workspaceId,
             @AuthenticationPrincipal AuthenticatedMember authenticatedMember
     ) {
-        NotionImportRunRequestResult result = importCommandService.start(
-                workspaceId,
-                authenticatedMember.getMemberId()
-        );
+        ContentImportRunRequestResult result;
+        try {
+            result = importCommandService.start(
+                    workspaceId,
+                    authenticatedMember.getMemberId(),
+                    ContentSourceProvider.NOTION
+            );
+        } catch (ContentImportException exception) {
+            throw NotionImportException.from(exception);
+        }
         ResponseEntity.BodyBuilder responseBuilder = result.created()
                 ? ResponseEntity.accepted()
                 : ResponseEntity.status(HttpStatus.CONFLICT);

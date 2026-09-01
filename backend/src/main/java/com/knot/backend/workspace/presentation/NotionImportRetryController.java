@@ -1,8 +1,9 @@
 package com.knot.backend.workspace.presentation;
 
 import com.knot.backend.auth.domain.AuthenticatedMember;
-import com.knot.backend.workspace.application.NotionImportCommandService;
-import com.knot.backend.workspace.application.dto.result.NotionImportRunRequestResult;
+import com.knot.backend.workspace.application.ContentImportCommandService;
+import com.knot.backend.workspace.application.dto.result.ContentImportRunRequestResult;
+import com.knot.backend.workspace.domain.ContentImportException;
 import com.knot.backend.workspace.presentation.dto.response.NotionImportStartResponse;
 import java.net.URI;
 import lombok.RequiredArgsConstructor;
@@ -19,7 +20,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/imports/{importRunId}/retry")
 @RequiredArgsConstructor
 public class NotionImportRetryController implements NotionImportRetryApi {
-    private final NotionImportCommandService importCommandService;
+    private final ContentImportCommandService importCommandService;
 
     @Override
     @PostMapping(produces = MediaType.APPLICATION_JSON_VALUE)
@@ -27,10 +28,15 @@ public class NotionImportRetryController implements NotionImportRetryApi {
             @PathVariable Long importRunId,
             @AuthenticationPrincipal AuthenticatedMember authenticatedMember
     ) {
-        NotionImportRunRequestResult result = importCommandService.retry(
-                importRunId,
-                authenticatedMember.getMemberId()
-        );
+        ContentImportRunRequestResult result;
+        try {
+            result = importCommandService.retry(
+                    importRunId,
+                    authenticatedMember.getMemberId()
+            );
+        } catch (ContentImportException exception) {
+            throw NotionImportException.from(exception);
+        }
         ResponseEntity.BodyBuilder responseBuilder = result.created()
                 ? ResponseEntity.accepted()
                 : ResponseEntity.status(HttpStatus.CONFLICT);

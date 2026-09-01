@@ -1,6 +1,6 @@
 package com.knot.backend.workspace.presentation.dto.response;
 
-import com.knot.backend.workspace.application.dto.result.NotionPageTreeItemResult;
+import com.knot.backend.workspace.application.dto.result.ImportedPageTreeItemResult;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 @Schema(description = "Notion Page Tree 항목")
@@ -12,13 +12,13 @@ public record NotionPageTreeItemResponse(
         @Schema(description = "원본 Notion Page URL", example = "https://www.notion.so/example") String notionUrl
 ) {
 
-    public static NotionPageTreeItemResponse from(NotionPageTreeItemResult result) {
+    public static NotionPageTreeItemResponse from(ImportedPageTreeItemResult result) {
         return new NotionPageTreeItemResponse(
                 result.id(),
-                result.parentPageId(),
+                result.parentId(),
                 result.title(),
                 result.position(),
-                result.notionUrl()
+                result.sourceUrl()
         );
     }
 }
