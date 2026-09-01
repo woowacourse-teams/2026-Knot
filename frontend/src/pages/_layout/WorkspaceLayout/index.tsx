@@ -1,8 +1,10 @@
 import styled from "@emotion/styled";
+import useWorkspaceEntry from "@hooks/domain/workspace/useWorkspaceEntry";
+import Spinner from "@primitives/ui/Spinner";
 import { WorkspaceSidebarProvider } from "@provider/context/workspaceSidebarContext";
 import WorkspaceGnb from "@widgets/workspace/WorkspaceGnb";
 import WorkspaceSidebar from "@widgets/workspace/WorkspaceSidebar";
-import { Outlet } from "react-router";
+import { Outlet, useParams } from "react-router";
 
 /**
  * GNB 레이아웃
@@ -11,18 +13,34 @@ import { Outlet } from "react-router";
  * 왼쪽에 사이드바, 오른쪽에 GNB와 화면 콘텐츠를 두며, 사이드바가 열리면 GNB·본문이 오른쪽으로 밀린다.
  * 사이드바 열림/닫힘 상태는 이 레이아웃이 감싼 프로바이더가 가지므로 하위 라우트를 오가도 유지된다.
  *
+ * 들어갈 수 있는 워크스페이스인지도 이 레이아웃 범위에서 한 번만 판정한다(`useWorkspaceEntry`).
+ * 워크스페이스 조회에 성공하기 전에는 본문 대신 스피너를 두고, 401은 로그인으로, 403·404는 선택 화면으로 보낸다.
+ * 판정 규칙은 훅이 가지고 이 레이아웃은 배치만 맡는다.
+ *
  * @see https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=600-10077 홈 화면
  * @see https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=600-10207 탐색 결과/사이드바 오픈
  */
 export default function WorkspaceLayout() {
+  const { workspaceId } = useParams();
+  const { isReady } = useWorkspaceEntry({ workspaceId: Number(workspaceId) });
+
   return (
     <WorkspaceSidebarProvider>
       <Container>
         <WorkspaceSidebar />
         <Content>
           <WorkspaceGnb />
-          <Main>
-            <Outlet />
+          <Main aria-busy={!isReady}>
+            {isReady ? (
+              <Outlet />
+            ) : (
+              <LoadingFallback
+                role="status"
+                aria-label="워크스페이스를 불러오고 있어요"
+              >
+                <Spinner />
+              </LoadingFallback>
+            )}
           </Main>
         </Content>
       </Container>
@@ -47,4 +65,12 @@ const Main = styled.main`
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+`;
+
+const LoadingFallback = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: ${({ theme }) => theme.neutral[800]};
 `;
