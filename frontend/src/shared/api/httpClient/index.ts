@@ -48,6 +48,15 @@ const loadCsrfToken = async () => {
   return csrfToken;
 };
 
+/**
+ * 지금 들고 있는 CSRF 토큰을 돌려주고, 없으면 받아옵니다.
+ *
+ * SSE 응답은 axios(XHR 어댑터)로 읽을 수 없어 fetch로 직접 보내야 하는데,
+ * 그 요청도 상태를 바꾸는 POST라 같은 토큰이 필요합니다. 요청마다 새로 받지 않도록
+ * 아래 인터셉터와 이 캐시를 함께 씁니다.
+ */
+export const getCsrfToken = async () => csrfToken ?? (await loadCsrfToken());
+
 const isMutatingRequest = (method?: string) =>
   MUTATING_METHODS.includes((method ?? "get").toLowerCase());
 
