@@ -1,0 +1,157 @@
+# Knot LLM 검색 벤치마크
+
+Notion `Markdown & CSV` 내보내기를 같은 스냅샷으로 고정한 뒤, Raw context·Qwen pgvector RAG·PostgreSQL 직접 검색·MCP replay를 동일한 로컬 채팅 모델로 비교하는 하네스다. LM Studio에서 실제 Notion MCP를 호출하는 smoke test는 별도 절차로 검증한다.
+
+현재 `rag`는 Qwen3-Embedding 0.6B GGUF를 LM Studio의 OpenAI-compatible `/v1/embeddings`로 호출하고 PostgreSQL/pgvector에 저장한다. `db`는 같은 저장소의 텍스트 인덱스만 사용하고, `mcp-replay`는 로컬 lexical 검색 결과를 읽기 도구 응답처럼 전달하는 통제군이다. 실제 Notion 네트워크·권한·페이지네이션을 측정하는 `mcp-live`는 smoke test와 전체 비교를 분리한다.
+
+MVP 제품 방향은 `PostgreSQL 키워드 pre-filter → pgvector RAG → 필요한 청크만 채팅 모델에 전달`하는 하이브리드 RAG다. 기능 계약은 [`docs/llm-search-feature-spec.md`](/Users/yongtae/Desktop/knot/docs/llm-search-feature-spec.md), 비교 결과는 [`docs/llm-search-ab-test-report.md`](/Users/yongtae/Desktop/knot/docs/llm-search-ab-test-report.md)에서 확인한다.
+
+## 1. 내보내기 준비
+
+사용자가 제공한 ZIP처럼 바깥 ZIP 안에 Notion 분할 ZIP이 있고 파일명에 한글이 포함된 경우 macOS에서는 `unzip`보다 `ditto`가 안전하다.
+
+```bash
+cd /Users/yongtae/Desktop/knot
+export EXPORT_ZIP="/path/to/notion-export.zip"
+export EXPORT_TMP="$(mktemp -d /tmp/knot-notion-export.XXXXXX)"
+
+ditto -x -k "$EXPORT_ZIP" "$EXPORT_TMP/outer"
+export INNER_ZIP="$(find "$EXPORT_TMP/outer" -type f -name 'ExportBlock-*.zip' -print -quit)"
+ditto -x -k "$INNER_ZIP" "$EXPORT_TMP/inner"
+export SNAPSHOT_DIR="$(find "$EXPORT_TMP/inner" -type d -name knot -print -quit)"
+```
+
+이 ZIP에는 Markdown·CSV 외에 이미지·PDF·키 파일도 포함될 수 있다. 하네스는 텍스트 확장자만 읽고, `Key`, `비밀번호`, `credential`, `token`, `pem` 등 민감 경로, PEM 개인키 본문, 일반적인 `password:`·`api_key=` 같은 credential assignment 문서도 NIM 컨텍스트에서 제외한다. 이 규칙은 완전한 비밀정보 탐지기가 아니므로 실제 실행 전 별도 secret scan도 수행한다. 원본 내보내기와 결과 파일은 `/.benchmark-data/` 아래에 두고 Git에 추가하지 않는다.
+
+## 2. 로컬 검증
+
+먼저 NIM을 호출하지 않는 dry-run으로 문서 수, 검색 결과, 컨텍스트 크기를 확인한다.
+
+```bash
+uv run --python 3.14 tools/llm-benchmark/run_benchmark.py \
+  --snapshot-dir "$SNAPSHOT_DIR" \
+  --strategy all \
+  --case G-001,G-003,G-004,G-005,G-006,G-007,G-008,G-009,G-010,G-011,G-012,G-013 \
+  --top-k 5 \
+  --dry-run
+```
+
+전체 질문 목록만 확인하려면 다음을 실행한다.
+
+```bash
+uv run --python 3.14 tools/llm-benchmark/run_benchmark.py --list-cases
+```
+
+결과는 기본적으로 `.benchmark-data/results.jsonl`에 저장한다. 각 행에는 전략, case/turn, source path, 검색 준비 시간, 컨텍스트 글자 수, NIM model TTFT/완료 시간, end-to-end TTFT/완료 시간이 기록된다. dry-run에서는 `model_*`, `ttft_ms`, `total_ms`가 비어 있다.
+
+Raw 전략은 현재 스냅샷 전체를 보내므로 문서가 많으면 모델 컨텍스트 한도를 넘을 수 있다. 문서를 조용히 잘라서 성공으로 처리하지 않으며, 먼저 RAG와 MCP replay를 실행하고 Raw는 컨텍스트 한도 기준선으로 확인한다.
+
+## 3. LM Studio / NIM 실행 설정
+
+NVIDIA API 키를 코드나 파일에 넣지 말고 셸 환경변수로만 주입한다. 로컬 LM Studio를 쓸 때는 API 키 자리에 더미 값을 넣고, 실제 키를 저장소에 남기지 않는다. Qwen 모델 카드는 질의 쪽 instruction을 권장하므로 한국어 질문이어도 instruction 문장은 영어로 둔다.
+
+```bash
+export NIM_API_KEY="local-lm-studio"
+export NIM_BASE_URL="http://100.110.23.115:1234/v1"
+export NIM_MODEL="qwen/qwen3.6-27b"
+export NIM_EMBEDDING_MODEL="text-embedding-qwen3-embedding-0.6b:2"
+export NIM_EMBEDDING_QUERY_INSTRUCTION="Given a Korean team workspace question, retrieve relevant document passages that answer the question"
+export NIM_TEMPERATURE="0"
+export NIM_MAX_TOKENS="4096"
+export NIM_REASONING_EFFORT="none"
+export NIM_READ_TIMEOUT="120"
+export PGVECTOR_DATABASE_URL="postgresql://knot_benchmark:knot_benchmark@localhost:55432/knot_benchmark"
+```
+
+LM Studio 설정은 컨텍스트 32768, GPU offload 64, Max Concurrent 1로 고정한다. `reasoning_effort=none`은 내부 추론 토큰 때문에 답변이 잘리지 않게 하기 위한 통제 설정이며, 모델 품질 자체를 비교하는 실험이 아니다.
+
+### 실제 LM Studio/Notion MCP smoke test
+
+LM Studio 앱에서 Notion MCP를 OAuth로 연결한 뒤 native `/api/v1/chat`에 `mcp/notion` plugin을 지정한다. 허용 도구는 초기 검증에서 `notion-search`와 `notion-fetch`로 제한한다. LM Studio API token과 Notion MCP OAuth token은 서로 다른 credential이며, 어느 값도 저장소·프롬프트·벤치마크 결과에 기록하지 않는다.
+
+이 방식은 LM Studio가 관리하는 단일 OAuth 연결을 확인하는 용도다. Workspace별 인증을 제품에 넣을 때는 Java가 서버 측에서 해당 Workspace credential을 선택하고, 모델에는 token을 전달하지 않은 채 MCP 결과만 넘기는 별도 경계를 검증해야 한다. 실제 smoke test 결과와 실패 사례는 [`docs/llm-search-ab-test-report.md`](/Users/yongtae/Desktop/knot/docs/llm-search-ab-test-report.md)에 기록한다.
+
+## 4. pgvector 색인과 네 가지 비교
+
+```bash
+cd /Users/yongtae/Desktop/knot
+docker compose -f tools/llm-benchmark/compose.pgvector.yml up -d
+
+uv run --python 3.14 tools/llm-benchmark/run_four_way_benchmark.py \
+  --index-only
+
+uv run --python 3.14 tools/llm-benchmark/run_four_way_benchmark.py \
+  --skip-index \
+  --repeats 10 \
+  --retrieval-only \
+  --output .benchmark-data/four-way-retrieval-10x.jsonl
+```
+
+`--retrieval-only` 실행은 모델을 호출하지 않고 네 전략의 검색·컨텍스트 구성 시간을 10개 질문 × 10회씩 기록한다. 실제 답변 생성은 다음처럼 실행한다.
+
+```bash
+uv run --python 3.14 tools/llm-benchmark/run_four_way_benchmark.py \
+  --skip-index \
+  --repeats 1 \
+  --warmup 1 \
+  --output .benchmark-data/four-way-e2e.jsonl
+```
+
+Raw는 전체 원문을 조용히 자르지 않는다. 컨텍스트가 설정한 보호선을 넘으면 오류로 기록하고, RAG·DB·MCP replay만 같은 채팅 모델에 검색 결과를 전달한다. 이 결과는 Raw가 현재 문서 규모에서 운영 방식이 될 수 없는지도 보여준다.
+
+분석 보고서는 검색 100회 관측과 생성 결과를 합쳐 작성한다.
+
+```bash
+uv run --python 3.14 tools/llm-benchmark/analyze_access_benchmark.py \
+  --results .benchmark-data/four-way-retrieval-10x.jsonl \
+  --e2e-results .benchmark-data/four-way-e2e.jsonl \
+  --output docs/llm-search-ab-test-report.md
+```
+
+분석기는 검색 p50/p95, Qwen 임베딩 시간, DB 단계, end-to-end TTFT/total, 5초 내 첫 표시 비율, source hit@5, paired bootstrap CI와 sign-flip permutation p-value를 계산한다. 반복 수가 늘어도 독립 질문 수가 늘지는 않으므로, 일반화 판정 전 30개 이상 독립 질문과 사람이 확인한 품질 라벨이 필요하다.
+
+NVIDIA hosted endpoint를 비교해야 할 때만 아래처럼 주소와 실제 Build 모델을 바꾼다.
+
+```bash
+export NIM_API_KEY="nvapi-..."
+export NIM_BASE_URL="https://integrate.api.nvidia.com/v1"
+export NIM_MODEL="<build.nvidia.com에서 선택한 모델명>"
+
+uv run --python 3.14 tools/llm-benchmark/run_benchmark.py \
+  --snapshot-dir "$SNAPSHOT_DIR" \
+  --strategy rag \
+  --case G-001,G-003,G-004,G-005,G-006,G-007,G-008,G-009,G-010,G-011,G-012,G-013 \
+  --top-k 5 \
+  --repeats 3 \
+  --output .benchmark-data/rag-results.jsonl
+```
+
+전략별 모델·프롬프트·생성 옵션은 동일하게 유지해야 한다. API endpoint는 [NVIDIA NIM Chat Completions API](https://docs.api.nvidia.com/nim/reference/create_chat_completion_v1_chat_completions_post)에 맞춘 OpenAI 호환 스트리밍 요청이다.
+
+## 5. 기존 Raw/RAG A/B 실행
+
+Raw와 RAG만 비교할 때는 순서를 균형 무작위화하는 전용 runner를 사용한다.
+
+```bash
+uv run --python 3.14 tools/llm-benchmark/run_ab_benchmark.py \
+  --snapshot-dir "$SNAPSHOT_DIR" \
+  --repeats 10 \
+  --output .benchmark-data/ab-results.jsonl
+
+uv run --python 3.14 tools/llm-benchmark/analyze_benchmark.py \
+  --results .benchmark-data/ab-results.jsonl \
+  --output docs/llm-search-ab-test-report.md
+```
+
+기본 workload는 10개 single-turn case를 10회 반복해 100 paired trials를 만든다. 다만 서로 다른 case는 10개뿐이므로 일반화 판정이 필요하면 `--case`로 최소 30개 이상의 독립 질문 workload를 추가한다. 분석기는 유효 paired 관측 100개와 독립 case 30개를 모두 충족하기 전에는 통계적 승리 판정을 내리지 않는다. `--plan-only`로 NIM 호출 없이 순서 균형만 확인할 수 있다.
+
+## 6. 해석 순서
+
+속도만 보고 선택하지 않는다.
+
+1. 다른 Workspace 문서나 민감 정보가 컨텍스트에 들어가지 않았는지 확인한다.
+2. 답변이 골드셋 원문과 일치하고, 충돌·무응답·명확화 정책을 지키는지 사람이 평가한다.
+3. 그 조건을 통과한 전략만 p50/p95 end-to-end TTFT와 5초 이내 비율을 비교한다.
+4. 이후 실제 Notion API/MCP의 권한, 페이지네이션, rate limit, 동기화 실패를 별도로 측정한다.
+
+정답표는 [`docs/llm-search-benchmark-gold-set.md`](/Users/yongtae/Desktop/knot/docs/llm-search-benchmark-gold-set.md), 전체 도입·동기화 정책은 [`docs/llm-search-benchmark-plan.md`](/Users/yongtae/Desktop/knot/docs/llm-search-benchmark-plan.md)에 있다.
