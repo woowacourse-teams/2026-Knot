@@ -2,6 +2,14 @@
 export const NICKNAME_MAX_LENGTH = 20;
 
 /**
+ * 공백. 띄어쓰기뿐 아니라 탭이나 전각 공백도 잡습니다.
+ *
+ * 아래 `NICKNAME_PATTERN`도 공백을 걸러내지만, 정책이 공백에 다른 문구를 쓰도록
+ * 정해두어 먼저 따로 봅니다.
+ */
+export const NICKNAME_WHITESPACE_PATTERN = /\s/;
+
+/**
  * 닉네임에 허용하는 문자. 한글·영어와 `(`, `)`, `-`만 통과해요.
  *
  * 자모(ㄱ-ㅎ, ㅏ-ㅣ)를 함께 허용하는 이유:
@@ -10,6 +18,8 @@ export const NICKNAME_MAX_LENGTH = 20;
  * 빈 값도 통과시킵니다. 아직 입력 전인 상태를 에러로 보지 않기 위해서예요.
  */
 export const NICKNAME_PATTERN = /^[가-힣ㄱ-ㅎㅏ-ㅣa-zA-Z()-]*$/;
+
+export const NICKNAME_WHITESPACE_ERROR_MESSAGE = "공백은 사용할 수 없어요.";
 
 export const NICKNAME_ERROR_MESSAGE = "한글, 영어와 () - 만 사용할 수 있어요.";
 
