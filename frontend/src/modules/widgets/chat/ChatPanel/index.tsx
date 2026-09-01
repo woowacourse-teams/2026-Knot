@@ -17,17 +17,22 @@ import { useChatPanel } from "./model/useChatPanel";
  */
 export default function ChatPanel() {
   const { workspaceId } = useParams();
-  const { view, handleOnOpenChatList, handleOnBack, handleStartNewChat } =
-    useChatPanel();
+  const {
+    isChatSessionListOpen,
+    openChatSessionList,
+    closeChatSessionList,
+    handleStartNewChat,
+  } = useChatPanel();
 
   // TODO: 상위 컴포넌트로 책임 위임
   if (!workspaceId) return null;
 
-  if (view === "list") {
+  // 채팅 세션 목록
+  if (isChatSessionListOpen) {
     return (
       <Container>
         <ChatSessionListHeader
-          onBack={handleOnBack}
+          onBack={closeChatSessionList}
           onStartNewChat={handleStartNewChat}
         />
         <Content>
@@ -37,10 +42,11 @@ export default function ChatPanel() {
     );
   }
 
+  // 채팅 세션 (실제 대화)
   return (
     <Container>
       <ChatHeader
-        onOpenChatList={handleOnOpenChatList}
+        onOpenChatList={openChatSessionList}
         onStartNewChat={handleStartNewChat}
       />
       <Content>
