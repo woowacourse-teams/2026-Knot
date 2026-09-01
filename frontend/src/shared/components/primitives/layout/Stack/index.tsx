@@ -7,16 +7,19 @@ interface StackProps extends HTMLAttributes<HTMLDivElement> {
    * `main`, `section`, `ul`처럼 의미가 있는 태그가 필요할 때 씁니다.
    */
   as?: ElementType;
+
   /**
    * 교차축(가로) 정렬.
    * @default "stretch"
    */
   align?: keyof typeof ALIGN;
+
   /**
    * 주축(세로) 정렬.
    * @default "start"
    */
   justify?: keyof typeof JUSTIFY;
+
   /**
    * 자식 사이의 간격.
    * 숫자를 넘기면 `rem`으로 붙고, 문자열은 `16px`처럼 단위까지 그대로 적용돼요.
