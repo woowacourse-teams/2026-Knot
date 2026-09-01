@@ -93,6 +93,20 @@ class WorkspaceRepositoryIntegrationTest {
                         memberId
                 )
         ).isTrue();
+        assertThat(
+                workspaceMemberRepository.existsByWorkspaceIdAndMemberIdAndRole(
+                        workspace.getId(),
+                        memberId,
+                        WorkspaceMemberRole.OWNER
+                )
+        ).isTrue();
+        assertThat(
+                workspaceMemberRepository.existsByWorkspaceIdAndMemberIdAndRole(
+                        workspace.getId(),
+                        memberId,
+                        WorkspaceMemberRole.MEMBER
+                )
+        ).isFalse();
     }
 
     @DisplayName("멤버의 OWNER·MEMBER 워크스페이스만 최근 참여 순서로 조회한다")
