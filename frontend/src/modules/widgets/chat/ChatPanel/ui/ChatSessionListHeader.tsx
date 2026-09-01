@@ -23,7 +23,7 @@ export default function ChatSessionListHeader({
   return (
     <ChatPanelHeaderLayout>
       <Left>
-        <IconWrapper onClick={onBack}>
+        <IconWrapper aria-label="대화 화면으로 돌아가기" onClick={onBack}>
           <Back color="#D8D4CD" />
         </IconWrapper>
 
@@ -33,7 +33,7 @@ export default function ChatSessionListHeader({
       </Left>
 
       <Right>
-        <IconWrapper onClick={onStartNewChat}>
+        <IconWrapper aria-label="새 대화 시작" onClick={onStartNewChat}>
           <NewChat color="#8C8880" />
         </IconWrapper>
       </Right>

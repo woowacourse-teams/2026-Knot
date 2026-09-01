@@ -63,6 +63,7 @@ export default function ChatFieldSubmitButton({
       $status={status}
       disabled={isDisabled}
       aria-busy={isLoading}
+      aria-label={isStop ? "답변 생성 중단" : "질문 보내기"}
     >
       <IconWrapper>
         {isLoading && <Spinner size="1rem" />}

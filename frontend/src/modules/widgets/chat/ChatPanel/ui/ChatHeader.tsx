@@ -35,13 +35,13 @@ export default function ChatHeader({
 
       <Right>
         <IconContainer>
-          <IconWrapper onClick={onOpenChatList}>
+          <IconWrapper aria-label="대화 목록 열기" onClick={onOpenChatList}>
             <ChatList color="#8C8880" />
           </IconWrapper>
 
           <Spacing direction="horizontal" size={0.75} />
 
-          <IconWrapper onClick={onStartNewChat}>
+          <IconWrapper aria-label="새 대화 시작" onClick={onStartNewChat}>
             <NewChat color="#8C8880" />
           </IconWrapper>
         </IconContainer>
