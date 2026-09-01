@@ -108,6 +108,12 @@ public enum ChatErrorCode implements ErrorCode {
             "채팅 응답이 이미 진행 중입니다"
     ),
 
+    LLM_CONFIGURATION_INVALID(
+            ErrorCategory.INTERNAL_SERVER_ERROR,
+            "LLM_CONFIGURATION_INVALID",
+            "LLM 설정이 올바르지 않습니다"
+    ),
+
     LLM_STREAM_FAILED(
             ErrorCategory.INTERNAL_SERVER_ERROR,
             "LLM_STREAM_FAILED",
