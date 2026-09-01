@@ -17,6 +17,14 @@ export default defineConfig({
           focusable: "false",
           "aria-hidden": "true",
         },
+        // webpack의 svgr 설정과 같은 size prop을 만들어야 아이콘이 테스트에서도 그려집니다
+        template: ({ componentName, jsx, exports }, { tpl }) => tpl`
+const ${componentName} = ({ size = 24, ...props }) => (
+  ${jsx}
+);
+
+${exports}
+`,
       },
     }),
   ],
@@ -46,6 +54,6 @@ export default defineConfig({
     globals: true,
     environment: "jsdom",
     setupFiles: ["./vitest.setup.ts"],
-    include: ["src/**/*.test.{ts,tsx}"],
+    include: ["src/**/*.test.{ts,tsx}", "src/**/test.{ts,tsx}"],
   },
 });
