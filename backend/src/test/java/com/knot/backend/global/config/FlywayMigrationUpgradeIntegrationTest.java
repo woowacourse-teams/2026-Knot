@@ -28,12 +28,12 @@ class FlywayMigrationUpgradeIntegrationTest {
     private static final String MIGRATION_LOCATION = "classpath:db/migration";
 
     @Container
-    private static final PostgreSQLContainer POSTGRESQL = new PostgreSQLContainer("postgres:18.4")
+    private static final PostgreSQLContainer POSTGRESQL = new PostgreSQLContainer("pgvector/pgvector:pg18")
             .withDatabaseName("knot_migration_upgrade_test")
             .withUsername("knot")
             .withPassword("knot");
 
-    @DisplayName("V9 스키마를 V12 콘텐츠 Import heartbeat 스키마로 업그레이드한다")
+    @DisplayName("V9 스키마를 V13 검색 스키마로 업그레이드한다")
     @Test
     void migrate_success_v9ToContentImportSchema() throws SQLException {
         // given
@@ -79,7 +79,7 @@ class FlywayMigrationUpgradeIntegrationTest {
         assertThat(result.success).isTrue();
         assertThat(v11Result.success).isTrue();
         assertThat(v11Result.migrationsExecuted).isEqualTo(2);
-        assertThat(result.migrationsExecuted).isEqualTo(1);
+        assertThat(result.migrationsExecuted).isEqualTo(2);
         assertThat(appliedVersions(latestFlyway)).containsExactly(
                 "1",
                 "2",
@@ -90,7 +90,8 @@ class FlywayMigrationUpgradeIntegrationTest {
                 "9",
                 "10",
                 "11",
-                "12"
+                "12",
+                "13"
         );
         assertThat(schemaObjectNames("""
                 SELECT table_name
@@ -100,7 +101,9 @@ class FlywayMigrationUpgradeIntegrationTest {
                 """)).contains(
                 "content_import_runs",
                 "imported_pages",
-                "imported_page_publications"
+                "imported_page_publications",
+                "search_document_chunks",
+                "search_references"
         );
         assertThat(schemaObjectNames("""
                 SELECT constraint_name
@@ -124,7 +127,19 @@ class FlywayMigrationUpgradeIntegrationTest {
                 "chk_imported_pages_timestamps",
                 "pk_imported_page_publications",
                 "chk_imported_page_publications_status",
-                "fk_imported_page_publications_import_run"
+                "fk_imported_page_publications_import_run",
+                "pk_search_document_chunks",
+                "uk_search_document_chunks_workspace_run_page_chunk",
+                "fk_search_document_chunks_page",
+                "chk_search_document_chunks_chunk_index",
+                "chk_search_document_chunks_content",
+                "pk_search_references",
+                "uk_search_references_message_rank",
+                "uk_search_references_message_page",
+                "fk_search_references_message",
+                "fk_search_references_page",
+                "chk_search_references_rank",
+                "chk_search_references_relevance"
         );
         assertThat(schemaObjectNames("""
                 SELECT indexname
@@ -136,7 +151,10 @@ class FlywayMigrationUpgradeIntegrationTest {
                 "uk_content_import_runs_one_active",
                 "idx_content_import_runs_workspace_created",
                 "idx_content_import_runs_running_heartbeat",
-                "idx_imported_pages_workspace_run_order"
+                "idx_imported_pages_workspace_run_order",
+                "idx_search_document_chunks_workspace_run",
+                "idx_search_document_chunks_embedding_hnsw",
+                "idx_search_references_message_rank"
         );
         assertThat(schemaObjectNames("""
                 SELECT column_name

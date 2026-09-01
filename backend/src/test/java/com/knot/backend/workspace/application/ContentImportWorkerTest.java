@@ -44,6 +44,7 @@ class ContentImportWorkerTest {
     private final ContentSourceCollector contentCollector = mock(ContentSourceCollector.class);
     private final ContentImportSnapshotStagingService stagingService = mock(ContentImportSnapshotStagingService.class);
     private final ContentImportPublicationService publicationService = mock(ContentImportPublicationService.class);
+    private final ContentImportSearchIndexer searchIndexer = mock(ContentImportSearchIndexer.class);
     private final ContentImportWorkerObserver observer = mock(ContentImportWorkerObserver.class);
     private final ContentImportHeartbeatLease heartbeatLease = mock(ContentImportHeartbeatLease.class);
     private final ContentImportHeartbeatLease.Handle heartbeatHandle = mock(ContentImportHeartbeatLease.Handle.class);
@@ -54,6 +55,7 @@ class ContentImportWorkerTest {
             contentCollector,
             stagingService,
             publicationService,
+            searchIndexer,
             observer,
             heartbeatLease
     );
@@ -75,6 +77,7 @@ class ContentImportWorkerTest {
                 contentCollector,
                 stagingService,
                 publicationService,
+                searchIndexer,
                 observer,
                 heartbeatLease
         );
@@ -141,6 +144,7 @@ class ContentImportWorkerTest {
         verify(contentCollector).collect(ACCESS_CREDENTIAL);
         InOrder persistenceOrder = inOrder(
                 stagingService,
+                searchIndexer,
                 publicationService
         );
         persistenceOrder.verify(stagingService)
@@ -170,6 +174,11 @@ class ContentImportWorkerTest {
                         "자식 본문",
                         1,
                         "https://www.notion.so/child"
+                );
+        persistenceOrder.verify(searchIndexer)
+                .index(
+                        IMPORT_RUN_ID,
+                        WORKSPACE_ID
                 );
         persistenceOrder.verify(publicationService)
                 .publish(IMPORT_RUN_ID);
@@ -201,6 +210,7 @@ class ContentImportWorkerTest {
         verifyFailure(ContentImportFailureCategory.EMPTY_RESULT);
         verifyNoInteractions(
                 stagingService,
+                searchIndexer,
                 publicationService
         );
     }
@@ -230,6 +240,7 @@ class ContentImportWorkerTest {
         verifyNoInteractions(
                 contentCollector,
                 stagingService,
+                searchIndexer,
                 publicationService
         );
     }
@@ -257,6 +268,7 @@ class ContentImportWorkerTest {
                 secretProtector,
                 contentCollector,
                 stagingService,
+                searchIndexer,
                 publicationService
         );
     }
@@ -290,6 +302,7 @@ class ContentImportWorkerTest {
                 secretProtector,
                 contentCollector,
                 stagingService,
+                searchIndexer,
                 publicationService,
                 heartbeatHandle
         );
@@ -312,6 +325,7 @@ class ContentImportWorkerTest {
         verifyFailure(ContentImportFailureCategory.COLLECTION);
         verifyNoInteractions(
                 stagingService,
+                searchIndexer,
                 publicationService
         );
     }
@@ -338,6 +352,7 @@ class ContentImportWorkerTest {
         assertThat(processed).isTrue();
         verifyNoInteractions(
                 stagingService,
+                searchIndexer,
                 publicationService
         );
         verify(
@@ -375,6 +390,7 @@ class ContentImportWorkerTest {
         verifyFailure(ContentImportFailureCategory.COLLECTION);
         verifyNoInteractions(
                 stagingService,
+                searchIndexer,
                 publicationService
         );
     }
@@ -404,6 +420,48 @@ class ContentImportWorkerTest {
                         "https://www.notion.so/root"
                 )
         ).thenThrow(new IllegalStateException("storage failure"));
+        allowFailureTransition();
+
+        // when
+        boolean processed = worker.processNext();
+
+        // then
+        assertThat(processed).isTrue();
+        verifyFailure(ContentImportFailureCategory.STORAGE);
+        verifyNoInteractions(publicationService);
+    }
+
+    @DisplayName("검색 색인이 실패하면 기존 publication을 유지하고 Run을 실패 처리한다")
+    @Test
+    void processNext_failure_searchIndexing() {
+        // given
+        allowClaimAndCredential();
+        CollectedPage page = page(
+                "root",
+                null,
+                "루트",
+                "# 루트",
+                0
+        );
+        when(contentCollector.collect(ACCESS_CREDENTIAL)).thenReturn(new ContentCollectionResult(List.of(page)));
+        when(
+                stagingService.stagePage(
+                        IMPORT_RUN_ID,
+                        WORKSPACE_ID,
+                        "root",
+                        null,
+                        "루트",
+                        "# 루트",
+                        0,
+                        "https://www.notion.so/root"
+                )
+        ).thenReturn(10L);
+        org.mockito.Mockito.doThrow(new IllegalStateException("embedding failure"))
+                .when(searchIndexer)
+                .index(
+                        IMPORT_RUN_ID,
+                        WORKSPACE_ID
+                );
         allowFailureTransition();
 
         // when

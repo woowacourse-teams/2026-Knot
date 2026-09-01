@@ -62,7 +62,7 @@ class ChatRepositoryIntegrationTest {
 
     @BeforeEach
     void clearChatTables() {
-        jdbcClient.sql("TRUNCATE TABLE chat_feedback, chat_messages, chat_sessions RESTART IDENTITY")
+        jdbcClient.sql("TRUNCATE TABLE search_references, chat_feedback, chat_messages, chat_sessions RESTART IDENTITY")
                 .update();
     }
 

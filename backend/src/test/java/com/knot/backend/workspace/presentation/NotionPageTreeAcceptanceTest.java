@@ -24,6 +24,7 @@ import com.knot.backend.workspace.application.ContentImportHeartbeatLease;
 import com.knot.backend.workspace.application.ContentImportPublicationService;
 import com.knot.backend.workspace.application.ContentImportRunLifecycleService;
 import com.knot.backend.workspace.application.ContentImportSnapshotStagingService;
+import com.knot.backend.workspace.application.ContentImportSearchIndexer;
 import com.knot.backend.workspace.application.ContentImportWorker;
 import com.knot.backend.workspace.application.ContentImportWorkerObserver;
 import com.knot.backend.workspace.application.dto.result.CollectedPage;
@@ -1383,6 +1384,12 @@ class NotionPageTreeAcceptanceTest {
 
         @Bean
         @Primary
+        ContentImportSearchIndexer notionPageTreeSearchIndexer() {
+            return mock(ContentImportSearchIndexer.class);
+        }
+
+        @Bean
+        @Primary
         ContentImportHeartbeatLease notionPageTreeHeartbeatLease() {
             return (
                     importRunId,
@@ -1406,6 +1413,7 @@ class NotionPageTreeAcceptanceTest {
                 ContentSourceCollector contentCollector,
                 ContentImportSnapshotStagingService stagingService,
                 ContentImportPublicationService publicationService,
+                ContentImportSearchIndexer searchIndexer,
                 ContentImportWorkerObserver observer,
                 ContentImportHeartbeatLease heartbeatLease
         ) {
@@ -1416,6 +1424,7 @@ class NotionPageTreeAcceptanceTest {
                     contentCollector,
                     stagingService,
                     publicationService,
+                    searchIndexer,
                     observer,
                     heartbeatLease
             );
