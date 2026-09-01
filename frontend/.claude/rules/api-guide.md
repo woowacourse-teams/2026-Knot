@@ -173,5 +173,5 @@ export const handlers = [...chatSessionsHandlers];
 
 ### 의존 규칙
 
-- 의존은 `mock/` → `fetch/`·`types/` **단방향**. 프로덕션 코드는 `mock/`을 import하지 않음. (`grep -r "api/mock" src --exclude-dir=mock`으로 확인)
+- 의존은 `mock/` → `fetch/`·`types/` **단방향**. 프로덕션 코드는 `mock/`을 import하지 않음. (`grep -r "api/mock" src --exclude-dir=mock`으로 확인. 결과는 `API_MOCKING` 플래그 안에서 `mock/browser`를 동적 import하는 `src/index.tsx` 한 곳만 허용)
 - `mock/`에는 **실제 API 응답을 흉내내는 것만** 둠. 대응하는 엔드포인트가 아직 없는 임시 UI 데이터는 핸들러를 만들 수 없으므로 스펙이 정해질 때까지 컴포넌트에 코로케이션.
