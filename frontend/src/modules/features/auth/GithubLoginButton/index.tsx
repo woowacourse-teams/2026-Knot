@@ -1,6 +1,4 @@
 import Button from "@primitives/ui/Button";
-import { PATH_ROUTE } from "@routes/PATH_ROUTE";
-import { useNavigate } from "react-router";
 
 import GithubIcon from "@/assets/icons/github.svg";
 
@@ -16,28 +14,20 @@ const GITHUB_OAUTH_URL = `${process.env.API_BASE_URL}/oauth2/authorization/githu
 /**
  * GitHub 계정으로 로그인을 시작하는 버튼.
  *
- * **지금은 온보딩 화면으로 바로 넘어갑니다.** 로그인 뒤 백엔드가 어느 주소로
- * 돌려보내는지 아직 정해지지 않아, 화면 흐름만 먼저 이어두었어요.
+ * `httpClient`가 아니라 `window.location.href`로 **페이지를 통째로 이동**시켜요.
+ * 이 주소는 응답을 받아 화면에 그리는 API가 아니라 GitHub으로 가는 302 리다이렉트라,
+ * axios로 부르면 GitHub 도메인에서 CORS에 막히고 쿠키도 제대로 심기지 않습니다.
  *
- * 주소가 정해지면 `handleClick`의 `navigate`를 아래 한 줄로 바꾸면 됩니다.
+ * 이동 뒤의 흐름은 백엔드가 정합니다.
+ * 기존 회원은 접근 토큰 쿠키를 받고, 신규 사용자는 온보딩 토큰 쿠키를 받아
+ * 닉네임 입력 화면(`/onboarding`)으로 돌아옵니다.
  *
- * ```ts
- * window.location.href = GITHUB_OAUTH_URL;
- * ```
- *
- * `httpClient`가 아니라 `window.location.href`인 이유가 있어요. 이 주소는 응답을 받아
- * 화면에 그리는 API가 아니라 GitHub으로 가는 302 리다이렉트라, axios로 부르면 GitHub
- * 도메인에서 CORS에 막히고 쿠키도 제대로 심기지 않습니다.
- *
- * 이동 뒤의 흐름은 백엔드가 정합니다. 기존 회원은 Access Token 쿠키를,
- * 신규 사용자는 온보딩 토큰 쿠키를 받고 각각 다른 화면으로 돌아옵니다.
+ * 서버가 허용한 출처에서만 동작하므로 `localhost`에서는 확인할 수 없어요.
+ * 배포된 주소에서 확인해야 합니다.
  */
 export default function GithubLoginButton() {
-  const navigate = useNavigate();
-
   const handleClick = () => {
-    // TODO: 백엔드 redirect 주소가 정해지면 GITHUB_OAUTH_URL로 이동하도록 교체
-    navigate(PATH_ROUTE.ONBOARDING);
+    window.location.href = GITHUB_OAUTH_URL;
   };
 
   return (
