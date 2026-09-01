@@ -2,11 +2,11 @@
 
 ## 1. 문서 상태
 
-- 상태: 통제 스냅샷 1차 실행 및 LM Studio/Notion MCP-live smoke test 완료, Java credential forwarding과 전체 비교 검증 전
+- 상태: 통제 스냅샷 1차 실행 및 LM Studio/Notion MCP-live smoke test 완료, 하이브리드 RAG MVP 방향 결정, 운영 전환 검증 전
 - 목적: Notion 팀 문서 검색에 사용할 아키텍처를 실측으로 결정
-- 최종 도입 방식: 벤치마크 결과 확인 후 결정
+- 최종 도입 방식: MVP는 하이브리드 RAG로 진행하고, 전체 사용자 운영 전환은 추가 품질·권한·지연 검증 후 결정
 - 현재 범위: Notion Markdown 내보내기 기반 통제 실험 → LM Studio/실제 Notion MCP smoke test → Java 연동 및 전체 비교 검증
-- 구현 원칙: 이 계획의 결과가 나오기 전에는 특정 검색 아키텍처를 제품 기본값으로 확정하지 않는다.
+- 구현 원칙: MVP 기본값은 하이브리드 RAG로 두되, 운영 전환 전 검증 게이트와 재검토 조건을 통과해야 한다.
 
 ## 2. 문제와 목표
 
@@ -284,7 +284,7 @@ Notion 연결과 백엔드 읽기 도구를 구성한 뒤 다음을 비교한다
 4. 동기화·장애·비용·운영 복잡도가 감당 가능한가
 5. 문서 수가 늘어날 때 성능이 유지되는가
 
-결과는 비교표와 실패 사례를 함께 남긴다. 최종 기술 선택과 선택 이유는 결과 확인 후 별도 결정 문서로 확정한다.
+결과는 비교표와 실패 사례를 함께 남긴다. MVP 기술 선택은 하이브리드 RAG로 결정하고, 전체 사용자 대상 운영 전환 여부는 추가 검증 결과로 판정한다.
 
 ### 4단계 — 제품 MVP에 반영
 
@@ -444,7 +444,7 @@ Notion 연결과 백엔드 읽기 도구를 구성한 뒤 다음을 비교한다
 - 사용자 제공 Notion export에서 안전 필터 후 461개 문서, 2,715개 청크를 색인했다.
 - Qwen query instruction을 적용한 `rag`, PostgreSQL text index를 사용하는 `db`, 로컬 lexical `mcp-replay`, 전체 원문 `raw`를 구현했다.
 - 검색 지연은 10개 질문 × 10회 × 4전략, 총 400개 기록으로 측정했다. 답변 생성은 10개 질문 × 1회로 별도 측정했다.
-- 현재 결과와 통계적 한계는 [`docs/llm-search-ab-test-report.md`](/Users/yongtae/Desktop/knot/docs/llm-search-ab-test-report.md)에 기록했다. 이 기록은 통제 스냅샷 결과이며 실제 Notion MCP-live의 성능·권한 결과가 아니다.
+- 현재 결과와 통계적 한계는 [`docs/llm-search-ab-test-report.md`](/Users/yongtae/Desktop/knot/docs/llm-search-ab-test-report.md)에 기록했다. MVP 기능 계약은 [`docs/llm-search-feature-spec.md`](/Users/yongtae/Desktop/knot/docs/llm-search-feature-spec.md)에 기록했고, 통제 스냅샷 결과와 실제 Notion MCP-live 결과는 분리해 해석한다.
 
 ## 16. 2026-09-01 LM Studio/Notion MCP-live smoke test
 

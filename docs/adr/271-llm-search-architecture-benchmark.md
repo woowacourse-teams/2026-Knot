@@ -11,9 +11,9 @@ Proposed
 
 ## 한 줄 요약
 
-전체 원문 전달은 운영 후보에서 제외하고, 마지막 성공 동기화 스냅샷을 기준으로 DB/키워드 pre-filter → Qwen pgvector RAG → 필요 시 rerank를 MVP 검증 후보로 유지한다.
+전체 원문 전달은 운영 후보에서 제외하고, 마지막 성공 동기화 스냅샷을 기준으로 DB/키워드 pre-filter → Qwen pgvector RAG → 필요 시 rerank를 MVP 기본 검색 경로로 채택한다.
 
-이번 기록은 통제 스냅샷과 LM Studio/Notion MCP-live smoke test의 실험 방향을 기록한 것이며, Java credential forwarding과 사람의 품질 평가가 끝나기 전에는 최종 운영 아키텍처로 확정하지 않는다.
+이번 기록은 MVP 구현 방향을 결정한 것이며, Java credential forwarding과 사람의 품질 평가가 끝나기 전에는 전체 사용자 대상 운영 아키텍처로 확정하지 않는다.
 
 ## 왜 이 결정이 필요했나
 
@@ -27,17 +27,17 @@ Knot은 Workspace 소유자가 지정한 Notion 문서를 동기화하고, 팀�
 | --- | --- | --- | --- |
 | 전체 원문 직접 전달 | 검색 구현이 단순하고 원문 누락이 적다. | 문서 규모에 따라 컨텍스트 한도를 넘고 매 요청 비용이 커진다. | 운영 후보에서 제외 |
 | PostgreSQL DB/키워드 직접 검색 | 검색 지연이 가장 짧고 구현·운영이 단순하다. | 표현이 다른 질문과 문서의 의미 유사성을 놓칠 수 있다. | pre-filter 및 기준선으로 채택 |
-| Qwen 임베딩 + PostgreSQL pgvector RAG | 한국어·의미 기반 후보를 만들고 모델에 필요한 청크만 전달한다. | 임베딩 생성·색인 운영이 필요하고, 검색 품질을 별도 평가해야 한다. | MVP 검증 후보로 유지 |
+| Qwen 임베딩 + PostgreSQL pgvector RAG | 한국어·의미 기반 후보를 만들고 모델에 필요한 청크만 전달한다. | 임베딩 생성·색인 운영이 필요하고, 검색 품질을 별도 평가해야 한다. | MVP 기본 검색 경로로 채택 |
 | MCP replay/live | 도구 경계와 실시간 외부 문서 접근을 검증할 수 있다. | live는 Notion 네트워크·페이지네이션·권한·rate limit에 영향을 받고, replay는 live 지연을 대표하지 않는다. | replay는 통제 비교군, live smoke test 완료·전체 비교 보류 |
 
 ## 무엇을 결정했나
 
 - 검색 대상은 Workspace의 마지막 성공 동기화 스냅샷으로 제한한다. 비활성·부분 동기화 데이터와 다른 Workspace의 문서는 답변 컨텍스트에 넣지 않는다.
 - Notion access token은 Knot 백엔드에만 보관하고 NIM 요청에는 전달하지 않는다. NIM에는 검색된 문서 내용과 필요한 메타데이터만 전달한다.
-- 기본 검증 경로는 `DB/키워드 pre-filter → Qwen3-Embedding-0.6B 임베딩 → PostgreSQL pgvector 후보 검색 → 관련 청크만 채팅 모델에 전달`로 둔다. 후보가 충분하지 않거나 품질 문제가 확인되면 reranker를 별도 검증한다.
+- MVP 기본 검색 경로는 `DB/키워드 pre-filter → Qwen3-Embedding-0.6B 임베딩 → PostgreSQL pgvector 후보 검색 → 관련 청크만 채팅 모델에 전달`로 채택한다. 후보가 충분하지 않거나 품질 문제가 확인되면 reranker를 별도 검증한다.
 - Raw는 문서가 커질 때 조용히 잘라서 성공으로 계산하지 않는다. 컨텍스트 한도를 넘으면 오류로 기록해 운영 부적합을 드러낸다.
 - `mcp-replay`는 동일한 로컬 스냅샷을 읽기 도구 응답처럼 재생하는 통제군으로만 해석한다. 실제 Notion MCP/API의 성능·권한 결론으로 사용하지 않는다.
-- 최종 채택 여부는 Java credential forwarding, 30개 이상 독립 질문, 실제 Notion MCP-live의 반복 측정, 사람이 검증한 답변·관련 문서 품질 라벨을 확보한 뒤 다시 판정한다.
+- 전체 사용자 대상 운영 전환은 Java credential forwarding, 30개 이상 독립 질문, 실제 Notion MCP-live의 반복 측정, 사람이 검증한 답변·관련 문서 품질 라벨을 확보한 뒤 판정한다.
 
 ## 결과
 

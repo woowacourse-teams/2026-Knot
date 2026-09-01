@@ -4,6 +4,8 @@ Notion `Markdown & CSV` 내보내기를 같은 스냅샷으로 고정한 뒤, Ra
 
 현재 `rag`는 Qwen3-Embedding 0.6B GGUF를 LM Studio의 OpenAI-compatible `/v1/embeddings`로 호출하고 PostgreSQL/pgvector에 저장한다. `db`는 같은 저장소의 텍스트 인덱스만 사용하고, `mcp-replay`는 로컬 lexical 검색 결과를 읽기 도구 응답처럼 전달하는 통제군이다. 실제 Notion 네트워크·권한·페이지네이션을 측정하는 `mcp-live`는 smoke test와 전체 비교를 분리한다.
 
+MVP 제품 방향은 `PostgreSQL 키워드 pre-filter → pgvector RAG → 필요한 청크만 채팅 모델에 전달`하는 하이브리드 RAG다. 기능 계약은 [`docs/llm-search-feature-spec.md`](/Users/yongtae/Desktop/knot/docs/llm-search-feature-spec.md), 비교 결과는 [`docs/llm-search-ab-test-report.md`](/Users/yongtae/Desktop/knot/docs/llm-search-ab-test-report.md)에서 확인한다.
+
 ## 1. 내보내기 준비
 
 사용자가 제공한 ZIP처럼 바깥 ZIP 안에 Notion 분할 ZIP이 있고 파일명에 한글이 포함된 경우 macOS에서는 `unzip`보다 `ditto`가 안전하다.

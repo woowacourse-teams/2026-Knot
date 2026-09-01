@@ -94,4 +94,4 @@
 
 ## 다음 판정
 
-MVP 기본 후보는 `마지막 성공 동기화 스냅샷 → DB/키워드 pre-filter → Qwen pgvector RAG → 필요 시 rerank`의 단계형 구조다. 실제 Notion MCP 연결은 가능하다는 것을 확인했지만, 현재 live smoke test는 end-to-end 5초 목표를 만족하지 못했고 LM Studio-managed OAuth만 검증했다. 최종 채택 전 Java credential forwarding, 30개 이상 독립 질문, 사람이 검증한 answer/source 품질 라벨을 추가해야 한다.
+MVP 기본 경로는 `마지막 성공 동기화 스냅샷 → DB/키워드 pre-filter → Qwen pgvector RAG → 필요 시 rerank`의 단계형 구조로 결정했다. 실제 Notion MCP 연결은 가능하다는 것을 확인했지만, 현재 live smoke test는 end-to-end 5초 목표를 만족하지 못했고 LM Studio-managed OAuth만 검증했다. 전체 사용자 대상 운영 전환 전에는 Java credential forwarding, 30개 이상 독립 질문, 사람이 검증한 answer/source 품질 라벨을 추가해야 한다.
