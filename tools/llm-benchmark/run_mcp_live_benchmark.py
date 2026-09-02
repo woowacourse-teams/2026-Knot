@@ -82,7 +82,10 @@ def main(
         mcp_settings = McpSettings()
         cases = _select_cases(load_cases(gold_set), case)
         nim_settings = None if retrieval_only else NimSettings()
-    except ValidationError as error:
+        _validate_mcp_settings(mcp_settings)
+        if nim_settings is not None:
+            _validate_nim_settings(nim_settings)
+    except (McpTransportError, NimConfigurationError, ValidationError) as error:
         console.print("[red]invalid live benchmark environment:[/red]", error)
         raise typer.Exit(code=2) from error
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -234,6 +237,18 @@ def _select_cases(cases: tuple[BenchmarkCase, ...], selection: str | None) -> tu
 
 def _previous_questions(history: list[ChatMessage]) -> tuple[str, ...]:
     return tuple(message.content for message in history if message.role == "user")
+
+
+def _validate_mcp_settings(settings: McpSettings) -> None:
+    if not settings.access_token.get_secret_value():
+        raise McpTransportError("NOTION_MCP_ACCESS_TOKEN is required")
+
+
+def _validate_nim_settings(settings: NimSettings) -> None:
+    if not settings.api_key:
+        raise NimConfigurationError("api_key")
+    if not settings.model:
+        raise NimConfigurationError("model")
 
 
 if __name__ == "__main__":
