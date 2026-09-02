@@ -21,6 +21,7 @@ from threading import Thread
 from typing import ClassVar
 
 import pytest
+import httpx2
 from mcp_models import JsonObject, McpSettings, McpToolResult
 from mcp_transport import (
     McpHttpClient,
@@ -29,6 +30,7 @@ from mcp_transport import (
     McpTransportError,
     _redact_tool_result,
 )
+from mcp_wire import parse_response
 
 
 class _McpHandler(BaseHTTPRequestHandler):
@@ -306,6 +308,29 @@ def test_successful_tool_result_redaction_preserves_long_page_content() -> None:
     # Then: page content remains complete for JSON parsing and answer grounding
     assert redacted.content[0].text == long_content
     assert redacted.structured_content == {"content": long_content}
+
+
+def test_sse_parser_skips_notifications_and_joins_multiline_json_data() -> None:
+    # Given: a notification event followed by the actual JSON-RPC response event
+    body = (
+        "event: message\n"
+        'data: {"jsonrpc":"2.0","method":"notifications/progress"}\n\n'
+        "event: message\n"
+        'data: {"jsonrpc":"2.0","id":2,"result":\n'
+        'data: {"content":[{"type":"text","text":"ok"}]}}\n\n'
+    )
+    response = httpx2.Response(
+        200,
+        headers={"Content-Type": "text/event-stream"},
+        content=body.encode(),
+    )
+
+    # When: the Streamable HTTP SSE response is parsed
+    parsed = parse_response(response)
+
+    # Then: the correlated response is returned instead of the notification
+    assert parsed.id == 2
+    assert parsed.result == {"content": [{"type": "text", "text": "ok"}]}
 
 
 def test_http_client_classifies_an_initialize_response_without_result(
