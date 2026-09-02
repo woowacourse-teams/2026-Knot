@@ -42,6 +42,7 @@ develop Backend CI 성공 후 NCP 개발 배포를 진행하고 후보 실패 �
 - develop Backend CI와 NCP CD가 같은 커밋을 기준으로 연결된다.
 - 배포 실패 시 단일 서버 재시작 공백은 남지만 직전 정상 버전 복구를 시도한다.
 - NCP 서버에 임시 백업과 rollback watchdog을 위한 권한·경로가 필요하다.
+- 배포별 root 소유 snapshot이 복구 근거로 남으므로 디스크 사용량과 보존 주기를 별도로 관리해야 한다.
 - AWS main 운영 무중단과 Flyway migration 호환성 검증은 별도 ADR·구현 범위로 남는다.
 
 ## 다시 논의해야 할 조건
@@ -50,6 +51,7 @@ develop Backend CI 성공 후 NCP 개발 배포를 진행하고 후보 실패 �
 - 단일 서버 재시작 공백이 개발 검증에 문제가 될 때
 - AWS main 운영 배포를 다중 인스턴스로 전환할 때
 - Flyway migration 호환성 정책을 실제로 구현할 때
+- root 소유 snapshot 보존량이 디스크 운영 기준을 초과할 때
 
 ## 확인
 
