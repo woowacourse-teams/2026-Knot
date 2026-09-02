@@ -84,8 +84,8 @@ def page_from_result(result: McpToolResult, hit: McpSearchHit, scope: McpScope) 
         string(record, "title", "name") or heading(result) or hit.title,
         string(record, "url", "page_url", "pageUrl") or hit.url,
         "\n\n".join(text_content(result)) or string(record, "content", "text") or hit.snippet,
-        string(record, "workspace_id", "workspaceId") or scope.workspace_id,
-        scope.active_snapshot_id,
+        string(record, "workspace_id", "workspaceId") or hit.workspace_id or scope.workspace_id,
+        string(record, "snapshot_id", "snapshotId") or hit.snapshot_id or scope.active_snapshot_id,
         string(record, "parent_id", "parentPageId"),
         string(record, "last_edited_time", "lastEditedTime") or hit.last_edited_time,
     )
