@@ -51,9 +51,7 @@ def test_nim_tool_calls_validate_before_executing_in_model_order() -> None:
         ),
         NimToolCall(
             id="fetch-1",
-            function=NimFunctionCall(
-                name="notion-fetch", arguments='{"id":"page-1"}'
-            ),
+            function=NimFunctionCall(name="notion-fetch", arguments='{"id":"page-1"}'),
         ),
     )
 
