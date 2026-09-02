@@ -260,6 +260,78 @@ def test_live_adapter_paginates_search_and_normalizes_fetch_content() -> None:
     ]
 
 
+@pytest.mark.parametrize(
+    "metadata",
+    (
+        {"workspace_id": "workspace-a"},
+        {"snapshot_id": "snapshot-1"},
+        {},
+    ),
+)
+def test_live_fetch_requires_explicit_scope_metadata(
+    metadata: dict[str, str],
+) -> None:
+    # Given: a detail response whose scope identity is incomplete
+    result = McpToolExchange(
+        McpToolResult.model_validate(
+            {
+                "structuredContent": {
+                    "id": "page-1",
+                    "title": "DB",
+                    **metadata,
+                },
+                "content": [{"type": "text", "text": "PostgreSQL"}],
+            }
+        ),
+        1,
+        0,
+        0,
+        1.0,
+    )
+    client = _FakeMcpClient([result], [])
+    from mcp_adapter import LiveNotionMcpAdapter
+
+    adapter = LiveNotionMcpAdapter(client, _scope())
+    hit = McpSearchHit(
+        "page-1", "DB", "https://notion.so/page-1", "", "workspace-a", "snapshot-1"
+    )
+
+    # When & then: the detail cannot inherit missing scope identity from the search hit
+    with pytest.raises(McpScopeError, match="scope metadata"):
+        adapter.fetch(hit)
+
+
+def test_live_fetch_rejects_markdown_only_detail_without_scope_proof() -> None:
+    # Given: a Markdown link that identifies the page but carries no trusted scope metadata
+    result = McpToolExchange(
+        McpToolResult.model_validate(
+            {
+                "content": [
+                    {
+                        "type": "text",
+                        "text": "# DB\n[DB](https://notion.so/page-1)\nPostgreSQL",
+                    }
+                ]
+            }
+        ),
+        1,
+        0,
+        0,
+        1.0,
+    )
+    client = _FakeMcpClient([result], [])
+    from mcp_adapter import LiveNotionMcpAdapter
+
+    adapter = LiveNotionMcpAdapter(client, _scope())
+    hit = McpSearchHit(
+        "page-1", "DB", "https://notion.so/page-1", "", "workspace-a", "snapshot-1"
+    )
+
+    # When & then: a Markdown path cannot substitute for a server scope assertion
+    with pytest.raises(McpScopeError, match="scope metadata"):
+        adapter.fetch(hit)
+
+
 def test_live_adapter_rejects_detail_from_another_workspace() -> None:
     # Given: a scoped hit whose server response claims another workspace
     result = McpToolExchange(
