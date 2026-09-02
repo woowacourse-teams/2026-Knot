@@ -20,7 +20,9 @@ _SOCKET_OPTIONS: Final[list[tuple[int, int, int]]] = [
     (socket.IPPROTO_TCP, socket.TCP_NODELAY, 1),
 ]
 _PROVIDER_ERROR_DETAIL: Final[str] = "provider returned an HTTP error"
-ReasoningEffort = Literal["none", "minimal", "low", "medium", "high", "xhigh", "max", "ultra"]
+ReasoningEffort = Literal[
+    "none", "minimal", "low", "medium", "high", "xhigh", "max", "ultra"
+]
 
 
 class NimSettings(BaseSettings):
@@ -148,7 +150,9 @@ class NimClient:
             raise NimConfigurationError("api_key")
         if not settings.model:
             raise NimConfigurationError("model")
-        timeout = httpx2.Timeout(connect=10.0, read=settings.read_timeout_s, write=10.0, pool=10.0)
+        timeout = httpx2.Timeout(
+            connect=10.0, read=settings.read_timeout_s, write=10.0, pool=10.0
+        )
         transport = httpx2.HTTPTransport(
             http2=True,
             retries=settings.http_retries,
