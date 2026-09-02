@@ -29,6 +29,20 @@ def _case(
     )
 
 
+def _fingerprint(result: EvaluationRow) -> str:
+    return observation_fingerprint(
+        case_id=result.case_id,
+        repeat=result.repeat,
+        turn=result.turn,
+        strategy=result.strategy,
+        question=result.question,
+        answer=result.answer,
+        source_paths=result.source_paths,
+        retrieved_count=result.retrieved_count,
+        error=result.error,
+    )
+
+
 def test_no_answer_and_clarification_require_empty_sources() -> None:
     cases = (
         _case("G-011", ("MongoDB?",), ("856de115-6a83-8253-96be-810bf12c4384",)),
@@ -284,6 +298,42 @@ def test_human_terminal_label_fails_when_the_observed_answer_changes() -> None:
     )
 
     # Then: a label cannot be reused after the observed answer changes
+    assert not summary.gate_passed
+    assert summary.invalid == (("W-001", 1, 1, "rag"),)
+
+
+def test_human_gate_rejects_a_pass_for_an_empty_or_failed_answer() -> None:
+    # Given: a retrieval-only result without a successful answer
+    case = _case("W-001", ("질문",), ("page-1",))
+    result = EvaluationRow(
+        case_id="W-001",
+        repeat=1,
+        turn=1,
+        strategy="rag",
+        question="질문",
+        answer="",
+        source_paths=(),
+        retrieved_count=0,
+    )
+    label = HumanReviewRow(
+        case_id="W-001",
+        repeat=1,
+        turn=1,
+        strategy="rag",
+        decision="pass",
+        answer_correct=True,
+        sources_relevant=True,
+        policy_compliant=True,
+        reviewer="reviewer-a",
+        result_fingerprint=_fingerprint(result),
+    )
+
+    # When: a terminal pass is evaluated against that observation
+    summary = evaluate_human_labels(
+        (label,), (case,), "rag", repeat=1, result_rows=(result,)
+    )
+
+    # Then: human review cannot turn retrieval-only output into a quality pass
     assert not summary.gate_passed
     assert summary.invalid == (("W-001", 1, 1, "rag"),)
 
