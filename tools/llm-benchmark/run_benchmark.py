@@ -107,14 +107,26 @@ class BenchmarkRecord:
 
 
 def main(
-    snapshot_dir: Path = typer.Option(_DEFAULT_SNAPSHOT, help="Notion Markdown/CSV export directory."),
-    gold_set: Path = typer.Option(_DEFAULT_GOLD_SET, help="Benchmark gold-set Markdown file."),
+    snapshot_dir: Path = typer.Option(
+        _DEFAULT_SNAPSHOT, help="Notion Markdown/CSV export directory."
+    ),
+    gold_set: Path = typer.Option(
+        _DEFAULT_GOLD_SET, help="Benchmark gold-set Markdown file."
+    ),
     output: Path = typer.Option(_DEFAULT_OUTPUT, help="JSONL result output path."),
     strategy: RunMode = typer.Option(RunMode.ALL, help="Strategy to run."),
-    case: str | None = typer.Option(None, help="Comma-separated case IDs, for example G-001,G-007."),
-    repeats: int = typer.Option(1, min=1, help="Number of independent runs per case and strategy."),
-    top_k: int = typer.Option(5, min=1, help="Number of lexical chunks for RAG and MCP replay."),
-    dry_run: bool = typer.Option(False, help="Load and plan requests without calling NIM."),
+    case: str | None = typer.Option(
+        None, help="Comma-separated case IDs, for example G-001,G-007."
+    ),
+    repeats: int = typer.Option(
+        1, min=1, help="Number of independent runs per case and strategy."
+    ),
+    top_k: int = typer.Option(
+        5, min=1, help="Number of lexical chunks for RAG and MCP replay."
+    ),
+    dry_run: bool = typer.Option(
+        False, help="Load and plan requests without calling NIM."
+    ),
     list_cases: bool = typer.Option(False, help="Print parsed case IDs and exit."),
 ) -> None:
     """Run comparable Raw, RAG, and MCP replay NIM benchmark requests."""
@@ -130,7 +142,9 @@ def main(
     settings = None if dry_run else _load_settings(console)
     with output.open("w", encoding="utf-8") as stream:
         if settings is None:
-            _write_dry_run(console, stream, selected_cases, documents, selected_strategies, top_k)
+            _write_dry_run(
+                console, stream, selected_cases, documents, selected_strategies, top_k
+            )
             return
         with closing(NimClient(settings)) as client:
             for repeat_number in range(1, repeats + 1):
@@ -220,25 +234,37 @@ def _messages(
 ) -> tuple[ChatMessage, ...]:
     prompt = f"""{_answer_requirements(question, history)}
 <documents>
-{context.text or '(검색된 문서 없음)'}
+{context.text or "(검색된 문서 없음)"}
 </documents>
 
 질문: {question}"""
-    return (ChatMessage(role="system", content=_SYSTEM_INSTRUCTIONS), *history, ChatMessage(role="user", content=prompt))
+    return (
+        ChatMessage(role="system", content=_SYSTEM_INSTRUCTIONS),
+        *history,
+        ChatMessage(role="user", content=prompt),
+    )
 
 
 def _answer_requirements(question: str, history: tuple[ChatMessage, ...] = ()) -> str:
     """Give the generator a small checklist for the supported question shapes."""
-    previous = " ".join(message.content for message in history if message.role == "user")
+    previous = " ".join(
+        message.content for message in history if message.role == "user"
+    )
     normalized = f"{previous} {question}".casefold()
     requirements: list[str] = [
         "[답변 체크리스트] 문서 컨텍스트에 있는 사실만 사용하고, 아래 질문의 명시된 요구 요소를 빠짐없이 답하세요.",
     ]
     if any(marker in normalized for marker in ("왜", "이유", "선택한")):
-        requirements.append("- 결정 이유: 문제, 대안, 결정, 근거를 구분하고 결정일·현재 상태가 있으면 함께 적으세요.")
+        requirements.append(
+            "- 결정 이유: 문제, 대안, 결정, 근거를 구분하고 결정일·현재 상태가 있으면 함께 적으세요."
+        )
     if "언제" in normalized or "회의 날짜" in normalized:
-        requirements.append("- 날짜/문서 위치 질문: 회의 날짜, 문서 제목·경로, 핵심 논의 요약을 함께 적으세요.")
-    requirements.append("- 컨텍스트에 없는 체크리스트 항목은 없다고 명시하고 추측하지 마세요.")
+        requirements.append(
+            "- 날짜/문서 위치 질문: 회의 날짜, 문서 제목·경로, 핵심 논의 요약을 함께 적으세요."
+        )
+    requirements.append(
+        "- 컨텍스트에 없는 체크리스트 항목은 없다고 명시하고 추측하지 마세요."
+    )
     return "\n".join(requirements)
 
 
@@ -278,7 +304,9 @@ def _write_dry_run(
                         None,
                     ),
                 )
-    console.print(f"[yellow]dry-run complete:[/yellow] {len(cases)} cases, {len(strategies)} strategies")
+    console.print(
+        f"[yellow]dry-run complete:[/yellow] {len(cases)} cases, {len(strategies)} strategies"
+    )
 
 
 def _write_record(stream: TextIO, record: BenchmarkRecord) -> None:
@@ -294,11 +322,15 @@ def _load_settings(console: Console) -> NimSettings:
         raise typer.Exit(code=2) from error
 
 
-def _select_cases(cases: tuple[BenchmarkCase, ...], selection: str | None) -> tuple[BenchmarkCase, ...]:
+def _select_cases(
+    cases: tuple[BenchmarkCase, ...], selection: str | None
+) -> tuple[BenchmarkCase, ...]:
     if selection is None:
         return cases
     wanted = frozenset(item.strip() for item in selection.split(",") if item.strip())
-    selected = tuple(benchmark_case for benchmark_case in cases if benchmark_case.case_id in wanted)
+    selected = tuple(
+        benchmark_case for benchmark_case in cases if benchmark_case.case_id in wanted
+    )
     if len(selected) != len(wanted):
         missing = ", ".join(sorted(wanted - {item.case_id for item in selected}))
         raise typer.BadParameter(f"unknown case ID(s): {missing}")
@@ -321,7 +353,9 @@ def _strategies(mode: RunMode) -> tuple[Strategy, ...]:
 
 def _print_cases(console: Console, cases: tuple[BenchmarkCase, ...]) -> None:
     for benchmark_case in cases:
-        console.print(f"{benchmark_case.case_id}\t{benchmark_case.category}\t{len(benchmark_case.turns)} turn(s)")
+        console.print(
+            f"{benchmark_case.case_id}\t{benchmark_case.category}\t{len(benchmark_case.turns)} turn(s)"
+        )
 
 
 if __name__ == "__main__":
