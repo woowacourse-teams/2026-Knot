@@ -150,3 +150,26 @@ def test_no_answer_and_broad_workload_cases_must_not_expose_sources() -> None:
 
     # Then: no-answer and clarification responses pass without related documents
     assert summary.retrieval_gate_passed
+
+
+def test_human_gate_can_target_a_specific_result_repeat() -> None:
+    # Given: a terminal review label for repeat two
+    case = _case("W-001", ("질문",), ("policy",))
+    reviewed = HumanReviewRow(
+        case_id="W-001",
+        repeat=2,
+        turn=1,
+        strategy="rag",
+        decision="pass",
+        answer_correct=True,
+        sources_relevant=True,
+        policy_compliant=True,
+        reviewer="reviewer-a",
+    )
+
+    # When: the selected result repeat is passed to the human gate
+    summary = evaluate_human_labels((reviewed,), (case,), "rag", repeat=2)
+
+    # Then: the label covers the requested repeat exactly
+    assert summary.gate_passed
+    assert summary.expected == 1
