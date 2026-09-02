@@ -40,6 +40,7 @@ def test_no_answer_and_clarification_require_empty_sources() -> None:
             repeat=1,
             turn=1,
             strategy="rag",
+            question="MongoDB?",
             answer="",
             source_paths=(),
             retrieved_count=0,
@@ -49,6 +50,7 @@ def test_no_answer_and_clarification_require_empty_sources() -> None:
             repeat=1,
             turn=1,
             strategy="rag",
+            question="넓은 질문",
             answer="",
             source_paths=(),
             retrieved_count=0,
@@ -74,6 +76,7 @@ def test_related_documents_must_match_all_three_sources() -> None:
             repeat=1,
             turn=1,
             strategy="rag",
+            question="질문",
             answer="",
             source_paths=(sources[0],),
             retrieved_count=1,
@@ -83,6 +86,7 @@ def test_related_documents_must_match_all_three_sources() -> None:
             repeat=1,
             turn=2,
             strategy="rag",
+            question="추가",
             answer="",
             source_paths=sources,
             retrieved_count=3,
@@ -103,6 +107,7 @@ def test_source_matching_rejects_substrings_and_extra_documents() -> None:
             repeat=1,
             turn=1,
             strategy="rag",
+            question="질문",
             answer="",
             source_paths=("page-10", "unrelated.md"),
             retrieved_count=2,
@@ -131,6 +136,7 @@ def test_follow_up_source_expectations_are_checked_per_turn() -> None:
             repeat=1,
             turn=1,
             strategy="rag",
+            question="첫 질문",
             answer="",
             source_paths=("page-1",),
             retrieved_count=1,
@@ -140,6 +146,7 @@ def test_follow_up_source_expectations_are_checked_per_turn() -> None:
             repeat=1,
             turn=2,
             strategy="rag",
+            question="후속 질문",
             answer="",
             source_paths=("page-2",),
             retrieved_count=1,
@@ -232,6 +239,7 @@ def test_answer_gate_checks_policy_shape_when_answers_exist() -> None:
             repeat=1,
             turn=1,
             strategy="rag",
+            question="넓은 질문",
             answer="범위가 넓어요. 최근 결정사항, 로드맵, 백엔드 진행 상황 중 어떤 내용을 찾고 싶나요?",
             source_paths=(),
             retrieved_count=0,
@@ -252,6 +260,7 @@ def test_answer_gate_ignores_turns_without_automatic_policy() -> None:
             repeat=1,
             turn=1,
             strategy="rag",
+            question="첫 질문",
             answer="정책에 없는 답변",
             source_paths=("policy",),
             retrieved_count=1,
@@ -261,6 +270,7 @@ def test_answer_gate_ignores_turns_without_automatic_policy() -> None:
             repeat=1,
             turn=2,
             strategy="rag",
+            question="후속 질문",
             answer="로드맵의 level 3 기능은 흑곰 기획안 요구사항을 기준으로 정리했습니다.",
             source_paths=("policy",),
             retrieved_count=1,
@@ -279,6 +289,16 @@ def test_answer_gate_ignores_turns_without_automatic_policy() -> None:
 def test_human_gate_requires_one_terminal_label_per_expected_turn() -> None:
     # Given: two generated turns and a complete human review for only one of them
     cases = (_case("G-007", ("첫 질문", "후속 질문"), ("policy",)),)
+    result = EvaluationRow(
+        case_id="G-007",
+        repeat=1,
+        turn=1,
+        strategy="rag",
+        question="첫 질문",
+        answer="답변",
+        source_paths=("policy",),
+        retrieved_count=1,
+    )
     reviewed = HumanReviewRow(
         case_id="G-007",
         repeat=1,
@@ -289,10 +309,23 @@ def test_human_gate_requires_one_terminal_label_per_expected_turn() -> None:
         sources_relevant=True,
         policy_compliant=True,
         reviewer="reviewer-a",
+        result_fingerprint=observation_fingerprint(
+            case_id=result.case_id,
+            repeat=result.repeat,
+            turn=result.turn,
+            strategy=result.strategy,
+            question=result.question,
+            answer=result.answer,
+            source_paths=result.source_paths,
+            retrieved_count=result.retrieved_count,
+            error=result.error,
+        ),
     )
 
     # When: the evaluator checks human semantic coverage
-    summary = evaluate_human_labels((reviewed,), cases, "rag", repeat=1)
+    summary = evaluate_human_labels(
+        (reviewed,), cases, "rag", repeat=1, result_rows=(result,)
+    )
 
     # Then: the unreviewed turn keeps the gate pending
     assert summary.status is HumanReviewStatus.PENDING
@@ -321,6 +354,7 @@ def test_no_answer_and_broad_workload_cases_must_not_expose_sources() -> None:
             repeat=1,
             turn=1,
             strategy="rag",
+            question="MongoDB?",
             answer="",
             source_paths=(),
             retrieved_count=0,
@@ -330,6 +364,7 @@ def test_no_answer_and_broad_workload_cases_must_not_expose_sources() -> None:
             repeat=1,
             turn=1,
             strategy="rag",
+            question="전체 현황?",
             answer="",
             source_paths=(),
             retrieved_count=0,
@@ -346,6 +381,16 @@ def test_no_answer_and_broad_workload_cases_must_not_expose_sources() -> None:
 def test_human_gate_can_target_a_specific_result_repeat() -> None:
     # Given: a terminal review label for repeat two
     case = _case("W-001", ("질문",), ("policy",))
+    result = EvaluationRow(
+        case_id="W-001",
+        repeat=2,
+        turn=1,
+        strategy="rag",
+        question="질문",
+        answer="답변",
+        source_paths=("policy",),
+        retrieved_count=1,
+    )
     reviewed = HumanReviewRow(
         case_id="W-001",
         repeat=2,
@@ -356,10 +401,23 @@ def test_human_gate_can_target_a_specific_result_repeat() -> None:
         sources_relevant=True,
         policy_compliant=True,
         reviewer="reviewer-a",
+        result_fingerprint=observation_fingerprint(
+            case_id=result.case_id,
+            repeat=result.repeat,
+            turn=result.turn,
+            strategy=result.strategy,
+            question=result.question,
+            answer=result.answer,
+            source_paths=result.source_paths,
+            retrieved_count=result.retrieved_count,
+            error=result.error,
+        ),
     )
 
     # When: the selected result repeat is passed to the human gate
-    summary = evaluate_human_labels((reviewed,), (case,), "rag", repeat=2)
+    summary = evaluate_human_labels(
+        (reviewed,), (case,), "rag", repeat=2, result_rows=(result,)
+    )
 
     # Then: the label covers the requested repeat exactly
     assert summary.gate_passed

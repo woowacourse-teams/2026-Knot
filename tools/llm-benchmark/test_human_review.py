@@ -34,6 +34,7 @@ def _row(
     sources_relevant: bool | None = None,
     policy_compliant: bool | None = None,
     reviewer: str = "",
+    result_fingerprint: str = "a" * 64,
 ) -> HumanReviewRow:
     return HumanReviewRow(
         case_id=case_id,
@@ -46,6 +47,7 @@ def _row(
         policy_compliant=policy_compliant,
         reviewer=reviewer,
         notes="",
+        result_fingerprint=result_fingerprint,
     )
 
 
