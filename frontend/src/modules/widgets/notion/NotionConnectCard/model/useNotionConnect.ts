@@ -26,7 +26,7 @@ const isNotFoundError = (error: unknown) =>
  *
  * Notion에서 돌아오면 서버가 `?result=connected|failed`를 붙여 이 화면으로 보내요.
  * `connected`면 워크스페이스 홈으로 `replace` 이동하고, `failed`면 `isFailed`를 켜
- * 카드가 실패 화면(다시 시도·워크스페이스로 이동)을 그리게 둡니다.
+ * 카드가 실패 화면(워크스페이스로 이동)을 그리게 둡니다.
  *
  * 연결 시작 실패는 401 → 로그인, 404 → 워크스페이스 선택 화면으로 `replace` 이동하고,
  * 403(OWNER 아님)과 그 외는 버튼 아래 문구로 알립니다.

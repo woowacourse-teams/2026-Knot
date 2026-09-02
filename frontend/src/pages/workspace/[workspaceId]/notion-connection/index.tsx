@@ -6,8 +6,8 @@ import NotionConnectCard from "@widgets/notion/NotionConnectCard";
  * 워크스페이스 생성 플로우의 마지막 단계로, 기존 노션 기록을 knot으로 가져올지 묻는 화면이다.
  * 연동하거나 건너뛰면 워크스페이스 홈(`/workspace/:workspaceId`)으로 이동한다.
  * Notion OAuth를 마친 서버는 `?result=connected|failed`를 붙여 이 화면으로 되돌려보낸다.
- * `connected`면 워크스페이스 홈으로 `replace` 이동하고, `failed`면 실패 화면
- * (다시 시도·워크스페이스로 이동)을 보여준다.
+ * `connected`면 워크스페이스 홈으로 `replace` 이동하고, `failed`면 실패 화면(워크스페이스로 이동)을
+ * 보여준다.
  *
  * 로고와 중앙 배치는 `CenteredLayout`이 담당하고, 이 페이지는 카드를 놓기만 한다.
  *

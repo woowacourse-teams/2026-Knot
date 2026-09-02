@@ -73,7 +73,6 @@ const getConnectButton = () =>
   screen.getByRole("button", { name: "노션 연결하기" });
 const getGoHomeButton = () =>
   screen.getByRole("button", { name: "워크스페이스로 이동" });
-const getRetryButton = () => screen.getByRole("button", { name: "다시 시도" });
 
 const overrideStartStatus = (status: number) => {
   mockServer.use(
@@ -188,7 +187,7 @@ describe("NotionConnectCard", () => {
     expect(router.state.location.pathname).toBe(ELSEWHERE_PATH);
   });
 
-  it("403이면 소유자만 연결할 수 있다는 문구를 보여주고 이동하지 않는다", async () => {
+  it("403이면 소유자 문구를 보여주고 이동하지 않으며, 다시 연결하기를 누르면 문구를 지운다", async () => {
     overrideStartStatus(403);
     const { router } = renderCard();
 
@@ -199,6 +198,13 @@ describe("NotionConnectCard", () => {
     );
     expect(getConnectButton()).toBeEnabled();
     expect(router.state.location.pathname).toBe(NOTION_CONNECTION_PATH);
+
+    holdStartResponse();
+    fireEvent.click(getConnectButton());
+
+    await waitFor(() => {
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    });
   });
 
   it("그 외 실패면 잠시 후 다시 시도 문구를 보여준다", async () => {
@@ -230,37 +236,15 @@ describe("NotionConnectCard", () => {
     expect(
       screen.getByRole("heading", { name: "노션 연결에 실패했어요" }),
     ).toBeInTheDocument();
-    expect(getRetryButton()).toBeEnabled();
     expect(getGoHomeButton()).toBeEnabled();
     expect(
       screen.queryByRole("button", { name: "노션 연결하기" }),
     ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "다시 시도" }),
+    ).not.toBeInTheDocument();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     expect(router.state.location.pathname).toBe(NOTION_CONNECTION_PATH);
-  });
-
-  it("실패 화면에서 다시 시도를 누르면 연결 시작 응답의 authorizationUrl로 페이지를 이동시킨다", async () => {
-    const assign = vi.fn();
-    vi.stubGlobal("location", { ...window.location, assign });
-    renderCard("?result=failed");
-
-    fireEvent.click(getRetryButton());
-
-    await waitFor(() => {
-      expect(assign).toHaveBeenCalledWith(expected.authorizationUrl);
-    });
-    expect(assign).toHaveBeenCalledTimes(1);
-  });
-
-  it("실패 화면에서 다시 시도가 403이면 소유자 안내 문구를 보여준다", async () => {
-    overrideStartStatus(403);
-    renderCard("?result=failed");
-
-    fireEvent.click(getRetryButton());
-
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      FORBIDDEN_ERROR_MESSAGE,
-    );
   });
 
   it("실패 화면에서 워크스페이스로 이동을 누르면 워크스페이스 홈으로 이동한다", () => {
