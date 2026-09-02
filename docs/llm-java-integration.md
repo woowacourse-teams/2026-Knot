@@ -38,6 +38,8 @@ Notion Import
 | `LLM_MODEL` | `qwen/qwen3.6-27b` | 채팅 모델 |
 | `LLM_EMBEDDING_MODEL` | `text-embedding-qwen3-embedding-0.6b:2` | 임베딩 모델 |
 | `LLM_EMBEDDING_DIMENSIONS` | `1024` | V13 pgvector 차원 계약 |
+| `LLM_SEARCH_EMBEDDING_BATCH_SIZE` | `64` | Import 색인 시 한 번에 임베딩을 요청할 청크 수 |
+| `LLM_SEARCH_MINIMUM_RELEVANCE_SCORE` | `0.35` | 검색 후보를 근거로 채택하기 위한 최소 정규화 점수 |
 | `LLM_MAX_TOKENS` | `1024` | 채팅 생성 상한 |
 | `LLM_TEMPERATURE` | `0.2` | 채팅 생성 온도 |
 | `LLM_REQUEST_TIMEOUT` | `PT30S` | 채팅·임베딩 HTTP timeout |
@@ -53,6 +55,11 @@ LLM_API_KEY=<NIM secret>
 LLM_MODEL=<NIM chat model>
 LLM_EMBEDDING_MODEL=<NIM embedding model>
 ```
+
+`LLM_SEARCH_EMBEDDING_BATCH_SIZE`는 임베딩 provider의 요청 크기·timeout에 맞춰 조정한다. 모든
+배치가 성공하기 전에는 새 import snapshot을 공개하지 않는다. `LLM_SEARCH_MINIMUM_RELEVANCE_SCORE`
+미만인 vector·keyword 후보는 답변 근거에서 제외하며, 남은 후보가 없으면 LLM을 호출하지 않고
+문서 없음 응답을 반환한다.
 
 ## PostgreSQL
 
