@@ -1455,6 +1455,8 @@ jobs:
             "$state_dir/last-known-good-candidate.ready" \
             "$state_dir/snapshot-ready" \
             "$state_dir/watchdog-started" \
+            "$state_dir/preflight-started" \
+            "$state_dir/preflight-terminal" \
             "$state_dir/mutation-started" \
             "$state_dir/rollback-started" \
             "$state_dir/rollback.lock" \
