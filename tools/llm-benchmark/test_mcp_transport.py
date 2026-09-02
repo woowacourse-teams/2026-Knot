@@ -249,9 +249,10 @@ def test_http_client_surfaces_json_rpc_errors_as_protocol_errors(
     )
 
     # When & then: the successful stub path is intentionally read-only and unknown calls are rejected locally
-    with pytest.raises(McpProtocolError):
+    with pytest.raises(McpTransportError, match="not allowed"):
         client.call_tool("unknown-tool", {})
     client.close()
+    assert _McpHandler.requests == []
 
 
 def test_http_client_redacts_token_from_json_rpc_error(
