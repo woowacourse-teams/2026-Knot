@@ -1,0 +1,157 @@
+"""Normalize untrusted MCP content into scoped Notion page primitives."""
+
+from __future__ import annotations
+
+import re
+
+from mcp_adapter_errors import McpScopeError
+from mcp_models import (
+    JsonObject,
+    JsonValue,
+    McpPage,
+    McpScope,
+    McpSearchHit,
+    McpToolResult,
+)
+
+_MARKDOWN_LINK = re.compile(r"\[([^\]]+)\]\((https?://[^)\s]+)\)")
+_PAGE_URL = re.compile(r"https?://(?:www\.)?(?:notion\.so|notion\.site|notion\.com)/[^\s)\]>]+")
+_PAGE_ID = re.compile(
+    r"(?:[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}|[0-9a-f]{32})",
+    re.IGNORECASE,
+)
+
+
+def search_hits(result: McpToolResult, scope: McpScope) -> tuple[McpSearchHit, ...]:
+    """Extract structured and Markdown-linked pages that are in the scope allowlist."""
+    hits: list[McpSearchHit] = []
+    seen: set[str] = set()
+    for record in records(result.structured_content):
+        page_id = string(record, "id", "page_id", "pageId")
+        url = string(record, "url", "page_url", "pageUrl")
+        if page_id is None and url is not None:
+            page_id = page_id_from_url(url)
+        if page_id is None:
+            continue
+        url = url or f"https://notion.so/{page_id}"
+        normalized_id = normalize_page_id(page_id)
+        if normalized_id not in scope.allowed_page_ids or normalized_id in seen:
+            continue
+        hits.append(
+            McpSearchHit(
+                page_id,
+                string(record, "title", "name") or page_id,
+                url,
+                string(record, "snippet", "text", "description") or "",
+                scope.workspace_id,
+                scope.active_snapshot_id,
+                string(record, "last_edited_time", "lastEditedTime"),
+            )
+        )
+        seen.add(normalized_id)
+    for content in text_content(result):
+        for title, url in links(content):
+            page_id = page_id_from_url(url)
+            if page_id is None:
+                continue
+            normalized_id = normalize_page_id(page_id)
+            if normalized_id in scope.allowed_page_ids and normalized_id not in seen:
+                hits.append(McpSearchHit(page_id, title, url, content, scope.workspace_id, scope.active_snapshot_id))
+                seen.add(normalized_id)
+    return tuple(hits)
+
+
+def page_from_result(result: McpToolResult, hit: McpSearchHit, scope: McpScope) -> McpPage:
+    """Extract one page from a fetch result and enforce the connected scope."""
+    record = next(
+        (
+            candidate
+            for candidate in records(result.structured_content)
+            if string(candidate, "id", "page_id", "pageId") is not None
+        ),
+        {},
+    )
+    page = McpPage(
+        string(record, "id", "page_id", "pageId") or hit.page_id,
+        string(record, "title", "name") or heading(result) or hit.title,
+        string(record, "url", "page_url", "pageUrl") or hit.url,
+        "\n\n".join(text_content(result)) or string(record, "content", "text") or hit.snippet,
+        string(record, "workspace_id", "workspaceId") or scope.workspace_id,
+        scope.active_snapshot_id,
+        string(record, "parent_id", "parentPageId"),
+        string(record, "last_edited_time", "lastEditedTime") or hit.last_edited_time,
+    )
+    if not scope.permits(page):
+        raise McpScopeError(f"page {page.page_id!r} is outside the active scope")
+    return page
+
+
+def pagination(result: McpToolResult) -> tuple[bool, str | None]:
+    """Read optional cursor pagination metadata from structured MCP content."""
+    for record in records(result.structured_content):
+        has_more = record.get("has_more")
+        next_cursor = record.get("next_cursor")
+        if isinstance(has_more, bool):
+            return has_more, next_cursor if isinstance(next_cursor, str) else None
+    return False, None
+
+
+def text_content(result: McpToolResult) -> tuple[str, ...]:
+    """Return text blocks without passing opaque protocol values downstream."""
+    return tuple(block.text for block in result.content if block.text)
+
+
+def records(value: JsonObject | None) -> tuple[JsonObject, ...]:
+    """Walk structured content and return every JSON object in stable traversal order."""
+    if value is None:
+        return ()
+    found: list[JsonObject] = []
+    pending: list[JsonValue] = [value]
+    while pending:
+        current = pending.pop()
+        match current:
+            case dict():
+                normalized = {key: child for key, child in current.items() if isinstance(key, str)}
+                found.append(normalized)
+                pending.extend(reversed(tuple(normalized.values())))
+            case list():
+                pending.extend(reversed(current))
+            case str() | int() | float() | bool() | None:
+                continue
+            case unreachable:
+                from typing import assert_never
+
+                assert_never(unreachable)
+    return tuple(found)
+
+
+def links(text: str) -> tuple[tuple[str, str], ...]:
+    """Extract Notion links from Markdown or plain MCP text blocks."""
+    markdown = tuple(_MARKDOWN_LINK.findall(text))
+    known_urls = {url for _, url in markdown}
+    plain = tuple((url.rsplit("/", 1)[-1], url) for url in _PAGE_URL.findall(text) if url not in known_urls)
+    return markdown + plain
+
+
+def string(record: JsonObject, *keys: str) -> str | None:
+    """Read the first non-empty string field from a structured result object."""
+    return next((value for key in keys if isinstance(value := record.get(key), str) and value), None)
+
+
+def page_id_from_url(url: str) -> str | None:
+    """Extract a UUID page ID or a final URL segment from a Notion link."""
+    match = _PAGE_ID.search(url)
+    return match.group(0) if match is not None else url.rstrip("/").rsplit("/", 1)[-1] or None
+
+
+def normalize_page_id(page_id: str) -> str:
+    """Normalize UUID formatting for allowlist comparisons."""
+    return page_id.casefold().replace("-", "")
+
+
+def heading(result: McpToolResult) -> str | None:
+    """Use the first Markdown H1 as a fallback page title."""
+    return next(
+        (line.removeprefix("# ").strip() for line in text_content(result)[0].splitlines() if line.startswith("# ")),
+        None,
+    ) if text_content(result) else None
