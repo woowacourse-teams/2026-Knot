@@ -960,6 +960,74 @@ jobs:
             "$NCP_DEV_USER@$NCP_DEV_HOST" \
             "if [ -d '$STAGING_DIR' ]; then rm -f '$STAGING_DIR/knot-backend-dev.jar' '$STAGING_DIR/knot-backend-dev.env'; rmdir '$STAGING_DIR'; fi"
 
+      - name: Clean up NCP deployment state
+        id: state_cleanup
+        if: always() && steps.deploy.outcome != 'skipped'
+        continue-on-error: true
+        shell: bash
+        env:
+          NCP_DEV_HOST: ${{ secrets.NCP_DEV_HOST }}
+          NCP_DEV_USER: ${{ secrets.NCP_DEV_USER }}
+          NCP_DEV_SSH_PRIVATE_KEY: ${{ secrets.NCP_DEV_SSH_PRIVATE_KEY }}
+          NCP_DEV_KNOWN_HOSTS: ${{ secrets.NCP_DEV_KNOWN_HOSTS }}
+          DEPLOYMENT_ID: ${{ github.run_id }}-${{ github.run_attempt }}
+        run: |
+          set -Eeuo pipefail
+
+          case "$DEPLOYMENT_ID" in
+            (*[!A-Za-z0-9_.-]*)
+              echo "DEPLOYMENT_ID contains unsupported characters."
+              exit 1
+              ;;
+          esac
+
+          install -d -m 700 "$HOME/.ssh"
+          umask 077
+          printf '%s\n' "$NCP_DEV_SSH_PRIVATE_KEY" > "$HOME/.ssh/ncp-dev"
+          printf '%s\n' "$NCP_DEV_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+          chmod 600 "$HOME/.ssh/ncp-dev"
+          chmod 644 "$HOME/.ssh/known_hosts"
+
+          ssh \
+            -i "$HOME/.ssh/ncp-dev" \
+            -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
+            -o GlobalKnownHostsFile=/dev/null \
+            -o ConnectTimeout=10 \
+            -o BatchMode=yes \
+            "$NCP_DEV_USER@$NCP_DEV_HOST" \
+            "DEPLOYMENT_ID='$DEPLOYMENT_ID' bash -se" <<'REMOTE'
+          set -Eeuo pipefail
+
+          state_dir="/tmp/knot-backend-dev-deploy-$DEPLOYMENT_ID"
+          deployment_lock_file="/tmp/knot-backend-dev-deployment.lock"
+
+          if [ ! -d "$state_dir" ]; then
+            exit 0
+          fi
+
+          exec 9>"$deployment_lock_file"
+          if ! /usr/bin/flock -n 9; then
+            echo "Rollback watchdog still owns the deployment lock; preserving state."
+            exit 0
+          fi
+
+          rm -f \
+            "$state_dir/rollback-watchdog.sh" \
+            "$state_dir/restore-previous.sh" \
+            "$state_dir/snapshot-ready" \
+            "$state_dir/watchdog-started" \
+            "$state_dir/mutation-started" \
+            "$state_dir/rollback-started" \
+            "$state_dir/rollback.lock" \
+            "$state_dir/succeeded" \
+            "$state_dir/rollback-succeeded" \
+            "$state_dir/status" \
+            "$state_dir/watchdog.log"
+          rmdir "$state_dir"
+          REMOTE
+
       - name: Notify Discord
         if: always()
         continue-on-error: true
@@ -975,6 +1043,7 @@ jobs:
           CI_RUN_ID: ${{ steps.ci_gate.outputs.run_id }}
           ROLLBACK_STATUS: ${{ steps.deploy.outputs.rollback }}
           DEPLOY_FAILURE_REASON: ${{ steps.deploy.outputs.failure_reason }}
+          STATE_CLEANUP_STATUS: ${{ steps.state_cleanup.outcome }}
           CLEANUP_STATUS: ${{ steps.cleanup.outputs.outcome }}
           BRANCH: ${{ github.ref_name }}
           ACTOR: ${{ github.actor }}
@@ -1015,6 +1084,7 @@ jobs:
               deployment-lock-held|deployment-lock-invalid) echo "⚠️ 배포 잠금" ;;
               watchdog-rollback-failed) echo "❌ watchdog 롤백 실패" ;;
               cleanup-failed) echo "⚠️ 임시 파일 정리 실패" ;;
+              state-cleanup-failed) echo "⚠️ 배포 상태 정리 실패" ;;
               unknown) echo "❔ 확인 불가" ;;
               *) echo "⚪ $1" ;;
             esac
@@ -1042,6 +1112,11 @@ jobs:
             DESCRIPTION="배포 결과와 별개로 NCP 임시 staging 파일을 정리하지 못했습니다. 서버의 임시 파일을 확인해야 합니다."
             COLOR=16705372
             STATUS_LABEL="임시 파일 정리 실패"
+          elif [ "$STATE_CLEANUP_STATUS" = "failure" ]; then
+            TITLE="⚠️ Backend Dev CD 배포 상태 정리 실패"
+            DESCRIPTION="배포 결과는 확인했지만 NCP 임시 배포 상태를 정리하지 못했습니다. 서버의 상태 디렉터리를 확인해야 합니다."
+            COLOR=16705372
+            STATUS_LABEL="배포 상태 정리 실패"
           elif [ "$JOB_STATUS" = "success" ]; then
             TITLE="✅ Backend Dev CD 성공"
             DESCRIPTION="develop 브랜치의 NCP 개발 서버 배포가 완료되었습니다."
@@ -1095,6 +1170,7 @@ jobs:
             --arg rollback "$(stage_label "$rollback_status")" \
             --arg failure_reason "$(stage_label "$deploy_failure_reason")" \
             --arg cleanup "$(stage_label "${CLEANUP_STATUS:-skipped}")" \
+            --arg state_cleanup "$(stage_label "${STATE_CLEANUP_STATUS:-skipped}")" \
             --arg run_url "$RUN_URL" \
             --arg repository "$GITHUB_REPOSITORY" \
             --argjson color "$COLOR" \
@@ -1119,6 +1195,7 @@ jobs:
                     { name: "롤백", value: $rollback, inline: true },
                     { name: "실패 원인", value: $failure_reason, inline: true },
                     { name: "임시 파일 정리", value: $cleanup, inline: true },
+                    { name: "배포 상태 정리", value: $state_cleanup, inline: true },
                     { name: "커밋", value: ("`" + $commit + "`"), inline: true },
                     { name: "실행자", value: ("`" + $actor + "`"), inline: true },
                     { name: "Backend CI 로그", value: (
