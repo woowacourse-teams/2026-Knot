@@ -152,6 +152,8 @@ jobs:
                 -o GlobalKnownHostsFile=/dev/null \
                 -o ConnectTimeout=10 \
                 -o BatchMode=yes \
+                -o ServerAliveInterval=10 \
+                -o ServerAliveCountMax=3 \
                 "$NCP_DEV_USER@$NCP_DEV_HOST" \
                 "rm -f '$staging_dir/knot-backend-dev.jar'; rmdir '$staging_dir' 2>/dev/null || true" \
                 >/dev/null 2>&1 || true
@@ -174,6 +176,8 @@ jobs:
             -o GlobalKnownHostsFile=/dev/null \
             -o ConnectTimeout=10 \
             -o BatchMode=yes \
+            -o ServerAliveInterval=10 \
+            -o ServerAliveCountMax=3 \
             "$NCP_DEV_USER@$NCP_DEV_HOST" \
             'umask 077; mktemp -d /tmp/knot-backend-dev.XXXXXX')"
           if [[ ! "$staging_dir" =~ ^/tmp/knot-backend-dev\.[[:alnum:]]+$ ]]; then
@@ -190,6 +194,8 @@ jobs:
             -o GlobalKnownHostsFile=/dev/null \
             -o ConnectTimeout=10 \
             -o BatchMode=yes \
+            -o ServerAliveInterval=10 \
+            -o ServerAliveCountMax=3 \
             "$JAR_PATH" \
             "$NCP_DEV_USER@$NCP_DEV_HOST:$staging_dir/knot-backend-dev.jar"
 
@@ -276,6 +282,8 @@ jobs:
             -o GlobalKnownHostsFile=/dev/null \
             -o ConnectTimeout=10 \
             -o BatchMode=yes \
+            -o ServerAliveInterval=10 \
+            -o ServerAliveCountMax=3 \
             "$env_file" \
             "$NCP_DEV_USER@$NCP_DEV_HOST:$STAGING_DIR/knot-backend-dev.env"
 
@@ -288,6 +296,8 @@ jobs:
             -o GlobalKnownHostsFile=/dev/null \
             -o ConnectTimeout=10 \
             -o BatchMode=yes \
+            -o ServerAliveInterval=10 \
+            -o ServerAliveCountMax=3 \
             "$NCP_DEV_USER@$NCP_DEV_HOST" \
             "DEPLOYMENT_ID='$DEPLOYMENT_ID' STAGING_DIR='$STAGING_DIR' bash -se" <<'REMOTE' >"$remote_output_file" 2>&1
           set -Eeuo pipefail
@@ -875,6 +885,8 @@ jobs:
                 -o GlobalKnownHostsFile=/dev/null \
                 -o ConnectTimeout=10 \
                 -o BatchMode=yes \
+                -o ServerAliveInterval=10 \
+                -o ServerAliveCountMax=3 \
                 "$NCP_DEV_USER@$NCP_DEV_HOST" \
                 "if [ -f '/tmp/knot-backend-dev-deploy-$DEPLOYMENT_ID/watchdog-started' ]; then printf active; elif [ -d '/tmp/knot-backend-dev-deploy-$DEPLOYMENT_ID' ]; then printf pending; else printf absent; fi" \
                 2>/dev/null || true)"
@@ -897,6 +909,8 @@ jobs:
                 -o GlobalKnownHostsFile=/dev/null \
                 -o ConnectTimeout=10 \
                 -o BatchMode=yes \
+                -o ServerAliveInterval=10 \
+                -o ServerAliveCountMax=3 \
                 "$NCP_DEV_USER@$NCP_DEV_HOST" \
                 "if [ -f '/tmp/knot-backend-dev-deploy-$DEPLOYMENT_ID/status' ]; then cat '/tmp/knot-backend-dev-deploy-$DEPLOYMENT_ID/status'; fi" \
                 2>/dev/null || true)"
@@ -957,6 +971,8 @@ jobs:
             -o GlobalKnownHostsFile=/dev/null \
             -o ConnectTimeout=10 \
             -o BatchMode=yes \
+            -o ServerAliveInterval=10 \
+            -o ServerAliveCountMax=3 \
             "$NCP_DEV_USER@$NCP_DEV_HOST" \
             "if [ -d '$STAGING_DIR' ]; then rm -f '$STAGING_DIR/knot-backend-dev.jar' '$STAGING_DIR/knot-backend-dev.env'; rmdir '$STAGING_DIR'; fi"
 
