@@ -307,6 +307,52 @@ def test_live_runner_can_use_the_nim_mcp_tool_call_loop() -> None:
     assert record["tool_calls"] == 2
 
 
+def test_live_runner_does_not_count_model_generation_as_mcp_access() -> None:
+    # Given: the model answers directly without requesting an MCP tool
+    class DirectAnswerClient:
+        def generate(
+            self,
+            messages: tuple[ChatMessage, ...],
+            *,
+            tools: tuple[JsonObject, ...] = (),
+        ) -> NimResult:
+            return NimResult("직접 답변", 10.0, 20.0)
+
+    page = McpPage(
+        "page-1",
+        "DB",
+        "https://notion.so/page-1",
+        "PostgreSQL 결정",
+        "workspace-a",
+        "snapshot-1",
+    )
+    scope = McpScope("workspace-a", "snapshot-1", frozenset({"page-1"}))
+    adapter = ReplayMcpAdapter((page,), scope)
+    output = StringIO()
+    case = BenchmarkCase(
+        "G-001", "confirmed", "fact", ("DB가 뭐야?",), "PostgreSQL", ("page-1",)
+    )
+
+    # When: the live runner completes without any search/fetch operation
+    _run_case(
+        output,
+        adapter,
+        DirectAnswerClient(),
+        case,
+        1,
+        1,
+        False,
+        True,
+        scope,
+    )
+
+    # Then: end-to-end metrics contain model latency exactly once
+    record = json.loads(output.getvalue())
+    assert record["mcp_elapsed_ms"] == 0.0
+    assert record["ttft_ms"] == pytest.approx(10.0)
+    assert record["total_ms"] == pytest.approx(20.0)
+
+
 def test_live_runner_passes_one_live_metadata_identity_to_each_observation() -> None:
     # Given: a scoped replay stand-in and a deterministic tool-calling client
     scope = McpScope("workspace-a", "snapshot-1", frozenset({"page-1"}))
