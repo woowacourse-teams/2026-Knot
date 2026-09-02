@@ -21,6 +21,8 @@ from gold_set import BenchmarkCase
 from mcp_adapter import McpContextTiming, ReplayMcpAdapter
 from mcp_models import McpPage, McpScope, McpToolTrace
 from nim_client import NimTransportError
+from retrieval_policy import QueryPlan
+from retrieval_policy import plan_query as real_plan_query
 from run_mcp_live_benchmark import _record, _run_case, main
 from typer.testing import CliRunner
 
@@ -120,3 +122,42 @@ def test_live_runner_returns_a_cli_error_when_nim_configuration_is_missing(
     assert result.exit_code == 2
     assert "NIM_API_KEY is required" in result.stdout
     assert "Traceback" not in result.stdout
+
+
+def test_retrieval_only_runner_keeps_previous_questions_for_follow_ups(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Given: a two-turn case executed without a chat generation client
+    page = McpPage(
+        "page-1",
+        "DB",
+        "https://notion.so/page-1",
+        "PostgreSQL 결정 이유",
+        "workspace-a",
+        "snapshot-1",
+    )
+    adapter = ReplayMcpAdapter(
+        (page,), McpScope("workspace-a", "snapshot-1", frozenset({"page-1"}))
+    )
+    observed_previous: list[tuple[str, ...]] = []
+
+    def recording_plan(question: str, previous: tuple[str, ...]) -> QueryPlan:
+        observed_previous.append(previous)
+        return real_plan_query(question, previous)
+
+    monkeypatch.setattr("run_mcp_live_benchmark.plan_query", recording_plan)
+    output = StringIO()
+    case = BenchmarkCase(
+        "G-001",
+        "confirmed",
+        "follow_up",
+        ("PostgreSQL", "그럼 이유는?"),
+        "PostgreSQL 결정 이유",
+        ("page-1",),
+    )
+
+    # When: both turns are measured as retrieval-only observations
+    _run_case(output, adapter, None, case, 1, 1, True)
+
+    # Then: the second query planner receives the first question as context
+    assert observed_previous == [(), ("PostgreSQL",)]
