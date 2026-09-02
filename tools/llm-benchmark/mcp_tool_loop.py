@@ -124,23 +124,20 @@ def generate_with_mcp_tools(
         raise ValueError("max_rounds must be positive")
     conversation = list(messages)
     executions: list[McpToolExecution] = []
-    first_ttft_ms: float | None = None
     model_total_ms = 0.0
     for round_number in range(1, max_rounds + 1):
         generated = client.generate(
             tuple(conversation),
             tools=MCP_TOOL_DEFINITIONS,
         )
-        first_ttft_ms = (
-            generated.ttft_ms if first_ttft_ms is None else first_ttft_ms
-        )
+        model_time_before_current_call = model_total_ms
         model_total_ms += generated.total_ms
         if not generated.tool_calls:
             return McpToolLoopResult(
                 generated,
                 tuple(executions),
                 round_number,
-                first_ttft_ms,
+                model_time_before_current_call + generated.ttft_ms,
                 model_total_ms,
             )
         batch = execute_nim_tool_calls(
