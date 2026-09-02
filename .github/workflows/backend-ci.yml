@@ -102,8 +102,8 @@ jobs:
             TARGET_URL="$PR_URL"
           else
             GITHUB_USER="$ACTOR"
-            TITLE="main Branch CI Failed"
-            DESCRIPTION="main 브랜치 CI 검증에 실패했습니다."
+            TITLE="$BRANCH Branch CI Failed"
+            DESCRIPTION="$BRANCH 브랜치 CI 검증에 실패했습니다."
             TARGET_URL="$SERVER_URL/$REPOSITORY/actions/runs/$RUN_ID"
           fi
 
