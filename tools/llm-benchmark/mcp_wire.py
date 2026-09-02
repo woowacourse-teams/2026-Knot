@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Iterable
 
 import httpx2
 from mcp_errors import McpProtocolError
@@ -19,9 +20,13 @@ def parse_response(response: httpx2.Response) -> McpRpcResponse:
         raise McpProtocolError("MCP response is not valid JSON-RPC") from error
 
 
-def safe_detail(detail: str) -> str:
+def safe_detail(detail: str, secrets: Iterable[str] = ()) -> str:
     """Truncate errors and redact bearer credentials before they leave the boundary."""
-    return re.sub(r"Bearer\s+[^\s\"']+", "Bearer [redacted]", detail[:500])
+    redacted = re.sub(r"Bearer\s+[^\s\"']+", "Bearer [redacted]", detail[:500])
+    return next(
+        (redacted.replace(secret, "[redacted]") for secret in secrets if secret and secret in redacted),
+        redacted,
+    )
 
 
 def _parse_sse(body: str) -> McpRpcResponse:

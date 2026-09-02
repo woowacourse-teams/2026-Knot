@@ -72,6 +72,7 @@ class McpHttpClient:
             headers={"Authorization": f"Bearer {token}"},
         )
         self._settings = settings
+        self._access_token = token
         self._request_id = 0
         self._session_id: str | None = None
         self._initialized = False
@@ -166,7 +167,7 @@ class McpHttpClient:
                 attempt += 1
                 continue
             if response.status_code >= 400:
-                raise McpHttpError(response.status_code, safe_detail(response.text))
+                raise McpHttpError(response.status_code, safe_detail(response.text, (self._access_token,)))
             parsed = None if not expect_response else parse_response(response)
             return _HttpExchange(response, parsed, requests, retries, rate_limits)
         raise McpTransportError("MCP request retry loop ended unexpectedly")
