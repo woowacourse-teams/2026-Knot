@@ -305,6 +305,8 @@ def test_live_runner_can_use_the_nim_mcp_tool_call_loop() -> None:
     assert record["answer"] == "PostgreSQL을 사용합니다."
     assert record["source_paths"] == ["https://notion.so/page-1"]
     assert record["tool_calls"] == 2
+    assert record["model_ttft_ms"] == 8.0
+    assert record["model_total_ms"] == 9.0
 
 
 def test_live_runner_does_not_count_model_generation_as_mcp_access() -> None:
