@@ -254,4 +254,18 @@ describe("NotionConnectCard", () => {
 
     expect(router.state.location.pathname).toBe(HOME_PATH);
   });
+
+  it("?result가 알 수 없는 값이면 쿼리를 지우고 연결 카드를 보여준다", async () => {
+    const { router } = renderCard("?result=unknown");
+
+    await waitFor(() => {
+      expect(router.state.location.search).toBe("");
+    });
+    expect(router.state.location.pathname).toBe(NOTION_CONNECTION_PATH);
+    expect(getConnectButton()).toBeEnabled();
+
+    await goBack(router);
+
+    expect(router.state.location.pathname).toBe(ELSEWHERE_PATH);
+  });
 });

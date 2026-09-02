@@ -26,17 +26,19 @@ const isNotFoundError = (error: unknown) =>
  *
  * Notion에서 돌아오면 서버가 `?result=connected|failed`를 붙여 이 화면으로 보내요.
  * `connected`면 워크스페이스 홈으로 `replace` 이동하고, `failed`면 `isFailed`를 켜
- * 카드가 실패 화면(워크스페이스로 이동)을 그리게 둡니다.
+ * 카드가 실패 화면(워크스페이스로 이동)을 그리게 둡니다. 그 밖의 알 수 없는 값은
+ * 잘못된 접근으로 보고 쿼리를 지워(`replace`) 연결 카드로 되돌립니다.
  *
  * 연결 시작 실패는 401 → 로그인, 404 → 워크스페이스 선택 화면으로 `replace` 이동하고,
  * 403(OWNER 아님)과 그 외는 버튼 아래 문구로 알립니다.
  */
 export const useNotionConnect = () => {
   const { workspaceId } = useParams();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const result = searchParams.get(NOTION_CONNECTION_RESULT_PARAM);
   const isConnected = result === NOTION_CONNECTION_RESULT.connected;
   const isFailed = result === NOTION_CONNECTION_RESULT.failed;
+  const isUnknownResult = result !== null && !isConnected && !isFailed;
 
   const [errorMessage, setErrorMessage] = useState<string>();
   const [isRedirecting, setIsRedirecting] = useState(false);
@@ -53,6 +55,12 @@ export const useNotionConnect = () => {
 
     navigateToWorkspaceHome({ workspaceId, replace: true });
   }, [isConnected, workspaceId, navigateToWorkspaceHome]);
+
+  useEffect(() => {
+    if (!isUnknownResult) return;
+
+    setSearchParams({}, { replace: true });
+  }, [isUnknownResult, setSearchParams]);
 
   const handleConnect = () => {
     if (workspaceId === undefined || isConnecting) return;
