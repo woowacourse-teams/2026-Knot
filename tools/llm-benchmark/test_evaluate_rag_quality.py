@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-from evaluate_rag_quality import EvaluationRow, evaluate
+from evaluate_rag_quality import EvaluationRow, evaluate, evaluate_human_labels
 from gold_set import BenchmarkCase
+from human_review import HumanReviewRow, HumanReviewStatus
 
 
 def _case(case_id: str, turns: tuple[str, ...], sources: tuple[str, ...]) -> BenchmarkCase:
@@ -92,3 +93,27 @@ def test_answer_gate_fails_when_any_evaluated_turn_has_no_policy() -> None:
     assert summary.answer_passed == 1
     assert summary.answer_gate_passed is False
     assert summary.answer_failures[0].startswith("('G-007', 1, 1):")
+
+
+def test_human_gate_requires_one_terminal_label_per_expected_turn() -> None:
+    # Given: two generated turns and a complete human review for only one of them
+    cases = (_case("G-007", ("첫 질문", "후속 질문"), ("policy",)),)
+    reviewed = HumanReviewRow(
+        case_id="G-007",
+        repeat=1,
+        turn=1,
+        strategy="rag",
+        decision="pass",
+        answer_correct=True,
+        sources_relevant=True,
+        policy_compliant=True,
+        reviewer="reviewer-a",
+    )
+
+    # When: the evaluator checks human semantic coverage
+    summary = evaluate_human_labels((reviewed,), cases, "rag", repeat=1)
+
+    # Then: the unreviewed turn keeps the gate pending
+    assert summary.status is HumanReviewStatus.PENDING
+    assert not summary.gate_passed
+    assert summary.missing == (("G-007", 1, 2, "rag"),)
