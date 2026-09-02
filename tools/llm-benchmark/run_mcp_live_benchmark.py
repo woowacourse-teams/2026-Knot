@@ -32,6 +32,7 @@ from typing import Final, TextIO
 
 import typer
 from benchmark_core import ContextPack
+from benchmark_metadata import BenchmarkMetadata, create_benchmark_metadata
 from gold_set import BenchmarkCase, GoldSetError, load_cases
 from mcp_adapter import (
     LiveNotionMcpAdapter,
@@ -61,7 +62,12 @@ from nim_client import (
 from pydantic import ValidationError
 from retrieval_policy import plan_query
 from rich.console import Console
-from run_benchmark import BenchmarkRecord, _messages, _write_record
+from run_benchmark import (
+    _SYSTEM_INSTRUCTIONS,
+    BenchmarkRecord,
+    _messages,
+    _write_record,
+)
 
 _DEFAULT_GOLD_SET: Final[Path] = Path("docs/llm-search-benchmark-gold-set.md")
 _DEFAULT_OUTPUT: Final[Path] = Path(".benchmark-data/mcp-live-results.jsonl")
@@ -97,6 +103,10 @@ def main(
         "--tool-calling/--direct-retrieval",
         help="Let NIM choose the read-only MCP tools for normal runs.",
     ),
+    run_id: str = typer.Option("", help="Stable identifier for this live run."),
+    condition: str = typer.Option(
+        "cold", help="Execution condition recorded as cold or warm."
+    ),
 ) -> None:
     """Run scoped live Notion MCP observations without sending credentials to NIM."""
     console = Console()
@@ -108,7 +118,30 @@ def main(
         _validate_mcp_settings(mcp_settings)
         if nim_settings is not None:
             _validate_nim_settings(nim_settings)
-    except (McpTransportError, NimConfigurationError, ValidationError) as error:
+        metadata = create_benchmark_metadata(
+            run_id=run_id,
+            phase="live",
+            condition=condition,
+            snapshot_id=active_snapshot_id or "notion-live",
+            model="retrieval-only" if nim_settings is None else nim_settings.model,
+            prompt=_SYSTEM_INSTRUCTIONS,
+            generation_options={
+                "tool_calling": tool_calling,
+                "retrieval_only": retrieval_only,
+                "top_k": top_k,
+                "repeats": repeats,
+                "max_pages": mcp_settings.max_pages,
+                "search_tool": mcp_settings.search_tool,
+                "fetch_tool": mcp_settings.fetch_tool,
+                "active_snapshot_id": active_snapshot_id,
+            },
+        )
+    except (
+        McpTransportError,
+        NimConfigurationError,
+        ValidationError,
+        ValueError,
+    ) as error:
         console.print("[red]invalid live benchmark environment:[/red]", error)
         raise typer.Exit(code=2) from error
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -139,6 +172,7 @@ def main(
                         retrieval_only,
                         tool_calling,
                         scope,
+                        metadata,
                     )
     console.print(f"[green]results written:[/green] {output}")
 
@@ -153,6 +187,7 @@ def _run_case(
     retrieval_only: bool,
     tool_calling: bool = False,
     scope: McpScope | None = None,
+    metadata: BenchmarkMetadata | None = None,
 ) -> None:
     history: list[ChatMessage] = []
     for turn, question in enumerate(benchmark_case.turns, start=1):
@@ -247,6 +282,7 @@ def _run_case(
                 model_ttft_ms,
                 model_total_ms,
                 error,
+                metadata,
             ),
         )
         if retrieval_only and not answer:
@@ -271,6 +307,7 @@ def _record(
     model_ttft_ms: float | None,
     model_total_ms: float | None,
     error: str | None,
+    metadata: BenchmarkMetadata | None = None,
 ) -> BenchmarkRecord:
     trace = _combined_trace(timing.traces)
     return BenchmarkRecord(
@@ -299,6 +336,7 @@ def _record(
         trace.rate_limit_count,
         sum(item.elapsed_ms for item in timing.traces),
         tuple(f"{item.operation}:{item.tool_name}" for item in timing.traces),
+        metadata=metadata,
     )
 
 
