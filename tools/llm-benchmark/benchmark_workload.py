@@ -18,6 +18,7 @@ class WorkloadCategory(StrEnum):
     CONFLICT = "conflict"
     NO_ANSWER = "no_answer"
     BROAD = "broad"
+    CLARIFICATION = "clarification"
 
 
 class WorkloadError(Exception):
