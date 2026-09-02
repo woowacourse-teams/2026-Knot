@@ -32,10 +32,23 @@ public class PublishedDocumentSearchService {
             Long workspaceId,
             String query
     ) {
+        return search(
+                workspaceId,
+                query,
+                query
+        );
+    }
+
+    public SearchContext search(
+            Long workspaceId,
+            String query,
+            String searchQuery
+    ) {
         validate(
                 workspaceId,
                 query
         );
+        validateQuery(searchQuery);
         Optional<Long> publishedImportRunId = searchChunkRepository.findPublishedImportRunId(workspaceId);
         if (publishedImportRunId.isEmpty()) {
             throw new SearchException(SearchErrorCode.SEARCH_IMPORT_NOT_READY);
@@ -45,11 +58,11 @@ public class PublishedDocumentSearchService {
         }
 
         Long importRunId = publishedImportRunId.orElseThrow();
-        List<String> terms = queryTerms.extract(query);
+        List<String> terms = queryTerms.extract(searchQuery);
         List<SearchChunk> vectorCandidates = embedAndSearch(
                 workspaceId,
                 importRunId,
-                query
+                searchQuery
         );
         List<SearchChunk> keywordCandidates = terms.isEmpty()
                 ? List.of()
@@ -106,6 +119,9 @@ public class PublishedDocumentSearchService {
         Map<String, SearchChunk> selectedByChunk = new HashMap<>();
         Map<String, Double> scoresByChunk = new HashMap<>();
         for (SearchChunk candidate : vectorCandidates) {
+            if (!isRelevant(candidate)) {
+                continue;
+            }
             String key = key(candidate);
             selectedByChunk.put(
                     key,
@@ -118,6 +134,9 @@ public class PublishedDocumentSearchService {
             );
         }
         for (SearchChunk candidate : keywordCandidates) {
+            if (!isRelevant(candidate)) {
+                continue;
+            }
             String key = key(candidate);
             selectedByChunk.putIfAbsent(
                     key,
@@ -160,6 +179,10 @@ public class PublishedDocumentSearchService {
         return List.copyOf(sources);
     }
 
+    private boolean isRelevant(SearchChunk candidate) {
+        return normalize(candidate.score()) >= properties.minimumRelevanceScore();
+    }
+
     private String key(SearchChunk chunk) {
         return chunk.importedPageId() + ":" + chunk.chunkIndex();
     }
@@ -186,6 +209,10 @@ public class PublishedDocumentSearchService {
         if (workspaceId == null || workspaceId <= 0) {
             throw new SearchException(SearchErrorCode.INVALID_SEARCH_WORKSPACE_ID);
         }
+        validateQuery(query);
+    }
+
+    private void validateQuery(String query) {
         if (query == null || query.isBlank()) {
             throw new SearchException(SearchErrorCode.INVALID_SEARCH_QUERY);
         }

@@ -10,12 +10,15 @@ public record SearchProperties(
         int chunkOverlap,
         int candidateLimit,
         int topK,
-        int maxContextCharacters
+        int maxContextCharacters,
+        int embeddingBatchSize,
+        double minimumRelevanceScore
 ) {
 
     public void validate() {
         if (chunkSize <= 0 || chunkOverlap < 0 || chunkOverlap >= chunkSize || candidateLimit <= 0 || topK <= 0
-                || topK > candidateLimit || maxContextCharacters <= 0) {
+                || topK > candidateLimit || maxContextCharacters <= 0 || embeddingBatchSize <= 0
+                || !Double.isFinite(minimumRelevanceScore) || minimumRelevanceScore < 0 || minimumRelevanceScore > 1) {
             throw new SearchException(SearchErrorCode.SEARCH_CONFIGURATION_INVALID);
         }
     }

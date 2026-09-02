@@ -37,15 +37,28 @@ public class SearchIndexingService implements ContentImportSearchIndexer {
                     importRunId
             );
             List<SearchChunkInput> inputs = flatten(pages);
-            List<double[]> embeddings = embeddingClient.embed(
-                    inputs.stream()
-                            .map(SearchChunkInput::embeddingText)
-                            .toList()
-            );
-            validateEmbeddings(
-                    inputs,
-                    embeddings
-            );
+            List<double[]> embeddings = new ArrayList<>(inputs.size());
+            int batchSize = properties.embeddingBatchSize();
+            for (int start = 0; start < inputs.size(); start += batchSize) {
+                int end = Math.min(
+                        start + batchSize,
+                        inputs.size()
+                );
+                List<SearchChunkInput> batchInputs = inputs.subList(
+                        start,
+                        end
+                );
+                List<double[]> batchEmbeddings = embeddingClient.embed(
+                        batchInputs.stream()
+                                .map(SearchChunkInput::embeddingText)
+                                .toList()
+                );
+                validateEmbeddings(
+                        batchInputs,
+                        batchEmbeddings
+                );
+                embeddings.addAll(batchEmbeddings);
+            }
             List<SearchIndexedChunk> indexedChunks = new ArrayList<>();
             for (int index = 0; index < inputs.size(); index++) {
                 SearchChunkInput input = inputs.get(index);

@@ -16,6 +16,7 @@ import com.knot.backend.search.domain.SearchException;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -25,7 +26,9 @@ class PublishedDocumentSearchServiceTest {
             180,
             50,
             3,
-            10000
+            10000,
+            64,
+            0.35
     );
     private static final SearchChunk POSTGRES = chunk(
             7L,
@@ -148,13 +151,14 @@ class PublishedDocumentSearchServiceTest {
                 )
         );
 
-        // when & then
-        assertThatThrownBy(
-                () -> service.search(
-                        7L,
-                        "PostgreSQL"
-                )
-        ).isInstanceOfSatisfying(
+        // when
+        ThrowingCallable action = () -> service.search(
+                7L,
+                "PostgreSQL"
+        );
+
+        // then
+        assertThatThrownBy(action).isInstanceOfSatisfying(
                 SearchException.class,
                 exception -> assertThat(exception.searchErrorCode()).isEqualTo(SearchErrorCode.SEARCH_IMPORT_NOT_READY)
         );
@@ -251,6 +255,64 @@ class PublishedDocumentSearchServiceTest {
         // then
         assertThat(context.isNoResult()).isTrue();
         assertThat(context.fallbackAnswer()).contains("찾지 못했습니다");
+    }
+
+    @Test
+    @DisplayName("vector 후보가 최소 관련도보다 낮으면 근거 없음으로 분류한다")
+    void search_success_ignoresLowRelevanceCandidates() {
+        // given
+        SearchChunkRepository repository = mock(SearchChunkRepository.class);
+        DocumentEmbeddingClient embeddingClient = mock(DocumentEmbeddingClient.class);
+        when(repository.findPublishedImportRunId(7L)).thenReturn(Optional.of(11L));
+        when(embeddingClient.embed(List.of("무관한 질문"))).thenReturn(List.of(new double[1024]));
+        when(
+                repository.findByVector(
+                        eq(7L),
+                        eq(11L),
+                        any(),
+                        eq(50)
+                )
+        ).thenReturn(
+                List.of(
+                        chunk(
+                                7L,
+                                101L,
+                                11L,
+                                0,
+                                "무관한 문서",
+                                "무관한 내용",
+                                0.1
+                        )
+                )
+        );
+        when(
+                repository.findByKeywords(
+                        eq(7L),
+                        eq(11L),
+                        any(),
+                        eq(50)
+                )
+        ).thenReturn(List.of());
+        PublishedDocumentSearchService service = new PublishedDocumentSearchService(
+                repository,
+                embeddingClient,
+                new SearchQueryTerms(),
+                new SearchQuestionClassifier(),
+                PROPERTIES,
+                new EmbeddingProperties(
+                        "qwen-embedding",
+                        1024
+                )
+        );
+
+        // when
+        SearchContext context = service.search(
+                7L,
+                "무관한 질문"
+        );
+
+        // then
+        assertThat(context.isNoResult()).isTrue();
     }
 
     private static SearchChunk chunk(

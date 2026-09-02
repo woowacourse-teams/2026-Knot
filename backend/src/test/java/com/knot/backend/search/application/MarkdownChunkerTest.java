@@ -17,7 +17,9 @@ class MarkdownChunkerTest {
                 5,
                 10,
                 3,
-                1000
+                1000,
+                64,
+                0.35
         );
         MarkdownChunker chunker = new MarkdownChunker(properties);
 
@@ -51,17 +53,20 @@ class MarkdownChunkerTest {
     @Test
     @DisplayName("빈 Markdown은 색인할 청크를 만들지 않는다")
     void chunk_success_emptyMarkdown() {
-        // when & then
-        assertThat(
-                new MarkdownChunker(
-                        new SearchProperties(
-                                100,
-                                10,
-                                10,
-                                3,
-                                1000
-                        )
-                ).chunk("  ")
-        ).isEmpty();
+        // when
+        List<MarkdownChunk> chunks = new MarkdownChunker(
+                new SearchProperties(
+                        100,
+                        10,
+                        10,
+                        3,
+                        1000,
+                        64,
+                        0.35
+                )
+        ).chunk("  ");
+
+        // then
+        assertThat(chunks).isEmpty();
     }
 }
