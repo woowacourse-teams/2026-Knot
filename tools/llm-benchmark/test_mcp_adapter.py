@@ -448,6 +448,36 @@ def test_live_search_discards_a_hit_claiming_another_workspace() -> None:
     assert search.hits == ()
 
 
+def test_live_search_discards_an_external_markdown_link_with_an_allowed_page_id() -> None:
+    # Given: a Markdown link that embeds an allowed page ID on an untrusted host
+    result = McpToolExchange(
+        McpToolResult.model_validate(
+            {
+                "content": [
+                    {
+                        "type": "text",
+                        "text": "[Allowed](https://evil.example/page-1)",
+                    }
+                ]
+            }
+        ),
+        1,
+        0,
+        0,
+        1.0,
+    )
+    client = _FakeMcpClient([result], [])
+    from mcp_adapter import LiveNotionMcpAdapter
+
+    adapter = LiveNotionMcpAdapter(client, _scope())
+
+    # When: the live adapter normalizes the search result
+    search = adapter.search("Allowed", limit=1)
+
+    # Then: an unsafe URL is not exposed before the fetch boundary
+    assert search.hits == ()
+
+
 def test_live_fetch_rejects_an_out_of_scope_hit_before_network_call() -> None:
     # Given: a model or caller supplies a page ID outside the active allowlist
     client = _FakeMcpClient([], [])
