@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import pytest
 from answer_quality_policy import answer_shape_passes
 from evaluate_rag_quality import EvaluationRow, evaluate, evaluate_human_labels
 from gold_set import BenchmarkCase
 from human_review import HumanReviewRow, HumanReviewStatus
+from pydantic import ValidationError
 
 
 def _case(
@@ -13,8 +15,17 @@ def _case(
     turns: tuple[str, ...],
     sources: tuple[str, ...],
     category: str = "test",
+    sources_by_turn: tuple[tuple[str, ...], ...] | None = None,
 ) -> BenchmarkCase:
-    return BenchmarkCase(case_id, "confirmed", category, turns, "", sources)
+    return BenchmarkCase(
+        case_id,
+        "confirmed",
+        category,
+        turns,
+        "",
+        sources,
+        sources_by_turn,
+    )
 
 
 def test_no_answer_and_clarification_require_empty_sources() -> None:
@@ -76,6 +87,73 @@ def test_related_documents_must_match_all_three_sources() -> None:
     summary = evaluate(rows, cases, "rag", repeats=1)
 
     assert summary.retrieval_gate_passed
+
+
+def test_source_matching_rejects_substrings_and_extra_documents() -> None:
+    # Given: an expected page ID and a near-match plus an unrelated page
+    cases = (_case("G-013", ("질문",), ("page-1", "page-2")),)
+    rows = (
+        EvaluationRow(
+            case_id="G-013",
+            repeat=1,
+            turn=1,
+            strategy="rag",
+            source_paths=("page-10", "unrelated.md"),
+            retrieved_count=2,
+        ),
+    )
+
+    # Then: substring and extra-document matches cannot satisfy the source gate
+    summary = evaluate(rows, cases, "rag", repeats=1)
+
+    assert not summary.retrieval_gate_passed
+
+
+def test_follow_up_source_expectations_are_checked_per_turn() -> None:
+    # Given: each conversational turn has a different expected evidence page
+    cases = (
+        _case(
+            "W-001",
+            ("첫 질문", "후속 질문"),
+            ("page-1", "page-2"),
+            sources_by_turn=(("page-1",), ("page-2",)),
+        ),
+    )
+    rows = (
+        EvaluationRow(
+            case_id="W-001",
+            repeat=1,
+            turn=1,
+            strategy="rag",
+            source_paths=("page-1",),
+            retrieved_count=1,
+        ),
+        EvaluationRow(
+            case_id="W-001",
+            repeat=1,
+            turn=2,
+            strategy="rag",
+            source_paths=("page-2",),
+            retrieved_count=1,
+        ),
+    )
+
+    # Then: a turn must not inherit the union of all case sources
+    summary = evaluate(rows, cases, "rag", repeats=1)
+
+    assert summary.retrieval_gate_passed
+
+
+def test_evaluation_row_requires_complete_observation_fields() -> None:
+    # Given: an identity-only JSON record
+    # When & then: it cannot enter the quality gate with inferred defaults
+    with pytest.raises(ValidationError):
+        EvaluationRow(
+            case_id="W-001",
+            repeat=1,
+            turn=1,
+            strategy="rag",
+        )
 
 
 def test_answer_gate_checks_policy_shape_when_answers_exist() -> None:

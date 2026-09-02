@@ -95,6 +95,51 @@ def test_workload_manifest_rejects_more_than_three_sources() -> None:
         )
 
 
+def test_workload_manifest_supports_sources_per_conversational_turn() -> None:
+    # Given: a follow-up workload whose answer evidence changes with the subject
+    manifest = WorkloadManifest.model_validate(
+        {
+            "version": "1",
+            "cases": [
+                {
+                    "case_id": "W-001",
+                    "category": "follow_up",
+                    "turns": ["첫 질문", "후속 질문"],
+                    "expected_source_ids": ["page-1", "page-2"],
+                    "expected_source_ids_by_turn": [["page-1"], ["page-2"]],
+                    "expected_facts": ["첫 사실", "후속 사실"],
+                }
+            ],
+        }
+    )
+
+    # Then: each turn keeps its own expected source set
+    assert manifest.cases[0].expected_source_ids_by_turn == (
+        ("page-1",),
+        ("page-2",),
+    )
+
+
+def test_workload_manifest_rejects_source_sets_with_wrong_turn_count() -> None:
+    # Given: source evidence that cannot be aligned to every conversational turn
+    with pytest.raises(ValueError, match="turn"):
+        WorkloadManifest.model_validate(
+            {
+                "version": "1",
+                "cases": [
+                    {
+                        "case_id": "W-001",
+                        "category": "follow_up",
+                        "turns": ["첫 질문", "후속 질문"],
+                        "expected_source_ids": ["page-1"],
+                        "expected_source_ids_by_turn": [["page-1"]],
+                        "expected_facts": ["사실"],
+                    }
+                ],
+            }
+        )
+
+
 def test_gold_set_loader_accepts_the_independent_json_workload() -> None:
     # Given: the same independent workload used by the benchmark runners
     cases = load_cases(_MANIFEST)
