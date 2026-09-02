@@ -20,6 +20,9 @@ import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
@@ -150,6 +153,158 @@ class OpenAiCompatibleLlmClientTest {
         assertThatThrownBy(() -> client.start(new LlmRequest(List.of()))).isInstanceOfSatisfying(
                 ChatException.class,
                 exception -> assertThat(exception.getErrorCode()).isEqualTo(ChatErrorCode.LLM_STREAM_FAILED)
+        );
+    }
+
+    @Test
+    @DisplayName("DONE 없이 SSE 응답이 끝나면 partial chunk를 정상 완료로 처리하지 않는다")
+    void stream_failure_eofBeforeDone() throws Exception {
+        // given
+        URI baseUri = startServer(
+                exchange -> respond(
+                        exchange,
+                        200,
+                        "data: {\"choices\":[{\"delta\":{\"content\":\"부분 \"}}]}\n\n"
+                )
+        );
+        OpenAiCompatibleLlmClient client = new OpenAiCompatibleLlmClient(
+                HttpClient.newHttpClient(),
+                objectMapper,
+                new LlmProperties(
+                        baseUri,
+                        "server-token",
+                        "qwen/qwen3.6-27b",
+                        512,
+                        0.2,
+                        Duration.ofSeconds(5)
+                )
+        );
+        LlmStream stream = client.start(new LlmRequest(List.of()));
+
+        // when & then
+        assertThat(stream.next()).isEqualTo("부분 ");
+        assertThatThrownBy(stream::hasNext).isInstanceOfSatisfying(
+                ChatException.class,
+                exception -> assertThat(exception.getErrorCode()).isEqualTo(ChatErrorCode.LLM_STREAM_FAILED)
+        );
+    }
+
+    @Test
+    @DisplayName("응답 body가 멈춘 상태에서 스트림을 닫으면 대기 중인 읽기가 즉시 끝난다")
+    void stream_closeWhileReading_unblocksConsumer() throws Exception {
+        // given
+        AtomicReference<HttpExchange> responseExchange = new AtomicReference<>();
+        CountDownLatch responseStarted = new CountDownLatch(1);
+        CountDownLatch releaseResponse = new CountDownLatch(1);
+        URI baseUri = startHangingServer(
+                responseExchange,
+                responseStarted,
+                releaseResponse
+        );
+        OpenAiCompatibleLlmClient client = new OpenAiCompatibleLlmClient(
+                HttpClient.newHttpClient(),
+                objectMapper,
+                new LlmProperties(
+                        baseUri,
+                        "server-token",
+                        "qwen/qwen3.6-27b",
+                        512,
+                        0.2,
+                        Duration.ofSeconds(5)
+                )
+        );
+        LlmStream stream = client.start(new LlmRequest(List.of()));
+        ExecutorService consumer = Executors.newSingleThreadExecutor();
+        Future<Boolean> hasNext = consumer.submit(stream::hasNext);
+
+        try {
+            assertThat(
+                    responseStarted.await(
+                            5,
+                            java.util.concurrent.TimeUnit.SECONDS
+                    )
+            ).isTrue();
+            assertThatThrownBy(
+                    () -> hasNext.get(
+                            200,
+                            java.util.concurrent.TimeUnit.MILLISECONDS
+                    )
+            ).isInstanceOf(TimeoutException.class);
+
+            // when
+            stream.close();
+
+            // then
+            assertThat(
+                    hasNext.get(
+                            2,
+                            java.util.concurrent.TimeUnit.SECONDS
+                    )
+            ).isFalse();
+        } finally {
+            stream.close();
+            releaseResponse.countDown();
+            HttpExchange exchange = responseExchange.get();
+            if (exchange != null) {
+                exchange.close();
+            }
+            consumer.shutdownNow();
+            assertThat(
+                    consumer.awaitTermination(
+                            5,
+                            java.util.concurrent.TimeUnit.SECONDS
+                    )
+            ).isTrue();
+        }
+    }
+
+    private URI startHangingServer(
+            AtomicReference<HttpExchange> responseExchange,
+            CountDownLatch responseStarted,
+            CountDownLatch releaseResponse
+    ) throws IOException {
+        server = HttpServer.create(
+                new InetSocketAddress(
+                        "localhost",
+                        0
+                ),
+                0
+        );
+        serverExecutor = Executors.newCachedThreadPool();
+        server.setExecutor(serverExecutor);
+        server.createContext(
+                "/v1/chat/completions",
+                exchange -> {
+                    responseExchange.set(exchange);
+                    exchange.getResponseHeaders()
+                            .set(
+                                    "Content-Type",
+                                    "text/event-stream"
+                            );
+                    exchange.sendResponseHeaders(
+                            200,
+                            0
+                    );
+                    exchange.getResponseBody()
+                            .write(": connected\n\n".getBytes(StandardCharsets.UTF_8));
+                    exchange.getResponseBody()
+                            .flush();
+                    responseStarted.countDown();
+                    try {
+                        releaseResponse.await(
+                                5,
+                                java.util.concurrent.TimeUnit.SECONDS
+                        );
+                    } catch (InterruptedException exception) {
+                        Thread.currentThread()
+                                .interrupt();
+                    }
+                }
+        );
+        server.start();
+        return URI.create(
+                "http://localhost:" + server.getAddress()
+                        .getPort() + "/v1"
         );
     }
 

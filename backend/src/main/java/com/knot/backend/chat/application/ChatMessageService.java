@@ -85,10 +85,10 @@ public class ChatMessageService {
                         true
                 );
                 try {
-                    closeStream(streamReference);
+                    cancel(futureReference);
                 } finally {
                     try {
-                        cancel(futureReference);
+                        closeStream(streamReference);
                     } finally {
                         releaseStream.run();
                     }

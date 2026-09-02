@@ -9,21 +9,24 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.NoSuchElementException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
 final class OpenAiCompatibleLlmStream implements LlmStream {
+    private final InputStream inputStream;
     private final BufferedReader reader;
     private final ObjectMapper objectMapper;
+    private final AtomicBoolean closed = new AtomicBoolean();
     private String nextChunk;
-    private boolean completed;
-    private boolean closed;
+    private boolean doneReceived;
 
     OpenAiCompatibleLlmStream(
             InputStream inputStream,
             ObjectMapper objectMapper
     ) {
+        this.inputStream = inputStream;
         this.reader = new BufferedReader(
                 new InputStreamReader(
                         inputStream,
@@ -38,7 +41,7 @@ final class OpenAiCompatibleLlmStream implements LlmStream {
         if (nextChunk != null) {
             return true;
         }
-        if (completed) {
+        if (closed.get() || doneReceived) {
             return false;
         }
         try {
@@ -50,7 +53,8 @@ final class OpenAiCompatibleLlmStream implements LlmStream {
                 String data = line.substring("data:".length())
                         .trim();
                 if ("[DONE]".equals(data)) {
-                    complete();
+                    doneReceived = true;
+                    closeInputStream();
                     return false;
                 }
                 String content = contentFrom(data);
@@ -59,10 +63,16 @@ final class OpenAiCompatibleLlmStream implements LlmStream {
                     return true;
                 }
             }
-            complete();
-            return false;
+            if (closed.get()) {
+                return false;
+            }
+            closeInputStream();
+            throw new ChatException(ChatErrorCode.LLM_STREAM_FAILED);
         } catch (JacksonException | IOException exception) {
-            complete();
+            if (closed.get()) {
+                return false;
+            }
+            closeInputStream();
             throw new ChatException(
                     ChatErrorCode.LLM_STREAM_FAILED,
                     exception
@@ -82,7 +92,7 @@ final class OpenAiCompatibleLlmStream implements LlmStream {
 
     @Override
     public void close() {
-        complete();
+        closeInputStream();
     }
 
     private String contentFrom(String data) throws JacksonException {
@@ -100,17 +110,15 @@ final class OpenAiCompatibleLlmStream implements LlmStream {
         return content != null && content.isString() ? content.asString() : null;
     }
 
-    private void complete() {
-        if (completed && closed) {
+    private void closeInputStream() {
+        if (!closed.compareAndSet(
+                false,
+                true
+        )) {
             return;
         }
-        completed = true;
-        if (closed) {
-            return;
-        }
-        closed = true;
         try {
-            reader.close();
+            inputStream.close();
         } catch (IOException ignored) {
             // 이미 종료된 외부 스트림은 추가로 전파하지 않는다.
         }
