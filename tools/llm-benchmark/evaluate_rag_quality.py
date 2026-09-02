@@ -103,6 +103,7 @@ def main(
     repeats: int = typer.Option(10, min=1, help="Expected repeats per case."),
     require_answer: bool = typer.Option(False, help="Fail when an answer is missing or fails the answer-shape gate."),
     human_labels: Path | None = typer.Option(None, "--human-labels", help="Optional JSONL human-review labels."),
+    human_repeat: int = typer.Option(1, min=1, help="Result repeat represented by the human-review labels."),
     require_human_review: bool = typer.Option(False, help="Fail unless every expected answer has a terminal human label."),
 ) -> None:
     """Check every expected case/turn/repeat and print a CI-friendly gate summary."""
@@ -114,6 +115,7 @@ def main(
         () if human_labels is None else load_human_review(human_labels),
         cases,
         strategy,
+        repeat=human_repeat,
     )
     typer.echo(f"results={summary.rows} expected={summary.expected_rows}")
     typer.echo(
