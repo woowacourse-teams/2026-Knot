@@ -11,7 +11,14 @@ from urllib.parse import urlsplit
 
 import httpx2
 from mcp_errors import McpHttpError, McpProtocolError, McpTransportError
-from mcp_models import JsonObject, JsonValue, McpRpcResponse, McpSettings, McpToolResult
+from mcp_models import (
+    JsonObject,
+    JsonValue,
+    McpRpcResponse,
+    McpSettings,
+    McpToolName,
+    McpToolResult,
+)
 from mcp_wire import parse_response, safe_detail
 
 _RETRYABLE_STATUSES: Final[frozenset[int]] = frozenset(
@@ -88,6 +95,8 @@ class McpHttpClient:
 
     def call_tool(self, name: str, arguments: JsonObject) -> McpToolExchange:
         """Initialize the MCP session when needed and call one read-only tool."""
+        if name not in {McpToolName.SEARCH.value, McpToolName.FETCH.value}:
+            raise McpTransportError(f"MCP tool {name!r} is not allowed")
         started = time.perf_counter()
         initialization = (
             self._initialize() if not self._initialized else _empty_exchange()
@@ -245,8 +254,16 @@ def _is_allowed_endpoint(url: str) -> bool:
     if parsed.query or parsed.fragment or parsed.username or parsed.password:
         return False
     if parsed.scheme == "https":
-        return parsed.hostname == "mcp.notion.com" and parsed.port in (None, 443)
-    return parsed.scheme == "http" and parsed.hostname in {"127.0.0.1", "localhost"}
+        return (
+            parsed.hostname == "mcp.notion.com"
+            and parsed.port in (None, 443)
+            and parsed.path == "/mcp"
+        )
+    return (
+        parsed.scheme == "http"
+        and parsed.hostname in {"127.0.0.1", "localhost"}
+        and parsed.path == "/mcp"
+    )
 
 
 def _redact_tool_result(result: McpToolResult, token: str) -> McpToolResult:
