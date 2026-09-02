@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import pytest
 from answer_quality_policy import answer_shape_passes
+from benchmark_result_identity import observation_fingerprint
 from evaluate_rag_quality import EvaluationRow, evaluate, evaluate_human_labels
 from gold_set import BenchmarkCase
 from human_review import HumanReviewRow, HumanReviewStatus
@@ -160,6 +161,66 @@ def test_evaluation_row_requires_complete_observation_fields() -> None:
             repeat=1,
             turn=1,
             strategy="rag",
+        )
+
+
+def test_human_terminal_label_is_bound_to_the_observed_result() -> None:
+    # Given: one exact generated observation and its terminal human label
+    case = _case("W-001", ("질문",), ("page-1",))
+    result = EvaluationRow(
+        case_id="W-001",
+        repeat=1,
+        turn=1,
+        strategy="rag",
+        question="질문",
+        answer="확인된 답변",
+        source_paths=("page-1",),
+        retrieved_count=1,
+    )
+    fingerprint = observation_fingerprint(
+        case_id=result.case_id,
+        repeat=result.repeat,
+        turn=result.turn,
+        strategy=result.strategy,
+        question=result.question,
+        answer=result.answer,
+        source_paths=result.source_paths,
+        retrieved_count=result.retrieved_count,
+        error=result.error,
+    )
+    label = HumanReviewRow(
+        case_id="W-001",
+        repeat=1,
+        turn=1,
+        strategy="rag",
+        decision="pass",
+        answer_correct=True,
+        sources_relevant=True,
+        policy_compliant=True,
+        reviewer="reviewer-a",
+        result_fingerprint=fingerprint,
+    )
+
+    # When: the evaluator binds the label to the actual result row
+    summary = evaluate_human_labels(
+        (label,), (case,), "rag", repeat=1, result_rows=(result,)
+    )
+
+    # Then: a matching immutable observation is required for a human pass
+    assert summary.gate_passed
+
+
+def test_evaluation_row_requires_the_question_identity() -> None:
+    # Given: a result record without the question that produced it
+    with pytest.raises(ValidationError):
+        EvaluationRow(
+            case_id="W-001",
+            repeat=1,
+            turn=1,
+            strategy="rag",
+            answer="답변",
+            source_paths=(),
+            retrieved_count=0,
         )
 
 
