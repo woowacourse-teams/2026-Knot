@@ -217,6 +217,53 @@ def test_human_terminal_label_is_bound_to_the_observed_result() -> None:
     assert summary.gate_passed
 
 
+def test_human_terminal_label_fails_when_the_observed_answer_changes() -> None:
+    # Given: a label created for an earlier answer and a changed result row
+    case = _case("W-001", ("질문",), ("page-1",))
+    original = EvaluationRow(
+        case_id="W-001",
+        repeat=1,
+        turn=1,
+        strategy="rag",
+        question="질문",
+        answer="원래 답변",
+        source_paths=("page-1",),
+        retrieved_count=1,
+    )
+    changed = original.model_copy(update={"answer": "변경된 답변"})
+    label = HumanReviewRow(
+        case_id="W-001",
+        repeat=1,
+        turn=1,
+        strategy="rag",
+        decision="pass",
+        answer_correct=True,
+        sources_relevant=True,
+        policy_compliant=True,
+        reviewer="reviewer-a",
+        result_fingerprint=observation_fingerprint(
+            case_id=original.case_id,
+            repeat=original.repeat,
+            turn=original.turn,
+            strategy=original.strategy,
+            question=original.question,
+            answer=original.answer,
+            source_paths=original.source_paths,
+            retrieved_count=original.retrieved_count,
+            error=original.error,
+        ),
+    )
+
+    # When: the label is checked against the changed result
+    summary = evaluate_human_labels(
+        (label,), (case,), "rag", repeat=1, result_rows=(changed,)
+    )
+
+    # Then: a label cannot be reused after the observed answer changes
+    assert not summary.gate_passed
+    assert summary.invalid == (("W-001", 1, 1, "rag"),)
+
+
 def test_evaluation_row_requires_the_question_identity() -> None:
     # Given: a result record without the question that produced it
     with pytest.raises(ValidationError):
