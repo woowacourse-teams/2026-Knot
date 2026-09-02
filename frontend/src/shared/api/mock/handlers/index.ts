@@ -16,6 +16,7 @@ import { workspaceInvitationsHandlers } from "./api/v1/workspaces/[workspaceId]/
 import { workspaceInvitationReissueHandlers } from "./api/v1/workspaces/[workspaceId]/invitations/reissue";
 import { workspaceNotionConnectionHandlers } from "./api/v1/workspaces/[workspaceId]/notionConnection";
 import { workspaceNotionOAuthAuthorizationsHandlers } from "./api/v1/workspaces/[workspaceId]/notionOauthAuthorizations";
+import { workspaceNotionPageTreeHandlers } from "./api/v1/workspaces/[workspaceId]/notionPages/tree";
 
 // 리다이렉트 엔드포인트(OAuth 시작·로그아웃)는 XHR 응답이 아니라 두지 않아요
 export const handlers = [
@@ -33,6 +34,7 @@ export const handlers = [
   ...notionImportStatusHandlers,
   ...workspaceNotionOAuthAuthorizationsHandlers,
   ...workspaceNotionConnectionHandlers,
+  ...workspaceNotionPageTreeHandlers,
   ...invitationAcceptHandlers,
   ...invitationPreviewHandlers,
   ...chatMessagesHandlers,
