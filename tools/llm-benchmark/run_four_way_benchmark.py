@@ -26,6 +26,11 @@ from typing import Final, TextIO
 import typer
 from access_context import AccessContextTiming, AccessLabel, build_access_context
 from benchmark_core import ContextPack, Document, SnapshotError, load_snapshot
+from benchmark_metadata import (
+    BenchmarkMetadata,
+    create_benchmark_metadata,
+    snapshot_fingerprint,
+)
 from gold_set import BenchmarkCase, GoldSetError, load_cases
 from multi_schedule import MultiTrial, build_schedule
 from nim_client import (
@@ -42,7 +47,12 @@ from pgvector_store import PgVectorStore, PgVectorStoreError
 from pydantic import ValidationError
 from retrieval_policy import plan_query
 from rich.console import Console
-from run_benchmark import BenchmarkRecord, _messages, _write_record
+from run_benchmark import (
+    _SYSTEM_INSTRUCTIONS,
+    BenchmarkRecord,
+    _messages,
+    _write_record,
+)
 
 _DEFAULT_SNAPSHOT = Path(".benchmark-data/notion-export")
 _DEFAULT_GOLD_SET = Path("docs/llm-search-benchmark-gold-set.md")
@@ -88,6 +98,11 @@ def main(
     top_k: int = typer.Option(3, min=1, help="Distinct source documents per retrieved context."),
     seed: int = typer.Option(20260901, help="Randomization seed."),
     warmup: int = typer.Option(1, min=0, help="Unrecorded chat warm-up calls."),
+    run_id: str = typer.Option("", help="Stable identifier for this benchmark run."),
+    phase: str = typer.Option("control", help="Comparison phase: control or live."),
+    condition: str = typer.Option(
+        "", help="Execution condition: cold or warm; defaults from --warmup."
+    ),
     chunk_size: int = typer.Option(_DEFAULT_CHUNK_SIZE, min=100, help="Passage chunk size in characters."),
     chunk_overlap: int = typer.Option(_DEFAULT_CHUNK_OVERLAP, min=0, help="Passage overlap in characters."),
     max_generation_context_chars: int = typer.Option(120_000, min=1, help="Reject oversized model contexts."),
@@ -101,6 +116,28 @@ def main(
     cases = _select_cases(load_cases(gold_set), case)
     schedule = build_schedule(tuple(item.case_id for item in cases), selected, repeats, seed)
     settings = _load_settings(console)
+    metadata = create_benchmark_metadata(
+        run_id=run_id,
+        phase=phase,
+        condition=condition or ("warm" if warmup > 0 else "cold"),
+        snapshot_id=snapshot_fingerprint(documents),
+        model=settings.model,
+        prompt=_SYSTEM_INSTRUCTIONS,
+        generation_options={
+            "temperature": settings.temperature,
+            "max_tokens": settings.max_tokens,
+            "reasoning_effort": settings.reasoning_effort,
+            "enable_thinking": settings.enable_thinking,
+            "top_k": top_k,
+            "chunk_size": chunk_size,
+            "chunk_overlap": chunk_overlap,
+            "max_generation_context_chars": max_generation_context_chars,
+            "retrieval_only": retrieval_only,
+            "seed": seed,
+            "warmup": warmup,
+            "corpus_key": corpus_key,
+        },
+    )
     output.parent.mkdir(parents=True, exist_ok=True)
     with ExitStack() as stack:
         store = stack.enter_context(closing(PgVectorStore(database_url)))
@@ -129,6 +166,7 @@ def main(
                         label,
                         max_generation_context_chars,
                         retrieval_only,
+                        metadata,
                     )
     console.print(f"[green]results written:[/green] {output} ({len(schedule)} pairs × {len(selected)} strategies)")
 
@@ -146,6 +184,7 @@ def _run_observation(
     label: AccessLabel,
     max_generation_context_chars: int,
     retrieval_only: bool,
+    metadata: BenchmarkMetadata,
 ) -> None:
     history: list[ChatMessage] = []
     for turn_number, question in enumerate(benchmark_case.turns, start=1):
@@ -171,6 +210,7 @@ def _run_observation(
                         None,
                         None,
                         None,
+                        metadata,
                     ),
                 )
                 history.extend((ChatMessage(role="user", content=question), ChatMessage(role="assistant", content=answer)))
@@ -204,12 +244,30 @@ def _run_observation(
                         None,
                         None,
                         None,
+                        metadata,
                     ),
                 )
                 history.extend((ChatMessage(role="user", content=question), ChatMessage(role="assistant", content=answer)))
                 continue
             if retrieval_only:
-                _write_record(stream, _record(benchmark_case, trial, turn_number, label, question, context, search_ms, timing, None, None, None, None))
+                _write_record(
+                    stream,
+                    _record(
+                        benchmark_case,
+                        trial,
+                        turn_number,
+                        label,
+                        question,
+                        context,
+                        search_ms,
+                        timing,
+                        None,
+                        None,
+                        None,
+                        None,
+                        metadata,
+                    ),
+                )
                 history.append(ChatMessage(role="user", content=question))
                 continue
             if chat_client is None:
@@ -219,11 +277,45 @@ def _run_observation(
                     f"context exceeds generation limit: {len(context.text)} > {max_generation_context_chars} characters"
                 )
             result = chat_client.generate(_messages(question, context, tuple(history)))
-            _write_record(stream, _record(benchmark_case, trial, turn_number, label, question, context, search_ms, timing, result.text, result.ttft_ms, result.total_ms, None))
+            _write_record(
+                stream,
+                _record(
+                    benchmark_case,
+                    trial,
+                    turn_number,
+                    label,
+                    question,
+                    context,
+                    search_ms,
+                    timing,
+                    result.text,
+                    result.ttft_ms,
+                    result.total_ms,
+                    None,
+                    metadata,
+                ),
+            )
             history.extend((ChatMessage(role="user", content=question), ChatMessage(role="assistant", content=result.text)))
         except (NimRequestError, NimTransportError, PgVectorStoreError) as error:
             search_ms = (time.perf_counter() - started) * 1000
-            _write_record(stream, _record(benchmark_case, trial, turn_number, label, question, context, search_ms, timing, "", None, None, str(error)))
+            _write_record(
+                stream,
+                _record(
+                    benchmark_case,
+                    trial,
+                    turn_number,
+                    label,
+                    question,
+                    context,
+                    search_ms,
+                    timing,
+                    "",
+                    None,
+                    None,
+                    str(error),
+                    metadata,
+                ),
+            )
 
 
 def _previous_questions(history: list[ChatMessage]) -> tuple[str, ...]:
@@ -243,6 +335,7 @@ def _record(
     model_ttft_ms: float | None,
     model_total_ms: float | None,
     error: str | None,
+    metadata: BenchmarkMetadata,
 ) -> BenchmarkRecord:
     return BenchmarkRecord(
         benchmark_case.case_id,
@@ -264,6 +357,7 @@ def _record(
         error,
         timing.embedding_ms,
         timing.database_ms,
+        metadata=metadata,
     )
 
 
