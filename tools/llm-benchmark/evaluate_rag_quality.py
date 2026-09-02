@@ -369,9 +369,10 @@ def _normalize_source_id(value: str) -> str:
 
 
 def _source_tokens(path: str) -> frozenset[str]:
+    filename = re.split(r"[\\/]", path)[-1]
     return frozenset(
         normalized
-        for token in _SOURCE_TOKEN_PATTERN.findall(path)
+        for token in _SOURCE_TOKEN_PATTERN.findall(filename)
         if (normalized := _normalize_source_id(token))
     )
 
