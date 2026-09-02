@@ -14,6 +14,7 @@ import json
 import re
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Literal
 
 import typer
 from answer_quality_policy import answer_shape_passes
@@ -51,6 +52,21 @@ class EvaluationError(Exception):
         return f"RAG evaluation error: {self.reason}"
 
 
+class EvaluationMetadata(BaseModel):
+    """Run identity required when an external result is used for a final gate."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    run_id: str = Field(min_length=1)
+    phase: Literal["control", "live"]
+    condition: Literal["cold", "warm"]
+    snapshot_id: str = Field(min_length=1)
+    model: str = Field(min_length=1)
+    prompt_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    generation_options: dict[str, str | int | float | bool | None]
+    observed_at: str = Field(min_length=1)
+
+
 class EvaluationRow(BaseModel):
     """Fields required from a benchmark JSONL observation."""
 
@@ -66,6 +82,7 @@ class EvaluationRow(BaseModel):
     retrieved_count: int = Field(ge=0)
     error: str | None = None
     result_fingerprint: str | None = None
+    metadata: EvaluationMetadata | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -89,10 +106,15 @@ class EvaluationSummary:
     answer_passed: int
     retrieval_failures: tuple[str, ...]
     answer_failures: tuple[str, ...]
+    metadata_failures: tuple[str, ...] = ()
 
     @property
     def retrieval_gate_passed(self) -> bool:
-        return self.rows == self.expected_rows and not self.retrieval_failures
+        return (
+            self.rows == self.expected_rows
+            and not self.retrieval_failures
+            and not self.metadata_failures
+        )
 
     @property
     def answer_gate_passed(self) -> bool | None:
@@ -120,6 +142,9 @@ def main(
     require_human_review: bool = typer.Option(
         False, help="Fail unless every expected answer has a terminal human label."
     ),
+    require_run_metadata: bool = typer.Option(
+        False, help="Fail unless all rows share one complete run identity."
+    ),
 ) -> None:
     """Check every expected case/turn/repeat and print a CI-friendly gate summary."""
     if human_repeat > repeats:
@@ -127,7 +152,9 @@ def main(
     cases = load_cases(gold_set)
     result_paths = tuple(results) if results else (_DEFAULT_RESULTS,)
     rows = tuple(row for path in result_paths for row in _load_rows(path))
-    summary = evaluate(rows, cases, strategy, repeats)
+    summary = evaluate(
+        rows, cases, strategy, repeats, require_metadata=require_run_metadata
+    )
     human_summary = evaluate_human_labels(
         () if human_labels is None else load_human_review(human_labels),
         cases,
@@ -156,6 +183,8 @@ def main(
         typer.echo(f"FAIL: {failure}")
     for failure in summary.answer_failures:
         typer.echo(f"ANSWER FAIL: {failure}")
+    for failure in summary.metadata_failures:
+        typer.echo(f"RUN METADATA FAIL: {failure}")
     if summary.answer_evaluated < summary.expected_rows:
         typer.echo(
             f"answer coverage={summary.answer_evaluated}/{summary.expected_rows} "
@@ -185,6 +214,8 @@ def evaluate(
     cases: tuple[BenchmarkCase, ...],
     strategy: str,
     repeats: int = 10,
+    *,
+    require_metadata: bool = False,
 ) -> EvaluationSummary:
     """Evaluate structural, source, abstention, and optional answer-shape gates."""
     if repeats < 1:
@@ -250,6 +281,11 @@ def evaluate(
     answer_evaluated = sum(item.answer_passed is not None for item in evaluations)
     answer_passed = sum(item.answer_passed is True for item in evaluations)
     retrieval_passed = sum(item.retrieval_passed for item in evaluations)
+    metadata_failures = (
+        _metadata_failures(tuple(row for row in rows if row.strategy == strategy))
+        if require_metadata
+        else ()
+    )
     return EvaluationSummary(
         len(rows),
         len(expected_keys),
@@ -258,7 +294,38 @@ def evaluate(
         answer_passed,
         tuple(dict.fromkeys(retrieval_failures)),
         tuple(dict.fromkeys(answer_failures)),
+        metadata_failures,
     )
+
+
+def _metadata_failures(rows: tuple[EvaluationRow, ...]) -> tuple[str, ...]:
+    if not rows or any(row.metadata is None for row in rows):
+        return ("run metadata is missing",)
+    metadata = tuple(row.metadata for row in rows)
+    assert all(item is not None for item in metadata)
+    run_ids = {item.run_id for item in metadata}
+    phases = {item.phase for item in metadata}
+    conditions = {item.condition for item in metadata}
+    snapshots = {item.snapshot_id for item in metadata}
+    models = {item.model for item in metadata}
+    prompts = {item.prompt_sha256 for item in metadata}
+    options = {json.dumps(item.generation_options, sort_keys=True) for item in metadata}
+    failures: list[str] = []
+    if len(run_ids) != 1:
+        failures.append("result rows contain multiple run IDs")
+    if len(phases) != 1:
+        failures.append("result rows contain multiple benchmark phases")
+    if len(conditions) != 1:
+        failures.append("result rows contain multiple cold/warm conditions")
+    if len(snapshots) != 1:
+        failures.append("result rows contain multiple snapshots")
+    if len(models) != 1:
+        failures.append("result rows contain multiple models")
+    if len(prompts) != 1:
+        failures.append("result rows contain multiple system prompts")
+    if len(options) != 1:
+        failures.append("result rows contain multiple generation option sets")
+    return tuple(failures)
 
 
 def evaluate_human_labels(
