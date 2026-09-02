@@ -663,6 +663,7 @@ class ChatMessageServiceTest {
                 persistenceService,
                 chatMessageRepository,
                 llmClient,
+                documentSearchService,
                 new ActiveChatStreamRegistry(),
                 directExecutor
         );
