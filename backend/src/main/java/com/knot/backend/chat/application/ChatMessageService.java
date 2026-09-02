@@ -10,11 +10,11 @@ import com.knot.backend.chat.domain.ChatMessageRepository;
 import com.knot.backend.chat.domain.ChatMessageRole;
 import com.knot.backend.search.application.PublishedDocumentSearchService;
 import com.knot.backend.search.application.SearchContext;
-import com.knot.backend.search.application.SearchReferencePersistenceService;
 import com.knot.backend.search.domain.SearchErrorCode;
 import com.knot.backend.search.domain.SearchException;
 import com.knot.backend.chat.domain.ChatSession;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.Executor;
@@ -28,12 +28,14 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class ChatMessageService {
+    private static final int MAX_SEARCH_HISTORY_MESSAGES = 4;
+    private static final int MAX_SEARCH_QUERY_CHARACTERS = 4000;
+
     private final ChatSessionAccessPolicy chatSessionAccessPolicy;
     private final ChatMessagePersistenceService chatMessagePersistenceService;
     private final ChatMessageRepository chatMessageRepository;
     private final LlmClient llmClient;
     private final PublishedDocumentSearchService documentSearchService;
-    private final SearchReferencePersistenceService searchReferencePersistenceService;
     private final ActiveChatStreamRegistry activeChatStreamRegistry;
     private final Executor chatStreamExecutor;
 
@@ -43,7 +45,6 @@ public class ChatMessageService {
             ChatMessageRepository chatMessageRepository,
             LlmClient llmClient,
             PublishedDocumentSearchService documentSearchService,
-            SearchReferencePersistenceService searchReferencePersistenceService,
             ActiveChatStreamRegistry activeChatStreamRegistry,
             @Qualifier("chatStreamExecutor") Executor chatStreamExecutor
     ) {
@@ -52,7 +53,6 @@ public class ChatMessageService {
         this.chatMessageRepository = chatMessageRepository;
         this.llmClient = llmClient;
         this.documentSearchService = documentSearchService;
-        this.searchReferencePersistenceService = searchReferencePersistenceService;
         this.activeChatStreamRegistry = activeChatStreamRegistry;
         this.chatStreamExecutor = chatStreamExecutor;
     }
@@ -156,7 +156,11 @@ public class ChatMessageService {
         try {
             SearchContext searchContext = documentSearchService.search(
                     workspaceId,
-                    query
+                    query,
+                    toSearchQuery(
+                            query,
+                            history
+                    )
             );
             if (!searchContext.isReady()) {
                 completeFallback(
@@ -193,14 +197,10 @@ public class ChatMessageService {
             if (!handle.beginCompletion()) {
                 return;
             }
-            ChatMessage assistantMessage = chatMessagePersistenceService.saveMessage(
+            ChatMessage assistantMessage = chatMessagePersistenceService.saveAssistantWithReferences(
                     sessionId,
-                    ChatMessageRole.ASSISTANT,
                     answer.toString(),
-                    Instant.now()
-            );
-            searchReferencePersistenceService.replace(
-                    assistantMessage.getId(),
+                    Instant.now(),
                     searchContext.references()
             );
             listener.onComplete(assistantMessage.getId());
@@ -237,14 +237,10 @@ public class ChatMessageService {
             handle.cancel();
             return;
         }
-        ChatMessage assistantMessage = chatMessagePersistenceService.saveMessage(
+        ChatMessage assistantMessage = chatMessagePersistenceService.saveAssistantWithReferences(
                 sessionId,
-                ChatMessageRole.ASSISTANT,
                 fallbackAnswer,
-                Instant.now()
-        );
-        searchReferencePersistenceService.replace(
-                assistantMessage.getId(),
+                Instant.now(),
                 List.of()
         );
         listener.onComplete(assistantMessage.getId());
@@ -282,6 +278,38 @@ public class ChatMessageService {
                         .toList()
         );
         return new LlmRequest(messages);
+    }
+
+    private String toSearchQuery(
+            String query,
+            List<ChatMessage> history
+    ) {
+        int currentMessageIndex = history.size() - 1;
+        if (currentMessageIndex <= 0) {
+            return query;
+        }
+        int firstMessageIndex = Math.max(
+                0,
+                currentMessageIndex - MAX_SEARCH_HISTORY_MESSAGES
+        );
+        List<String> previousMessages = new ArrayList<>();
+        for (int index = firstMessageIndex; index < currentMessageIndex; index++) {
+            ChatMessage message = history.get(index);
+            previousMessages.add(message.getRole() + ": " + message.getContent());
+        }
+        String currentQuestion = "현재 질문: " + query;
+        String previousContext = String.join(
+                "\n",
+                previousMessages
+        );
+        int availableCharacters = MAX_SEARCH_QUERY_CHARACTERS - currentQuestion.length() - 1;
+        if (availableCharacters <= 0) {
+            return query;
+        }
+        if (previousContext.length() > availableCharacters) {
+            previousContext = previousContext.substring(previousContext.length() - availableCharacters);
+        }
+        return previousContext + "\n" + currentQuestion;
     }
 
     private void checkCancellation(ChatStreamHandle handle) {

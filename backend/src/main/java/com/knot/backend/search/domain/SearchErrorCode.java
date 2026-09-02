@@ -40,6 +40,12 @@ public enum SearchErrorCode implements ErrorCode {
             ErrorCategory.INTERNAL_SERVER_ERROR,
             "SEARCH_INDEX_FAILED",
             "문서 검색 색인에 실패했습니다"
+    ),
+
+    SEARCH_REFERENCE_FAILED(
+            ErrorCategory.INTERNAL_SERVER_ERROR,
+            "SEARCH_REFERENCE_FAILED",
+            "검색 근거 저장에 실패했습니다"
     );
 
     private final ErrorCategory category;

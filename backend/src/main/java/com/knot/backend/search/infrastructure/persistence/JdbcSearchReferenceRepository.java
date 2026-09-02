@@ -1,6 +1,8 @@
 package com.knot.backend.search.infrastructure.persistence;
 
 import com.knot.backend.search.domain.SearchChunk;
+import com.knot.backend.search.domain.SearchErrorCode;
+import com.knot.backend.search.domain.SearchException;
 import com.knot.backend.search.domain.SearchReferenceRepository;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -28,7 +30,7 @@ public class JdbcSearchReferenceRepository implements SearchReferenceRepository 
                 .update();
         for (int index = 0; index < references.size(); index++) {
             SearchChunk reference = references.get(index);
-            jdbcClient.sql("""
+            int inserted = jdbcClient.sql("""
                     INSERT INTO search_references (
                         message_id,
                         workspace_id,
@@ -36,22 +38,26 @@ public class JdbcSearchReferenceRepository implements SearchReferenceRepository 
                         imported_page_id,
                         reference_rank,
                         relevance_score
-                    ) VALUES (
-                        :messageId,
-                        :workspaceId,
+                    )
+                    SELECT
+                        message.id,
+                        session.workspace_id,
                         :importRunId,
-                        :importedPageId,
+                        page.id,
                         :referenceRank,
                         :relevanceScore
-                    )
+                    FROM chat_messages message
+                    JOIN chat_sessions session
+                        ON session.id = message.session_id
+                    JOIN imported_pages page
+                        ON page.id = :importedPageId
+                        AND page.workspace_id = session.workspace_id
+                        AND page.import_run_id = :importRunId
+                    WHERE message.id = :messageId
                     """)
                     .param(
                             "messageId",
                             messageId
-                    )
-                    .param(
-                            "workspaceId",
-                            reference.workspaceId()
                     )
                     .param(
                             "importRunId",
@@ -76,6 +82,9 @@ public class JdbcSearchReferenceRepository implements SearchReferenceRepository 
                             )
                     )
                     .update();
+            if (inserted != 1) {
+                throw new SearchException(SearchErrorCode.SEARCH_REFERENCE_FAILED);
+            }
         }
     }
 }

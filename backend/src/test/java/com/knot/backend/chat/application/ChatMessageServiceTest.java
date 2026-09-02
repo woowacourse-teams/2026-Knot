@@ -19,18 +19,17 @@ import com.knot.backend.chat.domain.ChatSessionRepository;
 import com.knot.backend.chat.application.dto.command.LlmRequest;
 import com.knot.backend.search.application.PublishedDocumentSearchService;
 import com.knot.backend.search.application.SearchContext;
-import com.knot.backend.search.application.SearchReferencePersistenceService;
 import com.knot.backend.search.domain.SearchChunk;
 import com.knot.backend.search.domain.SearchErrorCode;
 import com.knot.backend.search.domain.SearchException;
 import java.time.Instant;
-import com.knot.backend.workspace.domain.WorkspaceMemberRepository;
 import java.util.List;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import com.knot.backend.workspace.domain.WorkspaceMemberRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -38,15 +37,13 @@ import org.mockito.ArgumentCaptor;
 
 class ChatMessageServiceTest {
     private final PublishedDocumentSearchService documentSearchService = mock(PublishedDocumentSearchService.class);
-    private final SearchReferencePersistenceService searchReferencePersistenceService = mock(
-            SearchReferencePersistenceService.class
-    );
 
     @BeforeEach
     void setUpSearchContext() {
         when(
                 documentSearchService.search(
                         anyLong(),
+                        anyString(),
                         anyString()
                 )
         ).thenReturn(
@@ -93,10 +90,15 @@ class ChatMessageServiceTest {
                         any(),
                         any()
                 )
-        ).thenReturn(
-                userMessage,
-                assistantMessage
-        );
+        ).thenReturn(userMessage);
+        when(
+                persistenceService.saveAssistantWithReferences(
+                        anyLong(),
+                        anyString(),
+                        any(),
+                        any()
+                )
+        ).thenReturn(assistantMessage);
         when(chatMessageRepository.findAllBySessionId(10L)).thenReturn(List.of(userMessage));
         when(llmClient.start(any())).thenReturn(llmStream);
         when(llmStream.hasNext()).thenReturn(
@@ -117,7 +119,6 @@ class ChatMessageServiceTest {
                 chatMessageRepository,
                 llmClient,
                 documentSearchService,
-                searchReferencePersistenceService,
                 new ActiveChatStreamRegistry(),
                 directExecutor
         );
@@ -145,11 +146,11 @@ class ChatMessageServiceTest {
                 any(),
                 any()
         );
-        verify(persistenceService).saveMessage(
+        verify(persistenceService).saveAssistantWithReferences(
                 anyLong(),
-                org.mockito.ArgumentMatchers.eq(ChatMessageRole.ASSISTANT),
                 org.mockito.ArgumentMatchers.eq("첫 응답"),
-                any()
+                any(),
+                org.mockito.ArgumentMatchers.eq(List.of())
         );
     }
 
@@ -183,10 +184,15 @@ class ChatMessageServiceTest {
                         any(),
                         any()
                 )
-        ).thenReturn(
-                userMessage,
-                assistantMessage
-        );
+        ).thenReturn(userMessage);
+        when(
+                persistenceService.saveAssistantWithReferences(
+                        anyLong(),
+                        anyString(),
+                        any(),
+                        any()
+                )
+        ).thenReturn(assistantMessage);
         when(chatMessageRepository.findAllBySessionId(10L)).thenReturn(List.of(userMessage));
         LlmClient llmClient = mock(LlmClient.class);
         LlmStream llmStream = mock(LlmStream.class);
@@ -207,6 +213,7 @@ class ChatMessageServiceTest {
         when(
                 documentSearchService.search(
                         1L,
+                        "질문",
                         "질문"
                 )
         ).thenReturn(
@@ -226,7 +233,6 @@ class ChatMessageServiceTest {
                 chatMessageRepository,
                 llmClient,
                 documentSearchService,
-                searchReferencePersistenceService,
                 new ActiveChatStreamRegistry(),
                 Runnable::run
         );
@@ -258,9 +264,11 @@ class ChatMessageServiceTest {
                         .content()
         ).contains("DB 기술 선정 회의록")
                 .contains("pgvector");
-        verify(searchReferencePersistenceService).replace(
-                101L,
-                List.of(reference)
+        verify(persistenceService).saveAssistantWithReferences(
+                org.mockito.ArgumentMatchers.eq(10L),
+                anyString(),
+                any(),
+                org.mockito.ArgumentMatchers.eq(List.of(reference))
         );
     }
 
@@ -294,6 +302,7 @@ class ChatMessageServiceTest {
         when(
                 documentSearchService.search(
                         1L,
+                        "질문",
                         "질문"
                 )
         ).thenThrow(new SearchException(SearchErrorCode.SEARCH_IMPORT_NOT_READY));
@@ -308,7 +317,6 @@ class ChatMessageServiceTest {
                 chatMessageRepository,
                 llmClient,
                 documentSearchService,
-                searchReferencePersistenceService,
                 new ActiveChatStreamRegistry(),
                 Runnable::run
         );
@@ -330,12 +338,191 @@ class ChatMessageServiceTest {
         verify(
                 persistenceService,
                 never()
-        ).saveMessage(
+        ).saveAssistantWithReferences(
                 anyLong(),
-                org.mockito.ArgumentMatchers.eq(ChatMessageRole.ASSISTANT),
+                anyString(),
                 any(),
                 any()
         );
+    }
+
+    @Test
+    @DisplayName("관련도 기준을 통과한 문서가 없으면 LLM을 호출하지 않고 근거 없음으로 저장한다")
+    void sendMessage_noRelevantDocument_doesNotCallLlm() {
+        // given
+        ChatSessionRepository chatSessionRepository = mock(ChatSessionRepository.class);
+        WorkspaceMemberRepository workspaceMemberRepository = mock(WorkspaceMemberRepository.class);
+        ChatSession session = mock(ChatSession.class);
+        when(session.getMemberId()).thenReturn(2L);
+        when(session.getWorkspaceId()).thenReturn(1L);
+        when(chatSessionRepository.findById(10L)).thenReturn(java.util.Optional.of(session));
+        when(
+                workspaceMemberRepository.existsByWorkspaceIdAndMemberId(
+                        1L,
+                        2L
+                )
+        ).thenReturn(true);
+        ChatMessageRepository chatMessageRepository = mock(ChatMessageRepository.class);
+        ChatMessagePersistenceService persistenceService = mock(ChatMessagePersistenceService.class);
+        ChatMessage userMessage = mock(ChatMessage.class);
+        ChatMessage assistantMessage = mock(ChatMessage.class);
+        when(userMessage.getRole()).thenReturn(ChatMessageRole.USER);
+        when(userMessage.getContent()).thenReturn("무관한 질문");
+        when(assistantMessage.getId()).thenReturn(102L);
+        when(
+                persistenceService.saveMessage(
+                        anyLong(),
+                        any(),
+                        any(),
+                        any()
+                )
+        ).thenReturn(userMessage);
+        when(
+                persistenceService.saveAssistantWithReferences(
+                        anyLong(),
+                        anyString(),
+                        any(),
+                        any()
+                )
+        ).thenReturn(assistantMessage);
+        when(chatMessageRepository.findAllBySessionId(10L)).thenReturn(List.of(userMessage));
+        when(
+                documentSearchService.search(
+                        1L,
+                        "무관한 질문",
+                        "무관한 질문"
+                )
+        ).thenReturn(SearchContext.noResult());
+        LlmClient llmClient = mock(LlmClient.class);
+        ChatStreamListener listener = mock(ChatStreamListener.class);
+        when(listener.onChunk(anyString())).thenReturn(true);
+        ChatMessageService service = new ChatMessageService(
+                new ChatSessionAccessPolicy(
+                        chatSessionRepository,
+                        workspaceMemberRepository
+                ),
+                persistenceService,
+                chatMessageRepository,
+                llmClient,
+                documentSearchService,
+                new ActiveChatStreamRegistry(),
+                Runnable::run
+        );
+
+        // when
+        service.sendMessage(
+                10L,
+                2L,
+                "무관한 질문",
+                listener
+        );
+
+        // then
+        verify(listener).onChunk(org.mockito.ArgumentMatchers.contains("찾지 못했습니다"));
+        verify(listener).onComplete(102L);
+        verify(
+                llmClient,
+                never()
+        ).start(any());
+        verify(persistenceService).saveAssistantWithReferences(
+                org.mockito.ArgumentMatchers.eq(10L),
+                org.mockito.ArgumentMatchers.contains("찾지 못했습니다"),
+                any(),
+                org.mockito.ArgumentMatchers.eq(List.of())
+        );
+    }
+
+    @Test
+    @DisplayName("같은 세션의 이전 질문과 답변만 후속 검색 문맥에 포함한다")
+    void sendMessage_followUpSearchUsesSameSessionHistory() {
+        // given
+        ChatSessionRepository chatSessionRepository = mock(ChatSessionRepository.class);
+        WorkspaceMemberRepository workspaceMemberRepository = mock(WorkspaceMemberRepository.class);
+        ChatSession session = mock(ChatSession.class);
+        when(session.getMemberId()).thenReturn(2L);
+        when(session.getWorkspaceId()).thenReturn(1L);
+        when(chatSessionRepository.findById(10L)).thenReturn(java.util.Optional.of(session));
+        when(
+                workspaceMemberRepository.existsByWorkspaceIdAndMemberId(
+                        1L,
+                        2L
+                )
+        ).thenReturn(true);
+        ChatMessageRepository chatMessageRepository = mock(ChatMessageRepository.class);
+        ChatMessagePersistenceService persistenceService = mock(ChatMessagePersistenceService.class);
+        ChatMessage previousUserMessage = mock(ChatMessage.class);
+        ChatMessage previousAssistantMessage = mock(ChatMessage.class);
+        ChatMessage currentUserMessage = mock(ChatMessage.class);
+        ChatMessage assistantMessage = mock(ChatMessage.class);
+        when(previousUserMessage.getRole()).thenReturn(ChatMessageRole.USER);
+        when(previousUserMessage.getContent()).thenReturn("PostgreSQL을 왜 사용하기로 했지?");
+        when(previousAssistantMessage.getRole()).thenReturn(ChatMessageRole.ASSISTANT);
+        when(previousAssistantMessage.getContent()).thenReturn("팀에서 익숙하고 안정적인 관계형 DB라서 선택했어.");
+        when(currentUserMessage.getRole()).thenReturn(ChatMessageRole.USER);
+        when(currentUserMessage.getContent()).thenReturn("왜 그렇게 정했어?");
+        when(assistantMessage.getId()).thenReturn(103L);
+        when(
+                persistenceService.saveMessage(
+                        anyLong(),
+                        any(),
+                        any(),
+                        any()
+                )
+        ).thenReturn(currentUserMessage);
+        when(
+                persistenceService.saveAssistantWithReferences(
+                        anyLong(),
+                        anyString(),
+                        any(),
+                        any()
+                )
+        ).thenReturn(assistantMessage);
+        when(chatMessageRepository.findAllBySessionId(10L)).thenReturn(
+                List.of(
+                        previousUserMessage,
+                        previousAssistantMessage,
+                        currentUserMessage
+                )
+        );
+        LlmClient llmClient = mock(LlmClient.class);
+        LlmStream llmStream = mock(LlmStream.class);
+        when(llmClient.start(any())).thenReturn(llmStream);
+        when(llmStream.hasNext()).thenReturn(false);
+        ChatStreamListener listener = mock(ChatStreamListener.class);
+        when(listener.onChunk(anyString())).thenReturn(true);
+        ArgumentCaptor<String> searchQueryCaptor = ArgumentCaptor.forClass(String.class);
+        ChatMessageService service = new ChatMessageService(
+                new ChatSessionAccessPolicy(
+                        chatSessionRepository,
+                        workspaceMemberRepository
+                ),
+                persistenceService,
+                chatMessageRepository,
+                llmClient,
+                documentSearchService,
+                new ActiveChatStreamRegistry(),
+                Runnable::run
+        );
+
+        // when
+        service.sendMessage(
+                10L,
+                2L,
+                "왜 그렇게 정했어?",
+                listener
+        );
+
+        // then
+        verify(documentSearchService).search(
+                org.mockito.ArgumentMatchers.eq(1L),
+                org.mockito.ArgumentMatchers.eq("왜 그렇게 정했어?"),
+                searchQueryCaptor.capture()
+        );
+        assertThat(searchQueryCaptor.getValue()).contains("PostgreSQL을 왜 사용하기로 했지?")
+                .contains("팀에서 익숙하고 안정적인 관계형 DB라서 선택했어.")
+                .contains("현재 질문: 왜 그렇게 정했어?")
+                .doesNotContain("다른 세션 비밀");
+        verify(chatMessageRepository).findAllBySessionId(10L);
     }
 
     @Test
@@ -380,7 +567,6 @@ class ChatMessageServiceTest {
                 chatMessageRepository,
                 llmClient,
                 documentSearchService,
-                searchReferencePersistenceService,
                 new ActiveChatStreamRegistry(),
                 directExecutor
         );
@@ -404,9 +590,9 @@ class ChatMessageServiceTest {
         verify(
                 persistenceService,
                 never()
-        ).saveMessage(
+        ).saveAssistantWithReferences(
                 anyLong(),
-                org.mockito.ArgumentMatchers.eq(ChatMessageRole.ASSISTANT),
+                anyString(),
                 any(),
                 any()
         );
@@ -449,7 +635,6 @@ class ChatMessageServiceTest {
                 chatMessageRepository,
                 mock(LlmClient.class),
                 documentSearchService,
-                searchReferencePersistenceService,
                 registry,
                 command -> {
                 }
@@ -531,7 +716,6 @@ class ChatMessageServiceTest {
                 chatMessageRepository,
                 llmClient,
                 documentSearchService,
-                searchReferencePersistenceService,
                 registry,
                 executor
         );
@@ -564,9 +748,9 @@ class ChatMessageServiceTest {
             verify(
                     persistenceService,
                     never()
-            ).saveMessage(
+            ).saveAssistantWithReferences(
                     anyLong(),
-                    org.mockito.ArgumentMatchers.eq(ChatMessageRole.ASSISTANT),
+                    anyString(),
                     any(),
                     any()
             );
