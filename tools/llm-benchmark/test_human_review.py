@@ -125,6 +125,14 @@ def test_pass_or_fail_labels_require_reviewer_and_all_quality_dimensions() -> No
         _row(decision="pass", answer_correct=True, sources_relevant=True, policy_compliant=None)
     with pytest.raises(ValidationError):
         _row(decision="fail", answer_correct=False, sources_relevant=True, policy_compliant=False)
+    with pytest.raises(ValidationError):
+        _row(
+            decision="not_evaluated",
+            answer_correct=True,
+            sources_relevant=True,
+            policy_compliant=True,
+            reviewer="reviewer-a",
+        )
 
 
 def test_human_review_template_covers_every_independent_workload_turn() -> None:
