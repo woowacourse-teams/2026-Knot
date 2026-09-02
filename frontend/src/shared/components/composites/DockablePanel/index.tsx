@@ -1,3 +1,4 @@
+import { css, keyframes } from "@emotion/react";
 import styled from "@emotion/styled";
 import { useId, type ReactNode } from "react";
 import { createPortal } from "react-dom";
@@ -11,6 +12,15 @@ interface DockablePanelProps {
   icon: ReactNode;
   /** 고정했을 때 패널이 옮겨 갈 자리의 DOM id */
   dockTargetId: string;
+  /**
+   * 고정 여부를 바깥에서 정할 때 넘겨요.
+   *
+   * 넘기지 않으면 패널이 스스로 여닫아요. 같은 자리를 여러 패널이 나눠 써서
+   * 하나만 고정돼야 할 때만 `onDockedChange`와 함께 넘기면 돼요.
+   */
+  isDocked?: boolean;
+  /** 트리거를 눌러 고정 여부가 바뀌었을 때 알려줘요 */
+  onDockedChange?: (isDocked: boolean) => void;
   /** 패널에 그릴 내용. 패널의 껍데기(너비·배경·라운드)는 이 내용이 스스로 가져요 */
   children: ReactNode;
 }
@@ -20,9 +30,11 @@ interface DockablePanelProps {
  *
  * 트리거 버튼에 포인터를 얹거나 포커스를 주면 패널이 화면 위에 겹쳐 떠요(드롭다운).
  * 버튼을 누르면 겹치는 대신 `dockTargetId` 자리로 옮겨가 실제로 폭을 차지하고,
- * 다시 누르면 접혀요.
+ * 다시 누르면 접혀요. 어느 쪽으로 뜨든 왼쪽에서 밀려 들어오는 모션으로 나와요.
  *
  * 어떤 내용을 담을지는 쓰는 쪽이 정하므로 이 컴포넌트는 도메인을 알지 못해요.
+ * 같은 자리를 여러 패널이 나눠 써서 하나만 고정돼야 한다면, 고정 여부는
+ * `isDocked`·`onDockedChange`로 그 자리를 아는 바깥이 정해요.
  *
  * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=1364-6863 GNB/Floating}
  * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=1382-2171 Sidebar/Drawer}
@@ -31,11 +43,13 @@ export default function DockablePanel({
   label,
   icon,
   dockTargetId,
+  isDocked: dockedProp,
+  onDockedChange,
   children,
 }: DockablePanelProps) {
   const panelId = useId();
   const { isDocked, isPeeking, dockTarget, rootProps, triggerProps } =
-    useDockablePanel({ dockTargetId });
+    useDockablePanel({ dockTargetId, dockedProp, onDockedChange });
 
   return (
     <Root {...rootProps}>
@@ -89,6 +103,28 @@ const Trigger = styled.button<{ $isDocked: boolean }>`
   }
 `;
 
+/** 왼쪽에서 밀려 들어오는 등장 모션. 자리를 차지할 때도 겹쳐 뜰 때도 같은 방향으로 나와요 */
+const slideInFromLeft = keyframes`
+  from {
+    transform: translateX(-1.5rem); /* 24px */
+    opacity: 0;
+  }
+
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+`;
+
+/** 등장 모션의 길이와 감속. 레일이 벌어지는 속도와 맞춰야 함께 밀리는 것처럼 보여요 */
+const panelEnterStyle = css`
+  animation: ${slideInFromLeft} 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+`;
+
 /**
  * 겹쳐 뜬 패널. 화면 왼쪽 위에 고정으로 놓여요.
  *
@@ -100,10 +136,12 @@ const FloatingPanel = styled.div`
   bottom: 8.5rem; /* 136px */
   left: 2.5rem; /* 40px */
   z-index: 20;
+  ${panelEnterStyle}
 `;
 
 /** 자리를 차지한 패널. 옮겨 간 자리를 그대로 채워요 */
 const DockedPanel = styled.div`
   width: 100%;
   height: 100%;
+  ${panelEnterStyle}
 `;
