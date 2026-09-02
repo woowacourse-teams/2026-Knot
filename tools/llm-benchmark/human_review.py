@@ -21,6 +21,14 @@ class HumanReviewStatus(StrEnum):
     NOT_EVALUATED = "not_evaluated"
 
 
+class HumanReviewDecision(StrEnum):
+    """Allowed terminal or pending decision values for one review row."""
+
+    PASS = "pass"
+    FAIL = "fail"
+    PENDING = "pending"
+
+
 class HumanReviewError(Exception):
     """Raised when a human review file cannot be loaded."""
 
@@ -47,7 +55,7 @@ class HumanReviewRow(BaseModel):
     repeat: int = Field(ge=1)
     turn: int = Field(ge=1)
     strategy: str = Field(min_length=1)
-    decision: HumanReviewStatus = HumanReviewStatus.PENDING
+    decision: HumanReviewDecision = HumanReviewDecision.PENDING
     answer_correct: bool | None = None
     sources_relevant: bool | None = None
     policy_compliant: bool | None = None
@@ -56,7 +64,7 @@ class HumanReviewRow(BaseModel):
 
     @model_validator(mode="after")
     def validate_decision_evidence(self) -> HumanReviewRow:
-        if self.decision is HumanReviewStatus.PENDING:
+        if self.decision is HumanReviewDecision.PENDING:
             return self
         if not self.reviewer.strip():
             raise ValueError("terminal human review requires reviewer")
@@ -64,9 +72,9 @@ class HumanReviewRow(BaseModel):
         if any(value is None for value in dimensions):
             raise ValueError("terminal human review requires every quality dimension")
         passed = all(value is True for value in dimensions)
-        if self.decision is HumanReviewStatus.PASS and not passed:
+        if self.decision is HumanReviewDecision.PASS and not passed:
             raise ValueError("pass review requires every quality dimension to be true")
-        if self.decision is HumanReviewStatus.FAIL and passed:
+        if self.decision is HumanReviewDecision.FAIL and passed:
             raise ValueError("fail review requires at least one false quality dimension")
         return self
 
@@ -118,9 +126,9 @@ def evaluate_human_review(
     return HumanReviewSummary(
         expected=len(expected_keys),
         received=len(rows),
-        passed=sum(row.decision is HumanReviewStatus.PASS for row in rows),
-        failed=sum(row.decision is HumanReviewStatus.FAIL for row in rows),
-        pending=sum(row.decision is HumanReviewStatus.PENDING for row in rows),
+        passed=sum(row.decision is HumanReviewDecision.PASS for row in rows),
+        failed=sum(row.decision is HumanReviewDecision.FAIL for row in rows),
+        pending=sum(row.decision is HumanReviewDecision.PENDING for row in rows),
         missing=missing,
         duplicates=duplicates,
         unexpected=unexpected,

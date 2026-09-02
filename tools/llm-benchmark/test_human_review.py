@@ -14,6 +14,7 @@ from pathlib import Path
 
 import pytest
 from human_review import (
+    HumanReviewDecision,
     HumanReviewRow,
     HumanReviewStatus,
     evaluate_human_review,
@@ -141,5 +142,5 @@ def test_human_review_template_covers_every_independent_workload_turn() -> None:
 
     # Then: every workload turn has one pending row ready for a reviewer
     assert len(rows) == 33
-    assert all(row.decision is HumanReviewStatus.PENDING for row in rows)
+    assert all(row.decision is HumanReviewDecision.PENDING for row in rows)
     assert len({row.key for row in rows}) == len(rows)
