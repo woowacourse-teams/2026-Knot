@@ -44,13 +44,14 @@ const sseResponse = (chunks: Uint8Array[]) =>
 
 describe("streamChatMessageApi", () => {
   it("mock 스트림의 delta를 순서대로 내고 complete로 메시지 ID를 알려준다", async () => {
-    const { deltas, messageId } = chatMessageStreamResponse;
+    const { deltas } = chatMessageStreamResponse;
 
     const events = await collectStream();
 
+    // messageId는 mock이 저장하면서 붙이는 값이라 자리만 확인해요
     expect(events).toEqual([
       ...deltas.map((delta) => ({ event: "chunk", data: { delta } })),
-      { event: "complete", data: { messageId } },
+      { event: "complete", data: { messageId: expect.any(Number) } },
     ]);
   });
 
