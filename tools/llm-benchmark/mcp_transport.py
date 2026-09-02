@@ -19,7 +19,7 @@ from mcp_models import (
     McpToolName,
     McpToolResult,
 )
-from mcp_wire import parse_response, safe_detail
+from mcp_wire import parse_response, redact_secrets, safe_detail
 
 _RETRYABLE_STATUSES: Final[frozenset[int]] = frozenset(
     {408, 425, 429, 500, 502, 503, 504}
@@ -272,7 +272,7 @@ def _redact_tool_result(result: McpToolResult, token: str) -> McpToolResult:
             update={
                 "text": None
                 if block.text is None
-                else safe_detail(block.text, (token,))
+                else redact_secrets(block.text, (token,))
             }
         )
         for block in result.content
@@ -294,7 +294,7 @@ def _redact_object(value: dict[str, JsonValue], token: str) -> dict[str, JsonVal
 def _redact_value(value: JsonValue, token: str) -> JsonValue:
     match value:
         case str():
-            return safe_detail(value, (token,))
+            return redact_secrets(value, (token,))
         case list():
             return [_redact_value(child, token) for child in value]
         case dict():

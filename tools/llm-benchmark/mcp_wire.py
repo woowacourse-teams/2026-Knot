@@ -21,8 +21,13 @@ def parse_response(response: httpx2.Response) -> McpRpcResponse:
 
 
 def safe_detail(detail: str, secrets: Iterable[str] = ()) -> str:
-    """Truncate errors and redact bearer credentials before they leave the boundary."""
-    redacted = re.sub(r"Bearer\s+[^\s\"']+", "Bearer [redacted]", detail[:500])
+    """Truncate error details and redact bearer credentials."""
+    return redact_secrets(detail[:500], secrets)
+
+
+def redact_secrets(detail: str, secrets: Iterable[str] = ()) -> str:
+    """Redact credentials without truncating successful document payloads."""
+    redacted = re.sub(r"Bearer\s+[^\s\"']+", "Bearer [redacted]", detail)
     for secret in secrets:
         if secret:
             redacted = redacted.replace(secret, "[redacted]")
