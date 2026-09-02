@@ -454,3 +454,12 @@ Notion 연결과 백엔드 읽기 도구를 구성한 뒤 다음을 비교한다
 - 로드맵 날짜·Redis의 예시/공식 결정 부재·구체화한 코드 컨벤션 질의는 동작했지만, 넓은 코드 컨벤션 질의는 관련도가 낮은 백엔드 문서를 선택했다.
 - 관측된 live 요청의 end-to-end 완료 시간은 약 38~77초였고, 후속 질문은 약 190초였다. 따라서 현재 5초 목표를 충족한다고 판정하지 않는다.
 - 이 smoke test는 LM Studio-managed OAuth 연결이며, 실제 Workspace별 Java credential forwarding·권한 격리·전체 A/B 비교는 후속 검증으로 남긴다.
+
+## 17. 2026-09-02 #275 품질 게이트 구현 상태
+
+- 독립 질문 workload를 기존 13개 대화형 골드셋과 분리해 31개 case·33개 turn으로 추가했다.
+- benchmark runner가 JSON workload를 기존 BenchmarkCase 입력으로 읽을 수 있게 했다.
+- 자동 gate는 검색 결과의 source·중복·오류·무응답·광범위 질문을 검사하고, 등록되지 않은 답변 형식은 자동 성공/실패로 단정하지 않는다.
+- 사람 검수는 answer_correct, sources_relevant, policy_compliant 세 축을 모두 채운 terminal label만 허용하며, 누락·중복·pending이 있으면 통과하지 않는다.
+- 현재 사람 검수 파일은 템플릿만 제공하고 실제 생성 결과에 대한 라벨은 비어 있다. 따라서 #275의 품질 통과와 최종 아키텍처 판정은 아직 완료로 표시하지 않는다.
+- 실제 NIM e2e 결과, 실제 Notion MCP-live 결과, Java Workspace credential forwarding, cold/warm 반복 조건을 모두 동일 실행 ID로 채운 뒤 사람 검수를 수행한다.
