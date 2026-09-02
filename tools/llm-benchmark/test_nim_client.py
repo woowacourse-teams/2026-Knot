@@ -82,7 +82,8 @@ def test_streaming_http_error_preserves_provider_status_and_detail() -> None:
         thread.join(timeout=1)
 
     assert raised.value.status_code == 403
-    assert raised.value.detail == '{"error":"forbidden"}'
+    assert raised.value.detail == "provider returned an HTTP error"
+    assert "forbidden" not in str(raised.value)
 
 
 def test_streaming_read_timeout_turns_slow_provider_into_transport_error() -> None:
