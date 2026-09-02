@@ -14,8 +14,6 @@ interface ConversationProps {
   streamedAnswer: string;
   /** 답변이 오다가 끊겼는지 여부 */
   isStreamFailed: boolean;
-  /** 보낼 수 없었던 이유. 답변 자리에 남길 것이 없을 때만 씁니다 */
-  notice: string | null;
 }
 
 /**
@@ -30,7 +28,6 @@ export default function Conversation({
   streamingQuestion,
   streamedAnswer,
   isStreamFailed,
-  notice,
 }: ConversationProps) {
   const { sessionId } = useParams();
   // 질문을 보낸 순간과 답변이 길어지는 동안 모두 바닥을 따라갑니다
@@ -51,8 +48,6 @@ export default function Conversation({
       ) : (
         <EmptyHint />
       )}
-
-      {notice && <Notice role="status">{notice}</Notice>}
     </Container>
   );
 }
@@ -62,10 +57,8 @@ const Container = styled.div`
   flex-direction: column;
   gap: 1.5rem; /* 24px */
   height: 100%;
+  /* 스크롤바가 생겨도 글이 밀리거나 그 아래에 깔리지 않게 자리를 미리 비워 둬요 */
+  padding-right: 0.75rem; /* 12px */
   overflow-y: auto;
-`;
-
-const Notice = styled.p`
-  ${({ theme }) => theme.text.caption02};
-  color: ${({ theme }) => theme.neutral[600]};
+  scrollbar-gutter: stable;
 `;

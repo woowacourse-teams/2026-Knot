@@ -25,7 +25,6 @@ export default function ChatPanel() {
     streamingQuestion,
     streamedAnswer,
     isStreamFailed,
-    notice,
     handleSubmitQuestion,
   } = useChatStreamContext();
 
@@ -40,7 +39,6 @@ export default function ChatPanel() {
         streamingQuestion={streamingQuestion}
         streamedAnswer={streamedAnswer}
         isStreamFailed={isStreamFailed}
-        notice={notice}
       />
     </Container>
   );
@@ -50,12 +48,12 @@ export default function ChatPanel() {
  * 대화가 놓이는 자리.
  *
  * 카드가 아니라 화면 배경 위에 글이 그대로 놓이는 모양이라 배경·테두리를 두지 않아요.
- * 좌우 여백은 화면(`ChatPage`)이 이미 주므로 위아래만 둡니다.
+ * 여백만 디자인의 Chat/Panel 상자를 그대로 따릅니다.
  */
 const Container = styled.section`
   display: flex;
   flex-direction: column;
   width: 100%;
   height: 100%;
-  padding: 2.5rem 0 1.5rem; /* 40px 0 24px */
+  padding: 2.5rem 2.5rem 1.5rem; /* 40px 40px 24px */
 `;
