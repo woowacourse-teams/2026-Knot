@@ -15,7 +15,8 @@
     "test:e2e:report": "playwright show-report",
     "review": "node scripts/review.mjs",
     "pr-content": "node scripts/create-pr-content.mjs",
-    "commit": "node scripts/commit.mjs"
+    "commit": "node scripts/commit.mjs",
+    "explain-diff": "node scripts/explain-diff.mjs"
   },
   "devDependencies": {
     "@emotion/babel-plugin": "^11.13.5",
