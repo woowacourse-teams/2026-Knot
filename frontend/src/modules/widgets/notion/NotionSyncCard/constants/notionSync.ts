@@ -1,7 +1,19 @@
-// TODO(마지막 동기화 시각 API 미정): 시각을 주는 API 연결 후 응답으로 교체
+/**
+ * Notion 연결 상태별 안내 문구. 연결 상태 조회 응답의 `status`를 그대로 키로 써요.
+ *
+ * - `NOT_CONNECTED`: 연결한 적이 없거나 끊긴 상태
+ * - `CONNECTED`: 연결됨
+ * - `REAUTH_REQUIRED`: 연결을 승인한 멤버가 더 이상 OWNER가 아니라 OWNER가 다시 연결해야 하는 상태
+ */
+export const NOTION_CONNECTION_STATUS_LABEL = {
+  NOT_CONNECTED: "노션이 연결되어 있지 않아요",
+  CONNECTED: "노션이 연결되어 있어요",
+  REAUTH_REQUIRED: "노션을 다시 연결해야 해요",
+} as const;
 
-/** 마지막 동기화 시각 안내. Figma 예시 문구를 그대로 둔 임시 값이에요. */
-export const LAST_SYNCED_AT_LABEL = "어제 오후 3:12에 동기화";
+/** 연결 상태 조회 자체가 실패했을 때 보여줄 안내 문구. */
+export const NOTION_CONNECTION_STATUS_UNKNOWN_MESSAGE =
+  "노션 연결 상태를 확인하지 못했어요";
 
 /** 완료·실패 안내를 보여준 뒤 기본 상태로 돌아가기까지의 시간(ms). */
 export const SYNC_RESULT_RESET_DELAY_MS = 2000;

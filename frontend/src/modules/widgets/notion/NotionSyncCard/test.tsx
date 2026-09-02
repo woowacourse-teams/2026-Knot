@@ -1,6 +1,8 @@
 import { GetNotionImportStatusResponseDto } from "@api/dto/notionImport";
 import { NOTION_IMPORT_STATUS_API_PATH } from "@api/fetch/api/v1/imports/[importRunId]";
 import { NOTION_IMPORTS_API_PATH } from "@api/fetch/api/v1/workspaces/[workspaceId]/imports";
+import { NOTION_CONNECTION_API_PATH } from "@api/fetch/api/v1/workspaces/[workspaceId]/notionConnection";
+import { notionConnectionResponse } from "@api/mock/responses/notionConnection";
 import {
   notionImportStartResponse,
   notionImportStatusResponse,
@@ -32,7 +34,11 @@ const HOME_PATH = getRouterPath({
   routeKey: "WORKSPACE_HOME",
   params: { workspaceId: String(WORKSPACE_ID) },
 });
-const LAST_SYNCED_TEXT = "어제 오후 3:12에 동기화";
+// 연결 상태별 안내 문구. mock 기본 응답이 CONNECTED라 기본 화면은 연결됨 문구를 기대해요
+const CONNECTED_TEXT = "노션이 연결되어 있어요";
+const NOT_CONNECTED_TEXT = "노션이 연결되어 있지 않아요";
+const REAUTH_REQUIRED_TEXT = "노션을 다시 연결해야 해요";
+const CONNECTION_UNKNOWN_TEXT = "노션 연결 상태를 확인하지 못했어요";
 const SYNCED_TEXT = `문서 ${expectedStatus.processedPageCount}개가 새로 들어왔어요`;
 const START_FAILED_TEXT = "동기화에 실패했어요. 잠시 후 다시 시도해 주세요";
 const RESULT_RESET_DELAY_MS = 2000;
@@ -100,6 +106,24 @@ const failStartResponse = () => {
   );
 };
 
+const respondConnectionStatus = (
+  status: "NOT_CONNECTED" | "REAUTH_REQUIRED",
+) => {
+  mockServer.use(
+    http.get(`*${NOTION_CONNECTION_API_PATH(WORKSPACE_ID)}`, () =>
+      HttpResponse.json({ ...notionConnectionResponse, status }),
+    ),
+  );
+};
+
+const failConnectionStatus = () => {
+  mockServer.use(
+    http.get(`*${NOTION_CONNECTION_API_PATH(WORKSPACE_ID)}`, () =>
+      HttpResponse.json(null, { status: 500 }),
+    ),
+  );
+};
+
 const failImportStatus = () => {
   mockServer.use(
     http.get(
@@ -115,12 +139,35 @@ describe("NotionSyncCard", () => {
     vi.restoreAllMocks();
   });
 
-  it("처음에는 마지막 동기화 시각과 지금 동기화 버튼을 보여준다", () => {
+  it("처음에는 노션 연결 상태와 지금 동기화 버튼을 보여준다", async () => {
     const { syncButton } = renderCard();
 
-    expect(screen.getByText(LAST_SYNCED_TEXT)).toBeInTheDocument();
+    expect(await screen.findByText(CONNECTED_TEXT)).toBeInTheDocument();
     expect(syncButton).toBeEnabled();
     expect(syncButton).toHaveAttribute("aria-busy", "false");
+  });
+
+  it("노션이 연결되어 있지 않으면 연결 안 됨 안내를 보여준다", async () => {
+    respondConnectionStatus("NOT_CONNECTED");
+    renderCard();
+
+    expect(await screen.findByText(NOT_CONNECTED_TEXT)).toBeInTheDocument();
+  });
+
+  it("노션 재연결이 필요하면 다시 연결 안내를 보여준다", async () => {
+    respondConnectionStatus("REAUTH_REQUIRED");
+    renderCard();
+
+    expect(await screen.findByText(REAUTH_REQUIRED_TEXT)).toBeInTheDocument();
+  });
+
+  it("연결 상태 조회가 실패하면 확인하지 못했다는 안내를 보여준다", async () => {
+    failConnectionStatus();
+    renderCard();
+
+    expect(
+      await screen.findByText(CONNECTION_UNKNOWN_TEXT),
+    ).toBeInTheDocument();
   });
 
   it("지금 동기화를 누르면 서버 응답이 올 때까지 버튼이 로딩 상태로 잠긴다", async () => {
@@ -131,7 +178,7 @@ describe("NotionSyncCard", () => {
 
     await waitFor(() => expect(syncButton).toBeDisabled());
     expect(syncButton).toHaveAttribute("aria-busy", "true");
-    expect(screen.getByText(LAST_SYNCED_TEXT)).toBeInTheDocument();
+    expect(await screen.findByText(CONNECTED_TEXT)).toBeInTheDocument();
   });
 
   it("동기화가 완료되면 새로 들어온 문서 안내와 비활성 완료 버튼으로 바뀐다", async () => {
@@ -141,7 +188,7 @@ describe("NotionSyncCard", () => {
 
     // 문서 수는 mock 상태 응답에서만 올 수 있어, 보이면 시작·상태 요청이 실제로 나간 거예요
     expect(await screen.findByText(SYNCED_TEXT)).toBeInTheDocument();
-    expect(screen.queryByText(LAST_SYNCED_TEXT)).not.toBeInTheDocument();
+    expect(screen.queryByText(CONNECTED_TEXT)).not.toBeInTheDocument();
 
     const doneButton = screen.getByRole("button", { name: "완료" });
     expect(doneButton).toBeDisabled();
@@ -165,7 +212,7 @@ describe("NotionSyncCard", () => {
 
     await advanceTimers(1);
 
-    expect(screen.getByText(LAST_SYNCED_TEXT)).toBeInTheDocument();
+    expect(screen.getByText(CONNECTED_TEXT)).toBeInTheDocument();
     expect(screen.queryByText(SYNCED_TEXT)).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "지금 동기화" })).toBeEnabled();
   });
@@ -183,7 +230,7 @@ describe("NotionSyncCard", () => {
 
     await advanceTimers(RESULT_RESET_DELAY_MS);
 
-    expect(screen.getByText(LAST_SYNCED_TEXT)).toBeInTheDocument();
+    expect(screen.getByText(CONNECTED_TEXT)).toBeInTheDocument();
     expect(screen.queryByText(FAILED_REASON_TEXT)).not.toBeInTheDocument();
   });
 
@@ -199,7 +246,7 @@ describe("NotionSyncCard", () => {
 
     await advanceTimers(RESULT_RESET_DELAY_MS);
 
-    expect(screen.getByText(LAST_SYNCED_TEXT)).toBeInTheDocument();
+    expect(screen.getByText(CONNECTED_TEXT)).toBeInTheDocument();
     expect(screen.queryByText(START_FAILED_TEXT)).not.toBeInTheDocument();
   });
 
