@@ -10,6 +10,7 @@ from mcp_models import (
     McpReadAdapter,
     McpScope,
     McpSearchResult,
+    McpToolCallValidationError,
     NimToolCall,
     validate_nim_tool_call,
 )
@@ -29,10 +30,17 @@ def execute_nim_tool_calls(
     scope: McpScope,
     *,
     search_limit: int = 3,
+    max_tool_calls: int = 8,
 ) -> tuple[McpToolExecution, ...]:
     """Validate a complete model batch before executing it in model order."""
     if search_limit < 1:
         raise ValueError("search_limit must be positive")
+    if max_tool_calls < 1:
+        raise ValueError("max_tool_calls must be positive")
+    if len(calls) > max_tool_calls:
+        raise McpToolCallValidationError(
+            f"maximum MCP tool calls per batch is {max_tool_calls}"
+        )
     validated = tuple(validate_nim_tool_call(call) for call in calls)
     return tuple(
         McpToolExecution(

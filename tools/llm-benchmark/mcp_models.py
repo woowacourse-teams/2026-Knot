@@ -50,6 +50,8 @@ class McpSettings(BaseSettings):
     read_timeout_s: float = Field(default=90.0, gt=0)
     max_retries: int = Field(default=2, ge=0, le=5)
     retry_backoff_s: float = Field(default=0.25, ge=0)
+    max_retry_after_s: float = Field(default=30.0, gt=0, le=300)
+    max_pages: int = Field(default=10, ge=1, le=100)
 
 
 @dataclass(frozen=True, slots=True)

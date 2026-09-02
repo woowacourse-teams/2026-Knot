@@ -136,15 +136,19 @@ class LiveNotionMcpAdapter:
         *,
         search_tool: str = "notion-search",
         fetch_tool: str = "notion-fetch",
+        max_pages: int = 10,
     ) -> None:
         if search_tool != McpToolName.SEARCH.value:
             raise ValueError("only notion-search is allowed")
         if fetch_tool != McpToolName.FETCH.value:
             raise ValueError("only notion-fetch is allowed")
+        if max_pages < 1:
+            raise ValueError("max_pages must be positive")
         self._client = client
         self._scope = scope
         self._search_tool = search_tool
         self._fetch_tool = fetch_tool
+        self._max_pages = max_pages
 
     def search(self, query: str, limit: int) -> McpSearchResult:
         """Search MCP result pages needed to fill the requested hit limit."""
@@ -154,13 +158,17 @@ class LiveNotionMcpAdapter:
         cursor: str | None = None
         traces: list[McpToolExchange] = []
         seen_cursors: set[str] = set()
+        pages = 0
         while len(hits) < max(limit, 0):
+            if pages >= self._max_pages:
+                raise McpAdapterError("MCP search page limit exceeded")
             arguments: JsonObject = {"query": query}
             if cursor is not None:
                 arguments["cursor"] = cursor
             exchange = self._client.call_tool(self._search_tool, arguments)
             _ensure_success(exchange.result)
             traces.append(exchange)
+            pages += 1
             for hit in search_hits(exchange.result, self._scope):
                 normalized_id = normalize_page_id(hit.page_id)
                 if normalized_id not in seen_ids:
@@ -169,6 +177,8 @@ class LiveNotionMcpAdapter:
             has_more, next_cursor = pagination(exchange.result)
             if not has_more or next_cursor is None or next_cursor in seen_cursors:
                 break
+            if pages >= self._max_pages:
+                raise McpAdapterError("MCP search page limit exceeded")
             seen_cursors.add(next_cursor)
             cursor = next_cursor
         return McpSearchResult(
@@ -199,18 +209,24 @@ class LiveNotionMcpAdapter:
         seen_cursors: set[str] = set()
         content: list[str] = []
         page: McpPage | None = None
+        pages = 0
         while True:
+            if pages >= self._max_pages:
+                raise McpAdapterError("MCP fetch page limit exceeded")
             arguments: JsonObject = {"url": hit.url}
             if cursor is not None:
                 arguments["cursor"] = cursor
             exchange = self._client.call_tool(self._fetch_tool, arguments)
             _ensure_success(exchange.result)
             exchanges.append(exchange)
+            pages += 1
             page = merge_page(page, page_from_result(exchange.result, hit, self._scope))
             content.extend(page_text_content(exchange.result))
             has_more, next_cursor = pagination(exchange.result)
             if not has_more or next_cursor is None or next_cursor in seen_cursors:
                 break
+            if pages >= self._max_pages:
+                raise McpAdapterError("MCP fetch page limit exceeded")
             seen_cursors.add(next_cursor)
             cursor = next_cursor
         if page is None:

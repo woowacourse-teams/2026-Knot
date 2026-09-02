@@ -110,6 +110,7 @@ def main(
             scope,
             search_tool=mcp_settings.search_tool,
             fetch_tool=mcp_settings.fetch_tool,
+            max_pages=mcp_settings.max_pages,
         )
         chat_client = (
             None
@@ -197,7 +198,9 @@ def _run_case(
                 error,
             ),
         )
-        if answer:
+        if retrieval_only and not answer:
+            history.append(ChatMessage(role="user", content=question))
+        elif answer:
             history.extend(
                 (
                     ChatMessage(role="user", content=question),

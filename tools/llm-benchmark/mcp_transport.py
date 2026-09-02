@@ -231,6 +231,7 @@ class McpHttpClient:
                 delay = max(0.0, float(retry_after))
             except ValueError:
                 delay = self._settings.retry_backoff_s * (2**attempt)
+        delay = min(delay, self._settings.max_retry_after_s)
         if delay > 0:
             time.sleep(delay)
 
