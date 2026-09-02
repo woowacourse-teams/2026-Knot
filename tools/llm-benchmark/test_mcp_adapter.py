@@ -18,6 +18,7 @@ from pathlib import Path
 import pytest
 from benchmark_core import Document
 from mcp_adapter import (
+    McpAdapterError,
     McpScopeError,
     ReplayMcpAdapter,
     build_mcp_context,
@@ -181,6 +182,8 @@ def test_live_adapter_paginates_search_and_normalizes_fetch_content() -> None:
                             "url": "https://notion.so/page-1",
                             "title": "DB",
                             "snippet": "PostgreSQL",
+                            "workspace_id": "workspace-a",
+                            "snapshot_id": "snapshot-1",
                         }
                     ],
                     "has_more": True,
@@ -203,6 +206,8 @@ def test_live_adapter_paginates_search_and_normalizes_fetch_content() -> None:
                             "url": "https://notion.so/page-2",
                             "title": "Vector",
                             "snippet": "pgvector",
+                            "workspace_id": "workspace-a",
+                            "snapshot_id": "snapshot-1",
                         }
                     ],
                     "has_more": False,
@@ -446,6 +451,101 @@ def test_live_search_discards_a_hit_claiming_another_workspace() -> None:
 
     # Then: response metadata cannot widen the connected workspace scope
     assert search.hits == ()
+
+
+def test_live_search_discards_a_hit_without_active_snapshot_proof() -> None:
+    # Given: an allowed page ID whose response omits the active snapshot identity
+    result = McpToolExchange(
+        McpToolResult.model_validate(
+            {
+                "structuredContent": {
+                    "results": [
+                        {
+                            "id": "page-1",
+                            "url": "https://notion.so/page-1",
+                            "title": "unproven",
+                            "snippet": "secret",
+                        }
+                    ]
+                }
+            }
+        ),
+        1,
+        0,
+        0,
+        1.0,
+    )
+    client = _FakeMcpClient([result], [])
+    from mcp_adapter import LiveNotionMcpAdapter
+
+    adapter = LiveNotionMcpAdapter(client, _scope())
+
+    # When: the live adapter normalizes the search result
+    search = adapter.search("secret", limit=1)
+
+    # Then: an active snapshot cannot be inferred from missing response metadata
+    assert search.hits == ()
+
+
+def test_live_fetch_rejects_more_content_without_a_continuation_cursor() -> None:
+    # Given: a detail response that claims more blocks but supplies no cursor
+    result = McpToolExchange(
+        McpToolResult.model_validate(
+            {
+                "structuredContent": {
+                    "id": "page-1",
+                    "has_more": True,
+                },
+                "content": [{"type": "text", "text": "partial"}],
+            }
+        ),
+        1,
+        0,
+        0,
+        1.0,
+    )
+    client = _FakeMcpClient([result], [])
+    from mcp_adapter import LiveNotionMcpAdapter
+
+    adapter = LiveNotionMcpAdapter(client, _scope())
+    hit = McpSearchHit(
+        "page-1", "DB", "https://notion.so/page-1", "", "workspace-a", "snapshot-1"
+    )
+
+    # When & then: incomplete content is not exposed as a successful page
+    with pytest.raises(McpAdapterError, match="continuation cursor"):
+        adapter.fetch(hit)
+
+
+def test_live_fetch_rejects_unresolved_block_ids_in_a_complete_response() -> None:
+    # Given: a response that explicitly reports blocks that were not returned
+    result = McpToolExchange(
+        McpToolResult.model_validate(
+            {
+                "structuredContent": {
+                    "id": "page-1",
+                    "unknown_block_ids": ["block-2"],
+                    "has_more": False,
+                },
+                "content": [{"type": "text", "text": "partial"}],
+            }
+        ),
+        1,
+        0,
+        0,
+        1.0,
+    )
+    client = _FakeMcpClient([result], [])
+    from mcp_adapter import LiveNotionMcpAdapter
+
+    adapter = LiveNotionMcpAdapter(client, _scope())
+    hit = McpSearchHit(
+        "page-1", "DB", "https://notion.so/page-1", "", "workspace-a", "snapshot-1"
+    )
+
+    # When & then: unresolved blocks prevent partial page grounding
+    with pytest.raises(McpAdapterError, match="unresolved block"):
+        adapter.fetch(hit)
 
 
 def test_live_search_discards_an_external_markdown_link_with_an_allowed_page_id() -> (

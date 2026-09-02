@@ -71,6 +71,22 @@ def test_scope_permits_only_the_active_workspace_snapshot_and_page_range() -> No
     assert not scope.permits(wrong_page)
 
 
+def test_scope_rejects_a_page_without_snapshot_proof_when_snapshot_is_active() -> None:
+    # Given: a connected range pinned to one completed import snapshot
+    scope = McpScope("workspace-a", "snapshot-2", frozenset({"page-allowed"}))
+    missing_snapshot = McpPage(
+        "page-allowed",
+        "Missing provenance",
+        "https://notion.so/page-allowed",
+        "content",
+        "workspace-a",
+        None,
+    )
+
+    # When & then: missing snapshot provenance cannot be treated as the active one
+    assert not scope.permits(missing_snapshot)
+
+
 def test_validate_nim_tool_call_parses_search_alias_and_rejects_unknown_tool() -> None:
     # Given: a model call using the provider's JSON-string arguments
     call = NimToolCall.model_validate(
