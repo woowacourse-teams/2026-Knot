@@ -14,6 +14,7 @@ from mcp_models import (
     McpSearchHit,
     McpToolResult,
 )
+from pydantic import TypeAdapter, ValidationError
 
 _MARKDOWN_LINK = re.compile(r"\[([^\]]+)\]\((https?://[^)\s]+)\)")
 _PAGE_URL = re.compile(
@@ -24,13 +25,14 @@ _PAGE_ID = re.compile(
     re.IGNORECASE,
 )
 _NOTION_HOSTS = frozenset({"notion.com", "notion.site", "notion.so"})
+_JSON_VALUE = TypeAdapter(JsonValue)
 
 
 def search_hits(result: McpToolResult, scope: McpScope) -> tuple[McpSearchHit, ...]:
     """Extract structured and Markdown-linked pages that are in the scope allowlist."""
     hits: list[McpSearchHit] = []
     seen: set[str] = set()
-    for record in records(result.structured_content):
+    for record in result_records(result):
         page_id = string(record, "id", "page_id", "pageId")
         url = string(record, "url", "page_url", "pageUrl")
         if page_id is None and url is not None:
@@ -91,7 +93,7 @@ def page_from_result(
     record = next(
         (
             candidate
-            for candidate in records(result.structured_content)
+            for candidate in result_records(result)
             if string(candidate, "id", "page_id", "pageId") is not None
         ),
         {},
@@ -100,7 +102,7 @@ def page_from_result(
         string(record, "id", "page_id", "pageId") or hit.page_id,
         string(record, "title", "name") or heading(result) or hit.title,
         string(record, "url", "page_url", "pageUrl") or hit.url,
-        "\n\n".join(text_content(result))
+        "\n\n".join(page_text_content(result))
         or string(record, "content", "text")
         or hit.snippet,
         string(record, "workspace_id", "workspaceId")
@@ -125,7 +127,7 @@ def page_from_result(
 
 def pagination(result: McpToolResult) -> tuple[bool, str | None]:
     """Read optional cursor pagination metadata from structured MCP content."""
-    for record in records(result.structured_content):
+    for record in result_records(result):
         has_more = record.get("has_more")
         next_cursor = record.get("next_cursor")
         if isinstance(has_more, bool):
@@ -136,6 +138,60 @@ def pagination(result: McpToolResult) -> tuple[bool, str | None]:
 def text_content(result: McpToolResult) -> tuple[str, ...]:
     """Return text blocks without passing opaque protocol values downstream."""
     return tuple(block.text for block in result.content if block.text)
+
+
+def result_records(result: McpToolResult) -> tuple[JsonObject, ...]:
+    """Read structured records and JSON objects embedded in text content blocks."""
+    found = list(records(result.structured_content))
+    for text in text_content(result):
+        value = _json_text(text)
+        if isinstance(value, dict):
+            found.extend(records(value))
+        elif isinstance(value, list):
+            for item in value:
+                if isinstance(item, dict):
+                    found.extend(records(item))
+    return tuple(found)
+
+
+def page_text_content(result: McpToolResult) -> tuple[str, ...]:
+    """Extract page prose from Markdown or JSON text payloads."""
+    content: list[str] = []
+    for text in text_content(result):
+        value = _json_text(text)
+        if value is None:
+            content.append(text)
+            continue
+        content.extend(_content_strings(value))
+    return tuple(content)
+
+
+def _json_text(text: str) -> JsonValue | None:
+    try:
+        return _JSON_VALUE.validate_json(text)
+    except (ValidationError, ValueError):
+        return None
+
+
+def _content_strings(value: JsonValue) -> tuple[str, ...]:
+    match value:
+        case dict():
+            direct = tuple(
+                child
+                for key in ("markdown", "content", "text", "body")
+                if isinstance(child := value.get(key), str) and child
+            )
+            return direct or tuple(
+                child for nested in value.values() for child in _content_strings(nested)
+            )
+        case list():
+            return tuple(
+                child for nested in value for child in _content_strings(nested)
+            )
+        case str():
+            return (value,)
+        case int() | float() | bool() | None:
+            return ()
 
 
 def records(value: JsonObject | None) -> tuple[JsonObject, ...]:
@@ -229,15 +285,16 @@ def normalize_page_id(page_id: str) -> str:
 
 def heading(result: McpToolResult) -> str | None:
     """Use the first Markdown H1 as a fallback page title."""
+    content = page_text_content(result)
     return (
         next(
             (
                 line.removeprefix("# ").strip()
-                for line in text_content(result)[0].splitlines()
+                for line in content[0].splitlines()
                 if line.startswith("# ")
             ),
             None,
         )
-        if text_content(result)
+        if content
         else None
     )

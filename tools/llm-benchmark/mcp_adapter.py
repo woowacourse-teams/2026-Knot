@@ -38,6 +38,7 @@ from mcp_parsing import (
     page_from_result,
     page_id_from_url,
     page_id_matches_url,
+    page_text_content,
     pagination,
     search_hits,
     text_content,
@@ -204,7 +205,7 @@ class LiveNotionMcpAdapter:
             _ensure_success(exchange.result)
             exchanges.append(exchange)
             page = merge_page(page, page_from_result(exchange.result, hit, self._scope))
-            content.extend(text_content(exchange.result))
+            content.extend(page_text_content(exchange.result))
             has_more, next_cursor = pagination(exchange.result)
             if not has_more or next_cursor is None or next_cursor in seen_cursors:
                 break
