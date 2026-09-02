@@ -297,6 +297,8 @@ def _record(
         trace.page_count,
         trace.retry_count,
         trace.rate_limit_count,
+        sum(item.elapsed_ms for item in timing.traces),
+        tuple(f"{item.operation}:{item.tool_name}" for item in timing.traces),
     )
 
 

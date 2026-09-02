@@ -104,6 +104,8 @@ class BenchmarkRecord:
     mcp_page_count: int = 0
     mcp_retry_count: int = 0
     mcp_rate_limit_count: int = 0
+    mcp_elapsed_ms: float = 0.0
+    mcp_operations: tuple[str, ...] = ()
 
 
 def main(
