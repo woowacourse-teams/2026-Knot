@@ -4,6 +4,7 @@ import { getRouterPath } from "@routes/PATH_ROUTE";
 interface NavigateToChatSessionParams {
   workspaceId: string;
   sessionId: string;
+  replace?: boolean;
 }
 
 /**
@@ -15,12 +16,14 @@ const useNavigateToChatSession = () => {
   const navigateToChatSession = ({
     workspaceId,
     sessionId,
+    replace = false,
   }: NavigateToChatSessionParams) => {
     navigate(
       getRouterPath({
         routeKey: "CHAT_SESSION",
         params: { workspaceId, sessionId },
       }),
+      { replace },
     );
   };
 

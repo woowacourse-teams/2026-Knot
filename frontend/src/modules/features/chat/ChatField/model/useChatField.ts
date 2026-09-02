@@ -1,25 +1,25 @@
-import useCreateChatSessionMutation from "@api/mutations/useCreateChatSessionMutation";
-import useNavigateToChatSession from "@hooks/domain/chat/useNavigateToChatSession";
-import { ChangeEvent, KeyboardEvent, SubmitEvent, useState } from "react";
-import { useParams } from "react-router";
+import { ChangeEvent, KeyboardEvent, SubmitEvent, useRef, useState } from "react";
+
+interface UseChatFieldParams {
+  /** 질문을 보내는 중인지 여부. 보내는 동안에는 다시 보낼 수 없습니다 */
+  isSending: boolean;
+  onSubmit: (message: string) => void;
+}
 
 /**
  * 질문 입력과 제출을 다룹니다.
  *
- * 세션 없이 들어온 새 대화에서는 첫 질문을 보낼 때 세션을 만들고 그 대화로 옮겨 갑니다.
- * 세션이 생기기 전에는 메시지를 보낼 곳이 없기 때문입니다.
+ * 보낸 뒤의 일(세션 생성·이동·스트리밍)은 이 입력창의 관심사가 아니라 채팅 패널이 맡으므로
+ * 여기서는 무엇을 보냈는지만 알려주고 입력을 비웁니다.
+ *
+ * 보낸 뒤에도 커서는 입력창에 남습니다. 대화는 대개 한 번으로 끝나지 않는데, 보낼 때마다
+ * 입력창을 다시 눌러야 하면 이어 묻기가 번거로워집니다.
  */
-export const useChatField = () => {
-  const { workspaceId, sessionId } = useParams();
-  const { navigateToChatSession } = useNavigateToChatSession();
-
-  const { mutate: createChatSession, isPending } = useCreateChatSessionMutation(
-    { workspaceId: Number(workspaceId) },
-  );
-
+export const useChatField = ({ isSending, onSubmit }: UseChatFieldParams) => {
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [message, setMessage] = useState("");
 
-  const canSubmit = message.trim().length > 0 && !isPending;
+  const canSubmit = message.trim().length > 0 && !isSending;
 
   const handleChange = (e: ChangeEvent<HTMLTextAreaElement>) =>
     setMessage(e.target.value);
@@ -34,23 +34,15 @@ export const useChatField = () => {
 
   const handleSubmit = (e: SubmitEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!canSubmit || !workspaceId) return;
+    if (!canSubmit) return;
 
-    // TODO: 메시지 전송 mutation 연결 (SSE)
+    onSubmit(message.trim());
     setMessage("");
-
-    if (sessionId) return;
-
-    createChatSession(
-      {},
-      {
-        onSuccess: ({ id }) =>
-          navigateToChatSession({ workspaceId, sessionId: String(id) }),
-      },
-    );
+    textareaRef.current?.focus();
   };
 
   return {
+    textareaRef,
     message,
     canSubmit,
     handleChange,
