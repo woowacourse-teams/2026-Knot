@@ -10,8 +10,15 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
-from human_review import HumanReviewRow, HumanReviewStatus, evaluate_human_review
+from human_review import (
+    HumanReviewRow,
+    HumanReviewStatus,
+    evaluate_human_review,
+    load_human_review,
+)
 from pydantic import ValidationError
 
 
@@ -118,3 +125,13 @@ def test_pass_or_fail_labels_require_reviewer_and_all_quality_dimensions() -> No
         _row(decision="pass", answer_correct=True, sources_relevant=True, policy_compliant=None)
     with pytest.raises(ValidationError):
         _row(decision="fail", answer_correct=False, sources_relevant=True, policy_compliant=False)
+
+
+def test_human_review_template_covers_every_independent_workload_turn() -> None:
+    # Given: the checked-in pending template for the independent workload
+    rows = load_human_review(Path("docs/llm-search-benchmark-human-review-template.jsonl"))
+
+    # Then: every workload turn has one pending row ready for a reviewer
+    assert len(rows) == 33
+    assert all(row.decision is HumanReviewStatus.PENDING for row in rows)
+    assert len({row.key for row in rows}) == len(rows)
