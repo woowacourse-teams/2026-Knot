@@ -12,22 +12,62 @@
 - temperature: `0`, Qwen 질의 instruction: 영어 한 문장 사용
 - 실제 MCP smoke test: LM Studio `mcp/notion` + Notion OAuth, `notion-search`/`notion-fetch`
 
-## 최신 RAG 품질 게이트
+## 실행 식별자와 재현성 경계
 
-초기 검색 오류를 보정한 뒤 `tools/llm-benchmark`에서 동일한 Notion export snapshot을 다시 평가했다. benchmark 코드는 Java `src/main`에 포함하지 않고 테스트 하네스 디렉터리에만 둔다.
+이 문서의 기존 전략 비교표와 `최신 RAG 품질 게이트` 수치는 PR #309의 현재 HEAD에서 생성된 결과가 아니다. 기존 PASS 결과는 PR #308의 리뷰 반영 전 실행 commit `1e56e02`에서 생성된 역사적 참고치이며, PR #309는 당시 그 검색 구현을 포함하지 않는다.
+
+- 기존 결과 실행 commit: PR #308 `1e56e02` (리뷰 반영 전)
+- 기존 결과 snapshot manifest SHA-256: `7bc3e082e1b55174aacf7d77f6fe2669ae0ef1d9cf989dd857890f06916e75c`
+- PR #308 리뷰 반영 후 검색 commit: `929d7f8`
+- PR #309와 #308은 별도 PR이다. 아래의 기존 결과는 #308 검색 구현과 해당 snapshot을 함께 사용해야 재현할 수 있다.
+- 기존 실행 조건: `top_k=3`, `chunk_size=1200`, `chunk_overlap=180`, retrieval 10회 반복, e2e는 별도 1회 실행
+
+따라서 기존 결과의 `160/160 PASS`는 현재 코드의 acceptance 결과로 사용하지 않는다. #308 수정 후 동일 snapshot과 조건으로 재실행한 결과는 아래에 별도로 기록한다.
+
+## 최신 RAG 품질 게이트 (이전 #308 실행 기록)
+
+초기 검색 오류를 보정한 뒤 PR #308 리뷰 반영 전 코드에서 동일한 Notion export snapshot을 평가한 기록이다. benchmark 코드는 Java `src/main`에 포함하지 않고 테스트 하네스 디렉터리에만 둔다.
 
 - 코퍼스: 461개 문서, heading-aware metadata 보존 청크 1,788개, 기본 `1200자 / overlap 180자`
 - 검색 구조: vector·PostgreSQL lexical 후보를 각각 수집 → 출처 단위 union/rerank → 출처별 근거 passage를 최대 4개까지 결합
 - retrieval-only: 13개 case, 16개 turn을 10회 반복한 160개 관측
-- retrieval gate: **160/160 PASS** — 기대 page ID, 중복 출처, 최대 3개 문서, MongoDB 무응답, 광범위 질문 명확화를 검사
+- retrieval gate: **160/160 PASS (이전 실행)** — 기대 page ID, 중복 출처, 최대 3개 문서, MongoDB 무응답, 광범위 질문 명확화를 검사
 - 검색 지연: `search_ms` p50 **343.0ms**, p95 **968.1ms**; embedding p50 **157.3ms**, DB 단계 p50 **185.9ms**
 - Qwen e2e: 16개 turn 1회 생성, 무응답·명확화 2개는 결정형 응답으로 처리
-- answer policy gate: **16/16 PASS** — 질문 유형별 필수 사실·후속 맥락·충돌·무응답 형식을 검사
+- answer policy gate: **16/16 PASS (이전 실행)** — 질문 유형별 필수 사실·후속 맥락·충돌·무응답 형식을 검사
 - e2e TTFT: p50 **4,469.9ms**, p95 **9,137.5ms**, 5초 이내 **9/14**. 따라서 검색 자체는 1초 안쪽이지만 Qwen 27B 생성 지연 때문에 전체 5초 목표는 아직 보장하지 않는다.
 
 이 gate는 gold set의 출처·정책·필수 표현을 자동 검사한 결과이며, 다른 Workspace로 일반화하려면 30개 이상 독립 질문과 사람이 원문을 대조한 의미 정확성 라벨이 추가로 필요하다.
 
-## 전략별 결과
+## #308 수정 후 동일 조건 retrieval-only 재실행
+
+평가셋 정답 단어를 검색 경로에서 제거한 PR #308 `929d7f8`을 기준으로, 위 manifest와 기존 `1788`개·`1024`차원 pgvector corpus를 사용해 다시 실행했다. 이 실행은 답변 생성이 아닌 검색 게이트만 측정했으며, 결과 파일은 저장소에 커밋하지 않았다.
+
+```bash
+uv run --python 3.14 tools/llm-benchmark/run_four_way_benchmark.py \
+  --snapshot-dir /Users/yongtae/Desktop/knot/.benchmark-data/notion-export \
+  --strategy rag \
+  --case G-001,G-002,G-003,G-004,G-005,G-006,G-007,G-008,G-009,G-010,G-011,G-012,G-013 \
+  --top-k 3 \
+  --repeats 10 \
+  --retrieval-only \
+  --skip-index \
+  --output /tmp/knot-rag-quality-fixed-929d7f8.jsonl
+```
+
+평가 명령은 PR #309의 evaluator로 실행했다.
+
+```bash
+uv run --python 3.14 tools/llm-benchmark/evaluate_rag_quality.py \
+  --results /tmp/knot-rag-quality-fixed-929d7f8.jsonl \
+  --gold-set docs/llm-search-benchmark-gold-set.md \
+  --strategy rag \
+  --repeats 10
+```
+
+관측 결과는 `results=160 expected=160`, `retrieval_gate=FAIL (140/160)`, `answer_gate=PARTIAL (20/20)`이었다. G-009 10회와 G-013 후속 turn 10회의 source 기대값이 충족되지 않아 검색 품질은 아직 PASS가 아니다. 이는 gold-set 고유어를 주입하지 않은 상태의 실제 회귀 결과이며, holdout 일반화와 기존 정답셋 품질을 모두 만족시키려면 문서 유형·질문 의도·일반 relevance 기준을 추가로 조정하고 다시 평가해야 한다.
+
+## 전략별 결과 (이전 #308 실행 기록)
 
 | 전략 | 검색 기록 | 생성 성공 | 생성 오류 | 검색 p50 | 검색 p95 | 임베딩 p50 | DB/구성 p50 | 5초 내 TTFT | 정답 source hit@5 |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
@@ -107,7 +147,7 @@
 - G-004의 Redis 결정 이유와 G-006의 문서 위치는 상위 5개 후보에 안정적으로 들어오지 않았다. 현재 Qwen 임베딩을 한국어에 쓸 수 있다는 사실만으로 검색 품질이 충분하다고 결론내릴 수 없다.
 - G-009는 DB 규칙과 Java 규칙을 함께 보여야 하는데 일부 전략은 한 규칙만 제공하거나 문서 충돌로 잘못 분류했다.
 
-위 문제는 최신 RAG gate에서 다음처럼 보정했다.
+위 문제는 이전 #308 실행에서 다음처럼 보정했다.
 
 - 기술 식별자 exact-match와 문서 권위 점수를 반영해 PostgreSQL 선정 이유와 Redis 세션 근거를 분리했다.
 - Markdown heading과 문서 날짜 메타데이터를 청크에 보존하고, 동일 출처의 근거 passage를 함께 전달해 날짜·요약·미결 사항 누락을 줄였다.
@@ -115,4 +155,4 @@
 
 ## 다음 판정
 
-MVP 구현 후보는 `마지막 성공 동기화 스냅샷 → PostgreSQL lexical/vector 후보 union → Qwen pgvector RAG → 필요 시 rerank`의 단계형 구조로 검증했다. 실제 Notion MCP 연결은 가능하다는 것을 확인했지만, 현재 live smoke test는 end-to-end 5초 목표를 만족하지 못했고 LM Studio-managed OAuth만 검증했다. 전체 사용자 대상 운영 전환 전에는 Java credential forwarding, 30개 이상 독립 질문, 사람이 검증한 answer/source 품질 라벨을 추가해야 한다.
+MVP 구현 후보는 `마지막 성공 동기화 스냅샷 → PostgreSQL lexical/vector 후보 union → Qwen pgvector RAG → 필요 시 rerank`의 단계형 구조로 검증했다. 다만 #308 리뷰 반영 후 동일 조건 재실행은 `140/160`으로 검색 gate를 통과하지 못했으므로, 기존 `160/160` 결과를 최종 품질 근거로 사용하지 않는다. 실제 Notion MCP 연결은 가능하다는 것을 확인했지만, 현재 live smoke test는 end-to-end 5초 목표를 만족하지 못했고 LM Studio-managed OAuth만 검증했다. 전체 사용자 대상 운영 전환 전에는 일반화된 retrieval 규칙 보완, Java credential forwarding, 30개 이상 독립 질문, 사람이 검증한 answer/source 품질 라벨을 추가해야 한다.
