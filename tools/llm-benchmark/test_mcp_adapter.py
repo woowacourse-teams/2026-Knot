@@ -225,6 +225,36 @@ def test_live_adapter_rejects_detail_from_another_workspace() -> None:
         adapter.fetch(hit)
 
 
+def test_live_adapter_rejects_detail_from_an_old_snapshot() -> None:
+    # Given: a fetch response from a snapshot older than the active one
+    result = McpToolExchange(
+        McpToolResult.model_validate(
+            {
+                "structuredContent": {
+                    "id": "page-1",
+                    "workspace_id": "workspace-a",
+                    "snapshot_id": "snapshot-old",
+                    "title": "old",
+                },
+                "content": [{"type": "text", "text": "old content"}],
+            }
+        ),
+        1,
+        0,
+        0,
+        1.0,
+    )
+    client = _FakeMcpClient([result], [])
+    from mcp_adapter import LiveNotionMcpAdapter
+
+    adapter = LiveNotionMcpAdapter(client, _scope())
+    hit = McpSearchHit("page-1", "DB", "https://notion.so/page-1", "", "workspace-a", "snapshot-1")
+
+    # When & then: an older snapshot cannot enter the active context
+    with pytest.raises(McpScopeError):
+        adapter.fetch(hit)
+
+
 def test_live_search_discards_a_hit_claiming_another_workspace() -> None:
     # Given: a search response that assigns an allowed page ID to another workspace
     result = McpToolExchange(
