@@ -70,6 +70,8 @@ def test_record_keeps_mcp_access_and_model_latency_separate() -> None:
     assert record.mcp_page_count == 1
     assert record.mcp_retry_count == 1
     assert record.mcp_rate_limit_count == 1
+    assert record.mcp_elapsed_ms == 12.5
+    assert record.mcp_operations == ("search:notion-search",)
 
 
 def test_run_case_records_missing_chat_client_as_an_error() -> None:
