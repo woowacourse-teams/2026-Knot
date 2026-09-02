@@ -88,7 +88,23 @@ uv run --python 3.14 tools/llm-benchmark/evaluate_rag_quality.py \
 
 `--retrieval-only` 실행은 모델을 호출하지 않고 네 전략의 검색·컨텍스트 구성 시간을 10개 질문 × 10회씩 기록한다. 실제 답변 생성은 다음처럼 실행한다.
 
+four-way 결과의 각 행에는 `metadata`가 함께 기록된다. `metadata.run_id`는 한 실행을 묶고, `phase`는 `control`/`live`, `condition`은 `cold`/`warm`, `snapshot_id`는 정규화된 내보내기 지문, `model`은 채팅 모델, `prompt_sha256`은 system prompt 지문, `generation_options`는 비밀값을 제외한 생성·검색 옵션, `observed_at`은 실행 시각이다. `--run-id`로 재현 가능한 이름을 지정할 수 있으며, `--condition`을 생략하면 `--warmup 0`은 `cold`, 그 외에는 `warm`으로 기록한다. 기본 independent JSON workload를 지정하면 W-001부터 W-031까지를 자동으로 모두 선택한다.
+
 품질 평가기는 gold set의 모든 case/turn/repeat가 생성됐는지, 출처 page ID가 기대값과 일치하는지, 출처가 3개를 넘지 않는지, 무응답·명확화 케이스가 빈 출처로 종료되는지를 검사한다. retrieval-only 결과에서는 답변 의미 품질을 `NOT_EVALUATED`로 표시하므로, 생성 결과는 `--require-answer`로 별도 검사하고 최종 의미 왜곡 여부는 사람이 원문과 대조한다.
+
+최종 비교에 사용할 결과는 실행 메타데이터까지 검사한다.
+
+~~~bash
+uv run --python 3.14 tools/llm-benchmark/evaluate_rag_quality.py \
+  --gold-set docs/llm-search-benchmark-independent-30.json \
+  --results .benchmark-data/independent-rag-e2e.jsonl \
+  --strategy rag \
+  --repeats 1 \
+  --require-answer \
+  --require-run-metadata
+~~~
+
+`--require-run-metadata`를 켜면 모든 결과 행이 하나의 run ID·phase·cold/warm 조건·snapshot·모델·system prompt·생성 옵션을 공유해야 한다. 서로 다른 실행 결과를 합쳐 통계적으로 보이게 만드는 실수를 차단한다.
 
 그룹별 e2e 결과를 합치지 않고도 다음처럼 `--results`를 반복해 한 번에 검사할 수 있다.
 
