@@ -35,13 +35,14 @@ from mcp_models import (
     ValidatedToolCall,
 )
 from mcp_parsing import (
+    McpPagination,
     is_safe_notion_url,
     normalize_page_id,
     page_from_result,
     page_id_from_url,
     page_id_matches_url,
     page_text_content,
-    pagination,
+    pagination_details,
     search_hits,
     text_content,
 )
@@ -174,8 +175,10 @@ class LiveNotionMcpAdapter:
                 if normalized_id not in seen_ids:
                     hits.append(hit)
                     seen_ids.add(normalized_id)
-            has_more, next_cursor = pagination(exchange.result)
-            if not has_more or next_cursor is None or next_cursor in seen_cursors:
+            next_cursor = _next_pagination_cursor(
+                pagination_details(exchange.result), seen_cursors, "search"
+            )
+            if next_cursor is None:
                 break
             if pages >= self._max_pages:
                 raise McpAdapterError("MCP search page limit exceeded")
@@ -222,8 +225,10 @@ class LiveNotionMcpAdapter:
             pages += 1
             page = merge_page(page, page_from_result(exchange.result, hit, self._scope))
             content.extend(page_text_content(exchange.result))
-            has_more, next_cursor = pagination(exchange.result)
-            if not has_more or next_cursor is None or next_cursor in seen_cursors:
+            next_cursor = _next_pagination_cursor(
+                pagination_details(exchange.result), seen_cursors, "fetch"
+            )
+            if next_cursor is None:
                 break
             if pages >= self._max_pages:
                 raise McpAdapterError("MCP fetch page limit exceeded")
@@ -330,6 +335,29 @@ def _hit(page: McpPage, snippet: str) -> McpSearchHit:
         page.snapshot_id,
         page.last_edited_time,
     )
+
+
+def _next_pagination_cursor(
+    details: McpPagination, seen_cursors: set[str], operation: str
+) -> str | None:
+    if details.unknown_block_ids:
+        raise McpAdapterError(
+            f"MCP {operation} response contains unresolved block IDs"
+        )
+    if not details.has_more:
+        if details.truncated:
+            raise McpAdapterError(
+                f"MCP {operation} response is truncated without a continuation"
+            )
+        return None
+    next_cursor = details.next_cursor
+    if not next_cursor:
+        raise McpAdapterError(
+            f"MCP {operation} response is missing a continuation cursor"
+        )
+    if next_cursor in seen_cursors:
+        raise McpAdapterError(f"MCP {operation} pagination cursor repeated")
+    return next_cursor
 
 
 def _ensure_success(result: McpToolResult) -> None:

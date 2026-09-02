@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass
 from urllib.parse import urlsplit
 
 from mcp_adapter_errors import McpScopeError
@@ -28,6 +29,16 @@ _NOTION_HOSTS = frozenset({"notion.com", "notion.site", "notion.so"})
 _JSON_VALUE = TypeAdapter(JsonValue)
 
 
+@dataclass(frozen=True, slots=True)
+class McpPagination:
+    """Pagination and completeness markers exposed by an MCP result."""
+
+    has_more: bool = False
+    next_cursor: str | None = None
+    truncated: bool = False
+    unknown_block_ids: bool = False
+
+
 def search_hits(result: McpToolResult, scope: McpScope) -> tuple[McpSearchHit, ...]:
     """Extract structured and Markdown-linked pages that are in the scope allowlist."""
     hits: list[McpSearchHit] = []
@@ -49,8 +60,10 @@ def search_hits(result: McpToolResult, scope: McpScope) -> tuple[McpSearchHit, .
             string(record, "workspace_id", "workspaceId") or scope.workspace_id
         )
         snapshot_id = (
-            string(record, "snapshot_id", "snapshotId") or scope.active_snapshot_id
+            string(record, "snapshot_id", "snapshotId")
         )
+        if scope.active_snapshot_id is not None and snapshot_id is None:
+            continue
         if not scope.permits(McpPage(page_id, "", url, "", workspace_id, snapshot_id)):
             continue
         hits.append(
@@ -111,8 +124,7 @@ def page_from_result(
         or hit.workspace_id
         or scope.workspace_id,
         string(record, "snapshot_id", "snapshotId")
-        or hit.snapshot_id
-        or scope.active_snapshot_id,
+        or hit.snapshot_id,
         string(record, "parent_id", "parentPageId"),
         string(record, "last_edited_time", "lastEditedTime") or hit.last_edited_time,
     )
@@ -129,12 +141,36 @@ def page_from_result(
 
 def pagination(result: McpToolResult) -> tuple[bool, str | None]:
     """Read optional cursor pagination metadata from structured MCP content."""
+    details = pagination_details(result)
+    return details.has_more, details.next_cursor
+
+
+def pagination_details(result: McpToolResult) -> McpPagination:
+    """Read pagination and incomplete-content markers from an MCP result."""
     for record in result_records(result):
-        has_more = record.get("has_more")
-        next_cursor = record.get("next_cursor")
-        if isinstance(has_more, bool):
-            return has_more, next_cursor if isinstance(next_cursor, str) else None
-    return False, None
+        has_more = _bool_value(record, "has_more", "hasMore")
+        next_cursor = string(record, "next_cursor", "nextCursor")
+        truncated = _truthy_value(record, "truncated", "is_truncated", "isTruncated")
+        unknown_block_ids = _truthy_value(
+            record,
+            "unknown_block_ids",
+            "unknownBlockIds",
+            "unknown_block_id",
+            "unknownBlockId",
+        )
+        if (
+            has_more is not None
+            or next_cursor is not None
+            or truncated
+            or unknown_block_ids
+        ):
+            return McpPagination(
+                has_more is True,
+                next_cursor,
+                truncated,
+                unknown_block_ids,
+            )
+    return McpPagination()
 
 
 def text_content(result: McpToolResult) -> tuple[str, ...]:
@@ -240,6 +276,18 @@ def string(record: JsonObject, *keys: str) -> str | None:
         (value for key in keys if isinstance(value := record.get(key), str) and value),
         None,
     )
+
+
+def _bool_value(record: JsonObject, *keys: str) -> bool | None:
+    return next(
+        (value for key in keys if isinstance(value := record.get(key), bool)),
+        None,
+    )
+
+
+def _truthy_value(record: JsonObject, *keys: str) -> bool:
+    value = next((record.get(key) for key in keys if key in record), None)
+    return isinstance(value, (bool, str, list, dict)) and bool(value)
 
 
 def page_id_from_url(url: str) -> str | None:
