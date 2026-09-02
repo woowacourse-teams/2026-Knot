@@ -100,6 +100,10 @@ class BenchmarkRecord:
     error: str | None
     embedding_ms: float = 0.0
     vector_db_ms: float = 0.0
+    mcp_http_requests: int = 0
+    mcp_page_count: int = 0
+    mcp_retry_count: int = 0
+    mcp_rate_limit_count: int = 0
 
 
 def main(
