@@ -14,6 +14,23 @@ export default defineConfig({
   use: {
     baseURL: BASE_URL,
     trace: "on-first-retry", // 재시도할 때만 트레이스를 남겨요
+    // dev 서버 mock이 이 쿠키로 로그인 상태를 판정해요(src/shared/api/mock/handlers/dev).
+    // E2E는 로그인 플로우가 아니라 화면 플로우를 확인하므로 로그인된 상태에서 시작해요
+    storageState: {
+      cookies: [
+        {
+          name: "KNOT_MOCK_AUTH",
+          value: "member",
+          domain: "localhost",
+          path: "/",
+          expires: -1,
+          httpOnly: false,
+          secure: false,
+          sameSite: "Lax" as const,
+        },
+      ],
+      origins: [],
+    },
   },
   projects: [
     {

@@ -34,7 +34,6 @@ const HOME_PATH = getRouterPath({
 const ELSEWHERE_PATH = "/elsewhere";
 const FORBIDDEN_ERROR_MESSAGE =
   "워크스페이스 소유자만 노션을 연결할 수 있어요.";
-const CALLBACK_FAILED_MESSAGE = "노션 연결에 실패했어요. 다시 시도해 주세요.";
 const UNKNOWN_ERROR_MESSAGE =
   "노션 연결을 시작하지 못했어요. 잠시 후 다시 시도해 주세요.";
 
@@ -188,7 +187,7 @@ describe("NotionConnectCard", () => {
     expect(router.state.location.pathname).toBe(ELSEWHERE_PATH);
   });
 
-  it("403이면 소유자만 연결할 수 있다는 문구를 보여주고 이동하지 않는다", async () => {
+  it("403이면 소유자 문구를 보여주고 이동하지 않으며, 다시 연결하기를 누르면 문구를 지운다", async () => {
     overrideStartStatus(403);
     const { router } = renderCard();
 
@@ -199,6 +198,13 @@ describe("NotionConnectCard", () => {
     );
     expect(getConnectButton()).toBeEnabled();
     expect(router.state.location.pathname).toBe(NOTION_CONNECTION_PATH);
+
+    holdStartResponse();
+    fireEvent.click(getConnectButton());
+
+    await waitFor(() => {
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    });
   });
 
   it("그 외 실패면 잠시 후 다시 시도 문구를 보여준다", async () => {
@@ -224,19 +230,42 @@ describe("NotionConnectCard", () => {
     expect(router.state.location.pathname).toBe(ELSEWHERE_PATH);
   });
 
-  it("?result=failed로 돌아오면 연결 실패 문구를 보여주고, 다시 연결하기를 누르면 지운다", async () => {
-    holdStartResponse();
+  it("?result=failed로 돌아오면 실패 화면을 보여주고 하단에 워크스페이스로 이동 버튼을 둔다", () => {
     const { router } = renderCard("?result=failed");
 
-    expect(screen.getByRole("alert")).toHaveTextContent(
-      CALLBACK_FAILED_MESSAGE,
-    );
+    expect(
+      screen.getByRole("heading", { name: "노션 연결에 실패했어요" }),
+    ).toBeInTheDocument();
+    expect(getGoHomeButton()).toBeEnabled();
+    expect(
+      screen.queryByRole("button", { name: "노션 연결하기" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "다시 시도" }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     expect(router.state.location.pathname).toBe(NOTION_CONNECTION_PATH);
+  });
 
-    fireEvent.click(getConnectButton());
+  it("실패 화면에서 워크스페이스로 이동을 누르면 워크스페이스 홈으로 이동한다", () => {
+    const { router } = renderCard("?result=failed");
+
+    fireEvent.click(getGoHomeButton());
+
+    expect(router.state.location.pathname).toBe(HOME_PATH);
+  });
+
+  it("?result가 알 수 없는 값이면 쿼리를 지우고 연결 카드를 보여준다", async () => {
+    const { router } = renderCard("?result=unknown");
 
     await waitFor(() => {
-      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+      expect(router.state.location.search).toBe("");
     });
+    expect(router.state.location.pathname).toBe(NOTION_CONNECTION_PATH);
+    expect(getConnectButton()).toBeEnabled();
+
+    await goBack(router);
+
+    expect(router.state.location.pathname).toBe(ELSEWHERE_PATH);
   });
 });

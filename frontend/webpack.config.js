@@ -41,6 +41,33 @@ export default (env, argv) => {
       open: true,
       port: 3000,
       historyApiFallback: true, // SPA 라우팅을 위해 추가
+      // mock 모드에서 GitHub 로그인 진입을 대신해요. GithubLoginButton은 페이지를 통째로
+      // 이동시키는데 msw는 네비게이션을 가로채지 못하므로, dev 서버가 실제 백엔드처럼
+      // 로그인 상태 쿠키(src/shared/api/mock/handlers/dev와 같은 약속)를 심고 302로 돌려보내요.
+      // 기본은 기존 회원(→ /), 주소창에 ?scenario=onboarding을 붙이면 신규 가입(→ /onboarding)이에요.
+      setupMiddlewares: (middlewares) => {
+        if (isApiMockingEnabled) {
+          middlewares.unshift({
+            name: "mock-github-oauth",
+            path: "/oauth2/authorization/github",
+            middleware: (req, res) => {
+              const { searchParams } = new URL(req.url, "http://localhost");
+              const isOnboarding =
+                searchParams.get("scenario") === "onboarding";
+
+              res.statusCode = 302;
+              res.setHeader(
+                "Set-Cookie",
+                `KNOT_MOCK_AUTH=${isOnboarding ? "onboarding" : "member"}; Path=/; SameSite=Lax`,
+              );
+              res.setHeader("Location", isOnboarding ? "/onboarding" : "/");
+              res.end();
+            },
+          });
+        }
+
+        return middlewares;
+      },
       client: {
         overlay: { errors: true, warnings: false }, // 빌드 오류만 브라우저에 오버레이 표시 (경고는 숨김)
       },
@@ -179,7 +206,10 @@ ${exports}
         inject: true, // <script> 태그 자동 삽입
       }),
       new webpack.DefinePlugin({
-        "process.env.API_BASE_URL": JSON.stringify(process.env.API_BASE_URL),
+        // mock 모드에서는 오리진 없이(같은 오리진) 요청해야 msw와 mock OAuth 미들웨어가 받아요
+        "process.env.API_BASE_URL": JSON.stringify(
+          isApiMockingEnabled ? "" : process.env.API_BASE_URL,
+        ),
         // 문자열 리터럴로 넣어 src/index.tsx의 분기가 빌드 시점에 접혀요
         "process.env.API_MOCKING": JSON.stringify(String(isApiMockingEnabled)),
       }),

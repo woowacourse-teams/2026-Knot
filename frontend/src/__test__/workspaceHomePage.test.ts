@@ -3,8 +3,10 @@ import {
   GetWorkspaceResponseDto,
   GetWorkspacesResponseDto,
 } from "@api/dto/workspace";
+import { GetNotionImportStatusResponseDto } from "@api/dto/notionImport";
 import { PostWorkspaceInvitationResponseDto } from "@api/dto/workspaceInvitation";
 import { meResponse } from "@api/mock/responses/auth";
+import { notionImportStatusResponse } from "@api/mock/responses/notionImport";
 import {
   workspaceDetailResponse,
   workspacesResponse,
@@ -17,8 +19,8 @@ import { expect, test, type Page } from "@playwright/test";
  *
  * 홈 진입, 사이드바 열고 닫기, 폴더 트리 펼침·접힘, 초대 링크·코드 복사, Notion 동기화,
  * 하단 Dock으로 탐색 이동까지 홈 화면 위에서 사용자가 밟는 플로우를 페이지 단위로 확인해요.
- * 회원·워크스페이스·초대는 dev 서버의 msw mock 응답(`API_MOCKING`)에서 오므로 기대값도 같은 응답을
- * DTO로 변환해 가져와요. 동기화와 사이드바 트리는 API가 아직 없어 위젯의 임시 상수예요.
+ * 회원·워크스페이스·초대·동기화는 dev 서버의 msw mock 응답(`API_MOCKING`)에서 오므로 기대값도 같은
+ * 응답을 DTO로 변환해 가져와요. 사이드바 트리와 마지막 동기화 시각은 API가 아직 없어 위젯의 임시 상수예요.
  */
 
 const expectedMe = new GetMeResponseDto(meResponse);
@@ -37,9 +39,11 @@ const GREETING = `반가워요, ${expectedMe.nickname} 님`;
 const INVITE_CODE = expectedInvitation.code;
 const DISPLAY_INVITE_LINK = `/invite/${expectedInvitation.linkToken}`;
 
-// TODO(동기화 API Issue 미정): Notion 동기화 API 연결 후 응답으로 교체
+// TODO(마지막 동기화 시각 API 미정): 시각 API 연결 후 응답으로 교체
 const LAST_SYNCED_AT_LABEL = "어제 오후 3:12에 동기화";
-const SYNCED_DOCUMENT_COUNT = 8;
+const SYNCED_DOCUMENT_COUNT = new GetNotionImportStatusResponseDto(
+  notionImportStatusResponse,
+).processedPageCount;
 
 const getSidebarToggle = (page: Page) =>
   page.getByRole("button", { name: "사이드바" });
@@ -276,7 +280,7 @@ test.describe("팀원 초대 카드", () => {
 });
 
 test.describe("Notion 동기화 카드", () => {
-  test("지금 동기화를 누르면 로딩을 거쳐 새로 들어온 문서 수와 비활성 완료 버튼으로 바뀐다", async ({
+  test("지금 동기화를 누르면 새로 들어온 문서 수와 비활성 완료 버튼이 보였다가 2초 뒤 기본 상태로 돌아온다", async ({
     page,
   }) => {
     const notionCard = getCard({ page, title: "Notion 동기화" });
@@ -284,9 +288,7 @@ test.describe("Notion 동기화 카드", () => {
 
     await syncButton.click();
 
-    await expect(syncButton).toHaveAttribute("aria-busy", "true");
-    await expect(syncButton).toBeDisabled();
-
+    // mock 응답이 즉시 완료라 로딩은 순간이에요. 로딩 잠금은 위젯 통합 테스트가 확인해요
     await expect(
       notionCard.getByText(`문서 ${SYNCED_DOCUMENT_COUNT}개가 새로 들어왔어요`),
     ).toBeVisible();
@@ -295,6 +297,11 @@ test.describe("Notion 동기화 카드", () => {
     ).toBeDisabled();
     await expect(syncButton).toBeHidden();
     await expect(notionCard.getByText(LAST_SYNCED_AT_LABEL)).toBeHidden();
+
+    // 2초 뒤 원래 `지금 동기화`와 마지막 동기화 시각으로 돌아와요
+    await expect(syncButton).toBeVisible();
+    await expect(syncButton).toBeEnabled();
+    await expect(notionCard.getByText(LAST_SYNCED_AT_LABEL)).toBeVisible();
   });
 });
 
