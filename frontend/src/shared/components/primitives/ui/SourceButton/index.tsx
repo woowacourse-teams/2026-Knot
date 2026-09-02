@@ -41,9 +41,7 @@ const Container = styled.button<{ $isSelected: boolean }>`
   gap: 0.5rem;
   height: 2rem;
   padding: 0 0.5rem;
-  border: 1px solid
-    ${({ theme, $isSelected }) =>
-      $isSelected ? theme.neutral[300] : theme.neutral[600]};
+  border: 1px solid ${({ theme }) => theme.neutral[300]};
   border-radius: 0.5rem;
   transition:
     background-color 0.3s ease-in,
