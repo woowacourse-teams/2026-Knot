@@ -35,7 +35,7 @@ def redact_secrets(detail: str, secrets: Iterable[str] = ()) -> str:
 
 
 def _parse_sse(body: str) -> McpRpcResponse:
-    for event in re.split(r"\r?\n\r?\n", body):
+    for event in re.split(r"(?:\r\n|\r|\n){2}", body):
         data_lines = [
             line.removeprefix("data:").lstrip()
             for line in event.splitlines()
