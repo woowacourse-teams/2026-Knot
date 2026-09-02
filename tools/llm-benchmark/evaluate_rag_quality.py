@@ -20,6 +20,7 @@ from answer_quality_policy import answer_shape_passes
 from benchmark_result_identity import observation_fingerprint
 from gold_set import BenchmarkCase, load_cases
 from human_review import (
+    HumanReviewDecision,
     HumanReviewError,
     HumanReviewRow,
     HumanReviewSummary,
@@ -276,18 +277,18 @@ def evaluate_human_labels(
         for row in result_rows
         if row.strategy == strategy
     }
-    invalid = frozenset(
-        row.key
-        for row in rows
-        if row.result_fingerprint
-        and (
-            result_by_key.get((row.case_id, row.repeat, row.turn)) is None
-            or row.result_fingerprint
-            != observation_fingerprint_for_row(
-                result_by_key[(row.case_id, row.repeat, row.turn)]
-            )
-        )
-    )
+    invalid: set[tuple[str, int, int, str]] = set()
+    for row in rows:
+        if not row.result_fingerprint:
+            continue
+        result = result_by_key.get((row.case_id, row.repeat, row.turn))
+        if result is None or row.result_fingerprint != observation_fingerprint_for_row(result):
+            invalid.add(row.key)
+            continue
+        if row.decision is HumanReviewDecision.PASS and (
+            not result.answer.strip() or result.error is not None
+        ):
+            invalid.add(row.key)
     return evaluate_human_review(
         rows,
         expected_review_keys(case_turns, strategy, repeat),
