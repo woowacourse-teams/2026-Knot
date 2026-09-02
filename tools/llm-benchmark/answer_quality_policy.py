@@ -6,11 +6,10 @@ from __future__ import annotations
 def answer_shape_passes(answer: str, case_id: str, turn: int) -> bool:
     """Check required facts without pretending to replace human review."""
     normalized = answer.casefold()
-    if case_id == "G-011":
-        return _has_group(normalized, (("확인할 수 없", "찾지 못", "없습니다"),))
-    if case_id == "G-012":
-        return _has_group(normalized, (("범위가 넓어요",), ("최근 결정사항",), ("로드맵",), ("백엔드",)))
-    return _has_group(normalized, _GROUPS.get((case_id, turn), ()))
+    groups = _GROUPS.get((case_id, turn))
+    if groups is None:
+        return False
+    return _has_group(normalized, groups)
 
 
 _GROUPS: dict[tuple[str, int], tuple[tuple[str, ...], ...]] = {
@@ -26,6 +25,8 @@ _GROUPS: dict[tuple[str, int], tuple[tuple[str, ...], ...]] = {
     ("G-010", 1): (("snake_case",), ("camelcase",), ("확정", "충돌", "다르게", "어렵")),
     ("G-013", 1): (("postgresql",), ("관계형", "relational"), ("pgvector", "벡터 검색", "벡터검색")),
     ("G-013", 2): (("추가", "관련", "문서"), ("postgresql", "database", "데이터베이스", "migration", "테스트", "pgvector")),
+    ("G-011", 1): (("확인할 수 없", "찾지 못", "없습니다"),),
+    ("G-012", 1): (("범위가 넓어요",), ("최근 결정사항",), ("로드맵",), ("백엔드",)),
 }
 
 
