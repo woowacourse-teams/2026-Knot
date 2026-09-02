@@ -140,6 +140,27 @@ def test_workload_manifest_rejects_source_sets_with_wrong_turn_count() -> None:
         )
 
 
+def test_workload_manifest_accepts_clarification_category() -> None:
+    # Given: a broad question whose expected behavior is clarification
+    manifest = WorkloadManifest.model_validate(
+        {
+            "version": "1",
+            "cases": [
+                {
+                    "case_id": "W-001",
+                    "category": "clarification",
+                    "turns": ["범위가 넓은 질문"],
+                    "expected_source_ids": ["evidence-page"],
+                    "expected_facts": ["범위를 좁혀달라고 요청"],
+                }
+            ],
+        }
+    )
+
+    # Then: the manifest category agrees with the evaluator policy vocabulary
+    assert manifest.cases[0].category.value == "clarification"
+
+
 def test_gold_set_loader_accepts_the_independent_json_workload() -> None:
     # Given: the same independent workload used by the benchmark runners
     cases = load_cases(_MANIFEST)
