@@ -19,10 +19,13 @@ import typer
 from benchmark_core import ContextPack
 from benchmark_metadata import create_benchmark_metadata
 from gold_set import BenchmarkCase
-from mcp_adapter import McpContextTiming, ReplayMcpAdapter
+from mcp_adapter import McpAdapterError, McpContextTiming, ReplayMcpAdapter
 from mcp_models import (
     JsonObject,
+    McpFetchResult,
     McpPage,
+    McpSearchHit,
+    McpSearchResult,
     McpScope,
     McpToolTrace,
     NimFunctionCall,
@@ -353,6 +356,43 @@ def test_live_runner_does_not_count_model_generation_as_mcp_access() -> None:
     assert record["mcp_elapsed_ms"] == 0.0
     assert record["ttft_ms"] == pytest.approx(10.0)
     assert record["total_ms"] == pytest.approx(20.0)
+
+
+def test_live_runner_keeps_completed_mcp_trace_when_a_later_call_fails() -> None:
+    # Given: a search call that completes before the detail call fails
+    class PartialFailureAdapter:
+        def search(self, query: str, limit: int) -> McpSearchResult:
+            return McpSearchResult(
+                (
+                    McpSearchHit(
+                        "page-1",
+                        "DB",
+                        "https://notion.so/page-1",
+                        "PostgreSQL",
+                        "workspace-a",
+                        "snapshot-1",
+                    ),
+                ),
+                McpToolTrace("search", "notion-search", 12.5, 3, 1, 1, 1),
+            )
+
+        def fetch(self, hit: McpSearchHit) -> McpFetchResult:
+            raise McpAdapterError("detail fetch failed")
+
+    output = StringIO()
+    case = BenchmarkCase(
+        "G-001", "confirmed", "fact", ("DB가 뭐야?",), "PostgreSQL", ()
+    )
+
+    # When: the retrieval-only runner records the failed observation
+    _run_case(output, PartialFailureAdapter(), None, case, 1, 1, True)
+
+    # Then: completed MCP work remains visible on the failed row
+    record = json.loads(output.getvalue())
+    assert record["error"] == "MCP adapter error: detail fetch failed"
+    assert record["mcp_http_requests"] == 3
+    assert record["mcp_elapsed_ms"] == 12.5
+    assert record["mcp_operations"] == ["search:notion-search"]
 
 
 def test_live_runner_passes_one_live_metadata_identity_to_each_observation() -> None:
