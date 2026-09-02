@@ -175,7 +175,7 @@ uv run --python 3.14 tools/llm-benchmark/analyze_benchmark.py \
 
 ## 7. 30개 이상 독립 질문과 사람 검수
 
-기존 Markdown 골드셋은 대화형 핵심 시나리오를 보존하고, 독립 표본의 일반화 검증은 [docs/llm-search-benchmark-independent-30.json](/Users/yongtae/Desktop/knot/docs/llm-search-benchmark-independent-30.json)으로 분리한다. 이 manifest는 31개 case와 33개 turn을 포함하며, 각 항목에 질문 유형·기대 page ID·사람이 확인할 핵심 사실을 기록한다. expected_source_ids는 원문 검토용 기준이며, no_answer와 broad 응답에서 사용자에게 source를 노출하라는 뜻이 아니다.
+기존 Markdown 골드셋은 대화형 핵심 시나리오를 보존하고, 독립 표본의 일반화 검증은 [docs/llm-search-benchmark-independent-30.json](/Users/yongtae/Desktop/knot/docs/llm-search-benchmark-independent-30.json)으로 분리한다. 이 manifest는 31개 case와 33개 turn을 포함하며, 각 항목에 질문 유형·기대 page ID·사람이 확인할 핵심 사실을 기록한다. 후속 대화는 `expected_source_ids_by_turn`으로 turn별 근거를 구분한다. expected_source_ids는 원문 검토용 기준이며, no_answer와 broad 응답에서 사용자에게 source를 노출하라는 뜻이 아니다.
 
 통제된 검색 실행은 동일한 Qwen·스냅샷·옵션으로 수행한다. 31개 case 전체를 명시해야 하며, 반복 횟수는 독립 case 수와 별개로 기록한다.
 
@@ -195,7 +195,7 @@ uv run --python 3.14 tools/llm-benchmark/evaluate_rag_quality.py \
   --repeats 10
 ~~~
 
-답변 의미와 source 관련성은 [docs/llm-search-benchmark-human-review-template.jsonl](/Users/yongtae/Desktop/knot/docs/llm-search-benchmark-human-review-template.jsonl)을 복사해 실제 생성 결과를 보며 채운다. 템플릿은 33개 행을 모두 pending으로 시작한다. 각 행의 answer_correct, sources_relevant, policy_compliant를 모두 확인한 뒤에만 decision을 pass 또는 fail로 바꾼다.
+답변 의미와 source 관련성은 [docs/llm-search-benchmark-human-review-template.jsonl](/Users/yongtae/Desktop/knot/docs/llm-search-benchmark-human-review-template.jsonl)을 복사해 실제 생성 결과를 보며 채운다. 결과 JSONL에는 각 관측의 `result_fingerprint`가 포함되며, terminal 라벨은 해당 지문을 함께 기록해야 한다. 템플릿은 33개 행을 모두 pending으로 시작한다. 각 행의 answer_correct, sources_relevant, policy_compliant를 모두 확인한 뒤에만 decision을 pass 또는 fail로 바꾼다.
 
 ~~~bash
 cp docs/llm-search-benchmark-human-review-template.jsonl .benchmark-data/independent-rag-human-review.jsonl
@@ -207,8 +207,7 @@ uv run --python 3.14 tools/llm-benchmark/evaluate_rag_quality.py \
   --repeats 1 \
   --human-labels .benchmark-data/independent-rag-human-review.jsonl \
   --human-repeat 1 \
-  --require-human-review \
-  --require-answer
+  --require-human-review
 ~~~
 
 human_gate=PASS가 되기 전에는 5초 TTFT가 좋아도 품질 승자나 최종 아키텍처로 판정하지 않는다. 모델 답변·Notion 원문·access token은 이 저장소에 추가하지 않는다.

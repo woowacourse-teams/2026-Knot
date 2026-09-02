@@ -91,6 +91,6 @@ Spring AI 2.0.x는 현재 프로젝트의 Spring Boot 4.1.x와 호환되는 선�
 - `./gradlew test`: chunking, hybrid ranking, no-result/broad question, embedding response, grounding prompt, Import 색인 실패 경계
 - `./gradlew integrationTest`: pgvector vector/keyword query, Workspace 격리, unpublished run 차단, 전체 기존 integration 회귀
 - `./gradlew acceptanceTest`: 기존 Notion Import/Page Tree acceptance 회귀
-- 벤치마크 harness: 30 tests passed, 10회 retrieval 구조/source gate 160/160, retrieval p50 343.0ms·p95 968.1ms
+- 기존 #308 실행 기록(역사적): 30 tests passed, 10회 retrieval 구조/source gate 160/160, retrieval p50 343.0ms·p95 968.1ms
 
 벤치마크 결과의 답변 의미·source 직접 관련성은 사람이 원문과 대조해야 한다. Java adapter와 실제 NIM을 연결한 뒤에는 동일 gold set으로 end-to-end TTFT와 answer/source 품질을 다시 측정한다.

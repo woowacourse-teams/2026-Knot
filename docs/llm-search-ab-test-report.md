@@ -43,7 +43,7 @@
 
 현재 구현된 독립 workload는 W-001부터 W-031까지 31개 case, 33개 turn이다. 기존 G-series 대화형 골드셋과 분리하여 [docs/llm-search-benchmark-independent-30.json](/Users/yongtae/Desktop/knot/docs/llm-search-benchmark-independent-30.json)에 질문 유형·기대 page ID·원문 대조용 핵심 사실을 기록했다. JSON workload는 기존 benchmark runner의 입력으로 사용할 수 있다.
 
-사람 검수 템플릿은 [docs/llm-search-benchmark-human-review-template.jsonl](/Users/yongtae/Desktop/knot/docs/llm-search-benchmark-human-review-template.jsonl)에 있으며 33개 행이 모두 pending이다. evaluator는 각 답변에 대해 답변 정확성·source 관련성·정책 준수 라벨을 모두 요구하고, 누락·중복·pending 라벨이 있으면 human_gate=PASS를 내지 않는다.
+사람 검수 템플릿은 [docs/llm-search-benchmark-human-review-template.jsonl](/Users/yongtae/Desktop/knot/docs/llm-search-benchmark-human-review-template.jsonl)에 있으며 33개 행이 모두 pending이다. evaluator는 각 답변에 대해 답변 정확성·source 관련성·정책 준수 라벨과 결과 `result_fingerprint`를 모두 요구하고, 누락·중복·pending·불일치 지문 라벨이 있으면 human_gate=PASS를 내지 않는다.
 
 따라서 현재 상태는 독립 질문 준비 완료, 사람 품질 라벨 미평가다. 이 문서의 기존 수치는 과거 실행 기록이며 31개 workload의 실제 NIM e2e 품질 결과가 아니다. 아래 조건이 채워지기 전에는 최종 아키텍처 승자나 5초 목표 달성을 주장하지 않는다.
 
