@@ -70,6 +70,8 @@ def search_hits(result: McpToolResult, scope: McpScope) -> tuple[McpSearchHit, .
             page_id = page_id_from_url(url)
             if page_id is None:
                 continue
+            if not is_safe_notion_url(url) or not page_id_matches_url(page_id, url):
+                continue
             normalized_id = normalize_page_id(page_id)
             if normalized_id in scope.allowed_page_ids and normalized_id not in seen:
                 hits.append(
