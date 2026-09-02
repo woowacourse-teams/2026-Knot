@@ -8,8 +8,15 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol, assert_never
 
-from benchmark_core import Chunk, ContextPack, Document, tokenize
+from benchmark_core import ContextPack, Document, tokenize
 from mcp_adapter_errors import McpAdapterError, McpScopeError
+from mcp_adapter_support import (
+    combined_trace,
+    merge_page,
+    render_context,
+    snippet,
+    trace,
+)
 from mcp_models import (
     FetchToolArguments,
     JsonObject,
@@ -95,11 +102,11 @@ class ReplayMcpAdapter:
             key=lambda item: (-item[0], item[1].page_id),
         )
         hits = tuple(
-            _hit(page, _snippet(page.content, query_terms))
+            _hit(page, snippet(page.content, query_terms))
             for score, page in scored[:max(limit, 0)]
             if score > 0
         )
-        return McpSearchResult(hits, _trace("search", "mcp-replay", started, 1 if limit > 0 else 0))
+        return McpSearchResult(hits, trace("search", "mcp-replay", started, 1 if limit > 0 else 0))
 
     def fetch(self, hit: McpSearchHit) -> McpFetchResult:
         """Fetch one page only when its identity is inside the active replay scope."""
@@ -107,7 +114,7 @@ class ReplayMcpAdapter:
         page = self._pages.get(normalize_page_id(hit.page_id))
         if page is None or not self._scope.permits(page):
             raise McpScopeError(f"page {hit.page_id!r} is outside the active scope")
-        return McpFetchResult(page, _trace("fetch", "mcp-replay", started, 1))
+        return McpFetchResult(page, trace("fetch", "mcp-replay", started, 1))
 
 
 class LiveNotionMcpAdapter:
@@ -153,7 +160,7 @@ class LiveNotionMcpAdapter:
             cursor = next_cursor
         return McpSearchResult(
             tuple(hits[:limit]),
-            _combined_trace("search", self._search_tool, started, traces, len(traces)),
+            combined_trace("search", self._search_tool, started, traces, len(traces)),
         )
 
     def fetch(self, hit: McpSearchHit) -> McpFetchResult:
@@ -171,7 +178,7 @@ class LiveNotionMcpAdapter:
             exchange = self._client.call_tool(self._fetch_tool, arguments)
             _ensure_success(exchange.result)
             exchanges.append(exchange)
-            page = _merge_page(page, page_from_result(exchange.result, hit, self._scope))
+            page = merge_page(page, page_from_result(exchange.result, hit, self._scope))
             content.extend(text_content(exchange.result))
             has_more, next_cursor = pagination(exchange.result)
             if not has_more or next_cursor is None or next_cursor in seen_cursors:
@@ -191,20 +198,14 @@ class LiveNotionMcpAdapter:
                 page.parent_page_id,
                 page.last_edited_time,
             )
-        return McpFetchResult(page, _combined_trace("fetch", self._fetch_tool, started, exchanges, len(exchanges)))
+        return McpFetchResult(page, combined_trace("fetch", self._fetch_tool, started, exchanges, len(exchanges)))
 
 
 def build_mcp_context(adapter: McpToolCaller, query: str, top_k: int) -> McpContextTiming:
     """Run scoped search/detail calls and render only fetched pages for the model."""
     search = adapter.search(query, top_k)
     fetched = tuple(adapter.fetch(hit) for hit in search.hits[:max(top_k, 0)])
-    chunks = tuple(Chunk(Path(item.page.url), item.page.title, item.page.content, 0.0) for item in fetched)
-    context = ContextPack(
-        "\n\n".join(_render_chunk(chunk) for chunk in chunks),
-        tuple(item.page.url for item in fetched),
-        len(fetched),
-        len(fetched) + 1,
-    )
+    context = render_context(tuple(item.page for item in fetched))
     return McpContextTiming(context, (search.trace, *(item.trace for item in fetched)))
 
 
@@ -257,51 +258,8 @@ def _hit(page: McpPage, snippet: str) -> McpSearchHit:
     return McpSearchHit(page.page_id, page.title, page.url, snippet, page.workspace_id, page.snapshot_id, page.last_edited_time)
 
 
-def _snippet(content: str, query_terms: set[str]) -> str:
-    return next((line.strip() for line in content.splitlines() if query_terms & set(tokenize(line))), content[:240])
-
-
-def _merge_page(previous: McpPage | None, current: McpPage) -> McpPage:
-    return current if previous is None else McpPage(
-        current.page_id,
-        current.title or previous.title,
-        current.url or previous.url,
-        previous.content,
-        current.workspace_id,
-        current.snapshot_id,
-        current.parent_page_id or previous.parent_page_id,
-        current.last_edited_time or previous.last_edited_time,
-    )
-
-
 def _ensure_success(result: McpToolResult) -> None:
     if result.is_error:
         detail = " ".join(text_content(result))[:200] or "tool execution failed"
         raise McpAdapterError(detail)
 
-
-def _trace(operation: str, tool_name: str, started: float, page_count: int) -> McpToolTrace:
-    return McpToolTrace(operation, tool_name, (time.perf_counter() - started) * 1000, 0, 0, 0, page_count)
-
-
-def _combined_trace(
-    operation: str,
-    tool_name: str,
-    started: float,
-    exchanges: tuple[McpToolExchange, ...] | list[McpToolExchange],
-    page_count: int,
-) -> McpToolTrace:
-    values = tuple(exchanges)
-    return McpToolTrace(
-        operation,
-        tool_name,
-        (time.perf_counter() - started) * 1000,
-        sum(value.http_requests for value in values),
-        sum(value.retry_count for value in values),
-        sum(value.rate_limit_count for value in values),
-        page_count,
-    )
-
-
-def _render_chunk(chunk: Chunk) -> str:
-    return f"## {chunk.title}\nsource_path: {chunk.path}\n\n{chunk.content}"
