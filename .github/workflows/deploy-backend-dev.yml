@@ -313,6 +313,11 @@ jobs:
           PREVIOUS_JAR="$SNAPSHOT_DIR/app.jar"
           PREVIOUS_ENV_FILE="$SNAPSHOT_DIR/knot-backend-dev.env"
           PREVIOUS_PROFILE_FILE="$SNAPSHOT_DIR/10-development-profile.conf"
+          LAST_KNOWN_GOOD_DIR="/opt/knot-backend/.last-known-good"
+          LAST_KNOWN_GOOD_READY="$LAST_KNOWN_GOOD_DIR/READY"
+          LAST_KNOWN_GOOD_JAR="$LAST_KNOWN_GOOD_DIR/app.jar"
+          LAST_KNOWN_GOOD_ENV_FILE="$LAST_KNOWN_GOOD_DIR/knot-backend-dev.env"
+          LAST_KNOWN_GOOD_PROFILE_FILE="$LAST_KNOWN_GOOD_DIR/10-development-profile.conf"
           SNAPSHOT_READY="$STATE_DIR/snapshot-ready"
           DEPLOYMENT_LOCK_FILE="/tmp/knot-backend-dev-deployment.lock"
           ROLLBACK_LOCK_FILE="$STATE_DIR/rollback.lock"
@@ -323,7 +328,8 @@ jobs:
           ROLLBACK_MARKER="$STATE_DIR/rollback-succeeded"
           WATCHDOG_SCRIPT="$STATE_DIR/rollback-watchdog.sh"
           RESTORE_SCRIPT="$STATE_DIR/restore-previous.sh"
-          WATCHDOG_TIMEOUT_SECONDS=240
+          LAST_KNOWN_GOOD_RESTORE_SCRIPT="$STATE_DIR/restore-last-known-good.sh"
+          WATCHDOG_TIMEOUT_SECONDS=420
           WATCHDOG_STARTED=false
           WATCHDOG_PID=""
 
@@ -331,7 +337,7 @@ jobs:
             rm -f "$CANDIDATE_JAR" "$CANDIDATE_ENV_FILE"
             rmdir "$STAGING_DIR" 2>/dev/null || true
             if [ "$WATCHDOG_STARTED" = false ]; then
-              rm -f "$WATCHDOG_SCRIPT" "$RESTORE_SCRIPT" "$SNAPSHOT_READY" "$WATCHDOG_STARTED_MARKER"
+              rm -f "$WATCHDOG_SCRIPT" "$RESTORE_SCRIPT" "$LAST_KNOWN_GOOD_RESTORE_SCRIPT" "$STATE_DIR/last-known-good.ready" "$SNAPSHOT_READY" "$WATCHDOG_STARTED_MARKER"
               rm -f "$MUTATION_STARTED_MARKER" "$ROLLBACK_STARTED_MARKER" "$ROLLBACK_LOCK_FILE"
               rm -f "$SUCCESS_MARKER" "$ROLLBACK_MARKER" "$STATE_DIR/status"
               rm -f "$STATE_DIR/watchdog.log"
@@ -340,7 +346,7 @@ jobs:
               if [ -n "$WATCHDOG_PID" ]; then
                 kill "$WATCHDOG_PID" 2>/dev/null || true
               fi
-              rm -f "$WATCHDOG_SCRIPT" "$RESTORE_SCRIPT" "$SNAPSHOT_READY" "$WATCHDOG_STARTED_MARKER"
+              rm -f "$WATCHDOG_SCRIPT" "$RESTORE_SCRIPT" "$LAST_KNOWN_GOOD_RESTORE_SCRIPT" "$STATE_DIR/last-known-good.ready" "$SNAPSHOT_READY" "$WATCHDOG_STARTED_MARKER"
               rm -f "$MUTATION_STARTED_MARKER" "$ROLLBACK_STARTED_MARKER" "$ROLLBACK_LOCK_FILE"
             fi
           }
@@ -432,11 +438,151 @@ jobs:
             done
           }
 
+          DEPLOY_UID="$(id -u)"
+          DEPLOY_GID="$(id -g)"
+
+          cat > "$LAST_KNOWN_GOOD_RESTORE_SCRIPT" <<'LAST_GOOD'
+          #!/usr/bin/env bash
+          set -Eeuo pipefail
+
+          snapshot_dir="$1"
+          profile="$2"
+          env_file="$3"
+          app_jar="$4"
+          rollback_lock="$5"
+
+          exec 8>"$rollback_lock"
+          if ! /usr/bin/flock -n 8; then
+            echo "Another rollback is already in progress."
+            exit 75
+          fi
+
+          systemctl_with_timeout() {
+            local timeout_seconds="$1"
+            shift
+            /usr/bin/timeout --foreground "$timeout_seconds" \
+              sudo -n /usr/bin/systemctl "$@"
+          }
+
+          install_with_timeout() {
+            local timeout_seconds="$1"
+            shift
+            /usr/bin/timeout --foreground "$timeout_seconds" \
+              sudo -n /usr/bin/install "$@"
+          }
+
+          install_with_timeout 30 \
+            -o root \
+            -g root \
+            -m 644 \
+            "$snapshot_dir/10-development-profile.conf" \
+            "$profile"
+
+          install_with_timeout 30 \
+            -o root \
+            -g root \
+            -m 600 \
+            "$snapshot_dir/knot-backend-dev.env" \
+            "$env_file"
+
+          install_with_timeout 30 \
+            -o knot \
+            -g knot \
+            -m 500 \
+            "$snapshot_dir/app.jar" \
+            "$app_jar"
+
+          deadline=$(( $(date +%s) + 60 ))
+          remaining=$(( deadline - $(date +%s) ))
+          if [ "$remaining" -le 0 ]; then
+            exit 1
+          fi
+          if ! systemctl_with_timeout "$(( remaining < 15 ? remaining : 15 ))" daemon-reload; then
+            exit 1
+          fi
+
+          remaining=$(( deadline - $(date +%s) ))
+          if [ "$remaining" -le 0 ] || ! systemctl_with_timeout "$remaining" restart knot-backend.service; then
+            exit 1
+          fi
+
+          while :; do
+            remaining=$(( deadline - $(date +%s) ))
+            if [ "$remaining" -le 0 ]; then
+              exit 1
+            fi
+            curl_timeout=$(( remaining < 2 ? remaining : 2 ))
+
+            if ! systemctl_with_timeout "$remaining" is-active knot-backend.service >/dev/null; then
+              exit 1
+            fi
+
+            if curl \
+              --fail \
+              --silent \
+              --connect-timeout 1 \
+              --max-time "$curl_timeout" \
+              http://127.0.0.1:8080/actuator/health >/dev/null; then
+              remaining=$(( deadline - $(date +%s) ))
+              if [ "$remaining" -le 0 ]; then
+                exit 1
+              fi
+              if systemctl_with_timeout "$remaining" is-active knot-backend.service >/dev/null; then
+                exit 0
+              fi
+              exit 1
+            fi
+
+            remaining=$(( deadline - $(date +%s) ))
+            if [ "$remaining" -le 0 ]; then
+              exit 1
+            fi
+            sleep "$(( remaining < 2 ? remaining : 2 ))"
+          done
+          LAST_GOOD
+          chmod 700 "$LAST_KNOWN_GOOD_RESTORE_SCRIPT"
+
           if ! health_check; then
             echo "Current backend is unhealthy before deployment."
-            echo "KNOT_FAILURE_REASON=preflight-unhealthy"
-            echo "KNOT_ROLLBACK_STATUS=not-needed"
-            echo "Candidate deployment is aborted without changing the current service."
+            last_known_good_ready="$STATE_DIR/last-known-good.ready"
+            if ! sudo -n /usr/bin/install \
+              -o "$DEPLOY_UID" \
+              -g "$DEPLOY_GID" \
+              -m 400 \
+              "$LAST_KNOWN_GOOD_READY" \
+              "$last_known_good_ready"; then
+              echo "No last-known-good snapshot is available."
+              echo "KNOT_FAILURE_REASON=preflight-recovery-unavailable"
+              echo "KNOT_RECOVERY_STATUS=failed"
+              echo "KNOT_ROLLBACK_STATUS=unavailable"
+              exit 1
+            fi
+
+            if ! grep -qx 'ready' "$last_known_good_ready"; then
+              echo "Last-known-good snapshot is not marked ready."
+              echo "KNOT_FAILURE_REASON=preflight-recovery-unavailable"
+              echo "KNOT_RECOVERY_STATUS=failed"
+              echo "KNOT_ROLLBACK_STATUS=unavailable"
+              exit 1
+            fi
+
+            if "$LAST_KNOWN_GOOD_RESTORE_SCRIPT" \
+              "$LAST_KNOWN_GOOD_DIR" \
+              "$PROFILE_FILE" \
+              "$ENV_FILE" \
+              "$APP_JAR" \
+              "$ROLLBACK_LOCK_FILE"; then
+              echo "KNOT_FAILURE_REASON=preflight-unhealthy-recovered"
+              echo "KNOT_RECOVERY_STATUS=succeeded"
+              echo "KNOT_ROLLBACK_STATUS=not-needed"
+              echo "Candidate deployment is aborted after restoring the last-known-good version."
+              exit 1
+            fi
+
+            echo "Last-known-good recovery failed."
+            echo "KNOT_FAILURE_REASON=preflight-recovery-failed"
+            echo "KNOT_RECOVERY_STATUS=failed"
+            echo "KNOT_ROLLBACK_STATUS=unavailable"
             exit 1
           fi
 
@@ -793,6 +939,54 @@ jobs:
             return 1
           }
 
+          promote_last_known_good() {
+            if ! sudo -n /usr/bin/install \
+              -d \
+              -o root \
+              -g root \
+              -m 700 \
+              "$LAST_KNOWN_GOOD_DIR"; then
+              return 1
+            fi
+
+            if ! printf 'invalid\n' | tee_with_timeout 15 "$LAST_KNOWN_GOOD_READY" > /dev/null; then
+              return 1
+            fi
+
+            if ! install_with_timeout 30 \
+              -o root \
+              -g root \
+              -m 644 \
+              "$PROFILE_FILE" \
+              "$LAST_KNOWN_GOOD_PROFILE_FILE"; then
+              return 1
+            fi
+
+            if ! install_with_timeout 30 \
+              -o root \
+              -g root \
+              -m 600 \
+              "$ENV_FILE" \
+              "$LAST_KNOWN_GOOD_ENV_FILE"; then
+              return 1
+            fi
+
+            if ! install_with_timeout 30 \
+              -o root \
+              -g root \
+              -m 500 \
+              "$APP_JAR" \
+              "$LAST_KNOWN_GOOD_JAR"; then
+              return 1
+            fi
+
+            if ! printf 'ready\n' | tee_with_timeout 15 "$LAST_KNOWN_GOOD_READY" > /dev/null; then
+              return 1
+            fi
+
+            return 0
+          }
+
           touch "$MUTATION_STARTED_MARKER"
 
           if ! install_with_timeout 30 \
@@ -862,6 +1056,13 @@ jobs:
             exit 1
           fi
 
+          if ! promote_last_known_good; then
+            echo "Failed to promote the candidate as the last-known-good deployment."
+            echo "KNOT_FAILURE_REASON=last-known-good-promotion"
+            restore_previous || true
+            exit 1
+          fi
+
           printf 'KNOT_ROLLBACK_STATUS=not-needed\n' > "$STATE_DIR/status"
           touch "$SUCCESS_MARKER"
           echo "Candidate deployment passed health check."
@@ -893,10 +1094,7 @@ jobs:
               if [ "$state_probe" = "absent" ]; then
                 break
               fi
-              if [ "$state_probe" = "pending" ]; then
-                break
-              fi
-              if [ "$state_probe" != "active" ]; then
+              if [ "$state_probe" != "active" ] && [ "$state_probe" != "pending" ]; then
                 sleep 2
                 continue
               fi
@@ -934,6 +1132,14 @@ jobs:
             echo "failure_reason=$failure_reason" >> "$GITHUB_OUTPUT"
           else
             echo "failure_reason=unknown" >> "$GITHUB_OUTPUT"
+          fi
+          recovery_status="$(awk -F= '/^KNOT_RECOVERY_STATUS=/{value=$2} END {print value}' "$remote_output_file")"
+          if [ -n "$recovery_status" ]; then
+            echo "recovery=$recovery_status" >> "$GITHUB_OUTPUT"
+          elif [ "$remote_exit" -eq 0 ]; then
+            echo "recovery=not-needed" >> "$GITHUB_OUTPUT"
+          else
+            echo "recovery=unknown" >> "$GITHUB_OUTPUT"
           fi
 
           exit "$remote_exit"
@@ -1012,6 +1218,8 @@ jobs:
             -o GlobalKnownHostsFile=/dev/null \
             -o ConnectTimeout=10 \
             -o BatchMode=yes \
+            -o ServerAliveInterval=10 \
+            -o ServerAliveCountMax=3 \
             "$NCP_DEV_USER@$NCP_DEV_HOST" \
             "DEPLOYMENT_ID='$DEPLOYMENT_ID' bash -se" <<'REMOTE'
           set -Eeuo pipefail
@@ -1032,6 +1240,8 @@ jobs:
           rm -f \
             "$state_dir/rollback-watchdog.sh" \
             "$state_dir/restore-previous.sh" \
+            "$state_dir/restore-last-known-good.sh" \
+            "$state_dir/last-known-good.ready" \
             "$state_dir/snapshot-ready" \
             "$state_dir/watchdog-started" \
             "$state_dir/mutation-started" \
@@ -1059,6 +1269,7 @@ jobs:
           CI_RUN_ID: ${{ steps.ci_gate.outputs.run_id }}
           ROLLBACK_STATUS: ${{ steps.deploy.outputs.rollback }}
           DEPLOY_FAILURE_REASON: ${{ steps.deploy.outputs.failure_reason }}
+          RECOVERY_STATUS: ${{ steps.deploy.outputs.recovery }}
           STATE_CLEANUP_STATUS: ${{ steps.state_cleanup.outcome }}
           CLEANUP_STATUS: ${{ steps.cleanup.outputs.outcome }}
           BRANCH: ${{ github.ref_name }}
@@ -1099,8 +1310,22 @@ jobs:
               rollback-snapshot-unavailable) echo "❌ rollback snapshot 없음" ;;
               deployment-lock-held|deployment-lock-invalid) echo "⚠️ 배포 잠금" ;;
               watchdog-rollback-failed) echo "❌ watchdog 롤백 실패" ;;
+              preflight-unhealthy-recovered) echo "✅ 기존 정상 버전 복구" ;;
+              preflight-recovery-unavailable) echo "❌ 복구 버전 없음" ;;
+              preflight-recovery-failed) echo "❌ 기존 정상 버전 복구 실패" ;;
               cleanup-failed) echo "⚠️ 임시 파일 정리 실패" ;;
               state-cleanup-failed) echo "⚠️ 배포 상태 정리 실패" ;;
+              unknown) echo "❔ 확인 불가" ;;
+              *) echo "⚪ $1" ;;
+            esac
+          }
+
+          recovery_label() {
+            case "$1" in
+              succeeded) echo "✅ 복구 성공" ;;
+              failed) echo "❌ 복구 실패" ;;
+              not-needed) echo "➖ 해당 없음" ;;
+              skipped) echo "⏭️ 건너뜀" ;;
               unknown) echo "❔ 확인 불가" ;;
               *) echo "⚪ $1" ;;
             esac
@@ -1121,6 +1346,10 @@ jobs:
           fi
           if [ -z "$deploy_failure_reason" ]; then
             deploy_failure_reason="unknown"
+          fi
+          recovery_status="$RECOVERY_STATUS"
+          if [ -z "$recovery_status" ]; then
+            recovery_status="skipped"
           fi
 
           if [ "$CLEANUP_STATUS" = "failure" ]; then
@@ -1153,11 +1382,21 @@ jobs:
             DESCRIPTION="develop Backend CI가 통과하지 않아 NCP 개발 서버 배포를 차단했습니다."
             COLOR=15105570
             STATUS_LABEL="CI 차단"
-          elif [ "$DEPLOY_FAILURE_REASON" = "preflight-unhealthy" ]; then
+          elif [ "$DEPLOY_FAILURE_REASON" = "preflight-unhealthy-recovered" ]; then
             TITLE="⚠️ Backend Dev CD 배포 보류"
-            DESCRIPTION="기존 NCP 개발 서버가 배포 전 health check에 실패해 후보 버전을 적용하지 않았습니다."
+            DESCRIPTION="기존 NCP 개발 서버가 비정상이라 마지막 정상 버전을 복구한 뒤 후보 버전 적용을 보류했습니다."
             COLOR=16705372
-            STATUS_LABEL="기존 서비스 비정상"
+            STATUS_LABEL="기존 정상 버전 복구 후 보류"
+          elif [ "$DEPLOY_FAILURE_REASON" = "preflight-recovery-unavailable" ]; then
+            TITLE="❌ Backend Dev CD 배포 차단"
+            DESCRIPTION="기존 NCP 개발 서버가 비정상이지만 복구할 마지막 정상 버전을 찾지 못해 후보 버전 적용을 차단했습니다."
+            COLOR=15548997
+            STATUS_LABEL="복구 버전 없음"
+          elif [ "$DEPLOY_FAILURE_REASON" = "preflight-recovery-failed" ]; then
+            TITLE="❌ Backend Dev CD 복구 실패"
+            DESCRIPTION="기존 NCP 개발 서버가 비정상이고 마지막 정상 버전 복구에도 실패했습니다."
+            COLOR=15548997
+            STATUS_LABEL="기존 정상 버전 복구 실패"
           elif [ "$ROLLBACK_STATUS" = "succeeded" ]; then
             TITLE="⚠️ Backend Dev CD 롤백"
             DESCRIPTION="신규 버전 배포에 실패해 직전 정상 버전으로 자동 롤백했습니다."
@@ -1185,6 +1424,7 @@ jobs:
             --arg ci_run_id "$CI_RUN_ID" \
             --arg rollback "$(stage_label "$rollback_status")" \
             --arg failure_reason "$(stage_label "$deploy_failure_reason")" \
+            --arg recovery "$(recovery_label "$recovery_status")" \
             --arg cleanup "$(stage_label "${CLEANUP_STATUS:-skipped}")" \
             --arg state_cleanup "$(stage_label "${STATE_CLEANUP_STATUS:-skipped}")" \
             --arg run_url "$RUN_URL" \
@@ -1209,6 +1449,7 @@ jobs:
                     { name: "JAR 전송", value: $upload, inline: true },
                     { name: "서비스 재시작", value: $deploy, inline: true },
                     { name: "롤백", value: $rollback, inline: true },
+                    { name: "사전 복구", value: $recovery, inline: true },
                     { name: "실패 원인", value: $failure_reason, inline: true },
                     { name: "임시 파일 정리", value: $cleanup, inline: true },
                     { name: "배포 상태 정리", value: $state_cleanup, inline: true },
