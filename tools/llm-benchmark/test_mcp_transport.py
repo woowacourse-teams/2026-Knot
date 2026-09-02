@@ -408,3 +408,15 @@ def test_http_client_caps_a_server_supplied_retry_after(
 
     # Then: the server cannot pause the process beyond the configured cap
     assert sleeps == [1.0]
+
+
+def test_http_client_rejects_a_non_notion_remote_endpoint() -> None:
+    # Given: a remote endpoint that would receive the bearer token
+    # When & then: the transport refuses to construct a client for it
+    with pytest.raises(McpTransportError, match="hosted Notion endpoint"):
+        McpHttpClient(
+            McpSettings(
+                endpoint_url="https://evil.example/mcp",
+                access_token="test-token",
+            )
+        )
