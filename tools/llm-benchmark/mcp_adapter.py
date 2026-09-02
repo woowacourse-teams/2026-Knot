@@ -37,6 +37,7 @@ from mcp_parsing import (
     normalize_page_id,
     page_from_result,
     page_id_from_url,
+    page_id_matches_url,
     pagination,
     search_hits,
     text_content,
@@ -170,16 +171,20 @@ class LiveNotionMcpAdapter:
 
     def fetch(self, hit: McpSearchHit) -> McpFetchResult:
         """Fetch page content and any cursor-based continuation from Notion MCP."""
-        if not self._scope.permits(
-            McpPage(
-                hit.page_id,
-                hit.title,
-                hit.url,
-                hit.snippet,
-                hit.workspace_id,
-                hit.snapshot_id,
+        if (
+            not self._scope.permits(
+                McpPage(
+                    hit.page_id,
+                    hit.title,
+                    hit.url,
+                    hit.snippet,
+                    hit.workspace_id,
+                    hit.snapshot_id,
+                )
             )
-        ) or not is_safe_notion_url(hit.url):
+            or not is_safe_notion_url(hit.url)
+            or not page_id_matches_url(hit.page_id, hit.url)
+        ):
             raise McpScopeError(f"page {hit.page_id!r} is outside the active scope")
         started = time.perf_counter()
         exchanges: list[McpToolExchange] = []
@@ -277,6 +282,10 @@ def execute_validated_tool_call(
                         )
                     if not is_safe_notion_url(hit.url):
                         raise McpScopeError(f"page {hit.page_id!r} has an unsafe URL")
+                    if not page_id_matches_url(hit.page_id, hit.url):
+                        raise McpScopeError(
+                            f"page {hit.page_id!r} has a mismatched identity"
+                        )
                     return adapter.fetch(hit)
                 case unreachable:
                     assert_never(unreachable)

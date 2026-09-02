@@ -4,9 +4,8 @@ from __future__ import annotations
 
 import time
 from collections.abc import Iterable
-from pathlib import Path
 
-from benchmark_core import Chunk, ContextPack, tokenize
+from benchmark_core import ContextPack, tokenize
 from mcp_models import McpPage, McpToolTrace
 from mcp_transport import McpToolExchange
 
@@ -43,11 +42,8 @@ def merge_page(previous: McpPage | None, current: McpPage) -> McpPage:
 
 def render_context(pages: tuple[McpPage, ...]) -> ContextPack:
     """Render fetched pages with source URLs and tool-call count metadata."""
-    chunks = tuple(
-        Chunk(Path(page.url), page.title, page.content, 0.0) for page in pages
-    )
     return ContextPack(
-        "\n\n".join(_render_chunk(chunk) for chunk in chunks),
+        "\n\n".join(_render_page(page) for page in pages),
         tuple(page.url for page in pages),
         len(pages),
         len(pages) + 1,
@@ -89,5 +85,5 @@ def combined_trace(
     )
 
 
-def _render_chunk(chunk: Chunk) -> str:
-    return f"## {chunk.title}\nsource_path: {chunk.path}\n\n{chunk.content}"
+def _render_page(page: McpPage) -> str:
+    return f"## {page.title}\nsource_path: {page.url}\n\n{page.content}"
