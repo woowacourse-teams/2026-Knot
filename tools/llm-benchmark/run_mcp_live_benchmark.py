@@ -190,6 +190,7 @@ def _run_case(
     metadata: BenchmarkMetadata | None = None,
 ) -> None:
     history: list[ChatMessage] = []
+    tool_calling_mode = tool_calling and not retrieval_only
     for turn, question in enumerate(benchmark_case.turns, start=1):
         started = time.perf_counter()
         context_timing = McpContextTiming(ContextPack("", (), 0, 0), ())
@@ -255,7 +256,7 @@ def _run_case(
                 answer = result.text
                 model_ttft_ms = result.ttft_ms
                 model_total_ms = result.total_ms
-            if access_ms == 0.0:
+            if access_ms == 0.0 and not tool_calling_mode:
                 access_ms = (time.perf_counter() - started) * 1000
         except (
             McpAdapterError,
@@ -267,7 +268,7 @@ def _run_case(
             NimTransportError,
         ) as caught:
             error = str(caught)
-            if access_ms == 0.0:
+            if access_ms == 0.0 and not tool_calling_mode:
                 access_ms = (time.perf_counter() - started) * 1000
         _write_record(
             stream,
