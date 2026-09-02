@@ -120,6 +120,30 @@ def test_source_matching_rejects_substrings_and_extra_documents() -> None:
     assert not summary.retrieval_gate_passed
 
 
+def test_evaluation_rejects_a_question_that_differs_from_the_workload_turn() -> None:
+    # Given: a result identity whose question is not the declared workload question
+    cases = (_case("W-001", ("원래 질문",), ("page-1",)),)
+    rows = (
+        EvaluationRow(
+            case_id="W-001",
+            repeat=1,
+            turn=1,
+            strategy="rag",
+            question="다른 질문",
+            answer="답변",
+            source_paths=("page-1",),
+            retrieved_count=1,
+        ),
+    )
+
+    # When: the result is evaluated against the workload manifest
+    summary = evaluate(rows, cases, "rag", repeats=1)
+
+    # Then: a row cannot pass by reusing another question's identity
+    assert not summary.retrieval_gate_passed
+    assert any("question" in failure for failure in summary.retrieval_failures)
+
+
 def test_follow_up_source_expectations_are_checked_per_turn() -> None:
     # Given: each conversational turn has a different expected evidence page
     cases = (
