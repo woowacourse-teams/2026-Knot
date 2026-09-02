@@ -6,7 +6,9 @@ import json
 from dataclasses import dataclass
 from typing import Final, Protocol
 
+from benchmark_core import ContextPack
 from mcp_adapter import execute_validated_tool_call
+from mcp_adapter_support import render_context
 from mcp_models import (
     JsonObject,
     McpFetchResult,
@@ -88,6 +90,23 @@ class McpToolLoopResult:
     rounds: int
     model_ttft_ms: float
     model_total_ms: float
+
+
+def context_from_tool_executions(
+    executions: tuple[McpToolExecution, ...],
+) -> ContextPack:
+    """Render only unique fetched pages and retain the actual tool-call count."""
+    pages: dict[str, McpFetchResult] = {}
+    for execution in executions:
+        if isinstance(execution.result, McpFetchResult):
+            pages.setdefault(execution.result.page.page_id, execution.result)
+    rendered = render_context(tuple(item.page for item in pages.values()))
+    return ContextPack(
+        rendered.text,
+        rendered.source_paths,
+        rendered.retrieved_count,
+        len(executions),
+    )
 
 
 def generate_with_mcp_tools(
