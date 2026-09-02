@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import pytest
 from benchmark_metadata import create_benchmark_metadata, snapshot_fingerprint
+from run_benchmark import BenchmarkRecord
 
 
 def test_metadata_records_reproducibility_inputs_without_secrets() -> None:
@@ -75,3 +76,42 @@ def test_metadata_rejects_unknown_run_dimensions(field: str, value: str) -> None
     # When & then: incomparable observations cannot be created
     with pytest.raises(ValueError):
         create_benchmark_metadata(**arguments)
+
+
+def test_benchmark_record_can_carry_the_run_metadata() -> None:
+    # Given: a generated observation and its immutable run metadata
+    metadata = create_benchmark_metadata(
+        run_id="run-001",
+        phase="control",
+        condition="cold",
+        snapshot_id="snapshot-001",
+        model="model",
+        prompt="prompt",
+        generation_options={},
+        observed_at="2026-09-02T09:00:00+00:00",
+    )
+
+    # When: the observation is created for a JSONL result
+    record = BenchmarkRecord(
+        "W-001",
+        1,
+        1,
+        "rag",
+        "질문",
+        "답변",
+        ("page-1",),
+        1,
+        0,
+        10,
+        1.0,
+        2.0,
+        3.0,
+        3.0,
+        4.0,
+        False,
+        None,
+        metadata=metadata,
+    )
+
+    # Then: metadata stays alongside the result without exposing credentials
+    assert record.metadata == metadata
