@@ -59,7 +59,7 @@ jobs:
         if: ${{ failure() }}
         working-directory: .
         env:
-          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_CI_WEBHOOK_URL }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_BACKEND_CI_WEBHOOK_URL }}
 
           FORMATTING: ${{ steps.formatting.outcome }}
           UNIT_TESTS: ${{ steps.unit-tests.outcome }}

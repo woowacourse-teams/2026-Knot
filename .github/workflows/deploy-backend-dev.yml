@@ -34,12 +34,16 @@ jobs:
           set -Eeuo pipefail
 
           for attempt in {1..90}; do
-            ci_runs="$(gh run list \
-              --workflow backend-ci.yml \
-              --branch "$GITHUB_REF_NAME" \
-              --commit "$GITHUB_SHA" \
-              --limit 10 \
-              --json databaseId,status,conclusion,event)"
+            if ! ci_runs="$(gh run list \
+                --workflow backend-ci.yml \
+                --branch "$GITHUB_REF_NAME" \
+                --commit "$GITHUB_SHA" \
+                --limit 10 \
+                --json databaseId,status,conclusion,event)"; then
+              echo "Failed to query Backend CI for $GITHUB_SHA."
+              echo "conclusion=lookup-failed" >> "$GITHUB_OUTPUT"
+              exit 1
+            fi
 
             ci_run="$(printf '%s' "$ci_runs" | jq -c '[.[] | select(.event == "push")] | sort_by(.databaseId) | last // empty')"
 
@@ -117,6 +121,7 @@ jobs:
           NCP_DEV_SSH_PRIVATE_KEY: ${{ secrets.NCP_DEV_SSH_PRIVATE_KEY }}
           NCP_DEV_KNOWN_HOSTS: ${{ secrets.NCP_DEV_KNOWN_HOSTS }}
           JAR_PATH: ${{ steps.jar.outputs.path }}
+          DEPLOYMENT_ID: ${{ github.run_id }}-${{ github.run_attempt }}
         run: |
           set -Eeuo pipefail
 
@@ -124,6 +129,31 @@ jobs:
           : "${NCP_DEV_USER:?NCP_DEV_USER secret is required}"
           : "${NCP_DEV_SSH_PRIVATE_KEY:?NCP_DEV_SSH_PRIVATE_KEY secret is required}"
           : "${NCP_DEV_KNOWN_HOSTS:?NCP_DEV_KNOWN_HOSTS secret is required}"
+          case "$DEPLOYMENT_ID" in
+            (*[!A-Za-z0-9_.-]*)
+              echo "DEPLOYMENT_ID contains unsupported characters."
+              exit 1
+              ;;
+          esac
+
+          staging_dir=""
+          upload_succeeded=false
+          cleanup_failed_upload() {
+            if [ "$upload_succeeded" = true ]; then
+              return
+            fi
+
+            if [ -n "$staging_dir" ]; then
+              ssh \
+                -i "$HOME/.ssh/ncp-dev" \
+                -o IdentitiesOnly=yes \
+                -o StrictHostKeyChecking=yes \
+                "$NCP_DEV_USER@$NCP_DEV_HOST" \
+                "rm -f '$staging_dir/knot-backend-dev.jar'; rmdir '$staging_dir' 2>/dev/null || true" \
+                >/dev/null 2>&1 || true
+            fi
+          }
+          trap cleanup_failed_upload EXIT
 
           install -d -m 700 "$HOME/.ssh"
           umask 077
@@ -132,12 +162,26 @@ jobs:
           chmod 600 "$HOME/.ssh/ncp-dev"
           chmod 644 "$HOME/.ssh/known_hosts"
 
+          staging_dir="$(ssh \
+            -i "$HOME/.ssh/ncp-dev" \
+            -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes \
+            "$NCP_DEV_USER@$NCP_DEV_HOST" \
+            'umask 077; mktemp -d /tmp/knot-backend-dev.XXXXXX')"
+          if [[ ! "$staging_dir" =~ ^/tmp/knot-backend-dev\.[[:alnum:]]+$ ]]; then
+            echo "Unexpected remote staging directory: $staging_dir"
+            exit 1
+          fi
+
           scp \
             -i "$HOME/.ssh/ncp-dev" \
             -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=yes \
             "$JAR_PATH" \
-            "$NCP_DEV_USER@$NCP_DEV_HOST:/tmp/knot-backend-dev.jar"
+            "$NCP_DEV_USER@$NCP_DEV_HOST:$staging_dir/knot-backend-dev.jar"
+
+          echo "staging_dir=$staging_dir" >> "$GITHUB_OUTPUT"
+          upload_succeeded=true
 
       - name: Restart backend and verify health
         id: deploy
@@ -149,11 +193,23 @@ jobs:
           NCP_DEV_KNOWN_HOSTS: ${{ secrets.NCP_DEV_KNOWN_HOSTS }}
           WORKSPACE_INVITATION_LOOKUP_HASH_KEY: ${{ secrets.WORKSPACE_INVITATION_LOOKUP_HASH_KEY }}
           WORKSPACE_INVITATION_ENCRYPTION_KEY: ${{ secrets.WORKSPACE_INVITATION_ENCRYPTION_KEY }}
+          DEPLOYMENT_ID: ${{ github.run_id }}-${{ github.run_attempt }}
+          STAGING_DIR: ${{ steps.upload.outputs.staging_dir }}
         run: |
           set -Eeuo pipefail
 
           : "${WORKSPACE_INVITATION_LOOKUP_HASH_KEY:?WORKSPACE_INVITATION_LOOKUP_HASH_KEY secret is required}"
           : "${WORKSPACE_INVITATION_ENCRYPTION_KEY:?WORKSPACE_INVITATION_ENCRYPTION_KEY secret is required}"
+          case "$DEPLOYMENT_ID" in
+            (*[!A-Za-z0-9_.-]*)
+              echo "DEPLOYMENT_ID contains unsupported characters."
+              exit 1
+              ;;
+          esac
+          if [[ ! "$STAGING_DIR" =~ ^/tmp/knot-backend-dev\.[[:alnum:]]+$ ]]; then
+            echo "STAGING_DIR is invalid."
+            exit 1
+          fi
 
           install -d -m 700 "$HOME/.ssh"
           umask 077
@@ -166,6 +222,7 @@ jobs:
           printf 'WORKSPACE_INVITATION_LOOKUP_HASH_KEY=%s\n' "$WORKSPACE_INVITATION_LOOKUP_HASH_KEY" > "$env_file"
           printf 'WORKSPACE_INVITATION_ENCRYPTION_KEY=%s\n' "$WORKSPACE_INVITATION_ENCRYPTION_KEY" >> "$env_file"
           chmod 600 "$env_file"
+          trap 'rm -f "$env_file"' EXIT
 
           python3 - "$env_file" <<'PY'
           import base64
@@ -204,7 +261,7 @@ jobs:
             -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=yes \
             "$env_file" \
-            "$NCP_DEV_USER@$NCP_DEV_HOST:/tmp/knot-backend-dev.env"
+            "$NCP_DEV_USER@$NCP_DEV_HOST:$STAGING_DIR/knot-backend-dev.env"
 
           remote_output_file="$RUNNER_TEMP/knot-backend-dev-deploy.log"
           if ssh \
@@ -212,31 +269,58 @@ jobs:
             -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=yes \
             "$NCP_DEV_USER@$NCP_DEV_HOST" \
-            'bash -se' <<'REMOTE' >"$remote_output_file" 2>&1
+            "DEPLOYMENT_ID='$DEPLOYMENT_ID' STAGING_DIR='$STAGING_DIR' bash -se" <<'REMOTE' >"$remote_output_file" 2>&1
           set -Eeuo pipefail
 
           APP_JAR="/opt/knot-backend/app.jar"
-          PREVIOUS_JAR="/opt/knot-backend/app.jar.previous"
           ENV_FILE="/etc/knot/knot-backend-dev.env"
-          PREVIOUS_ENV_FILE="/etc/knot/knot-backend-dev.env.previous"
           PROFILE_FILE="/etc/systemd/system/knot-backend.service.d/10-development-profile.conf"
-          PREVIOUS_PROFILE_FILE="/etc/systemd/system/knot-backend.service.d/10-development-profile.conf.previous"
-          CANDIDATE_JAR="/tmp/knot-backend-dev.jar"
-          CANDIDATE_ENV_FILE="/tmp/knot-backend-dev.env"
+          CANDIDATE_JAR="$STAGING_DIR/knot-backend-dev.jar"
+          CANDIDATE_ENV_FILE="$STAGING_DIR/knot-backend-dev.env"
+          STATE_DIR="/tmp/knot-backend-dev-deploy-$DEPLOYMENT_ID"
+          PREVIOUS_DIR="$STATE_DIR/previous"
+          PREVIOUS_JAR="$PREVIOUS_DIR/app.jar"
+          PREVIOUS_ENV_FILE="$PREVIOUS_DIR/knot-backend-dev.env"
+          PREVIOUS_PROFILE_FILE="$PREVIOUS_DIR/10-development-profile.conf"
+          SNAPSHOT_READY="$STATE_DIR/snapshot-ready"
+          SUCCESS_MARKER="$STATE_DIR/succeeded"
+          ROLLBACK_MARKER="$STATE_DIR/rollback-succeeded"
+          WATCHDOG_SCRIPT="$STATE_DIR/rollback-watchdog.sh"
+          RESTORE_SCRIPT="$STATE_DIR/restore-previous.sh"
+          WATCHDOG_TIMEOUT_SECONDS=120
+          WATCHDOG_STARTED=false
+          WATCHDOG_PID=""
 
           cleanup() {
             rm -f "$CANDIDATE_JAR" "$CANDIDATE_ENV_FILE"
+            rmdir "$STAGING_DIR" 2>/dev/null || true
+            if [ "$WATCHDOG_STARTED" = false ] || [ -f "$SUCCESS_MARKER" ] || [ -f "$ROLLBACK_MARKER" ]; then
+              if [ -n "$WATCHDOG_PID" ]; then
+                kill "$WATCHDOG_PID" 2>/dev/null || true
+              fi
+              rm -f "$WATCHDOG_SCRIPT" "$RESTORE_SCRIPT" "$SNAPSHOT_READY"
+              rm -f "$SUCCESS_MARKER" "$ROLLBACK_MARKER" "$STATE_DIR/status"
+              rm -f "$STATE_DIR/watchdog.log"
+              rm -f "$PREVIOUS_JAR" "$PREVIOUS_ENV_FILE" "$PREVIOUS_PROFILE_FILE"
+              rmdir "$PREVIOUS_DIR" 2>/dev/null || true
+              rmdir "$STATE_DIR" 2>/dev/null || true
+            fi
           }
           trap cleanup EXIT
 
-          health_check() {
-            local attempt
+          mkdir -p "$STATE_DIR"
+          chmod 700 "$STATE_DIR"
 
-            for attempt in {1..30}; do
+          health_check() {
+            local deadline
+            deadline=$(( $(date +%s) + 60 ))
+
+            while [ "$(date +%s)" -lt "$deadline" ]; do
               if curl \
                 --fail \
                 --silent \
-                --max-time 5 \
+                --connect-timeout 1 \
+                --max-time 2 \
                 http://127.0.0.1:8080/actuator/health >/dev/null; then
                 return 0
               fi
@@ -251,69 +335,11 @@ jobs:
             return 1
           }
 
-          restore_previous() {
-            echo "Restoring the previous healthy deployment."
-
-            if ! sudo -n /usr/bin/install \
-              -o root \
-              -g root \
-              -m 644 \
-              "$PREVIOUS_PROFILE_FILE" \
-              "$PROFILE_FILE"; then
-              echo "Previous systemd profile is unavailable."
-              echo "KNOT_ROLLBACK_STATUS=failed"
-              return 1
-            fi
-
-            if ! sudo -n /usr/bin/install \
-              -o root \
-              -g root \
-              -m 600 \
-              "$PREVIOUS_ENV_FILE" \
-              "$ENV_FILE"; then
-              echo "Previous environment file is unavailable."
-              echo "KNOT_ROLLBACK_STATUS=failed"
-              return 1
-            fi
-
-            if ! sudo -n /usr/bin/install \
-              -o knot \
-              -g knot \
-              -m 500 \
-              "$PREVIOUS_JAR" \
-              "$APP_JAR"; then
-              echo "Previous JAR is unavailable."
-              echo "KNOT_ROLLBACK_STATUS=failed"
-              return 1
-            fi
-
-            if ! sudo -n /usr/bin/systemctl daemon-reload; then
-              echo "Failed to reload systemd during rollback."
-              echo "KNOT_ROLLBACK_STATUS=failed"
-              return 1
-            fi
-
-            if ! sudo -n /usr/bin/systemctl restart knot-backend.service; then
-              echo "Failed to restart the service during rollback."
-              echo "KNOT_ROLLBACK_STATUS=failed"
-              return 1
-            fi
-
-            if ! health_check; then
-              echo "Previous JAR health check failed after rollback."
-              echo "KNOT_ROLLBACK_STATUS=failed"
-              return 1
-            fi
-
-            echo "Previous healthy deployment was restored."
-            echo "KNOT_ROLLBACK_STATUS=succeeded"
-            return 0
-          }
-
           if ! health_check; then
             echo "Current backend is unhealthy before deployment."
-            restore_previous || exit 1
-            echo "Existing deployment was recovered; candidate deployment is aborted."
+            echo "KNOT_FAILURE_REASON=preflight-unhealthy"
+            echo "KNOT_ROLLBACK_STATUS=not-needed"
+            echo "Candidate deployment is aborted without changing the current service."
             exit 1
           fi
 
@@ -331,9 +357,14 @@ jobs:
             -m 700 \
             /etc/knot
 
+          DEPLOY_UID="$(id -u)"
+          DEPLOY_GID="$(id -g)"
+          mkdir -p "$PREVIOUS_DIR"
+          chmod 700 "$PREVIOUS_DIR"
+
           if ! sudo -n /usr/bin/install \
-            -o root \
-            -g root \
+            -o "$DEPLOY_UID" \
+            -g "$DEPLOY_GID" \
             -m 644 \
             "$PROFILE_FILE" \
             "$PREVIOUS_PROFILE_FILE"; then
@@ -343,8 +374,8 @@ jobs:
           fi
 
           if ! sudo -n /usr/bin/install \
-            -o root \
-            -g root \
+            -o "$DEPLOY_UID" \
+            -g "$DEPLOY_GID" \
             -m 600 \
             "$ENV_FILE" \
             "$PREVIOUS_ENV_FILE"; then
@@ -354,15 +385,175 @@ jobs:
           fi
 
           if ! sudo -n /usr/bin/install \
-            -o knot \
-            -g knot \
-            -m 500 \
+            -o "$DEPLOY_UID" \
+            -g "$DEPLOY_GID" \
+            -m 400 \
             "$APP_JAR" \
             "$PREVIOUS_JAR"; then
             echo "Failed to back up the current JAR."
             echo "KNOT_ROLLBACK_STATUS=unavailable"
             exit 1
           fi
+
+          touch "$SNAPSHOT_READY"
+
+          cat > "$RESTORE_SCRIPT" <<'RESTORE'
+          #!/usr/bin/env bash
+          set -Eeuo pipefail
+
+          previous_profile="$1"
+          profile="$2"
+          previous_env="$3"
+          env_file="$4"
+          previous_jar="$5"
+          app_jar="$6"
+
+          echo "Restoring the previous healthy deployment."
+
+          sudo -n /usr/bin/install \
+            -o root \
+            -g root \
+            -m 644 \
+            "$previous_profile" \
+            "$profile"
+
+          sudo -n /usr/bin/install \
+            -o root \
+            -g root \
+            -m 600 \
+            "$previous_env" \
+            "$env_file"
+
+          sudo -n /usr/bin/install \
+            -o knot \
+            -g knot \
+            -m 500 \
+            "$previous_jar" \
+            "$app_jar"
+
+          sudo -n /usr/bin/systemctl daemon-reload
+          sudo -n /usr/bin/systemctl restart knot-backend.service
+
+          deadline=$(( $(date +%s) + 60 ))
+          while [ "$(date +%s)" -lt "$deadline" ]; do
+            if curl \
+              --fail \
+              --silent \
+              --connect-timeout 1 \
+              --max-time 2 \
+              http://127.0.0.1:8080/actuator/health >/dev/null; then
+              echo "Previous healthy deployment was restored."
+              exit 0
+            fi
+
+            if ! sudo -n /usr/bin/systemctl is-active knot-backend.service >/dev/null; then
+              break
+            fi
+
+            sleep 2
+          done
+
+          echo "Previous JAR health check failed after rollback."
+          exit 1
+          RESTORE
+          chmod 700 "$RESTORE_SCRIPT"
+
+          cat > "$WATCHDOG_SCRIPT" <<'WATCHDOG'
+          #!/usr/bin/env bash
+          set -Eeuo pipefail
+
+          state_dir="$1"
+          timeout_seconds="$2"
+          restore_script="$3"
+          previous_profile="$4"
+          profile="$5"
+          previous_env="$6"
+          env_file="$7"
+          previous_jar="$8"
+          app_jar="$9"
+          candidate_jar="${10}"
+          candidate_env="${11}"
+
+          success_marker="$state_dir/succeeded"
+          rollback_marker="$state_dir/rollback-succeeded"
+          status_file="$state_dir/status"
+          watchdog_script="$state_dir/rollback-watchdog.sh"
+          deadline=$(( $(date +%s) + timeout_seconds ))
+
+          while [ ! -f "$success_marker" ] && [ ! -f "$rollback_marker" ]; do
+            if [ "$(date +%s)" -ge "$deadline" ]; then
+              break
+            fi
+            sleep 2
+          done
+
+          if [ -f "$success_marker" ] || [ -f "$rollback_marker" ]; then
+            exit 0
+          fi
+
+          echo "Watchdog rollback started after deployment confirmation timed out." > "$state_dir/watchdog.log"
+          for attempt in {1..3}; do
+            echo "Rollback attempt $attempt/3." >> "$state_dir/watchdog.log"
+            if "$restore_script" \
+              "$previous_profile" \
+              "$profile" \
+              "$previous_env" \
+              "$env_file" \
+              "$previous_jar" \
+              "$app_jar" \
+              >> "$state_dir/watchdog.log" 2>&1; then
+              printf 'KNOT_ROLLBACK_STATUS=succeeded\n' > "$status_file"
+              touch "$rollback_marker"
+              rm -f "$candidate_jar" "$candidate_env"
+              rm -f "$state_dir/previous"/* "$restore_script" "$watchdog_script" "$state_dir/snapshot-ready"
+              rmdir "$state_dir/previous" 2>/dev/null || true
+              exit 0
+            fi
+
+            sleep 10
+          done
+
+          printf 'KNOT_ROLLBACK_STATUS=failed\n' > "$status_file"
+          rm -f "$candidate_jar" "$candidate_env"
+          rm -f "$previous_profile" "$previous_env" "$previous_jar" "$restore_script" "$watchdog_script" "$state_dir/snapshot-ready"
+          rmdir "$state_dir/previous" 2>/dev/null || true
+          exit 1
+          WATCHDOG
+          chmod 700 "$WATCHDOG_SCRIPT"
+
+          nohup /usr/bin/bash "$WATCHDOG_SCRIPT" \
+            "$STATE_DIR" \
+            "$WATCHDOG_TIMEOUT_SECONDS" \
+            "$RESTORE_SCRIPT" \
+            "$PREVIOUS_PROFILE_FILE" \
+            "$PROFILE_FILE" \
+            "$PREVIOUS_ENV_FILE" \
+            "$ENV_FILE" \
+            "$PREVIOUS_JAR" \
+            "$APP_JAR" \
+            "$CANDIDATE_JAR" \
+            "$CANDIDATE_ENV_FILE" \
+            > "$STATE_DIR/watchdog.log" 2>&1 < /dev/null &
+          WATCHDOG_PID=$!
+          disown "$WATCHDOG_PID" 2>/dev/null || true
+          WATCHDOG_STARTED=true
+
+          restore_previous() {
+            if "$RESTORE_SCRIPT" \
+              "$PREVIOUS_PROFILE_FILE" \
+              "$PROFILE_FILE" \
+              "$PREVIOUS_ENV_FILE" \
+              "$ENV_FILE" \
+              "$PREVIOUS_JAR" \
+              "$APP_JAR"; then
+              touch "$ROLLBACK_MARKER"
+              echo "KNOT_ROLLBACK_STATUS=succeeded"
+              return 0
+            fi
+
+            echo "KNOT_ROLLBACK_STATUS=failed"
+            return 1
+          }
 
           if ! sudo -n /usr/bin/install \
             -o root \
@@ -418,6 +609,12 @@ jobs:
             exit 1
           fi
 
+          if [ -f "$ROLLBACK_MARKER" ]; then
+            echo "Watchdog already restored the previous deployment."
+            exit 1
+          fi
+
+          touch "$SUCCESS_MARKER"
           echo "Candidate deployment passed health check."
           echo "KNOT_ROLLBACK_STATUS=not-needed"
           REMOTE
@@ -427,6 +624,39 @@ jobs:
             remote_exit=$?
           fi
 
+          if [ "$remote_exit" -ne 0 ] && ! grep -q '^KNOT_ROLLBACK_STATUS=' "$remote_output_file"; then
+            echo "Remote session ended before deployment status was returned; waiting for the server-side rollback watchdog."
+            for _ in {1..180}; do
+              state_probe="$(ssh \
+                -i "$HOME/.ssh/ncp-dev" \
+                -o IdentitiesOnly=yes \
+                -o StrictHostKeyChecking=yes \
+                "$NCP_DEV_USER@$NCP_DEV_HOST" \
+                "if [ -d '/tmp/knot-backend-dev-deploy-$DEPLOYMENT_ID' ]; then printf present; else printf absent; fi" \
+                2>/dev/null || true)"
+              if [ "$state_probe" = "absent" ]; then
+                break
+              fi
+              if [ "$state_probe" != "present" ]; then
+                sleep 2
+                continue
+              fi
+
+              recovery_status="$(ssh \
+                -i "$HOME/.ssh/ncp-dev" \
+                -o IdentitiesOnly=yes \
+                -o StrictHostKeyChecking=yes \
+                "$NCP_DEV_USER@$NCP_DEV_HOST" \
+                "if [ -f '/tmp/knot-backend-dev-deploy-$DEPLOYMENT_ID/status' ]; then cat '/tmp/knot-backend-dev-deploy-$DEPLOYMENT_ID/status'; fi" \
+                2>/dev/null || true)"
+              if [ -n "$recovery_status" ]; then
+                printf '%s\n' "$recovery_status" | tee -a "$remote_output_file"
+                break
+              fi
+              sleep 2
+            done
+          fi
+
           cat "$remote_output_file"
           rollback_status="$(awk -F= '/^KNOT_ROLLBACK_STATUS=/{value=$2} END {print value}' "$remote_output_file")"
           if [ -n "$rollback_status" ]; then
@@ -434,8 +664,46 @@ jobs:
           else
             echo "rollback=unknown" >> "$GITHUB_OUTPUT"
           fi
+          failure_reason="$(awk -F= '/^KNOT_FAILURE_REASON=/{value=$2} END {print value}' "$remote_output_file")"
+          if [ -n "$failure_reason" ]; then
+            echo "failure_reason=$failure_reason" >> "$GITHUB_OUTPUT"
+          else
+            echo "failure_reason=unknown" >> "$GITHUB_OUTPUT"
+          fi
 
           exit "$remote_exit"
+
+      - name: Clean up NCP staging files
+        if: always() && steps.upload.outputs.staging_dir != ''
+        continue-on-error: true
+        shell: bash
+        env:
+          NCP_DEV_HOST: ${{ secrets.NCP_DEV_HOST }}
+          NCP_DEV_USER: ${{ secrets.NCP_DEV_USER }}
+          NCP_DEV_SSH_PRIVATE_KEY: ${{ secrets.NCP_DEV_SSH_PRIVATE_KEY }}
+          NCP_DEV_KNOWN_HOSTS: ${{ secrets.NCP_DEV_KNOWN_HOSTS }}
+          STAGING_DIR: ${{ steps.upload.outputs.staging_dir }}
+        run: |
+          set -Eeuo pipefail
+
+          if [[ ! "$STAGING_DIR" =~ ^/tmp/knot-backend-dev\.[[:alnum:]]+$ ]]; then
+            echo "STAGING_DIR is invalid; refusing cleanup."
+            exit 1
+          fi
+
+          install -d -m 700 "$HOME/.ssh"
+          umask 077
+          printf '%s\n' "$NCP_DEV_SSH_PRIVATE_KEY" > "$HOME/.ssh/ncp-dev"
+          printf '%s\n' "$NCP_DEV_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+          chmod 600 "$HOME/.ssh/ncp-dev"
+          chmod 644 "$HOME/.ssh/known_hosts"
+
+          ssh \
+            -i "$HOME/.ssh/ncp-dev" \
+            -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes \
+            "$NCP_DEV_USER@$NCP_DEV_HOST" \
+            "rm -f '$STAGING_DIR/knot-backend-dev.jar' '$STAGING_DIR/knot-backend-dev.env'; rmdir '$STAGING_DIR' 2>/dev/null || true"
 
       - name: Notify Discord
         if: always()
@@ -448,8 +716,10 @@ jobs:
           UPLOAD_STATUS: ${{ steps.upload.outcome }}
           DEPLOY_STATUS: ${{ steps.deploy.outcome }}
           CI_GATE_STATUS: ${{ steps.ci_gate.outcome }}
+          CI_GATE_CONCLUSION: ${{ steps.ci_gate.outputs.conclusion }}
           CI_RUN_ID: ${{ steps.ci_gate.outputs.run_id }}
           ROLLBACK_STATUS: ${{ steps.deploy.outputs.rollback }}
+          DEPLOY_FAILURE_REASON: ${{ steps.deploy.outputs.failure_reason }}
           BRANCH: ${{ github.ref_name }}
           ACTOR: ${{ github.actor }}
           COMMIT_SHA: ${{ github.sha }}
@@ -472,18 +742,29 @@ jobs:
               failed) echo "❌ 롤백 실패" ;;
               unavailable) echo "⚠️ 롤백 불가" ;;
               not-needed) echo "➖ 해당 없음" ;;
+              timeout) echo "⏱️ 시간 초과" ;;
+              lookup-failed) echo "⚠️ 조회 실패" ;;
+              preflight-unhealthy) echo "⚠️ 기존 서비스 비정상" ;;
               unknown) echo "❔ 확인 불가" ;;
               *) echo "⚪ $1" ;;
             esac
           }
 
           ci_gate_status="$CI_GATE_STATUS"
+          ci_gate_conclusion="$CI_GATE_CONCLUSION"
           rollback_status="$ROLLBACK_STATUS"
+          deploy_failure_reason="$DEPLOY_FAILURE_REASON"
           if [ -z "$ci_gate_status" ]; then
             ci_gate_status="skipped"
           fi
           if [ -z "$rollback_status" ]; then
             rollback_status="skipped"
+          fi
+          if [ -z "$ci_gate_conclusion" ]; then
+            ci_gate_conclusion="unknown"
+          fi
+          if [ -z "$deploy_failure_reason" ]; then
+            deploy_failure_reason="unknown"
           fi
 
           if [ "$JOB_STATUS" = "success" ]; then
@@ -491,11 +772,26 @@ jobs:
             DESCRIPTION="develop 브랜치의 NCP 개발 서버 배포가 완료되었습니다."
             COLOR=5763719
             STATUS_LABEL="성공"
+          elif [ "$CI_GATE_STATUS" = "failure" ] && [ "$CI_GATE_CONCLUSION" = "timeout" ]; then
+            TITLE="⏱️ Backend Dev CD CI 대기 시간 초과"
+            DESCRIPTION="develop Backend CI 결과를 기다리는 동안 제한 시간을 초과해 NCP 개발 서버 배포를 차단했습니다."
+            COLOR=15105570
+            STATUS_LABEL="CI 대기 시간 초과"
+          elif [ "$CI_GATE_STATUS" = "failure" ] && [ "$CI_GATE_CONCLUSION" = "lookup-failed" ]; then
+            TITLE="⚠️ Backend Dev CD CI 게이트 조회 실패"
+            DESCRIPTION="Backend CI 결과를 확인하지 못해 NCP 개발 서버 배포를 차단했습니다."
+            COLOR=15105570
+            STATUS_LABEL="CI 조회 실패"
           elif [ "$CI_GATE_STATUS" = "failure" ]; then
             TITLE="⛔ Backend Dev CD 차단"
             DESCRIPTION="develop Backend CI가 통과하지 않아 NCP 개발 서버 배포를 차단했습니다."
             COLOR=15105570
             STATUS_LABEL="CI 차단"
+          elif [ "$DEPLOY_FAILURE_REASON" = "preflight-unhealthy" ]; then
+            TITLE="⚠️ Backend Dev CD 배포 보류"
+            DESCRIPTION="기존 NCP 개발 서버가 배포 전 health check에 실패해 후보 버전을 적용하지 않았습니다."
+            COLOR=16705372
+            STATUS_LABEL="기존 서비스 비정상"
           elif [ "$ROLLBACK_STATUS" = "succeeded" ]; then
             TITLE="⚠️ Backend Dev CD 롤백"
             DESCRIPTION="신규 버전 배포에 실패해 직전 정상 버전으로 자동 롤백했습니다."
@@ -519,8 +815,10 @@ jobs:
             --arg upload "$(stage_label "$UPLOAD_STATUS")" \
             --arg deploy "$(stage_label "$DEPLOY_STATUS")" \
             --arg ci_gate "$(stage_label "$ci_gate_status")" \
+            --arg ci_gate_conclusion "$(stage_label "$ci_gate_conclusion")" \
             --arg ci_run_id "$CI_RUN_ID" \
             --arg rollback "$(stage_label "$rollback_status")" \
+            --arg failure_reason "$(stage_label "$deploy_failure_reason")" \
             --arg run_url "$RUN_URL" \
             --arg repository "$GITHUB_REPOSITORY" \
             --argjson color "$COLOR" \
@@ -538,10 +836,12 @@ jobs:
                     { name: "브랜치", value: ("`" + $branch + "`"), inline: true },
                     { name: "배포 대상", value: "`NCP Dev`", inline: true },
                     { name: "CI 게이트", value: $ci_gate, inline: true },
+                    { name: "CI 결과", value: $ci_gate_conclusion, inline: true },
                     { name: "빌드", value: $build, inline: true },
                     { name: "JAR 전송", value: $upload, inline: true },
                     { name: "서비스 재시작", value: $deploy, inline: true },
                     { name: "롤백", value: $rollback, inline: true },
+                    { name: "실패 원인", value: $failure_reason, inline: true },
                     { name: "커밋", value: ("`" + $commit + "`"), inline: true },
                     { name: "실행자", value: ("`" + $actor + "`"), inline: true },
                     { name: "Backend CI 로그", value: (
