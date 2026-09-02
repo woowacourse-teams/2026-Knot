@@ -30,6 +30,7 @@ from pydantic import BaseModel, ConfigDict, ValidationError
 _DEFAULT_RESULTS = Path(".benchmark-data/rag-quality-retrieval-final-10x.jsonl")
 _DEFAULT_GOLD_SET = Path("docs/llm-search-benchmark-gold-set.md")
 _NO_ANSWER_CASES = frozenset({"G-011", "G-012"})
+_NO_ANSWER_CATEGORIES = frozenset({"no_answer", "broad", "clarification"})
 
 
 class EvaluationError(Exception):
@@ -261,7 +262,7 @@ def _structural_failures(row: EvaluationRow) -> tuple[str, ...]:
 
 
 def _expected_sources(case: BenchmarkCase, turn: int) -> tuple[str, ...]:
-    if case.case_id in _NO_ANSWER_CASES:
+    if case.case_id in _NO_ANSWER_CASES or case.category in _NO_ANSWER_CATEGORIES:
         return ()
     if case.case_id == "G-013" and turn == 1:
         return case.source_ids[:1]
