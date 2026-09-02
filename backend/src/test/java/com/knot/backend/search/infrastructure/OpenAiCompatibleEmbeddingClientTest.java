@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicReference;
+import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -141,8 +142,11 @@ class OpenAiCompatibleEmbeddingClientTest {
                 )
         );
 
-        // when & then
-        assertThatThrownBy(() -> client.embed(List.of("질문"))).isInstanceOfSatisfying(
+        // when
+        ThrowingCallable action = () -> client.embed(List.of("질문"));
+
+        // then
+        assertThatThrownBy(action).isInstanceOfSatisfying(
                 SearchException.class,
                 exception -> assertThat(exception.searchErrorCode()).isEqualTo(SearchErrorCode.SEARCH_PROVIDER_FAILED)
         );

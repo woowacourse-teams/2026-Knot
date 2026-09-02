@@ -9,6 +9,7 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class MarkdownChunker {
     private static final int MIN_BOUNDARY_LENGTH = 80;
+
     private final SearchProperties properties;
 
     public List<MarkdownChunk> chunk(String markdown) {

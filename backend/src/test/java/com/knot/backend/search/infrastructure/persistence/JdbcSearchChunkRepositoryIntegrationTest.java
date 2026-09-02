@@ -215,9 +215,11 @@ class JdbcSearchChunkRepositoryIntegrationTest {
             Long pageId,
             String title
     ) {
-        jdbcClient.sql(
-                "INSERT INTO members (id, nickname, profile_image_url) OVERRIDING SYSTEM VALUE VALUES (:id, :nickname, NULL)"
-        )
+        jdbcClient.sql("""
+                INSERT INTO members (id, nickname, profile_image_url)
+                OVERRIDING SYSTEM VALUE
+                VALUES (:id, :nickname, NULL)
+                """)
                 .param(
                         "id",
                         memberId
@@ -227,9 +229,11 @@ class JdbcSearchChunkRepositoryIntegrationTest {
                         "member-" + memberId
                 )
                 .update();
-        jdbcClient.sql(
-                "INSERT INTO workspaces (id, name, created_at) OVERRIDING SYSTEM VALUE VALUES (:id, :name, :createdAt)"
-        )
+        jdbcClient.sql("""
+                INSERT INTO workspaces (id, name, created_at)
+                OVERRIDING SYSTEM VALUE
+                VALUES (:id, :name, :createdAt)
+                """)
                 .param(
                         "id",
                         workspaceId
@@ -408,15 +412,15 @@ class JdbcSearchChunkRepositoryIntegrationTest {
             Long pageId,
             String title
     ) {
-        jdbcClient
-                .sql(
-                        """
-                                INSERT INTO content_import_runs (
-                                    id, workspace_id, content_source_connection_id, requested_by_member_id,
-                                    status, total_page_count, processed_page_count, started_at, completed_at, created_at
-                                ) OVERRIDING SYSTEM VALUE VALUES (101, 1, 101, 11, 'COMPLETED', 1, 1, :startedAt, :completedAt, :createdAt)
-                                """
+        jdbcClient.sql("""
+                INSERT INTO content_import_runs (
+                    id, workspace_id, content_source_connection_id, requested_by_member_id,
+                    status, total_page_count, processed_page_count, started_at, completed_at, created_at
+                ) OVERRIDING SYSTEM VALUE VALUES (
+                    101, 1, 101, 11, 'COMPLETED', 1, 1,
+                    :startedAt, :completedAt, :createdAt
                 )
+                """)
                 .param(
                         "startedAt",
                         NOW.plusSeconds(3)
