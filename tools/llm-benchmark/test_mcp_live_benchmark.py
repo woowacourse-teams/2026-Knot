@@ -17,6 +17,7 @@ from io import StringIO
 import pytest
 import typer
 from benchmark_core import ContextPack
+from benchmark_metadata import create_benchmark_metadata
 from gold_set import BenchmarkCase
 from mcp_adapter import McpContextTiming, ReplayMcpAdapter
 from mcp_models import (
@@ -72,6 +73,38 @@ def test_record_keeps_mcp_access_and_model_latency_separate() -> None:
     assert record.mcp_rate_limit_count == 1
     assert record.mcp_elapsed_ms == 12.5
     assert record.mcp_operations == ("search:notion-search",)
+
+
+def test_record_keeps_live_run_metadata_with_the_observation() -> None:
+    # Given: a live MCP execution identity without any credential field
+    metadata = create_benchmark_metadata(
+        run_id="live-001",
+        phase="live",
+        condition="cold",
+        snapshot_id="notion-live",
+        model="qwen/qwen3.6-27b",
+        prompt="system prompt",
+        generation_options={"tool_calling": True},
+        observed_at="2026-09-02T09:00:00+00:00",
+    )
+
+    # When: the live result row is created
+    record = _record(
+        BenchmarkCase("G-001", "confirmed", "fact", ("DB",), "PostgreSQL", ("page-1",)),
+        1,
+        1,
+        "DB",
+        _timing(),
+        12.5,
+        "PostgreSQL",
+        7.5,
+        20.0,
+        None,
+        metadata=metadata,
+    )
+
+    # Then: the observation remains attributable to the live run
+    assert record.metadata == metadata
 
 
 def test_run_case_records_missing_chat_client_as_an_error() -> None:
