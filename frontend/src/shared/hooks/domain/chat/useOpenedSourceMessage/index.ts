@@ -9,6 +9,7 @@ const SOURCE_MESSAGE_PARAM = "messageId";
  * 근거 버튼은 대화 패널에, 문서 목록은 그 옆 레일에 있어 서로 다른 화면 구획에 놓입니다.
  * 두 곳이 같은 상태를 봐야 하므로 URL의 쿼리 파라미터를 값의 원본으로 씁니다.
  * 대화를 옮기면 경로가 바뀌면서 파라미터도 함께 사라집니다.
+ * 닫으면 파라미터를 지웁니다. 그러면 문서 레일이 자리를 비워 대화가 화면을 넓게 씁니다.
  */
 const useOpenedSourceMessage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -30,7 +31,19 @@ const useOpenedSourceMessage = () => {
     );
   };
 
-  return { openedMessageId, openSourceMessage };
+  const closeSourceMessage = () => {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete(SOURCE_MESSAGE_PARAM);
+
+        return next;
+      },
+      { replace: true },
+    );
+  };
+
+  return { openedMessageId, openSourceMessage, closeSourceMessage };
 };
 
 export default useOpenedSourceMessage;
