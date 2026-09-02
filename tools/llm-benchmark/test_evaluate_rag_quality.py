@@ -23,8 +23,22 @@ def test_no_answer_and_clarification_require_empty_sources() -> None:
         _case("G-012", ("넓은 질문",), ("856de115-6a83-8253-96be-810bf12c4384",)),
     )
     rows = (
-        EvaluationRow(case_id="G-011", repeat=1, turn=1, strategy="rag", source_paths=(), retrieved_count=0),
-        EvaluationRow(case_id="G-012", repeat=1, turn=1, strategy="rag", source_paths=(), retrieved_count=0),
+        EvaluationRow(
+            case_id="G-011",
+            repeat=1,
+            turn=1,
+            strategy="rag",
+            source_paths=(),
+            retrieved_count=0,
+        ),
+        EvaluationRow(
+            case_id="G-012",
+            repeat=1,
+            turn=1,
+            strategy="rag",
+            source_paths=(),
+            retrieved_count=0,
+        ),
     )
 
     summary = evaluate(rows, cases, "rag", repeats=1)
@@ -41,8 +55,22 @@ def test_related_documents_must_match_all_three_sources() -> None:
     )
     cases = (_case("G-013", ("질문", "추가"), sources),)
     rows = (
-        EvaluationRow(case_id="G-013", repeat=1, turn=1, strategy="rag", source_paths=(sources[0],), retrieved_count=1),
-        EvaluationRow(case_id="G-013", repeat=1, turn=2, strategy="rag", source_paths=sources, retrieved_count=3),
+        EvaluationRow(
+            case_id="G-013",
+            repeat=1,
+            turn=1,
+            strategy="rag",
+            source_paths=(sources[0],),
+            retrieved_count=1,
+        ),
+        EvaluationRow(
+            case_id="G-013",
+            repeat=1,
+            turn=2,
+            strategy="rag",
+            source_paths=sources,
+            retrieved_count=3,
+        ),
     )
 
     summary = evaluate(rows, cases, "rag", repeats=1)
@@ -141,8 +169,22 @@ def test_no_answer_and_broad_workload_cases_must_not_expose_sources() -> None:
         _case("W-031", ("전체 현황?",), ("policy",), "broad"),
     )
     rows = (
-        EvaluationRow(case_id="W-030", repeat=1, turn=1, strategy="rag", source_paths=(), retrieved_count=0),
-        EvaluationRow(case_id="W-031", repeat=1, turn=1, strategy="rag", source_paths=(), retrieved_count=0),
+        EvaluationRow(
+            case_id="W-030",
+            repeat=1,
+            turn=1,
+            strategy="rag",
+            source_paths=(),
+            retrieved_count=0,
+        ),
+        EvaluationRow(
+            case_id="W-031",
+            repeat=1,
+            turn=1,
+            strategy="rag",
+            source_paths=(),
+            retrieved_count=0,
+        ),
     )
 
     # When: the automatic retrieval gate evaluates those policy cases

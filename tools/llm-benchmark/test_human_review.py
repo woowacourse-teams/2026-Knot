@@ -123,9 +123,19 @@ def test_pass_or_fail_labels_require_reviewer_and_all_quality_dimensions() -> No
     # Given: an incomplete terminal label
     # When & then: terminal decisions cannot omit evidence dimensions
     with pytest.raises(ValidationError):
-        _row(decision="pass", answer_correct=True, sources_relevant=True, policy_compliant=None)
+        _row(
+            decision="pass",
+            answer_correct=True,
+            sources_relevant=True,
+            policy_compliant=None,
+        )
     with pytest.raises(ValidationError):
-        _row(decision="fail", answer_correct=False, sources_relevant=True, policy_compliant=False)
+        _row(
+            decision="fail",
+            answer_correct=False,
+            sources_relevant=True,
+            policy_compliant=False,
+        )
     with pytest.raises(ValidationError):
         _row(
             decision="not_evaluated",
@@ -138,7 +148,9 @@ def test_pass_or_fail_labels_require_reviewer_and_all_quality_dimensions() -> No
 
 def test_human_review_template_covers_every_independent_workload_turn() -> None:
     # Given: the checked-in pending template for the independent workload
-    rows = load_human_review(Path("docs/llm-search-benchmark-human-review-template.jsonl"))
+    rows = load_human_review(
+        Path("docs/llm-search-benchmark-human-review-template.jsonl")
+    )
 
     # Then: every workload turn has one pending row ready for a reviewer
     assert len(rows) == 33

@@ -91,5 +91,7 @@ def load_workload(path: Path, minimum_cases: int = 30) -> WorkloadManifest:
     except ValidationError as error:
         raise WorkloadError(path, "manifest validation failed") from error
     if len(manifest.cases) < minimum_cases:
-        raise WorkloadError(path, f"expected at least {minimum_cases} cases, got {len(manifest.cases)}")
+        raise WorkloadError(
+            path, f"expected at least {minimum_cases} cases, got {len(manifest.cases)}"
+        )
     return manifest

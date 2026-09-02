@@ -50,7 +50,9 @@ def load_cases(path: Path) -> tuple[BenchmarkCase, ...]:
         raise GoldSetError(path, "unknown", "file does not exist") from error
     sections = [
         match.group(0)
-        for match in re.finditer(r"(?ms)^###\s+G-\d+\b.*?(?=^###\s+G-\d+\b|\Z)", markdown)
+        for match in re.finditer(
+            r"(?ms)^###\s+G-\d+\b.*?(?=^###\s+G-\d+\b|\Z)", markdown
+        )
     ]
     cases: list[BenchmarkCase] = []
     for section in sections:
@@ -60,7 +62,9 @@ def load_cases(path: Path) -> tuple[BenchmarkCase, ...]:
         identifier = case_id.group(1)
         turns = _turns(section)
         if not turns:
-            raise GoldSetError(path, identifier, "question or conversation turns are missing")
+            raise GoldSetError(
+                path, identifier, "question or conversation turns are missing"
+            )
         cases.append(
             BenchmarkCase(
                 identifier,
@@ -117,14 +121,18 @@ def _expected_answer(section: str) -> str:
     )
     if match is None:
         return ""
-    return "\n".join(line.lstrip().removeprefix("> ") for line in match.group("body").splitlines()).strip()
+    return "\n".join(
+        line.lstrip().removeprefix("> ") for line in match.group("body").splitlines()
+    ).strip()
 
 
 def _source_ids(section: str) -> tuple[str, ...]:
     ids: list[str] = []
     collecting_nested = False
     for line in section.splitlines():
-        direct = re.match(r"^\s*-\s+page ID:\s*`?([A-Za-z0-9][A-Za-z0-9-]*)`?\s*$", line)
+        direct = re.match(
+            r"^\s*-\s+page ID:\s*`?([A-Za-z0-9][A-Za-z0-9-]*)`?\s*$", line
+        )
         if direct is not None:
             ids.append(direct.group(1))
             collecting_nested = False

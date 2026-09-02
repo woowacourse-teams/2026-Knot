@@ -97,14 +97,24 @@ class EvaluationSummary:
 
 
 def main(
-    results: list[Path] = typer.Option([], "--results", help="One or more JSONL outputs from the RAG benchmark."),
+    results: list[Path] = typer.Option(
+        [], "--results", help="One or more JSONL outputs from the RAG benchmark."
+    ),
     gold_set: Path = typer.Option(_DEFAULT_GOLD_SET, help="Markdown gold-set path."),
     strategy: str = typer.Option("rag", help="Expected strategy label."),
     repeats: int = typer.Option(10, min=1, help="Expected repeats per case."),
-    require_answer: bool = typer.Option(False, help="Fail when an answer is missing or fails the answer-shape gate."),
-    human_labels: Path | None = typer.Option(None, "--human-labels", help="Optional JSONL human-review labels."),
-    human_repeat: int = typer.Option(1, min=1, help="Result repeat represented by the human-review labels."),
-    require_human_review: bool = typer.Option(False, help="Fail unless every expected answer has a terminal human label."),
+    require_answer: bool = typer.Option(
+        False, help="Fail when an answer is missing or fails the answer-shape gate."
+    ),
+    human_labels: Path | None = typer.Option(
+        None, "--human-labels", help="Optional JSONL human-review labels."
+    ),
+    human_repeat: int = typer.Option(
+        1, min=1, help="Result repeat represented by the human-review labels."
+    ),
+    require_human_review: bool = typer.Option(
+        False, help="Fail unless every expected answer has a terminal human label."
+    ),
 ) -> None:
     """Check every expected case/turn/repeat and print a CI-friendly gate summary."""
     cases = load_cases(gold_set)
@@ -125,7 +135,9 @@ def main(
     )
     if summary.answer_gate_passed is None:
         status = "NOT_EVALUATED" if summary.answer_evaluated == 0 else "PARTIAL"
-        typer.echo(f"answer_gate={status} ({summary.answer_passed}/{summary.answer_evaluated})")
+        typer.echo(
+            f"answer_gate={status} ({summary.answer_passed}/{summary.answer_evaluated})"
+        )
     else:
         typer.echo(
             "answer_gate="
@@ -145,9 +157,15 @@ def main(
         f"human_gate={human_summary.status.name} "
         f"({human_summary.passed}/{human_summary.expected})"
     )
-    for issue in (*human_summary.missing, *human_summary.duplicates, *human_summary.unexpected):
+    for issue in (
+        *human_summary.missing,
+        *human_summary.duplicates,
+        *human_summary.unexpected,
+    ):
         typer.echo(f"HUMAN REVIEW COVERAGE: {issue}")
-    if not summary.retrieval_gate_passed or (require_answer and summary.answer_gate_passed is not True):
+    if not summary.retrieval_gate_passed or (
+        require_answer and summary.answer_gate_passed is not True
+    ):
         raise typer.Exit(code=1)
     if require_human_review and not human_summary.gate_passed:
         raise typer.Exit(code=1)
@@ -174,7 +192,9 @@ def evaluate(
     for row in rows:
         key = (row.case_id, row.repeat, row.turn)
         if row.strategy != strategy:
-            retrieval_failures.append(f"{key}: strategy={row.strategy!r}, expected={strategy!r}")
+            retrieval_failures.append(
+                f"{key}: strategy={row.strategy!r}, expected={strategy!r}"
+            )
         if key in by_key:
             retrieval_failures.append(f"{key}: duplicate result row")
         by_key[key] = row
@@ -191,16 +211,28 @@ def evaluate(
             continue
         reasons = list(_structural_failures(row))
         expected_sources = _expected_sources(case, row.turn)
-        if not _source_match(row.source_paths, expected_sources, case.case_id, row.turn):
-            reasons.append(f"expected sources={expected_sources!r}, actual={row.source_paths!r}")
+        if not _source_match(
+            row.source_paths, expected_sources, case.case_id, row.turn
+        ):
+            reasons.append(
+                f"expected sources={expected_sources!r}, actual={row.source_paths!r}"
+            )
         if row.case_id == "G-011" and row.source_paths:
             reasons.append("no-answer case returned a source")
         if row.case_id == "G-012" and row.source_paths:
             reasons.append("clarification case returned a source")
-        answer_passed = None if not row.answer.strip() else answer_shape_passes(row.answer, case.case_id, row.turn)
+        answer_passed = (
+            None
+            if not row.answer.strip()
+            else answer_shape_passes(row.answer, case.case_id, row.turn)
+        )
         if answer_passed is False:
-            answer_failures.append(f"{key}: answer does not satisfy the gold-set policy shape")
-        evaluations.append(TurnEvaluation(key, not reasons, answer_passed, tuple(reasons)))
+            answer_failures.append(
+                f"{key}: answer does not satisfy the gold-set policy shape"
+            )
+        evaluations.append(
+            TurnEvaluation(key, not reasons, answer_passed, tuple(reasons))
+        )
         retrieval_failures.extend(f"{key}: {reason}" for reason in reasons)
 
     answer_evaluated = sum(item.answer_passed is not None for item in evaluations)
@@ -225,11 +257,11 @@ def evaluate_human_labels(
 ) -> HumanReviewSummary:
     """Evaluate one human label for every turn in one selected result repeat."""
     case_turns = tuple(
-        (case.case_id, turn)
-        for case in cases
-        for turn in range(1, len(case.turns) + 1)
+        (case.case_id, turn) for case in cases for turn in range(1, len(case.turns) + 1)
     )
-    return evaluate_human_review(rows, expected_review_keys(case_turns, strategy, repeat))
+    return evaluate_human_review(
+        rows, expected_review_keys(case_turns, strategy, repeat)
+    )
 
 
 def _load_rows(path: Path) -> tuple[EvaluationRow, ...]:

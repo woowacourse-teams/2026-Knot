@@ -75,7 +75,9 @@ class HumanReviewRow(BaseModel):
         if self.decision is HumanReviewDecision.PASS and not passed:
             raise ValueError("pass review requires every quality dimension to be true")
         if self.decision is HumanReviewDecision.FAIL and passed:
-            raise ValueError("fail review requires at least one false quality dimension")
+            raise ValueError(
+                "fail review requires at least one false quality dimension"
+            )
         return self
 
     @property
@@ -106,7 +108,11 @@ class HumanReviewSummary(BaseModel):
             return HumanReviewStatus.FAIL
         if self.pending or self.missing:
             return HumanReviewStatus.PENDING
-        return HumanReviewStatus.PASS if self.expected > 0 and self.passed == self.expected else HumanReviewStatus.FAIL
+        return (
+            HumanReviewStatus.PASS
+            if self.expected > 0 and self.passed == self.expected
+            else HumanReviewStatus.FAIL
+        )
 
     @property
     def gate_passed(self) -> bool:
@@ -148,7 +154,9 @@ def load_human_review(path: Path) -> tuple[HumanReviewRow, ...]:
         try:
             rows.append(HumanReviewRow.model_validate_json(line))
         except (ValidationError, json.JSONDecodeError) as error:
-            raise HumanReviewError(path, f"invalid row at line {line_number}") from error
+            raise HumanReviewError(
+                path, f"invalid row at line {line_number}"
+            ) from error
     return tuple(rows)
 
 
