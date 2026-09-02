@@ -19,7 +19,7 @@ import numpy as np
 import typer
 from access_report_render import render_report
 from access_report_types import PairSummary, StrategySummary
-from gold_set import load_cases
+from gold_set import BenchmarkCase, load_cases
 from pydantic import BaseModel, ConfigDict, ValidationError
 
 MetricName = Literal[
@@ -76,6 +76,7 @@ class AccessRow(BaseModel):
 def main(
     results: Path = typer.Option(..., help="JSONL output from run_four_way_benchmark.py."),
     e2e_results: Path | None = typer.Option(None, help="Optional JSONL with model-generation observations."),
+    gold_set: Path = typer.Option(Path("docs/llm-search-benchmark-gold-set.md"), help="Gold set used to resolve expected source IDs."),
     output: Path = typer.Option(Path("docs/llm-search-ab-test-report.md"), help="Markdown report path."),
     chat_model: str = typer.Option("qwen/qwen3.6-27b"),
     embedding_model: str = typer.Option("text-embedding-qwen3-embedding-0.6b:2"),
@@ -87,8 +88,8 @@ def main(
     """Write a report without declaring a winner below the sample gate."""
     rows = _load_rows(results)
     generation_rows = rows if e2e_results is None else _load_rows(e2e_results)
-    cases = load_cases(Path("docs/llm-search-benchmark-gold-set.md"))
-    expected = {case.case_id: {source.replace("-", "") for source in case.source_ids} for case in cases}
+    cases = load_cases(gold_set)
+    expected = _expected_sources(cases)
     rng = np.random.default_rng(_SEED)
     summaries = tuple(
         _merge_summary(_summarize(rows, strategy, expected), _summarize(generation_rows, strategy, expected))
@@ -109,6 +110,13 @@ def main(
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(render_report(len(rows), sum(row.error is None for row in rows), summaries, retrieval_pairs, e2e_ttft_pairs, e2e_pairs, chat_model, embedding_model, context_length, max_tokens), encoding="utf-8")
     typer.echo(f"report written: {output}")
+
+
+def _expected_sources(cases: tuple[BenchmarkCase, ...]) -> dict[str, set[str]]:
+    return {
+        case.case_id: {source.replace("-", "") for source in case.source_ids}
+        for case in cases
+    }
 
 
 def _load_rows(path: Path) -> tuple[AccessRow, ...]:
