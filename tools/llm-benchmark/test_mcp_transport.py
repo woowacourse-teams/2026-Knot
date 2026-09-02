@@ -21,13 +21,14 @@ from typing import ClassVar
 
 import pytest
 from mcp_models import JsonObject, McpSettings
-from mcp_transport import McpHttpClient, McpProtocolError
+from mcp_transport import McpHttpClient, McpHttpError, McpProtocolError
 
 
 class _McpHandler(BaseHTTPRequestHandler):
     requests: ClassVar[list[tuple[str, dict[str, str], JsonObject | None]]] = []
     call_count: ClassVar[int] = 0
     retry_once: ClassVar[bool] = False
+    auth_failure: ClassVar[bool] = False
 
     def do_POST(self) -> None:
         length = int(self.headers.get("Content-Length", "0"))
@@ -35,6 +36,9 @@ class _McpHandler(BaseHTTPRequestHandler):
         headers = dict(self.headers)
         headers.pop("Authorization", None)
         self.requests.append((self.headers.get("Mcp-Method", ""), headers, request_body))
+        if self.auth_failure:
+            self._respond_error(401, "Authorization: Bearer test-token")
+            return
         method = request_body.get("method") if isinstance(request_body, dict) else None
         if method == "initialize":
             self._respond_json(
@@ -81,6 +85,14 @@ class _McpHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def _respond_error(self, status_code: int, detail: str) -> None:
+        body = detail.encode()
+        self.send_response(status_code)
+        self.send_header("Content-Type", "text/plain")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
     def log_message(self, format: str, *args: str) -> None:
         return
 
@@ -90,6 +102,7 @@ def mcp_server() -> Iterator[tuple[str, ThreadingHTTPServer]]:
     _McpHandler.requests = []
     _McpHandler.call_count = 0
     _McpHandler.retry_once = False
+    _McpHandler.auth_failure = False
     server = ThreadingHTTPServer(("127.0.0.1", 0), _McpHandler)
     thread = Thread(target=server.serve_forever, daemon=True)
     thread.start()
@@ -159,3 +172,21 @@ def test_http_client_surfaces_json_rpc_errors_as_protocol_errors(
     with pytest.raises(McpProtocolError):
         client.call_tool("unknown-tool", {})
     client.close()
+
+
+def test_http_client_redacts_bearer_token_when_mcp_rejects_authentication(
+    mcp_server: tuple[str, ThreadingHTTPServer],
+) -> None:
+    # Given: an MCP server that rejects the request with a token-shaped detail
+    endpoint, _server = mcp_server
+    _McpHandler.auth_failure = True
+    client = McpHttpClient(McpSettings(endpoint_url=endpoint, access_token="test-token", retry_backoff_s=0))
+
+    # When & then: the transport exposes the status without leaking the credential
+    with pytest.raises(McpHttpError) as caught:
+        client.call_tool("notion-search", {"query": "PostgreSQL"})
+    client.close()
+
+    assert caught.value.status_code == 401
+    assert "test-token" not in str(caught.value)
+    assert "Bearer [redacted]" in str(caught.value)
