@@ -30,6 +30,7 @@ class _McpHandler(BaseHTTPRequestHandler):
     retry_once: ClassVar[bool] = False
     auth_failure: ClassVar[bool] = False
     echo_token: ClassVar[bool] = False
+    redirect_once: ClassVar[bool] = False
 
     def do_POST(self) -> None:
         length = int(self.headers.get("Content-Length", "0"))
@@ -37,6 +38,12 @@ class _McpHandler(BaseHTTPRequestHandler):
         headers = dict(self.headers)
         headers.pop("Authorization", None)
         self.requests.append((self.headers.get("Mcp-Method", ""), headers, request_body))
+        if self.redirect_once:
+            type(self).redirect_once = False
+            self.send_response(307)
+            self.send_header("Location", "/redirected")
+            self.end_headers()
+            return
         if self.auth_failure:
             self._respond_error(401, "Authorization: Bearer test-token")
             return
@@ -108,6 +115,7 @@ def mcp_server() -> Iterator[tuple[str, ThreadingHTTPServer]]:
     _McpHandler.retry_once = False
     _McpHandler.auth_failure = False
     _McpHandler.echo_token = False
+    _McpHandler.redirect_once = False
     server = ThreadingHTTPServer(("127.0.0.1", 0), _McpHandler)
     thread = Thread(target=server.serve_forever, daemon=True)
     thread.start()
@@ -213,3 +221,20 @@ def test_http_client_redacts_a_raw_echoed_token_from_mcp_error_body(
     assert caught.value.status_code == 401
     assert "test-token" not in str(caught.value)
     assert "[redacted]" in str(caught.value)
+
+
+def test_http_client_does_not_follow_redirects_with_bearer_credentials(
+    mcp_server: tuple[str, ThreadingHTTPServer],
+) -> None:
+    # Given: an MCP endpoint that redirects the first request
+    endpoint, _server = mcp_server
+    _McpHandler.redirect_once = True
+    client = McpHttpClient(McpSettings(endpoint_url=endpoint, access_token="test-token", retry_backoff_s=0))
+
+    # When & then: redirects are surfaced without issuing a second authenticated request
+    with pytest.raises(McpHttpError) as caught:
+        client.call_tool("notion-search", {"query": "PostgreSQL"})
+    client.close()
+
+    assert caught.value.status_code == 307
+    assert len(_McpHandler.requests) == 1
