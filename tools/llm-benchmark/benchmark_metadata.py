@@ -18,7 +18,10 @@ RunCondition = Literal["cold", "warm"]
 MetadataScalar = str | int | float | bool | None
 SnapshotEntry = Document | tuple[str, str, str]
 _SENSITIVE_OPTION_TERMS = frozenset(
-    {"access", "credential", "key", "password", "secret", "token"}
+    {"access", "credential", "password", "secret", "token"}
+)
+_SENSITIVE_OPTION_COMPOUNDS = frozenset(
+    {"api_key", "private_key", "signing_key", "encryption_key", "master_key"}
 )
 
 
@@ -93,8 +96,14 @@ def _copy_options(
         normalized_key = key.strip()
         if not normalized_key:
             raise ValueError("generation option names must not be blank")
-        option_parts = re.split(r"[^a-z0-9]+", normalized_key.casefold())
-        if any(part in _SENSITIVE_OPTION_TERMS for part in option_parts):
+        option_identifier = re.sub(
+            r"[^a-z0-9]+", "_", normalized_key.casefold()
+        ).strip("_")
+        option_parts = option_identifier.split("_")
+        if (
+            option_identifier in _SENSITIVE_OPTION_COMPOUNDS
+            or any(part in _SENSITIVE_OPTION_TERMS for part in option_parts)
+        ):
             raise ValueError("generation options must not contain credentials")
         copied[normalized_key] = value
     return copied
