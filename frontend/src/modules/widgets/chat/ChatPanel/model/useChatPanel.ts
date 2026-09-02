@@ -1,21 +1,38 @@
-import { useParams } from "react-router";
 import useNavigateToNewChat from "@hooks/domain/chat/useNavigateToNewChat";
-import useOpenedChatSessionList from "@hooks/domain/chat/useOpenedChatSessionList";
+import { useEffect, useRef } from "react";
+import { useLocation, useParams } from "react-router";
+
+import type { ChatNavigationState } from "@/shared/types/chat";
+
+interface UseChatPanelParams {
+  /** 하단 독에서 들고 온 질문을 보낼 함수 */
+  onSubmitPendingQuestion: (question: string) => void;
+}
 
 /**
- * 채팅 패널이 어떤 화면을 보여줄지 정합니다.
+ * 채팅 패널이 화면에 붙을 때 해야 할 일을 다룹니다.
  *
- * 대화 목록은 별도 라우트가 아니라 패널 위에 겹쳐 여는 화면이라 쿼리 파라미터로 다룹니다.
- * 목록을 닫았을 때 대화가 없으면 무엇을 보여줄지는 `Conversation`이 정하므로 여기서는 가리지 않습니다.
- *
- * 목록에서 대화를 고르거나 새 대화를 시작하면 경로가 바뀌면서 파라미터가 사라지므로,
- * 여기서 목록을 따로 닫아 주지 않습니다.
+ * 하단 독에서 질문을 적어 보내면 이 화면으로 옮겨 오면서 질문이 히스토리 state에 실려 옵니다.
+ * 그 질문은 도착 즉시 한 번만 보냅니다. 보내고 나면 세션이 생기며 주소가 바뀌어 state가 사라지지만,
+ * 보내지 못하고 끝난 경우에는 state가 남으므로 이미 보냈는지를 따로 기억해 두 번 보내지 않습니다.
  */
-export const useChatPanel = () => {
+export const useChatPanel = ({
+  onSubmitPendingQuestion,
+}: UseChatPanelParams) => {
   const { workspaceId } = useParams();
+  const { state } = useLocation();
   const { navigateToNewChat } = useNavigateToNewChat();
-  const { isChatSessionListOpen, openChatSessionList, closeChatSessionList } =
-    useOpenedChatSessionList();
+
+  const pendingQuestion = (state as ChatNavigationState | null)?.question;
+  const hasSubmittedPendingQuestionRef = useRef(false);
+
+  useEffect(() => {
+    if (!pendingQuestion) return;
+    if (hasSubmittedPendingQuestionRef.current) return;
+
+    hasSubmittedPendingQuestionRef.current = true;
+    onSubmitPendingQuestion(pendingQuestion);
+  }, [pendingQuestion, onSubmitPendingQuestion]);
 
   const handleStartNewChat = () => {
     if (!workspaceId) return;
@@ -23,10 +40,5 @@ export const useChatPanel = () => {
     navigateToNewChat(workspaceId);
   };
 
-  return {
-    isChatSessionListOpen,
-    openChatSessionList,
-    closeChatSessionList,
-    handleStartNewChat,
-  };
+  return { handleStartNewChat };
 };

@@ -1,13 +1,7 @@
 import { GetChatMessagesResponseDto } from "@api/dto/chatMessage";
-import {
-  GetChatSessionsResponseDto,
-  PostChatSessionResponseDto,
-} from "@api/dto/chatSession";
+import { PostChatSessionResponseDto } from "@api/dto/chatSession";
 import { chatMessagesResponse } from "@api/mock/responses/chatMessage";
-import {
-  chatSessionResponse,
-  chatSessionsResponse,
-} from "@api/mock/responses/chatSession";
+import { chatSessionResponse } from "@api/mock/responses/chatSession";
 import { mockServer } from "@api/mock/server";
 import { ThemeProvider } from "@emotion/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -17,6 +11,8 @@ import { theme } from "@provider/themeProvider";
 import { MemoryRouter, Route, Routes } from "react-router";
 import { PATH_ROUTE } from "@routes/PATH_ROUTE";
 import { describe, expect, it } from "vitest";
+
+import type { ChatNavigationState } from "@/shared/types/chat";
 
 import ChatPanel from ".";
 
@@ -31,9 +27,6 @@ const SAVED_ANSWER = "서버에 저장된 답변";
 const FAILURE_NOTICE = "답변을 만들지 못했어요. 잠시 후 다시 시도해 주세요.";
 const ALREADY_ACTIVE_MESSAGE = "이미 답변을 만들고 있어요";
 
-const { sessions: expectedSessions } = new GetChatSessionsResponseDto(
-  chatSessionsResponse,
-);
 const { messages: expectedMessages } = new GetChatMessagesResponseDto(
   chatMessagesResponse,
 );
@@ -83,7 +76,9 @@ const savedMessagesResponse = [
   },
 ];
 
-const renderChatPanel = (initialEntry: string) => {
+const renderChatPanel = (
+  initialEntry: string | { pathname: string; state: ChatNavigationState },
+) => {
   // 테스트끼리 캐시가 새지 않도록 매번 새 client를 씁니다
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
@@ -111,58 +106,16 @@ const submitQuestion = (question: string) => {
 };
 
 describe("ChatPanel", () => {
-  it("워크스페이스에 쌓인 대화 목록을 보여준다", async () => {
-    renderChatPanel("/workspace/1/chat?chatSessionList=open");
-
-    expect(
-      await screen.findByRole("button", {
-        name: new RegExp(expectedSessions[0].title),
-      }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", {
-        name: new RegExp(expectedSessions[1].title),
-      }),
-    ).toBeInTheDocument();
-  });
-
-  it("대화를 고르면 목록이 닫히고 그 대화의 이력을 보여준다", async () => {
-    renderChatPanel("/workspace/1/chat?chatSessionList=open");
-
-    fireEvent.click(
-      await screen.findByRole("button", {
-        name: new RegExp(expectedSessions[0].title),
-      }),
-    );
-
-    expect(
-      screen.queryByRole("heading", { name: "대화 목록" }),
-    ).not.toBeInTheDocument();
-    expect(
-      await screen.findByText(expectedMessages[0].content),
-    ).toBeInTheDocument();
-    expect(screen.getByText(expectedMessages[1].content)).toBeInTheDocument();
-  });
-
-  it("대화가 하나도 없으면 빈 목록 안내를 보여준다", async () => {
-    mockServer.use(
-      http.get(WORKSPACE_CONVERSATIONS_PATH, () => HttpResponse.json([])),
-    );
-
-    renderChatPanel("/workspace/1/chat?chatSessionList=open");
-
-    expect(
-      await screen.findByText("아직 나눈 대화가 없어요"),
-    ).toBeInTheDocument();
-  });
-
-  it("목록을 열어둔 주소가 아니면 대화 화면을 보여준다", () => {
+  it("대화 화면을 보여준다", () => {
     renderChatPanel("/workspace/1/chat/100");
 
-    expect(
-      screen.queryByRole("heading", { name: "대화 목록" }),
-    ).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "knotted" })).toBeInTheDocument();
+  });
+
+  it("하단 독에서 질문을 들고 들어오면 도착하자마자 그 질문으로 대화를 시작한다", async () => {
+    renderChatPanel({ pathname: "/workspace/1/chat/100", state: { question: QUESTION } });
+
+    expect(await screen.findByText(QUESTION)).toBeInTheDocument();
   });
 
   it("질문을 보내면 부분 답변이 쌓이고, 완료 후 서버 저장본으로 바뀐다", async () => {
@@ -307,39 +260,6 @@ describe("ChatPanel", () => {
     ).toBeInTheDocument();
 
     gate.open();
-  });
-
-  it("새 대화에서 첫 질문을 보내면 세션이 생기고 목록에 나타난다", async () => {
-    // 생성 전에는 기존 세션만, 생성 뒤에는 새 세션까지 돌려줍니다
-    let isCreated = false;
-    mockServer.use(
-      http.get(WORKSPACE_CONVERSATIONS_PATH, () =>
-        HttpResponse.json(
-          isCreated
-            ? [chatSessionResponse, ...chatSessionsResponse]
-            : chatSessionsResponse,
-        ),
-      ),
-      http.post(WORKSPACE_CONVERSATIONS_PATH, () => {
-        isCreated = true;
-
-        return HttpResponse.json(chatSessionResponse, { status: 201 });
-      }),
-    );
-
-    renderChatPanel("/workspace/1/chat");
-
-    submitQuestion(QUESTION);
-
-    fireEvent.click(
-      await screen.findByRole("button", { name: "대화 목록 열기" }),
-    );
-
-    expect(
-      await screen.findByRole("button", {
-        name: new RegExp(expectedNewSession.title),
-      }),
-    ).toBeInTheDocument();
   });
 
   it("409로 거절당하면 안내만 하고 입력을 되살린다", async () => {
