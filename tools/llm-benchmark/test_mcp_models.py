@@ -18,6 +18,7 @@ from mcp_models import (
     FetchToolArguments,
     McpPage,
     McpScope,
+    McpSettings,
     McpToolCallValidationError,
     NimFunctionCall,
     NimToolCall,
@@ -106,3 +107,19 @@ def test_fetch_tool_arguments_require_a_page_reference_and_forbid_extra_actions(
     assert parsed.cursor == "next"
     with pytest.raises(ValidationError):
         FetchToolArguments.model_validate({"id": "page-1", "content": "overwrite"})
+
+
+def test_read_only_mcp_settings_and_tool_calls_reject_write_contracts() -> None:
+    # Given: settings and a model call that try to change the read-only boundary
+    with pytest.raises(ValidationError):
+        McpSettings(search_tool="notion-update")
+    with pytest.raises(ValidationError):
+        McpSettings(fetch_tool="notion-update")
+    with pytest.raises(ValidationError):
+        NimToolCall.model_validate(
+            {
+                "id": "call-1",
+                "type": "function-call",
+                "function": {"name": "notion-search", "arguments": "{}"},
+            }
+        )

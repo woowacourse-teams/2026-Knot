@@ -36,6 +36,9 @@ class _McpHandler(BaseHTTPRequestHandler):
     retry_once: ClassVar[bool] = False
     auth_failure: ClassVar[bool] = False
     echo_token: ClassVar[bool] = False
+    rpc_error_echo: ClassVar[bool] = False
+    tool_error_echo: ClassVar[bool] = False
+    invalid_initialize: ClassVar[bool] = False
     redirect_once: ClassVar[bool] = False
     slow: ClassVar[bool] = False
 
@@ -62,6 +65,9 @@ class _McpHandler(BaseHTTPRequestHandler):
             self._respond_error(401, "server echoed test-token")
             return
         method = request_body.get("method") if isinstance(request_body, dict) else None
+        if self.invalid_initialize and method == "initialize":
+            self._respond_json({"jsonrpc": "2.0", "id": request_body.get("id")})
+            return
         if method == "initialize":
             self._respond_json(
                 {
@@ -86,6 +92,29 @@ class _McpHandler(BaseHTTPRequestHandler):
             )
             return
         params = request_body.get("params", {})
+        if self.rpc_error_echo:
+            self._respond_json(
+                {
+                    "jsonrpc": "2.0",
+                    "id": request_body.get("id"),
+                    "error": {"code": -32000, "message": "server echoed test-token"},
+                }
+            )
+            return
+        if self.tool_error_echo:
+            self._respond_json(
+                {
+                    "jsonrpc": "2.0",
+                    "id": request_body.get("id"),
+                    "result": {
+                        "isError": True,
+                        "content": [
+                            {"type": "text", "text": "server echoed test-token"}
+                        ],
+                    },
+                }
+            )
+            return
         if isinstance(params, dict) and params.get("name") == "unknown-tool":
             self._respond_json(
                 {
@@ -140,6 +169,9 @@ def mcp_server() -> Iterator[tuple[str, ThreadingHTTPServer]]:
     _McpHandler.retry_once = False
     _McpHandler.auth_failure = False
     _McpHandler.echo_token = False
+    _McpHandler.rpc_error_echo = False
+    _McpHandler.tool_error_echo = False
+    _McpHandler.invalid_initialize = False
     _McpHandler.redirect_once = False
     _McpHandler.slow = False
     server = ThreadingHTTPServer(("127.0.0.1", 0), _McpHandler)
@@ -219,6 +251,56 @@ def test_http_client_surfaces_json_rpc_errors_as_protocol_errors(
     # When & then: the successful stub path is intentionally read-only and unknown calls are rejected locally
     with pytest.raises(McpProtocolError):
         client.call_tool("unknown-tool", {})
+    client.close()
+
+
+def test_http_client_redacts_token_from_json_rpc_error(
+    mcp_server: tuple[str, ThreadingHTTPServer],
+) -> None:
+    # Given: a JSON-RPC error that echoes the bearer token
+    endpoint, _server = mcp_server
+    _McpHandler.rpc_error_echo = True
+    client = McpHttpClient(
+        McpSettings(endpoint_url=endpoint, access_token="test-token", retry_backoff_s=0)
+    )
+
+    # When & then: the protocol error is safe to persist or display
+    with pytest.raises(McpProtocolError) as caught:
+        client.call_tool("notion-search", {"query": "PostgreSQL"})
+    client.close()
+
+    assert "test-token" not in str(caught.value)
+
+
+def test_http_client_redacts_token_from_error_tool_result(
+    mcp_server: tuple[str, ThreadingHTTPServer],
+) -> None:
+    # Given: an MCP tool result that reports an error and echoes the bearer token
+    endpoint, _server = mcp_server
+    _McpHandler.tool_error_echo = True
+    client = McpHttpClient(
+        McpSettings(endpoint_url=endpoint, access_token="test-token", retry_backoff_s=0)
+    )
+
+    # When & then: the returned error result cannot leak the token downstream
+    exchange = client.call_tool("notion-search", {"query": "PostgreSQL"})
+    client.close()
+    assert exchange.result.content[0].text == "server echoed [redacted]"
+
+
+def test_http_client_classifies_an_initialize_response_without_result(
+    mcp_server: tuple[str, ThreadingHTTPServer],
+) -> None:
+    # Given: a malformed initialize response without result or error
+    endpoint, _server = mcp_server
+    _McpHandler.invalid_initialize = True
+    client = McpHttpClient(
+        McpSettings(endpoint_url=endpoint, access_token="test-token", retry_backoff_s=0)
+    )
+
+    # When & then: malformed protocol data becomes a typed error, not an AttributeError
+    with pytest.raises(McpProtocolError, match="no result"):
+        client.call_tool("notion-search", {"query": "PostgreSQL"})
     client.close()
 
 
