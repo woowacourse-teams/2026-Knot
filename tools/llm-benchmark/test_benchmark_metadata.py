@@ -45,6 +45,39 @@ def test_metadata_records_reproducibility_inputs_without_secrets() -> None:
     assert metadata.observed_at == "2026-09-02T09:00:00+00:00"
 
 
+def test_metadata_allows_a_non_secret_corpus_key_option() -> None:
+    # Given: the default runner's logical corpus identifier
+    # When: reproducibility metadata includes that identifier
+    metadata = create_benchmark_metadata(
+        run_id="run-001",
+        phase="control",
+        condition="warm",
+        snapshot_id="snapshot-001",
+        model="model",
+        prompt="prompt",
+        generation_options={"corpus_key": "notion-export"},
+    )
+
+    # Then: a non-secret option name is not rejected as a credential
+    assert metadata.generation_options == {"corpus_key": "notion-export"}
+
+
+@pytest.mark.parametrize("option_name", ("api_key", "access_token", "private_key"))
+def test_metadata_still_rejects_credential_shaped_options(option_name: str) -> None:
+    # Given: an option name that can carry a credential
+    # When & then: metadata refuses to persist it
+    with pytest.raises(ValueError, match="credentials"):
+        create_benchmark_metadata(
+            run_id="run-001",
+            phase="control",
+            condition="warm",
+            snapshot_id="snapshot-001",
+            model="model",
+            prompt="prompt",
+            generation_options={option_name: "not-a-secret"},
+        )
+
+
 def test_snapshot_fingerprint_is_stable_for_document_order() -> None:
     # Given: the same snapshot represented in different traversal orders
     documents = (
