@@ -64,7 +64,7 @@ def test_answer_gate_checks_policy_shape_when_answers_exist() -> None:
     assert summary.answer_gate_passed is True
 
 
-def test_answer_gate_fails_when_any_evaluated_turn_has_no_policy() -> None:
+def test_answer_gate_ignores_turns_without_automatic_policy() -> None:
     cases = (_case("G-007", ("첫 질문", "후속 질문"), ("policy",)),)
     rows = (
         EvaluationRow(
@@ -90,10 +90,10 @@ def test_answer_gate_fails_when_any_evaluated_turn_has_no_policy() -> None:
     summary = evaluate(rows, cases, "rag", repeats=1)
 
     assert summary.retrieval_gate_passed
-    assert summary.answer_evaluated == 2
+    assert summary.answer_evaluated == 1
     assert summary.answer_passed == 1
-    assert summary.answer_gate_passed is False
-    assert summary.answer_failures[0].startswith("('G-007', 1, 1):")
+    assert summary.answer_gate_passed is None
+    assert summary.answer_failures == ()
 
 
 def test_human_gate_requires_one_terminal_label_per_expected_turn() -> None:
