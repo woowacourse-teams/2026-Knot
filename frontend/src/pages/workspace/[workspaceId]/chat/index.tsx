@@ -32,8 +32,9 @@ export default function ChatPage() {
 const Container = styled.div`
   display: flex;
   gap: 3.1875rem;
-  width: 100vw;
-  height: calc(100vh - 3.5rem);
+  width: 100%;
+  height: 100%;
+  padding: 0 2.5rem 7rem; /* 0 40px 112px — 아래는 하단 Dock 자리 */
 `;
 
 const ChatPanelWrapper = styled.div`
