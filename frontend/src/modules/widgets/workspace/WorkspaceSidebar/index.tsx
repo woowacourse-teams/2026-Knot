@@ -2,8 +2,6 @@ import useWorkspaceQuery from "@api/queries/useWorkspaceQuery";
 import styled from "@emotion/styled";
 import Avatar from "@primitives/ui/Avatar";
 
-import ChevronDownIcon from "@/assets/icons/chevronDown.svg";
-import PlusIcon from "@/assets/icons/plus.svg";
 import { useParams } from "react-router";
 
 import { WORKSPACE_TREE } from "./constants/workspaceSidebar";
@@ -18,7 +16,6 @@ import SidebarTreeList from "./ui/SidebarTreeList";
  *
  * 헤더의 워크스페이스 이름은 현재 `:workspaceId`의 워크스페이스 조회 응답에서 오고, 레이아웃의 진입 판정과
  * 같은 쿼리라 요청은 한 번만 나가요. 응답 전에는 이름 자리를 비워 둬요.
- * 워크스페이스 전환·폴더 추가는 API가 없어 모양만 그리고,
  * 임시 트리의 폴더 행만 눌러서 펼치고 접을 수 있어요.
  *
  * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=1382-2171 Sidebar/Drawer}
@@ -43,12 +40,10 @@ export default function WorkspaceSidebar() {
           />
           <WorkspaceName>{workspaceName}</WorkspaceName>
         </WorkspaceInfo>
-        <ChevronDownIcon size={12} />
       </WorkspaceHeader>
 
       <FolderHead>
         <FolderLabel>폴더</FolderLabel>
-        <PlusIcon size={14} />
       </FolderHead>
 
       <SidebarTreeList
