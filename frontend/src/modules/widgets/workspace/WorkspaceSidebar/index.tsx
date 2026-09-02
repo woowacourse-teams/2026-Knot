@@ -1,12 +1,13 @@
+import useNotionPageTreeQuery from "@api/queries/useNotionPageTreeQuery";
 import useWorkspaceQuery from "@api/queries/useWorkspaceQuery";
 import styled from "@emotion/styled";
 import Avatar from "@primitives/ui/Avatar";
 
 import { useParams } from "react-router";
 
-import { WORKSPACE_TREE } from "./constants/workspaceSidebar";
 import { useWorkspaceTree } from "./model/useWorkspaceTree";
 import SidebarTreeList from "./ui/SidebarTreeList";
+import { toWorkspaceTree } from "./utils/toWorkspaceTree";
 
 /**
  * 워크스페이스 사이드바 드로어.
@@ -16,7 +17,9 @@ import SidebarTreeList from "./ui/SidebarTreeList";
  *
  * 헤더의 워크스페이스 이름은 현재 `:workspaceId`의 워크스페이스 조회 응답에서 오고, 레이아웃의 진입 판정과
  * 같은 쿼리라 요청은 한 번만 나가요. 응답 전에는 이름 자리를 비워 둬요.
- * 임시 트리의 폴더 행만 눌러서 펼치고 접을 수 있어요.
+ *
+ * 폴더 목록은 마지막 Import로 발행된 Notion Page Tree예요. 서버는 부모 ID만 달린 평평한 목록을 주므로
+ * 트리 모양으로 묶는 일은 여기서 하고, 하위 페이지가 있는 페이지만 눌러서 펼치고 접을 수 있어요.
  *
  * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=1382-2171 Sidebar/Drawer}
  */
@@ -26,8 +29,13 @@ export default function WorkspaceSidebar() {
   const { data: workspace } = useWorkspaceQuery({
     workspaceId: Number(workspaceId),
   });
+  const { data: pageTree } = useNotionPageTreeQuery({
+    workspaceId: Number(workspaceId),
+  });
 
   const workspaceName = workspace?.name ?? "";
+  // 페이지 수가 많지 않고 응답 DTO는 refetch마다 참조가 바뀌므로 메모이제이션하지 않아요
+  const treeNodes = toWorkspaceTree(pageTree?.pages ?? []);
 
   return (
     <Container aria-label="워크스페이스 사이드바">
@@ -47,7 +55,7 @@ export default function WorkspaceSidebar() {
       </FolderHead>
 
       <SidebarTreeList
-        nodes={WORKSPACE_TREE}
+        nodes={treeNodes}
         depth={0}
         isFolderExpanded={isFolderExpanded}
         onToggleFolder={toggleFolder}
