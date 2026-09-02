@@ -111,20 +111,29 @@ def page_from_result(
             for candidate in result_records(result)
             if string(candidate, "id", "page_id", "pageId") is not None
         ),
-        {},
+        None,
     )
+    if record is None:
+        raise McpScopeError(
+            f"page {hit.page_id!r} fetch result is missing scope metadata"
+        )
+    workspace_id = string(record, "workspace_id", "workspaceId")
+    snapshot_id = string(record, "snapshot_id", "snapshotId")
+    if workspace_id is None or (
+        scope.active_snapshot_id is not None and snapshot_id is None
+    ):
+        raise McpScopeError(
+            f"page {hit.page_id!r} fetch result is missing scope metadata"
+        )
     page = McpPage(
-        string(record, "id", "page_id", "pageId") or hit.page_id,
+        string(record, "id", "page_id", "pageId"),
         string(record, "title", "name") or heading(result) or hit.title,
         string(record, "url", "page_url", "pageUrl") or hit.url,
         "\n\n".join(page_text_content(result))
         or string(record, "content", "text")
         or hit.snippet,
-        string(record, "workspace_id", "workspaceId")
-        or hit.workspace_id
-        or scope.workspace_id,
-        string(record, "snapshot_id", "snapshotId")
-        or hit.snapshot_id,
+        workspace_id,
+        snapshot_id,
         string(record, "parent_id", "parentPageId"),
         string(record, "last_edited_time", "lastEditedTime") or hit.last_edited_time,
     )

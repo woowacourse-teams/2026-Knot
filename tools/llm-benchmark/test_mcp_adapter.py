@@ -226,6 +226,8 @@ def test_live_adapter_paginates_search_and_normalizes_fetch_content() -> None:
                 "structuredContent": {
                     "id": "page-1",
                     "title": "DB",
+                    "workspace_id": "workspace-a",
+                    "snapshot_id": "snapshot-1",
                     "last_edited_time": "2026-08-19T00:00:00Z",
                 },
             }
@@ -403,6 +405,8 @@ def test_live_adapter_paginates_sub_block_detail_content() -> None:
                 "structuredContent": {
                     "id": "page-1",
                     "title": "DB",
+                    "workspace_id": "workspace-a",
+                    "snapshot_id": "snapshot-1",
                     "has_more": True,
                     "next_cursor": "block-2",
                 },
@@ -417,7 +421,12 @@ def test_live_adapter_paginates_sub_block_detail_content() -> None:
     second = McpToolExchange(
         McpToolResult.model_validate(
             {
-                "structuredContent": {"id": "page-1", "has_more": False},
+                "structuredContent": {
+                    "id": "page-1",
+                    "workspace_id": "workspace-a",
+                    "snapshot_id": "snapshot-1",
+                    "has_more": False,
+                },
                 "content": [{"type": "text", "text": "child block"}],
             }
         ),
@@ -455,6 +464,8 @@ def test_live_adapter_does_not_return_partial_content_after_a_sub_block_failure(
             {
                 "structuredContent": {
                     "id": "page-1",
+                    "workspace_id": "workspace-a",
+                    "snapshot_id": "snapshot-1",
                     "has_more": True,
                     "next_cursor": "block-2",
                 },
@@ -566,6 +577,8 @@ def test_live_fetch_rejects_more_content_without_a_continuation_cursor() -> None
             {
                 "structuredContent": {
                     "id": "page-1",
+                    "workspace_id": "workspace-a",
+                    "snapshot_id": "snapshot-1",
                     "has_more": True,
                 },
                 "content": [{"type": "text", "text": "partial"}],
@@ -596,6 +609,8 @@ def test_live_fetch_rejects_unresolved_block_ids_in_a_complete_response() -> Non
             {
                 "structuredContent": {
                     "id": "page-1",
+                    "workspace_id": "workspace-a",
+                    "snapshot_id": "snapshot-1",
                     "unknown_block_ids": ["block-2"],
                     "has_more": False,
                 },
