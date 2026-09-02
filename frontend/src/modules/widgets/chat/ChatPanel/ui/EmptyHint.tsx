@@ -28,7 +28,7 @@ const Container = styled.div`
 
 const Title = styled.strong`
   ${({ theme }) => theme.text.heading01};
-  color: ${({ theme }) => theme.neutral[0]};
+  color: ${({ theme }) => theme.neutral[900]};
 `;
 
 const Description = styled.span`

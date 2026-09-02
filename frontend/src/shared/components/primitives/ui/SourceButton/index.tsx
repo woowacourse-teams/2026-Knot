@@ -41,16 +41,18 @@ const Container = styled.button<{ $isSelected: boolean }>`
   gap: 0.5rem;
   height: 2rem;
   padding: 0 0.5rem;
-  border: 1px solid ${({ theme }) => theme.neutral[700]};
+  border: 1px solid
+    ${({ theme, $isSelected }) =>
+      $isSelected ? theme.neutral[300] : theme.neutral[600]};
   border-radius: 0.5rem;
   transition:
     background-color 0.3s ease-in,
     color 0.3s ease-in;
 
   background-color: ${({ theme, $isSelected }) =>
-    $isSelected ? theme.neutral[700] : "transparent"};
+    $isSelected ? theme.neutral[100] : "transparent"};
   color: ${({ theme, $isSelected }) =>
-    $isSelected ? theme.neutral[0] : theme.neutral[300]};
+    $isSelected ? theme.neutral[900] : theme.neutral[600]};
 
   & > svg {
     flex-shrink: 0;

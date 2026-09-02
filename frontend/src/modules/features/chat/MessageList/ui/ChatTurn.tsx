@@ -85,12 +85,12 @@ const Answer = styled.div`
 
 const Meta = styled.p`
   ${({ theme }) => theme.text.caption02};
-  color: ${({ theme }) => theme.neutral[500]};
+  color: ${({ theme }) => theme.neutral[600]};
 `;
 
 const FailureText = styled.p`
   ${({ theme }) => theme.text.caption02};
-  color: ${({ theme }) => theme.sub.warning[200]};
+  color: ${({ theme }) => theme.sub.warning[600]};
 `;
 
 const AnswerText = styled.p`
@@ -98,5 +98,5 @@ const AnswerText = styled.p`
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   ${({ theme }) => theme.text.body01};
-  color: ${({ theme }) => theme.neutral[0]};
+  color: ${({ theme }) => theme.neutral[900]};
 `;
