@@ -19,8 +19,15 @@ import typer
 from benchmark_core import ContextPack
 from gold_set import BenchmarkCase
 from mcp_adapter import McpContextTiming, ReplayMcpAdapter
-from mcp_models import McpPage, McpScope, McpToolTrace
-from nim_client import NimTransportError
+from mcp_models import (
+    JsonObject,
+    McpPage,
+    McpScope,
+    McpToolTrace,
+    NimFunctionCall,
+    NimToolCall,
+)
+from nim_client import ChatMessage, NimResult, NimTransportError
 from retrieval_policy import QueryPlan
 from retrieval_policy import plan_query as real_plan_query
 from run_mcp_live_benchmark import _record, _run_case, main
@@ -161,3 +168,60 @@ def test_retrieval_only_runner_keeps_previous_questions_for_follow_ups(
 
     # Then: the second query planner receives the first question as context
     assert observed_previous == [(), ("PostgreSQL",)]
+
+
+class _FakeToolCallingClient:
+    def __init__(self) -> None:
+        self.results = [
+            NimResult(
+                "",
+                1.0,
+                2.0,
+                (
+                    NimToolCall(
+                        id="search-1",
+                        function=NimFunctionCall(
+                            name="notion-search",
+                            arguments='{"query":"DB"}',
+                        ),
+                    ),
+                ),
+            ),
+            NimResult("PostgreSQL을 사용합니다.", 3.0, 4.0),
+        ]
+
+    def generate(
+        self,
+        messages: tuple[ChatMessage, ...],
+        *,
+        tools: tuple[JsonObject, ...] = (),
+    ) -> NimResult:
+        return self.results.pop(0)
+
+
+def test_live_runner_can_use_the_nim_mcp_tool_call_loop() -> None:
+    # Given: a normal live run and a deterministic NIM client that requests search
+    page = McpPage(
+        "page-1",
+        "DB",
+        "https://notion.so/page-1",
+        "PostgreSQL 결정",
+        "workspace-a",
+        "snapshot-1",
+    )
+    adapter = ReplayMcpAdapter(
+        (page,), McpScope("workspace-a", "snapshot-1", frozenset({"page-1"}))
+    )
+    output = StringIO()
+    case = BenchmarkCase(
+        "G-001", "confirmed", "fact", ("DB가 뭐야?",), "PostgreSQL", ("page-1",)
+    )
+
+    # When: the live runner enables model-driven MCP calls
+    _run_case(output, adapter, _FakeToolCallingClient(), case, 1, 1, False, True)
+
+    # Then: the final answer and fetched source are recorded together
+    record = json.loads(output.getvalue())
+    assert record["answer"] == "PostgreSQL을 사용합니다."
+    assert record["source_paths"] == ["https://notion.so/page-1"]
+    assert record["tool_calls"] == 1
