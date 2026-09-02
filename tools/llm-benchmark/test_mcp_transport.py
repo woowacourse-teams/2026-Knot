@@ -333,6 +333,25 @@ def test_sse_parser_skips_notifications_and_joins_multiline_json_data() -> None:
     assert parsed.result == {"content": [{"type": "text", "text": "ok"}]}
 
 
+def test_sse_parser_accepts_bare_cr_event_boundaries() -> None:
+    # Given: the same notification/response sequence using the SSE bare-CR delimiter
+    body = (
+        'data: {"jsonrpc":"2.0","method":"notifications/progress"}\r\r'
+        'data: {"jsonrpc":"2.0","id":3,"result":{"content":[]}}\r\r'
+    )
+    response = httpx2.Response(
+        200,
+        headers={"Content-Type": "text/event-stream"},
+        content=body.encode(),
+    )
+
+    # When: the response is parsed
+    parsed = parse_response(response)
+
+    # Then: the response event is selected after the notification
+    assert parsed.id == 3
+
+
 def test_http_client_classifies_an_initialize_response_without_result(
     mcp_server: tuple[str, ThreadingHTTPServer],
 ) -> None:
