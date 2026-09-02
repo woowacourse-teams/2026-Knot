@@ -10,7 +10,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -49,26 +48,22 @@ public class PublishedDocumentSearchService {
                 query
         );
         validateQuery(searchQuery);
-        Optional<Long> publishedImportRunId = searchChunkRepository.findPublishedImportRunId(workspaceId);
-        if (publishedImportRunId.isEmpty()) {
-            throw new SearchException(SearchErrorCode.SEARCH_IMPORT_NOT_READY);
-        }
+        Long publishedImportRunId = requirePublishedImportRunId(workspaceId);
         if (questionClassifier.isBroad(query)) {
             return SearchContext.needsClarification();
         }
 
-        Long importRunId = publishedImportRunId.orElseThrow();
         List<String> terms = queryTerms.extract(searchQuery);
         List<SearchChunk> vectorCandidates = embedAndSearch(
                 workspaceId,
-                importRunId,
+                publishedImportRunId,
                 searchQuery
         );
         List<SearchChunk> keywordCandidates = terms.isEmpty()
                 ? List.of()
                 : searchChunkRepository.findByKeywords(
                         workspaceId,
-                        importRunId,
+                        publishedImportRunId,
                         terms,
                         properties.candidateLimit()
                 );
@@ -83,6 +78,11 @@ public class PublishedDocumentSearchService {
                 selected,
                 properties.maxContextCharacters()
         );
+    }
+
+    public void requirePublishedSnapshot(Long workspaceId) {
+        validateWorkspaceId(workspaceId);
+        requirePublishedImportRunId(workspaceId);
     }
 
     private List<SearchChunk> embedAndSearch(
@@ -206,10 +206,19 @@ public class PublishedDocumentSearchService {
         if (embeddingProperties.dimensions() != 1024) {
             throw new SearchException(SearchErrorCode.SEARCH_CONFIGURATION_INVALID);
         }
+        validateWorkspaceId(workspaceId);
+        validateQuery(query);
+    }
+
+    private Long requirePublishedImportRunId(Long workspaceId) {
+        return searchChunkRepository.findPublishedImportRunId(workspaceId)
+                .orElseThrow(() -> new SearchException(SearchErrorCode.SEARCH_IMPORT_NOT_READY));
+    }
+
+    private void validateWorkspaceId(Long workspaceId) {
         if (workspaceId == null || workspaceId <= 0) {
             throw new SearchException(SearchErrorCode.INVALID_SEARCH_WORKSPACE_ID);
         }
-        validateQuery(query);
     }
 
     private void validateQuery(String query) {

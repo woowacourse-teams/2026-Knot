@@ -1,6 +1,9 @@
 import { GetCsrfTokenResponseDto, GetMeResponseDto } from "@api/dto/auth";
 import { GetChatMessagesResponseDto } from "@api/dto/chatMessage";
-import { PostNotionOAuthAuthorizationResponseDto } from "@api/dto/notionConnection";
+import {
+  GetNotionConnectionResponseDto,
+  PostNotionOAuthAuthorizationResponseDto,
+} from "@api/dto/notionConnection";
 import {
   GetChatSessionsResponseDto,
   PostChatSessionResponseDto,
@@ -34,11 +37,15 @@ import {
   getChatSessionsApi,
 } from "@api/fetch/api/v1/workspaces/[workspaceId]/conversations";
 import { getWorkspaceInvitationApi } from "@api/fetch/api/v1/workspaces/[workspaceId]/invitation";
+import { getNotionConnectionApi } from "@api/fetch/api/v1/workspaces/[workspaceId]/notionConnection";
 import { startNotionOAuthApi } from "@api/fetch/api/v1/workspaces/[workspaceId]/notionOauthAuthorizations";
 import { issueWorkspaceInvitationApi } from "@api/fetch/api/v1/workspaces/[workspaceId]/invitations";
 import { reissueWorkspaceInvitationApi } from "@api/fetch/api/v1/workspaces/[workspaceId]/invitations/reissue";
 import { csrfTokenResponse, meResponse } from "@api/mock/responses/auth";
-import { notionOAuthAuthorizationResponse } from "@api/mock/responses/notionConnection";
+import {
+  notionConnectionResponse,
+  notionOAuthAuthorizationResponse,
+} from "@api/mock/responses/notionConnection";
 import { chatMessagesResponse } from "@api/mock/responses/chatMessage";
 import {
   chatSessionResponse,
@@ -154,6 +161,12 @@ describe("mock 기본 핸들러와 fetch 요청 함수의 대응", () => {
         new PostNotionOAuthAuthorizationResponseDto(
           notionOAuthAuthorizationResponse,
         ),
+      );
+    });
+
+    it("GET /api/v1/workspaces/:workspaceId/notion-connection은 notionConnectionResponse를 돌려준다", async () => {
+      await expect(getNotionConnectionApi(WORKSPACE_ID)).resolves.toEqual(
+        new GetNotionConnectionResponseDto(notionConnectionResponse),
       );
     });
   });

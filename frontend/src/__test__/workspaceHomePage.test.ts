@@ -19,8 +19,8 @@ import { expect, test, type Page } from "@playwright/test";
  *
  * 홈 진입, 사이드바 열고 닫기, 폴더 트리 펼침·접힘, 초대 링크·코드 복사, Notion 동기화,
  * 하단 Dock으로 탐색 이동까지 홈 화면 위에서 사용자가 밟는 플로우를 페이지 단위로 확인해요.
- * 회원·워크스페이스·초대·동기화는 dev 서버의 msw mock 응답(`API_MOCKING`)에서 오므로 기대값도 같은
- * 응답을 DTO로 변환해 가져와요. 사이드바 트리와 Notion 카드의 마지막 동기화 시각은 API가 아직 없어 위젯의 임시 상수예요.
+ * 회원·워크스페이스·초대·노션 연결 상태·동기화는 dev 서버의 msw mock 응답(`API_MOCKING`)에서 오므로
+ * 기대값도 같은 응답을 DTO로 변환해 가져와요. 사이드바 트리는 API가 아직 없어 위젯의 임시 상수예요.
  */
 
 const expectedMe = new GetMeResponseDto(meResponse);
@@ -39,8 +39,8 @@ const GREETING = `반가워요, ${expectedMe.nickname} 님`;
 const INVITE_CODE = expectedInvitation.code;
 const DISPLAY_INVITE_LINK = `/invite/${expectedInvitation.linkToken}`;
 
-// TODO(마지막 동기화 시각 API 미정): 시각 API 연결 후 응답으로 교체
-const LAST_SYNCED_AT_LABEL = "어제 오후 3:12에 동기화";
+// 연결 상태별 문구는 NotionSyncCard 위젯의 상수예요. mock 기본 응답이 CONNECTED라 연결됨 문구를 기대해요
+const NOTION_CONNECTED_LABEL = "노션이 연결되어 있어요";
 const SYNCED_DOCUMENT_COUNT = new GetNotionImportStatusResponseDto(
   notionImportStatusResponse,
 ).processedPageCount;
@@ -91,7 +91,7 @@ test.describe("홈 진입", () => {
     await expect(page.getByRole("heading", { name: GREETING })).toBeVisible();
 
     const notionCard = getCard({ page, title: "Notion 동기화" });
-    await expect(notionCard.getByText(LAST_SYNCED_AT_LABEL)).toBeVisible();
+    await expect(notionCard.getByText(NOTION_CONNECTED_LABEL)).toBeVisible();
     await expect(
       notionCard.getByRole("button", { name: "지금 동기화" }),
     ).toBeEnabled();
@@ -293,12 +293,12 @@ test.describe("Notion 동기화 카드", () => {
       notionCard.getByRole("button", { name: "완료" }),
     ).toBeDisabled();
     await expect(syncButton).toBeHidden();
-    await expect(notionCard.getByText(LAST_SYNCED_AT_LABEL)).toBeHidden();
+    await expect(notionCard.getByText(NOTION_CONNECTED_LABEL)).toBeHidden();
 
-    // 2초 뒤 원래 `지금 동기화`와 마지막 동기화 시각으로 돌아와요
+    // 2초 뒤 원래 `지금 동기화`와 연결 상태 안내로 돌아와요
     await expect(syncButton).toBeVisible();
     await expect(syncButton).toBeEnabled();
-    await expect(notionCard.getByText(LAST_SYNCED_AT_LABEL)).toBeVisible();
+    await expect(notionCard.getByText(NOTION_CONNECTED_LABEL)).toBeVisible();
   });
 });
 

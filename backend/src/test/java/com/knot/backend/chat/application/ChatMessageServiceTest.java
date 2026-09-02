@@ -1,13 +1,17 @@
 package com.knot.backend.chat.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.knot.backend.chat.domain.ChatErrorCode;
@@ -35,6 +39,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 
 class ChatMessageServiceTest {
     private final PublishedDocumentSearchService documentSearchService = mock(PublishedDocumentSearchService.class);
@@ -141,12 +146,19 @@ class ChatMessageServiceTest {
                 listener,
                 never()
         ).onError(any(ChatErrorCode.class));
-        verify(persistenceService).saveMessage(
-                anyLong(),
-                org.mockito.ArgumentMatchers.eq(ChatMessageRole.USER),
-                any(),
-                any()
+        InOrder acceptanceOrder = inOrder(
+                documentSearchService,
+                persistenceService
         );
+        acceptanceOrder.verify(documentSearchService)
+                .requirePublishedSnapshot(1L);
+        acceptanceOrder.verify(persistenceService)
+                .saveMessage(
+                        anyLong(),
+                        org.mockito.ArgumentMatchers.eq(ChatMessageRole.USER),
+                        any(),
+                        any()
+                );
         verify(persistenceService).saveAssistantWithReferences(
                 anyLong(),
                 org.mockito.ArgumentMatchers.eq("첫 응답"),
@@ -274,7 +286,7 @@ class ChatMessageServiceTest {
     }
 
     @Test
-    @DisplayName("최초 동기화 전에는 LLM을 호출하지 않고 문서 준비 오류를 전달한다")
+    @DisplayName("최초 동기화 전에는 메시지와 SSE를 시작하지 않고 문서 준비 오류를 반환한다")
     void sendMessage_failure_documentsNotReady() {
         // given
         ChatSessionRepository chatSessionRepository = mock(ChatSessionRepository.class);
@@ -290,25 +302,12 @@ class ChatMessageServiceTest {
                 )
         ).thenReturn(true);
         ChatMessagePersistenceService persistenceService = mock(ChatMessagePersistenceService.class);
-        when(
-                persistenceService.saveMessage(
-                        anyLong(),
-                        any(),
-                        any(),
-                        any()
-                )
-        ).thenReturn(mock(ChatMessage.class));
         ChatMessageRepository chatMessageRepository = mock(ChatMessageRepository.class);
-        when(chatMessageRepository.findAllBySessionId(10L)).thenReturn(List.of());
-        when(
-                documentSearchService.search(
-                        1L,
-                        "질문",
-                        "질문"
-                )
-        ).thenThrow(new SearchException(SearchErrorCode.SEARCH_IMPORT_NOT_READY));
+        doThrow(new SearchException(SearchErrorCode.SEARCH_IMPORT_NOT_READY)).when(documentSearchService)
+                .requirePublishedSnapshot(1L);
         LlmClient llmClient = mock(LlmClient.class);
         ChatStreamListener listener = mock(ChatStreamListener.class);
+        ActiveChatStreamRegistry registry = new ActiveChatStreamRegistry();
         ChatMessageService service = new ChatMessageService(
                 new ChatSessionAccessPolicy(
                         chatSessionRepository,
@@ -318,12 +317,12 @@ class ChatMessageServiceTest {
                 chatMessageRepository,
                 llmClient,
                 documentSearchService,
-                new ActiveChatStreamRegistry(),
+                registry,
                 Runnable::run
         );
 
         // when
-        service.sendMessage(
+        org.assertj.core.api.ThrowableAssert.ThrowingCallable action = () -> service.sendMessage(
                 10L,
                 2L,
                 "질문",
@@ -331,20 +330,17 @@ class ChatMessageServiceTest {
         );
 
         // then
-        verify(listener).onError(ChatErrorCode.CHAT_DOCUMENTS_NOT_READY);
-        verify(
-                llmClient,
-                never()
-        ).start(any());
-        verify(
-                persistenceService,
-                never()
-        ).saveAssistantWithReferences(
-                anyLong(),
-                anyString(),
-                any(),
-                any()
+        assertThatThrownBy(action).isInstanceOfSatisfying(
+                ChatException.class,
+                exception -> assertThat(exception.getErrorCode()).isEqualTo(ChatErrorCode.CHAT_DOCUMENTS_NOT_READY)
         );
+        verifyNoInteractions(
+                persistenceService,
+                chatMessageRepository,
+                llmClient,
+                listener
+        );
+        assertThat(registry.tryAcquire(10L)).isTrue();
     }
 
     @Test
