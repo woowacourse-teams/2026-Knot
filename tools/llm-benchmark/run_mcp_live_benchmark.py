@@ -37,6 +37,7 @@ from gold_set import BenchmarkCase, GoldSetError, load_cases
 from mcp_adapter import (
     LiveNotionMcpAdapter,
     McpAdapterError,
+    McpContextBuildError,
     McpContextTiming,
     build_mcp_context,
 )
@@ -256,6 +257,14 @@ def _run_case(
                 answer = result.text
                 model_ttft_ms = result.ttft_ms
                 model_total_ms = result.total_ms
+            if access_ms == 0.0 and not tool_calling_mode:
+                access_ms = (time.perf_counter() - started) * 1000
+        except McpContextBuildError as caught:
+            context_timing = McpContextTiming(
+                context_timing.context,
+                caught.traces,
+            )
+            error = str(caught)
             if access_ms == 0.0 and not tool_calling_mode:
                 access_ms = (time.perf_counter() - started) * 1000
         except (

@@ -17,6 +17,7 @@ from mcp_adapter_support import (
     snippet,
     trace,
 )
+from mcp_errors import McpHttpError, McpProtocolError, McpTransportError
 from mcp_models import (
     FetchToolArguments,
     JsonObject,
@@ -68,6 +69,19 @@ class McpContextTiming:
 
     context: ContextPack
     traces: tuple[McpToolTrace, ...]
+
+
+class McpContextBuildError(McpAdapterError):
+    """An MCP context failure carrying the operations completed before it."""
+
+    __slots__ = ("traces",)
+
+    traces: tuple[McpToolTrace, ...]
+
+    def __init__(self, error: Exception, traces: tuple[McpToolTrace, ...]) -> None:
+        reason = error.reason if isinstance(error, McpAdapterError) else str(error)
+        super().__init__(reason)
+        self.traces = traces
 
 
 class ReplayMcpAdapter:
@@ -259,8 +273,18 @@ def build_mcp_context(
     adapter: McpReadAdapter, query: str, top_k: int
 ) -> McpContextTiming:
     """Run scoped search/detail calls and render only fetched pages for the model."""
-    search = adapter.search(query, top_k)
-    fetched = tuple(adapter.fetch(hit) for hit in search.hits[: max(top_k, 0)])
+    traces: list[McpToolTrace] = []
+    try:
+        search = adapter.search(query, top_k)
+        traces.append(search.trace)
+        fetched_items = []
+        for hit in search.hits[: max(top_k, 0)]:
+            fetched = adapter.fetch(hit)
+            traces.append(fetched.trace)
+            fetched_items.append(fetched)
+    except (McpAdapterError, McpHttpError, McpProtocolError, McpTransportError) as error:
+        raise McpContextBuildError(error, tuple(traces)) from error
+    fetched = tuple(fetched_items)
     context = render_context(tuple(item.page for item in fetched))
     return McpContextTiming(context, (search.trace, *(item.trace for item in fetched)))
 
