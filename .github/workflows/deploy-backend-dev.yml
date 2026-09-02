@@ -773,13 +773,16 @@ jobs:
             "$LAST_KNOWN_GOOD_READY" \
             "$LAST_KNOWN_GOOD_BACKUP_POINTER"; then
             previous_last_known_good_id="$(<"$LAST_KNOWN_GOOD_BACKUP_POINTER")"
-            if [[ ! "$previous_last_known_good_id" =~ ^[0-9]+-[0-9]+$ ]]; then
+            if [ "$previous_last_known_good_id" = "absent" ] || [ "$previous_last_known_good_id" = "invalid" ]; then
+              printf 'absent\n' > "$LAST_KNOWN_GOOD_BACKUP_STATE"
+            elif [[ "$previous_last_known_good_id" =~ ^[0-9]+-[0-9]+$ ]]; then
+              printf 'ready\n' > "$LAST_KNOWN_GOOD_BACKUP_STATE"
+            else
               echo "The existing last-known-good pointer is invalid."
               echo "KNOT_FAILURE_REASON=backup-last-known-good"
               echo "KNOT_ROLLBACK_STATUS=unavailable"
               exit 1
             fi
-            printf 'ready\n' > "$LAST_KNOWN_GOOD_BACKUP_STATE"
           else
             printf 'absent\n' > "$LAST_KNOWN_GOOD_BACKUP_STATE"
           fi
@@ -799,7 +802,8 @@ jobs:
           rollback_lock="$7"
           previous_last_known_good_pointer="$8"
           last_known_good_pointer="$9"
-          last_known_good_state="${10}"
+          last_known_good_state_file="${10}"
+          last_known_good_state="$(<"$last_known_good_state_file")"
           last_known_good_dir="${last_known_good_pointer%/*}"
 
           exec 8>"$rollback_lock"
@@ -851,7 +855,7 @@ jobs:
                   "$last_known_good_dir"; then
                   return 1
                 fi
-                printf 'invalid\n' \
+                printf 'absent\n' \
                   | tee_with_timeout 15 "$last_known_good_pointer" > /dev/null
                 ;;
               *)
@@ -1122,6 +1126,15 @@ jobs:
           }
 
           promote_last_known_good() {
+            if ! sudo -n /usr/bin/install \
+              -d \
+              -o root \
+              -g root \
+              -m 700 \
+              "$LAST_KNOWN_GOOD_DIR"; then
+              return 1
+            fi
+
             if ! sudo -n /usr/bin/install \
               -d \
               -o root \
