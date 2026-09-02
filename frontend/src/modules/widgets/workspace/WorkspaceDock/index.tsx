@@ -1,3 +1,4 @@
+import { keyframes } from "@emotion/react";
 import styled from "@emotion/styled";
 import Textarea from "@primitives/ui/Textarea";
 
@@ -5,11 +6,27 @@ import GhostIcon from "@/assets/icons/ghost.svg";
 import SendIcon from "@/assets/icons/send.svg";
 
 import { useWorkspaceDock } from "./model/useWorkspaceDock";
+import DockHintTooltip from "./ui/DockHintTooltip";
+
+/** 폭이 벌어지는 동안 안의 내용이 뒤따라 나타나는 모션 */
+const fadeIn = keyframes`
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+`;
 
 /**
  * 화면 하단 가운데에 고정으로 놓이는 독.
  *
- * 접혀 있을 때는 동그란 버튼 하나이고, 누르면 질문 입력창으로 펼쳐져요.
+ * 접혀 있을 때는 동그란 버튼 하나이고, 누르면 질문 입력창으로 폭이 벌어지며 펼쳐져요.
+ * 화면 아무 데서나 글자를 쳐도 같은 자리로 이어지고, 그 방법은 처음 몇 번 말풍선으로 알려줘요.
+ * 펼친 뒤 독 바깥을 누르면 다시 접혀요.
+ * 채팅이 곧 화면인 탐색에서는 접지 않고 늘 펼쳐 둬요.
+ *
  * 질문을 보내면 어느 화면에 있었든 탐색 화면으로 옮겨 가며 그 질문으로 대화를 시작해요.
  * Figma에서 숨겨져 있는 회의 녹음·글 작성 슬롯은 만들지 않아요.
  *
@@ -20,8 +37,10 @@ import { useWorkspaceDock } from "./model/useWorkspaceDock";
  */
 export default function WorkspaceDock() {
   const {
+    formRef,
     textareaRef,
     isExpanded,
+    isHintVisible,
     message,
     canSubmit,
     handleExpand,
@@ -30,49 +49,87 @@ export default function WorkspaceDock() {
     handleSubmit,
   } = useWorkspaceDock();
 
-  if (!isExpanded) {
-    return (
-      <CollapsedBar>
-        <CollapsedButton type="button" aria-label="무엇이든 요청하기" onClick={handleExpand}>
+  return (
+    <Bar ref={formRef} $isExpanded={isExpanded} onSubmit={handleSubmit}>
+      {isHintVisible && <DockHintTooltip />}
+
+      {isExpanded ? (
+        <>
+          <GhostIcon size={24} />
+
+          <MessageField
+            ref={textareaRef}
+            rows={1}
+            aria-label="무엇이든 요청하세요"
+            placeholder="무엇이든 요청하세요"
+            value={message}
+            onChange={handleChange}
+            onKeyDown={handleKeyDown}
+          />
+
+          <SubmitButton type="submit" aria-label="보내기" disabled={!canSubmit}>
+            <SendIcon size={16} />
+          </SubmitButton>
+        </>
+      ) : (
+        <CollapsedButton
+          type="button"
+          aria-label="무엇이든 요청하기"
+          onClick={handleExpand}
+        >
           <GhostIcon size={24} />
         </CollapsedButton>
-      </CollapsedBar>
-    );
-  }
-
-  return (
-    <ExpandedBar onSubmit={handleSubmit}>
-      <GhostIcon size={24} />
-
-      <MessageField
-        ref={textareaRef}
-        rows={1}
-        aria-label="무엇이든 요청하세요"
-        placeholder="무엇이든 요청하세요"
-        value={message}
-        onChange={handleChange}
-        onKeyDown={handleKeyDown}
-      />
-
-      <SubmitButton type="submit" aria-label="보내기" disabled={!canSubmit}>
-        <SendIcon size={16} />
-      </SubmitButton>
-    </ExpandedBar>
+      )}
+    </Bar>
   );
 }
 
-const barStyle = `
+/**
+ * 접힘·펼침을 오가는 독 껍데기.
+ *
+ * 두 모양을 다른 요소로 두면 갈아 끼우느라 모션이 끊기므로, 한 요소의 폭만 바꿔 늘어나고 줄어들게 해요.
+ * 안의 내용은 그 자리에서 갈리므로 폭이 벌어지는 동안 뒤따라 나타나도록 살짝 흐리게 시작해요.
+ */
+const Bar = styled.form<{ $isExpanded: boolean }>`
+  position: relative; /* 안내 말풍선이 이 자리를 기준으로 위에 떠요 */
   display: flex;
   align-items: center;
+  gap: 0.625rem; /* 10px */
+  width: ${({ $isExpanded }) =>
+    $isExpanded ? "min(50rem, 100%)" : "4rem"}; /* 800px : 64px */
   height: 3.75rem; /* 60px */
+  padding: ${({ $isExpanded }) =>
+    $isExpanded
+      ? "0 0.75rem 0 1.25rem" /* 0 12px 0 20px */
+      : "0 0.75rem"}; /* 12px */
   border-radius: 6.25rem; /* 100px */
-`;
-
-const CollapsedBar = styled.div`
-  ${barStyle}
-  padding: 0 0.75rem; /* 12px */
   background-color: ${({ theme }) => theme.neutral[800]};
   box-shadow: ${({ theme }) => theme.shadow03};
+  color: ${({ theme }) => theme.neutral[0]};
+  transition:
+    width 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+    padding 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+
+  & > svg {
+    flex-shrink: 0;
+  }
+
+  /* 말풍선은 제 모션이 따로 있으므로 한 줄에 놓이는 것들만 뒤따라 나타나게 해요 */
+  & > svg,
+  & > button,
+  & > textarea {
+    animation: ${fadeIn} 0.28s ease-out;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+
+    & > svg,
+    & > button,
+    & > textarea {
+      animation: none;
+    }
+  }
 `;
 
 const CollapsedButton = styled.button`
@@ -87,20 +144,6 @@ const CollapsedButton = styled.button`
   &:focus-visible {
     outline: 2px solid ${({ theme }) => theme.sub.accent[500]};
     outline-offset: 2px;
-  }
-`;
-
-const ExpandedBar = styled.form`
-  ${barStyle}
-  gap: 0.625rem; /* 10px */
-  width: min(50rem, 100%); /* 800px */
-  padding: 0 0.75rem 0 1.25rem; /* 0 12px 0 20px */
-  background-color: ${({ theme }) => theme.neutral[800]};
-  box-shadow: ${({ theme }) => theme.shadow03};
-  color: ${({ theme }) => theme.neutral[0]};
-
-  & > svg {
-    flex-shrink: 0;
   }
 `;
 
