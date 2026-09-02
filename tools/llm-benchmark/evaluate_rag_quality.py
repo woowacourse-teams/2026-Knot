@@ -17,6 +17,14 @@ from pathlib import Path
 import typer
 from answer_quality_policy import answer_shape_passes
 from gold_set import BenchmarkCase, load_cases
+from human_review import (
+    HumanReviewError,
+    HumanReviewRow,
+    HumanReviewSummary,
+    evaluate_human_review,
+    expected_review_keys,
+    load_human_review,
+)
 from pydantic import BaseModel, ConfigDict, ValidationError
 
 _DEFAULT_RESULTS = Path(".benchmark-data/rag-quality-retrieval-final-10x.jsonl")
@@ -93,12 +101,19 @@ def main(
     strategy: str = typer.Option("rag", help="Expected strategy label."),
     repeats: int = typer.Option(10, min=1, help="Expected repeats per case."),
     require_answer: bool = typer.Option(False, help="Fail when an answer is missing or fails the answer-shape gate."),
+    human_labels: Path | None = typer.Option(None, "--human-labels", help="Optional JSONL human-review labels."),
+    require_human_review: bool = typer.Option(False, help="Fail unless every expected answer has a terminal human label."),
 ) -> None:
     """Check every expected case/turn/repeat and print a CI-friendly gate summary."""
     cases = load_cases(gold_set)
     result_paths = tuple(results) if results else (_DEFAULT_RESULTS,)
     rows = tuple(row for path in result_paths for row in _load_rows(path))
     summary = evaluate(rows, cases, strategy, repeats)
+    human_summary = evaluate_human_labels(
+        () if human_labels is None else load_human_review(human_labels),
+        cases,
+        strategy,
+    )
     typer.echo(f"results={summary.rows} expected={summary.expected_rows}")
     typer.echo(
         "retrieval_gate="
@@ -123,7 +138,15 @@ def main(
             f"answer coverage={summary.answer_evaluated}/{summary.expected_rows} "
             "(retrieval-only output is intentionally partial)"
         )
+    typer.echo(
+        f"human_gate={human_summary.status.name} "
+        f"({human_summary.passed}/{human_summary.expected})"
+    )
+    for issue in (*human_summary.missing, *human_summary.duplicates, *human_summary.unexpected):
+        typer.echo(f"HUMAN REVIEW COVERAGE: {issue}")
     if not summary.retrieval_gate_passed or (require_answer and summary.answer_gate_passed is not True):
+        raise typer.Exit(code=1)
+    if require_human_review and not human_summary.gate_passed:
         raise typer.Exit(code=1)
 
 
@@ -191,6 +214,21 @@ def evaluate(
     )
 
 
+def evaluate_human_labels(
+    rows: tuple[HumanReviewRow, ...],
+    cases: tuple[BenchmarkCase, ...],
+    strategy: str,
+    repeat: int = 1,
+) -> HumanReviewSummary:
+    """Evaluate one human label for every turn in one selected result repeat."""
+    case_turns = tuple(
+        (case.case_id, turn)
+        for case in cases
+        for turn in range(1, len(case.turns) + 1)
+    )
+    return evaluate_human_review(rows, expected_review_keys(case_turns, strategy, repeat))
+
+
 def _load_rows(path: Path) -> tuple[EvaluationRow, ...]:
     try:
         lines = path.read_text(encoding="utf-8").splitlines()
@@ -251,6 +289,6 @@ def _source_match(
 if __name__ == "__main__":
     try:
         typer.run(main)
-    except EvaluationError as error:
+    except (EvaluationError, HumanReviewError) as error:
         typer.echo(str(error), err=True)
         raise typer.Exit(code=2) from error
