@@ -158,6 +158,29 @@ def test_evaluation_rejects_a_question_that_differs_from_the_workload_turn() -> 
     assert any("question" in failure for failure in summary.retrieval_failures)
 
 
+def test_source_matching_does_not_use_a_parent_directory_as_document_identity() -> None:
+    # Given: the expected page ID appears only in an unrelated parent directory
+    cases = (_case("W-001", ("질문",), ("page-1",)),)
+    rows = (
+        EvaluationRow(
+            case_id="W-001",
+            repeat=1,
+            turn=1,
+            strategy="rag",
+            question="질문",
+            answer="답변",
+            source_paths=("page-1/unrelated.md",),
+            retrieved_count=1,
+        ),
+    )
+
+    # When: source provenance is checked
+    summary = evaluate(rows, cases, "rag", repeats=1)
+
+    # Then: only the document filename can identify the expected source
+    assert not summary.retrieval_gate_passed
+
+
 def test_follow_up_source_expectations_are_checked_per_turn() -> None:
     # Given: each conversational turn has a different expected evidence page
     cases = (
