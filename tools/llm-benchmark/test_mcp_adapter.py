@@ -318,6 +318,102 @@ def test_live_adapter_rejects_detail_from_an_old_snapshot() -> None:
         adapter.fetch(hit)
 
 
+def test_live_adapter_paginates_sub_block_detail_content() -> None:
+    # Given: a page detail split between a root response and a continuation cursor
+    first = McpToolExchange(
+        McpToolResult.model_validate(
+            {
+                "structuredContent": {
+                    "id": "page-1",
+                    "title": "DB",
+                    "has_more": True,
+                    "next_cursor": "block-2",
+                },
+                "content": [{"type": "text", "text": "parent block"}],
+            }
+        ),
+        1,
+        0,
+        0,
+        1.0,
+    )
+    second = McpToolExchange(
+        McpToolResult.model_validate(
+            {
+                "structuredContent": {"id": "page-1", "has_more": False},
+                "content": [{"type": "text", "text": "child block"}],
+            }
+        ),
+        1,
+        0,
+        0,
+        1.0,
+    )
+    client = _FakeMcpClient([first, second], [])
+    from mcp_adapter import LiveNotionMcpAdapter
+
+    adapter = LiveNotionMcpAdapter(client, _scope())
+    hit = McpSearchHit(
+        "page-1", "DB", "https://notion.so/page-1", "", "workspace-a", "snapshot-1"
+    )
+
+    # When: the adapter fetches the page and its continuation blocks
+    fetched = adapter.fetch(hit)
+
+    # Then: all sub-block content and pagination accounting are preserved
+    assert fetched.page.content == "parent block\n\nchild block"
+    assert fetched.trace.http_requests == 2
+    assert client.calls == [
+        ("notion-fetch", {"url": "https://notion.so/page-1"}),
+        ("notion-fetch", {"url": "https://notion.so/page-1", "cursor": "block-2"}),
+    ]
+
+
+def test_live_adapter_does_not_return_partial_content_after_a_sub_block_failure() -> (
+    None
+):
+    # Given: a successful root detail followed by an MCP error for its continuation
+    first = McpToolExchange(
+        McpToolResult.model_validate(
+            {
+                "structuredContent": {
+                    "id": "page-1",
+                    "has_more": True,
+                    "next_cursor": "block-2",
+                },
+                "content": [{"type": "text", "text": "partial"}],
+            }
+        ),
+        1,
+        0,
+        0,
+        1.0,
+    )
+    failure = McpToolExchange(
+        McpToolResult.model_validate(
+            {
+                "isError": True,
+                "content": [{"type": "text", "text": "continuation failed"}],
+            }
+        ),
+        1,
+        0,
+        0,
+        1.0,
+    )
+    client = _FakeMcpClient([first, failure], [])
+    from mcp_adapter import LiveNotionMcpAdapter, McpAdapterError
+
+    adapter = LiveNotionMcpAdapter(client, _scope())
+    hit = McpSearchHit(
+        "page-1", "DB", "https://notion.so/page-1", "", "workspace-a", "snapshot-1"
+    )
+
+    # When & then: partial content is not exposed as a successful page
+    with pytest.raises(McpAdapterError, match="continuation failed"):
+        adapter.fetch(hit)
+
+
 def test_live_search_discards_a_hit_claiming_another_workspace() -> None:
     # Given: a search response that assigns an allowed page ID to another workspace
     result = McpToolExchange(
