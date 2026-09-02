@@ -313,16 +313,15 @@ def validate_nim_tool_call(
             )
         match tool:
             case McpToolName.SEARCH:
-                parsed = SearchToolArguments.model_validate(arguments)
+                return ValidatedSearchToolCall(
+                    call.id, SearchToolArguments.model_validate(arguments)
+                )
             case McpToolName.FETCH:
-                parsed = FetchToolArguments.model_validate(arguments)
+                return ValidatedFetchToolCall(
+                    call.id, FetchToolArguments.model_validate(arguments)
+                )
             case unreachable:
                 assert_never(unreachable)
-        return (
-            ValidatedSearchToolCall(call.id, parsed)
-            if tool is McpToolName.SEARCH
-            else ValidatedFetchToolCall(call.id, parsed)
-        )
     except (
         McpArgumentError,
         ValidationError,
