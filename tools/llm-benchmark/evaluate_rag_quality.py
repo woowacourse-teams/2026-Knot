@@ -17,6 +17,7 @@ from pathlib import Path
 
 import typer
 from answer_quality_policy import answer_shape_passes
+from benchmark_result_identity import observation_fingerprint
 from gold_set import BenchmarkCase, load_cases
 from human_review import (
     HumanReviewError,
@@ -58,10 +59,12 @@ class EvaluationRow(BaseModel):
     repeat: int = Field(ge=1)
     turn: int = Field(ge=1)
     strategy: str = Field(min_length=1)
+    question: str = Field(min_length=1)
     answer: str
     source_paths: tuple[str, ...]
     retrieved_count: int = Field(ge=0)
     error: str | None = None
+    result_fingerprint: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -118,6 +121,8 @@ def main(
     ),
 ) -> None:
     """Check every expected case/turn/repeat and print a CI-friendly gate summary."""
+    if human_repeat > repeats:
+        raise typer.BadParameter("human_repeat must not exceed repeats")
     cases = load_cases(gold_set)
     result_paths = tuple(results) if results else (_DEFAULT_RESULTS,)
     rows = tuple(row for path in result_paths for row in _load_rows(path))
@@ -127,6 +132,7 @@ def main(
         cases,
         strategy,
         repeat=human_repeat,
+        result_rows=rows,
     )
     typer.echo(f"results={summary.rows} expected={summary.expected_rows}")
     typer.echo(
@@ -162,6 +168,7 @@ def main(
         *human_summary.missing,
         *human_summary.duplicates,
         *human_summary.unexpected,
+        *human_summary.invalid,
     ):
         typer.echo(f"HUMAN REVIEW COVERAGE: {issue}")
     if not summary.retrieval_gate_passed or (
@@ -254,14 +261,34 @@ def evaluate_human_labels(
     rows: tuple[HumanReviewRow, ...],
     cases: tuple[BenchmarkCase, ...],
     strategy: str,
+    result_rows: tuple[EvaluationRow, ...],
     repeat: int = 1,
 ) -> HumanReviewSummary:
     """Evaluate one human label for every turn in one selected result repeat."""
     case_turns = tuple(
         (case.case_id, turn) for case in cases for turn in range(1, len(case.turns) + 1)
     )
+    result_by_key = {
+        (row.case_id, row.repeat, row.turn): row
+        for row in result_rows
+        if row.strategy == strategy
+    }
+    invalid = frozenset(
+        row.key
+        for row in rows
+        if row.result_fingerprint
+        and (
+            result_by_key.get((row.case_id, row.repeat, row.turn)) is None
+            or row.result_fingerprint
+            != observation_fingerprint_for_row(
+                result_by_key[(row.case_id, row.repeat, row.turn)]
+            )
+        )
+    )
     return evaluate_human_review(
-        rows, expected_review_keys(case_turns, strategy, repeat)
+        rows,
+        expected_review_keys(case_turns, strategy, repeat),
+        invalid_keys=invalid,
     )
 
 
@@ -293,7 +320,29 @@ def _structural_failures(row: EvaluationRow) -> tuple[str, ...]:
         failures.append("more than three source documents returned")
     if len(set(row.source_paths)) != len(row.source_paths):
         failures.append("duplicate source document returned")
+    if any(not path.strip() for path in row.source_paths):
+        failures.append("blank source document returned")
+    if (
+        row.result_fingerprint is not None
+        and row.result_fingerprint != observation_fingerprint_for_row(row)
+    ):
+        failures.append("result_fingerprint does not match observation")
     return tuple(failures)
+
+
+def observation_fingerprint_for_row(row: EvaluationRow) -> str:
+    """Calculate the canonical identity used to bind human labels to a row."""
+    return observation_fingerprint(
+        case_id=row.case_id,
+        repeat=row.repeat,
+        turn=row.turn,
+        strategy=row.strategy,
+        question=row.question,
+        answer=row.answer,
+        source_paths=row.source_paths,
+        retrieved_count=row.retrieved_count,
+        error=row.error,
+    )
 
 
 def _expected_sources(case: BenchmarkCase, turn: int) -> tuple[str, ...]:

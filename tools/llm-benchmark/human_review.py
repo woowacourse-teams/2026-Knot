@@ -61,6 +61,7 @@ class HumanReviewRow(BaseModel):
     policy_compliant: bool | None = None
     reviewer: str = ""
     notes: str = ""
+    result_fingerprint: str = ""
 
     @model_validator(mode="after")
     def validate_decision_evidence(self) -> HumanReviewRow:
@@ -68,6 +69,8 @@ class HumanReviewRow(BaseModel):
             return self
         if not self.reviewer.strip():
             raise ValueError("terminal human review requires reviewer")
+        if not self.result_fingerprint.strip():
+            raise ValueError("terminal human review requires result_fingerprint")
         dimensions = (self.answer_correct, self.sources_relevant, self.policy_compliant)
         if any(value is None for value in dimensions):
             raise ValueError("terminal human review requires every quality dimension")
@@ -99,12 +102,13 @@ class HumanReviewSummary(BaseModel):
     missing: tuple[ReviewKey, ...]
     duplicates: tuple[ReviewKey, ...]
     unexpected: tuple[ReviewKey, ...]
+    invalid: tuple[ReviewKey, ...] = ()
 
     @property
     def status(self) -> HumanReviewStatus:
         if self.received == 0:
             return HumanReviewStatus.NOT_EVALUATED
-        if self.failed or self.duplicates or self.unexpected:
+        if self.failed or self.duplicates or self.unexpected or self.invalid:
             return HumanReviewStatus.FAIL
         if self.pending or self.missing:
             return HumanReviewStatus.PENDING
@@ -122,6 +126,7 @@ class HumanReviewSummary(BaseModel):
 def evaluate_human_review(
     rows: tuple[HumanReviewRow, ...],
     expected_keys: frozenset[ReviewKey],
+    invalid_keys: frozenset[ReviewKey] = frozenset(),
 ) -> HumanReviewSummary:
     """Require exactly one completed, internally consistent label per answer."""
     counts = Counter(row.key for row in rows)
@@ -138,6 +143,7 @@ def evaluate_human_review(
         missing=missing,
         duplicates=duplicates,
         unexpected=unexpected,
+        invalid=tuple(sorted(invalid_keys)),
     )
 
 

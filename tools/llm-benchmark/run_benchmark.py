@@ -26,7 +26,7 @@ from __future__ import annotations
 import json
 import time
 from contextlib import closing
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from enum import StrEnum
 from pathlib import Path
 from typing import Final, TextIO, assert_never
@@ -40,6 +40,7 @@ from benchmark_core import (
     build_context,
     load_snapshot,
 )
+from benchmark_result_identity import observation_fingerprint
 from gold_set import BenchmarkCase, GoldSetError, load_cases
 from nim_client import (
     ChatMessage,
@@ -100,6 +101,25 @@ class BenchmarkRecord:
     error: str | None
     embedding_ms: float = 0.0
     vector_db_ms: float = 0.0
+    result_fingerprint: str = field(init=False)
+
+    def __post_init__(self) -> None:
+        """Expose the immutable identity used by the human review workflow."""
+        object.__setattr__(
+            self,
+            "result_fingerprint",
+            observation_fingerprint(
+                case_id=self.case_id,
+                repeat=self.repeat,
+                turn=self.turn,
+                strategy=self.strategy,
+                question=self.question,
+                answer=self.answer,
+                source_paths=self.source_paths,
+                retrieved_count=self.retrieved_count,
+                error=self.error,
+            ),
+        )
 
 
 def main(
