@@ -6,6 +6,7 @@ import com.knot.backend.workspace.application.ContentImportHeartbeatLease;
 import com.knot.backend.workspace.application.ContentImportPublicationService;
 import com.knot.backend.workspace.application.ContentImportRunLifecycleService;
 import com.knot.backend.workspace.application.ContentImportSnapshotStagingService;
+import com.knot.backend.workspace.application.ContentImportSearchIndexer;
 import com.knot.backend.workspace.application.ContentImportStaleRecoveryService;
 import com.knot.backend.workspace.application.ContentImportWorker;
 import com.knot.backend.workspace.application.ContentImportWorkerObserver;
@@ -32,6 +33,7 @@ public class NotionImportWorkerConfig {
             ContentSourceCollector contentCollector,
             ContentImportSnapshotStagingService stagingService,
             ContentImportPublicationService publicationService,
+            ContentImportSearchIndexer searchIndexer,
             ContentImportWorkerObserver observer,
             ContentImportHeartbeatLease heartbeatLease
     ) {
@@ -42,6 +44,7 @@ public class NotionImportWorkerConfig {
                 contentCollector,
                 stagingService,
                 publicationService,
+                searchIndexer,
                 observer,
                 heartbeatLease
         );

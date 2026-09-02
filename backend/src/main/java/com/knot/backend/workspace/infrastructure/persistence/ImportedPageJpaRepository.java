@@ -15,6 +15,11 @@ interface ImportedPageJpaRepository extends JpaRepository<ImportedPage, Long> {
             Long importRunId
     );
 
+    List<ImportedPage> findAllByWorkspaceIdAndImportRunIdOrderByPositionAscIdAsc(
+            Long workspaceId,
+            Long importRunId
+    );
+
     @Modifying
     @Query(value = """
             INSERT INTO imported_page_publications (

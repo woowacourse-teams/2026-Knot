@@ -12,6 +12,11 @@ public interface ImportedPageRepository {
             Long importRunId
     );
 
+    List<ImportedPage> findAllByWorkspaceIdAndImportRunIdOrderByPositionAscIdAsc(
+            Long workspaceId,
+            Long importRunId
+    );
+
     void publish(
             Long workspaceId,
             Long importRunId,
