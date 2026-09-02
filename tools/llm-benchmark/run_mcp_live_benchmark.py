@@ -61,19 +61,33 @@ from run_benchmark import BenchmarkRecord, _messages, _write_record
 
 _DEFAULT_GOLD_SET: Final[Path] = Path("docs/llm-search-benchmark-gold-set.md")
 _DEFAULT_OUTPUT: Final[Path] = Path(".benchmark-data/mcp-live-results.jsonl")
-_NO_ANSWER_TEXT: Final[str] = "현재 동기화된 팀 문서에서는 관련된 정보를 찾지 못했습니다. 최신 문서가 반영되지 않았다면 동기화 후 다시 검색해보세요."
+_NO_ANSWER_TEXT: Final[str] = (
+    "현재 동기화된 팀 문서에서는 관련된 정보를 찾지 못했습니다. 최신 문서가 반영되지 않았다면 동기화 후 다시 검색해보세요."
+)
 
 
 def main(
     gold_set: Path = typer.Option(_DEFAULT_GOLD_SET, help="Markdown gold-set path."),
     output: Path = typer.Option(_DEFAULT_OUTPUT, help="JSONL output path."),
-    workspace_id: str = typer.Option("", envvar="NOTION_MCP_WORKSPACE_ID", help="Connected Notion Workspace ID."),
-    allowed_page_ids: str = typer.Option("", envvar="NOTION_MCP_ALLOWED_PAGE_IDS", help="Comma-separated connected page IDs."),
-    active_snapshot_id: str | None = typer.Option(None, envvar="NOTION_MCP_ACTIVE_SNAPSHOT_ID", help="Optional active snapshot identity."),
+    workspace_id: str = typer.Option(
+        "", envvar="NOTION_MCP_WORKSPACE_ID", help="Connected Notion Workspace ID."
+    ),
+    allowed_page_ids: str = typer.Option(
+        "",
+        envvar="NOTION_MCP_ALLOWED_PAGE_IDS",
+        help="Comma-separated connected page IDs.",
+    ),
+    active_snapshot_id: str | None = typer.Option(
+        None,
+        envvar="NOTION_MCP_ACTIVE_SNAPSHOT_ID",
+        help="Optional active snapshot identity.",
+    ),
     case: str | None = typer.Option(None, help="Comma-separated case IDs."),
     repeats: int = typer.Option(1, min=1, help="Repeats per case."),
     top_k: int = typer.Option(3, min=1, max=3, help="Maximum related pages to fetch."),
-    retrieval_only: bool = typer.Option(False, help="Measure MCP search/fetch without calling NIM."),
+    retrieval_only: bool = typer.Option(
+        False, help="Measure MCP search/fetch without calling NIM."
+    ),
 ) -> None:
     """Run scoped live Notion MCP observations without sending credentials to NIM."""
     console = Console()
@@ -97,11 +111,23 @@ def main(
             search_tool=mcp_settings.search_tool,
             fetch_tool=mcp_settings.fetch_tool,
         )
-        chat_client = None if nim_settings is None else stack.enter_context(closing(NimClient(nim_settings)))
+        chat_client = (
+            None
+            if nim_settings is None
+            else stack.enter_context(closing(NimClient(nim_settings)))
+        )
         with output.open("w", encoding="utf-8") as stream:
             for repeat in range(1, repeats + 1):
                 for benchmark_case in cases:
-                    _run_case(stream, adapter, chat_client, benchmark_case, repeat, top_k, retrieval_only)
+                    _run_case(
+                        stream,
+                        adapter,
+                        chat_client,
+                        benchmark_case,
+                        repeat,
+                        top_k,
+                        retrieval_only,
+                    )
     console.print(f"[green]results written:[/green] {output}")
 
 
@@ -128,18 +154,31 @@ def _run_case(
             if query_plan.should_clarify:
                 answer = query_plan.clarification_text
             else:
-                context_timing = build_mcp_context(adapter, query_plan.search_query, top_k)
+                context_timing = build_mcp_context(
+                    adapter, query_plan.search_query, top_k
+                )
                 if context_timing.context.retrieved_count == 0:
                     answer = _NO_ANSWER_TEXT
             access_ms = (time.perf_counter() - started) * 1000
             if not answer and not retrieval_only:
                 if chat_client is None:
-                    raise NimTransportError("NIM client is required unless --retrieval-only is enabled")
-                result = chat_client.generate(_messages(question, context_timing.context, tuple(history)))
+                    raise NimTransportError(
+                        "NIM client is required unless --retrieval-only is enabled"
+                    )
+                result = chat_client.generate(
+                    _messages(question, context_timing.context, tuple(history))
+                )
                 answer = result.text
                 model_ttft_ms = result.ttft_ms
                 model_total_ms = result.total_ms
-        except (McpAdapterError, McpHttpError, McpProtocolError, McpTransportError, NimRequestError, NimTransportError) as caught:
+        except (
+            McpAdapterError,
+            McpHttpError,
+            McpProtocolError,
+            McpTransportError,
+            NimRequestError,
+            NimTransportError,
+        ) as caught:
             error = str(caught)
             if access_ms == 0.0:
                 access_ms = (time.perf_counter() - started) * 1000
@@ -159,7 +198,12 @@ def _run_case(
             ),
         )
         if answer:
-            history.extend((ChatMessage(role="user", content=question), ChatMessage(role="assistant", content=answer)))
+            history.extend(
+                (
+                    ChatMessage(role="user", content=question),
+                    ChatMessage(role="assistant", content=answer),
+                )
+            )
 
 
 def _record(
@@ -214,17 +258,25 @@ def _combined_trace(traces: tuple[McpToolTrace, ...]) -> McpToolTrace:
     )
 
 
-def _scope(workspace_id: str, allowed_page_ids: str, active_snapshot_id: str | None) -> McpScope:
+def _scope(
+    workspace_id: str, allowed_page_ids: str, active_snapshot_id: str | None
+) -> McpScope:
     normalized_workspace_id = workspace_id.strip()
-    page_ids = frozenset(item.strip() for item in allowed_page_ids.split(",") if item.strip())
+    page_ids = frozenset(
+        item.strip() for item in allowed_page_ids.split(",") if item.strip()
+    )
     if not normalized_workspace_id:
         raise typer.BadParameter("NOTION_MCP_WORKSPACE_ID is required")
     if not page_ids:
-        raise typer.BadParameter("NOTION_MCP_ALLOWED_PAGE_IDS must contain at least one page ID")
+        raise typer.BadParameter(
+            "NOTION_MCP_ALLOWED_PAGE_IDS must contain at least one page ID"
+        )
     return McpScope(normalized_workspace_id, active_snapshot_id, page_ids)
 
 
-def _select_cases(cases: tuple[BenchmarkCase, ...], selection: str | None) -> tuple[BenchmarkCase, ...]:
+def _select_cases(
+    cases: tuple[BenchmarkCase, ...], selection: str | None
+) -> tuple[BenchmarkCase, ...]:
     if selection is None:
         return cases
     wanted = tuple(item.strip() for item in selection.split(",") if item.strip())
@@ -254,6 +306,12 @@ def _validate_nim_settings(settings: NimSettings) -> None:
 if __name__ == "__main__":
     try:
         typer.run(main)
-    except (GoldSetError, McpHttpError, McpProtocolError, McpTransportError, NimConfigurationError) as error:
+    except (
+        GoldSetError,
+        McpHttpError,
+        McpProtocolError,
+        McpTransportError,
+        NimConfigurationError,
+    ) as error:
         Console().print(f"[red]{error}[/red]")
         raise typer.Exit(code=2) from error

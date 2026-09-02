@@ -37,7 +37,9 @@ class McpToolName(StrEnum):
 class McpSettings(BaseSettings):
     """MCP settings parsed at the environment boundary without exposing secrets."""
 
-    model_config = SettingsConfigDict(env_prefix="NOTION_MCP_", extra="ignore", frozen=True)
+    model_config = SettingsConfigDict(
+        env_prefix="NOTION_MCP_", extra="ignore", frozen=True
+    )
 
     endpoint_url: str = "https://mcp.notion.com/mcp"
     access_token: SecretStr = SecretStr("")
@@ -69,7 +71,10 @@ class McpScope:
         """Return whether a page belongs to this connected active range."""
         return (
             page.workspace_id == self.workspace_id
-            and (self.active_snapshot_id is None or page.snapshot_id == self.active_snapshot_id)
+            and (
+                self.active_snapshot_id is None
+                or page.snapshot_id == self.active_snapshot_id
+            )
             and _normalize_page_id(page.page_id) in self.allowed_page_ids
         )
 
@@ -154,7 +159,9 @@ class McpToolResult(BaseModel):
 
     content: tuple[McpContentBlock, ...] = ()
     is_error: bool = Field(default=False, alias="isError")
-    structured_content: JsonObject | None = Field(default=None, alias="structuredContent")
+    structured_content: JsonObject | None = Field(
+        default=None, alias="structuredContent"
+    )
 
 
 class McpRpcError(BaseModel):
@@ -222,7 +229,9 @@ class FetchToolArguments(BaseModel):
 
     model_config = ConfigDict(extra="forbid", frozen=True, populate_by_name=True)
 
-    page_id: str | None = Field(default=None, validation_alias=AliasChoices("page_id", "id"))
+    page_id: str | None = Field(
+        default=None, validation_alias=AliasChoices("page_id", "id")
+    )
     url: str | None = None
     cursor: str | None = None
 
@@ -281,9 +290,13 @@ def validate_nim_tool_call(
     """Validate a model call before executing a read-only Notion operation."""
     try:
         arguments = _arguments_object(call.function.arguments)
-        tool = {search_tool: McpToolName.SEARCH, fetch_tool: McpToolName.FETCH}.get(call.function.name)
+        tool = {search_tool: McpToolName.SEARCH, fetch_tool: McpToolName.FETCH}.get(
+            call.function.name
+        )
         if tool is None:
-            raise McpToolCallValidationError(f"tool {call.function.name!r} is not allowed")
+            raise McpToolCallValidationError(
+                f"tool {call.function.name!r} is not allowed"
+            )
         match tool:
             case McpToolName.SEARCH:
                 parsed = SearchToolArguments.model_validate(arguments)
@@ -292,8 +305,15 @@ def validate_nim_tool_call(
             case unreachable:
                 assert_never(unreachable)
         return ValidatedToolCall(call.id, tool, parsed)
-    except (McpArgumentError, ValidationError, json.JSONDecodeError, TypeError) as error:
-        raise McpToolCallValidationError("tool arguments do not match the read contract") from error
+    except (
+        McpArgumentError,
+        ValidationError,
+        json.JSONDecodeError,
+        TypeError,
+    ) as error:
+        raise McpToolCallValidationError(
+            "tool arguments do not match the read contract"
+        ) from error
 
 
 def _arguments_object(raw: str | JsonObject) -> JsonObject:

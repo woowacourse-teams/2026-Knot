@@ -16,7 +16,9 @@ from mcp_models import (
 )
 
 _MARKDOWN_LINK = re.compile(r"\[([^\]]+)\]\((https?://[^)\s]+)\)")
-_PAGE_URL = re.compile(r"https?://(?:www\.)?(?:notion\.so|notion\.site|notion\.com)/[^\s)\]>]+")
+_PAGE_URL = re.compile(
+    r"https?://(?:www\.)?(?:notion\.so|notion\.site|notion\.com)/[^\s)\]>]+"
+)
 _PAGE_ID = re.compile(
     r"(?:[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}|[0-9a-f]{32})",
     re.IGNORECASE,
@@ -41,8 +43,12 @@ def search_hits(result: McpToolResult, scope: McpScope) -> tuple[McpSearchHit, .
         normalized_id = normalize_page_id(page_id)
         if normalized_id not in scope.allowed_page_ids or normalized_id in seen:
             continue
-        workspace_id = string(record, "workspace_id", "workspaceId") or scope.workspace_id
-        snapshot_id = string(record, "snapshot_id", "snapshotId") or scope.active_snapshot_id
+        workspace_id = (
+            string(record, "workspace_id", "workspaceId") or scope.workspace_id
+        )
+        snapshot_id = (
+            string(record, "snapshot_id", "snapshotId") or scope.active_snapshot_id
+        )
         if not scope.permits(McpPage(page_id, "", url, "", workspace_id, snapshot_id)):
             continue
         hits.append(
@@ -64,12 +70,23 @@ def search_hits(result: McpToolResult, scope: McpScope) -> tuple[McpSearchHit, .
                 continue
             normalized_id = normalize_page_id(page_id)
             if normalized_id in scope.allowed_page_ids and normalized_id not in seen:
-                hits.append(McpSearchHit(page_id, title, url, content, scope.workspace_id, scope.active_snapshot_id))
+                hits.append(
+                    McpSearchHit(
+                        page_id,
+                        title,
+                        url,
+                        content,
+                        scope.workspace_id,
+                        scope.active_snapshot_id,
+                    )
+                )
                 seen.add(normalized_id)
     return tuple(hits)
 
 
-def page_from_result(result: McpToolResult, hit: McpSearchHit, scope: McpScope) -> McpPage:
+def page_from_result(
+    result: McpToolResult, hit: McpSearchHit, scope: McpScope
+) -> McpPage:
     """Extract one page from a fetch result and enforce the connected scope."""
     record = next(
         (
@@ -83,9 +100,15 @@ def page_from_result(result: McpToolResult, hit: McpSearchHit, scope: McpScope) 
         string(record, "id", "page_id", "pageId") or hit.page_id,
         string(record, "title", "name") or heading(result) or hit.title,
         string(record, "url", "page_url", "pageUrl") or hit.url,
-        "\n\n".join(text_content(result)) or string(record, "content", "text") or hit.snippet,
-        string(record, "workspace_id", "workspaceId") or hit.workspace_id or scope.workspace_id,
-        string(record, "snapshot_id", "snapshotId") or hit.snapshot_id or scope.active_snapshot_id,
+        "\n\n".join(text_content(result))
+        or string(record, "content", "text")
+        or hit.snippet,
+        string(record, "workspace_id", "workspaceId")
+        or hit.workspace_id
+        or scope.workspace_id,
+        string(record, "snapshot_id", "snapshotId")
+        or hit.snapshot_id
+        or scope.active_snapshot_id,
         string(record, "parent_id", "parentPageId"),
         string(record, "last_edited_time", "lastEditedTime") or hit.last_edited_time,
     )
@@ -121,7 +144,9 @@ def records(value: JsonObject | None) -> tuple[JsonObject, ...]:
         current = pending.pop()
         match current:
             case dict():
-                normalized = {key: child for key, child in current.items() if isinstance(key, str)}
+                normalized = {
+                    key: child for key, child in current.items() if isinstance(key, str)
+                }
                 found.append(normalized)
                 pending.extend(reversed(tuple(normalized.values())))
             case list():
@@ -139,19 +164,30 @@ def links(text: str) -> tuple[tuple[str, str], ...]:
     """Extract Notion links from Markdown or plain MCP text blocks."""
     markdown = tuple(_MARKDOWN_LINK.findall(text))
     known_urls = {url for _, url in markdown}
-    plain = tuple((url.rsplit("/", 1)[-1], url) for url in _PAGE_URL.findall(text) if url not in known_urls)
+    plain = tuple(
+        (url.rsplit("/", 1)[-1], url)
+        for url in _PAGE_URL.findall(text)
+        if url not in known_urls
+    )
     return markdown + plain
 
 
 def string(record: JsonObject, *keys: str) -> str | None:
     """Read the first non-empty string field from a structured result object."""
-    return next((value for key in keys if isinstance(value := record.get(key), str) and value), None)
+    return next(
+        (value for key in keys if isinstance(value := record.get(key), str) and value),
+        None,
+    )
 
 
 def page_id_from_url(url: str) -> str | None:
     """Extract a UUID page ID or a final URL segment from a Notion link."""
     match = _PAGE_ID.search(url)
-    return match.group(0) if match is not None else url.rstrip("/").rsplit("/", 1)[-1] or None
+    return (
+        match.group(0)
+        if match is not None
+        else url.rstrip("/").rsplit("/", 1)[-1] or None
+    )
 
 
 def is_safe_notion_url(url: str) -> bool:
@@ -172,7 +208,15 @@ def normalize_page_id(page_id: str) -> str:
 
 def heading(result: McpToolResult) -> str | None:
     """Use the first Markdown H1 as a fallback page title."""
-    return next(
-        (line.removeprefix("# ").strip() for line in text_content(result)[0].splitlines() if line.startswith("# ")),
-        None,
-    ) if text_content(result) else None
+    return (
+        next(
+            (
+                line.removeprefix("# ").strip()
+                for line in text_content(result)[0].splitlines()
+                if line.startswith("# ")
+            ),
+            None,
+        )
+        if text_content(result)
+        else None
+    )

@@ -13,26 +13,39 @@ from mcp_transport import McpToolExchange
 
 def snippet(content: str, query_terms: set[str]) -> str:
     """Keep a short lexical line as the replay search preview."""
-    return next((line.strip() for line in content.splitlines() if query_terms & set(tokenize(line))), content[:240])
+    return next(
+        (
+            line.strip()
+            for line in content.splitlines()
+            if query_terms & set(tokenize(line))
+        ),
+        content[:240],
+    )
 
 
 def merge_page(previous: McpPage | None, current: McpPage) -> McpPage:
     """Merge metadata across cursor pages while leaving content assembly to the caller."""
-    return current if previous is None else McpPage(
-        current.page_id,
-        current.title or previous.title,
-        current.url or previous.url,
-        previous.content,
-        current.workspace_id,
-        current.snapshot_id,
-        current.parent_page_id or previous.parent_page_id,
-        current.last_edited_time or previous.last_edited_time,
+    return (
+        current
+        if previous is None
+        else McpPage(
+            current.page_id,
+            current.title or previous.title,
+            current.url or previous.url,
+            previous.content,
+            current.workspace_id,
+            current.snapshot_id,
+            current.parent_page_id or previous.parent_page_id,
+            current.last_edited_time or previous.last_edited_time,
+        )
     )
 
 
 def render_context(pages: tuple[McpPage, ...]) -> ContextPack:
     """Render fetched pages with source URLs and tool-call count metadata."""
-    chunks = tuple(Chunk(Path(page.url), page.title, page.content, 0.0) for page in pages)
+    chunks = tuple(
+        Chunk(Path(page.url), page.title, page.content, 0.0) for page in pages
+    )
     return ContextPack(
         "\n\n".join(_render_chunk(chunk) for chunk in chunks),
         tuple(page.url for page in pages),
@@ -41,9 +54,19 @@ def render_context(pages: tuple[McpPage, ...]) -> ContextPack:
     )
 
 
-def trace(operation: str, tool_name: str, started: float, page_count: int) -> McpToolTrace:
+def trace(
+    operation: str, tool_name: str, started: float, page_count: int
+) -> McpToolTrace:
     """Create a zero-network trace for the deterministic replay adapter."""
-    return McpToolTrace(operation, tool_name, (time.perf_counter() - started) * 1000, 0, 0, 0, page_count)
+    return McpToolTrace(
+        operation,
+        tool_name,
+        (time.perf_counter() - started) * 1000,
+        0,
+        0,
+        0,
+        page_count,
+    )
 
 
 def combined_trace(

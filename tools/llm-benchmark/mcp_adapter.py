@@ -71,7 +71,9 @@ class ReplayMcpAdapter:
     def __init__(self, pages: tuple[McpPage, ...], scope: McpScope) -> None:
         self._scope = scope
         self._pages = {
-            normalize_page_id(page.page_id): page for page in pages if scope.permits(page)
+            normalize_page_id(page.page_id): page
+            for page in pages
+            if scope.permits(page)
         }
 
     @classmethod
@@ -104,10 +106,12 @@ class ReplayMcpAdapter:
         )
         hits = tuple(
             _hit(page, snippet(page.content, query_terms))
-            for score, page in scored[:max(limit, 0)]
+            for score, page in scored[: max(limit, 0)]
             if score > 0
         )
-        return McpSearchResult(hits, trace("search", "mcp-replay", started, 1 if limit > 0 else 0))
+        return McpSearchResult(
+            hits, trace("search", "mcp-replay", started, 1 if limit > 0 else 0)
+        )
 
     def fetch(self, hit: McpSearchHit) -> McpFetchResult:
         """Fetch one page only when its identity is inside the active replay scope."""
@@ -167,7 +171,14 @@ class LiveNotionMcpAdapter:
     def fetch(self, hit: McpSearchHit) -> McpFetchResult:
         """Fetch page content and any cursor-based continuation from Notion MCP."""
         if not self._scope.permits(
-            McpPage(hit.page_id, hit.title, hit.url, hit.snippet, hit.workspace_id, hit.snapshot_id)
+            McpPage(
+                hit.page_id,
+                hit.title,
+                hit.url,
+                hit.snippet,
+                hit.workspace_id,
+                hit.snapshot_id,
+            )
         ) or not is_safe_notion_url(hit.url):
             raise McpScopeError(f"page {hit.page_id!r} is outside the active scope")
         started = time.perf_counter()
@@ -203,13 +214,20 @@ class LiveNotionMcpAdapter:
                 page.parent_page_id,
                 page.last_edited_time,
             )
-        return McpFetchResult(page, combined_trace("fetch", self._fetch_tool, started, exchanges, len(exchanges)))
+        return McpFetchResult(
+            page,
+            combined_trace(
+                "fetch", self._fetch_tool, started, exchanges, len(exchanges)
+            ),
+        )
 
 
-def build_mcp_context(adapter: McpToolCaller, query: str, top_k: int) -> McpContextTiming:
+def build_mcp_context(
+    adapter: McpToolCaller, query: str, top_k: int
+) -> McpContextTiming:
     """Run scoped search/detail calls and render only fetched pages for the model."""
     search = adapter.search(query, top_k)
-    fetched = tuple(adapter.fetch(hit) for hit in search.hits[:max(top_k, 0)])
+    fetched = tuple(adapter.fetch(hit) for hit in search.hits[: max(top_k, 0)])
     context = render_context(tuple(item.page for item in fetched))
     return McpContextTiming(context, (search.trace, *(item.trace for item in fetched)))
 
@@ -233,7 +251,9 @@ def execute_validated_tool_call(
                 case FetchToolArguments(page_id=page_id, url=url):
                     resolved_page_id = page_id or page_id_from_url(url or "")
                     if resolved_page_id is None:
-                        raise McpAdapterError(f"fetch call {call.call_id!r} has no page identity")
+                        raise McpAdapterError(
+                            f"fetch call {call.call_id!r} has no page identity"
+                        )
                     hit = McpSearchHit(
                         resolved_page_id,
                         "",
@@ -242,8 +262,19 @@ def execute_validated_tool_call(
                         scope.workspace_id,
                         scope.active_snapshot_id,
                     )
-                    if not scope.permits(McpPage(hit.page_id, hit.title, hit.url, hit.snippet, hit.workspace_id, hit.snapshot_id)):
-                        raise McpScopeError(f"page {hit.page_id!r} is outside the active scope")
+                    if not scope.permits(
+                        McpPage(
+                            hit.page_id,
+                            hit.title,
+                            hit.url,
+                            hit.snippet,
+                            hit.workspace_id,
+                            hit.snapshot_id,
+                        )
+                    ):
+                        raise McpScopeError(
+                            f"page {hit.page_id!r} is outside the active scope"
+                        )
                     if not is_safe_notion_url(hit.url):
                         raise McpScopeError(f"page {hit.page_id!r} has an unsafe URL")
                     return adapter.fetch(hit)
@@ -255,7 +286,14 @@ def execute_validated_tool_call(
 
 def _document_page(document: Document, workspace_id: str, snapshot_id: str) -> McpPage:
     page_id = _page_id_from_path(document.path)
-    return McpPage(page_id, document.title, f"https://notion.so/{page_id}", document.content, workspace_id, snapshot_id)
+    return McpPage(
+        page_id,
+        document.title,
+        f"https://notion.so/{page_id}",
+        document.content,
+        workspace_id,
+        snapshot_id,
+    )
 
 
 def _page_id_from_path(path: Path) -> str:
@@ -264,7 +302,15 @@ def _page_id_from_path(path: Path) -> str:
 
 
 def _hit(page: McpPage, snippet: str) -> McpSearchHit:
-    return McpSearchHit(page.page_id, page.title, page.url, snippet, page.workspace_id, page.snapshot_id, page.last_edited_time)
+    return McpSearchHit(
+        page.page_id,
+        page.title,
+        page.url,
+        snippet,
+        page.workspace_id,
+        page.snapshot_id,
+        page.last_edited_time,
+    )
 
 
 def _ensure_success(result: McpToolResult) -> None:

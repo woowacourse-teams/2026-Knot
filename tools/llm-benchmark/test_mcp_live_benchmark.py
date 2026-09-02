@@ -73,9 +73,13 @@ def test_run_case_records_missing_chat_client_as_an_error() -> None:
         "workspace-a",
         "snapshot-1",
     )
-    adapter = ReplayMcpAdapter((page,), McpScope("workspace-a", "snapshot-1", frozenset({"page-1"})))
+    adapter = ReplayMcpAdapter(
+        (page,), McpScope("workspace-a", "snapshot-1", frozenset({"page-1"}))
+    )
     output = StringIO()
-    case = BenchmarkCase("G-001", "confirmed", "fact", ("PostgreSQL",), "PostgreSQL", ("page-1",))
+    case = BenchmarkCase(
+        "G-001", "confirmed", "fact", ("PostgreSQL",), "PostgreSQL", ("page-1",)
+    )
 
     # When: a non-retrieval-only run reaches generation without a chat client
     _run_case(output, adapter, None, case, 1, 1, False)
@@ -83,7 +87,9 @@ def test_run_case_records_missing_chat_client_as_an_error() -> None:
     # Then: it is an explicit failed observation, never an empty successful answer
     record = json.loads(output.getvalue())
     assert record["answer"] == ""
-    assert record["error"] == str(NimTransportError("NIM client is required unless --retrieval-only is enabled"))
+    assert record["error"] == str(
+        NimTransportError("NIM client is required unless --retrieval-only is enabled")
+    )
 
 
 def test_live_runner_returns_a_cli_error_when_nim_configuration_is_missing(
@@ -100,7 +106,14 @@ def test_live_runner_returns_a_cli_error_when_nim_configuration_is_missing(
     # When: the normal live runner is invoked through its CLI
     result = CliRunner().invoke(
         app,
-        ["--workspace-id", "workspace-a", "--allowed-page-ids", "page-1", "--case", "G-001"],
+        [
+            "--workspace-id",
+            "workspace-a",
+            "--allowed-page-ids",
+            "page-1",
+            "--case",
+            "G-001",
+        ],
     )
 
     # Then: configuration failure is actionable and does not expose a traceback

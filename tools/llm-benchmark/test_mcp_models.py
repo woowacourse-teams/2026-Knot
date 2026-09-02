@@ -30,10 +30,38 @@ from pydantic import ValidationError
 def test_scope_permits_only_the_active_workspace_snapshot_and_page_range() -> None:
     # Given: two pages that differ by workspace, snapshot, and allowlist membership
     scope = McpScope("workspace-a", "snapshot-2", frozenset({"page-allowed"}))
-    allowed = McpPage("page-allowed", "Allowed", "https://notion.so/page-allowed", "content", "workspace-a", "snapshot-2")
-    wrong_workspace = McpPage("page-allowed", "Other workspace", "https://notion.so/page-allowed", "content", "workspace-b", "snapshot-2")
-    wrong_snapshot = McpPage("page-allowed", "Old", "https://notion.so/page-allowed", "content", "workspace-a", "snapshot-1")
-    wrong_page = McpPage("page-other", "Other", "https://notion.so/page-other", "content", "workspace-a", "snapshot-2")
+    allowed = McpPage(
+        "page-allowed",
+        "Allowed",
+        "https://notion.so/page-allowed",
+        "content",
+        "workspace-a",
+        "snapshot-2",
+    )
+    wrong_workspace = McpPage(
+        "page-allowed",
+        "Other workspace",
+        "https://notion.so/page-allowed",
+        "content",
+        "workspace-b",
+        "snapshot-2",
+    )
+    wrong_snapshot = McpPage(
+        "page-allowed",
+        "Old",
+        "https://notion.so/page-allowed",
+        "content",
+        "workspace-a",
+        "snapshot-1",
+    )
+    wrong_page = McpPage(
+        "page-other",
+        "Other",
+        "https://notion.so/page-other",
+        "content",
+        "workspace-a",
+        "snapshot-2",
+    )
 
     # When & then: only the exact active scope is accepted
     assert scope.permits(allowed)
@@ -65,7 +93,9 @@ def test_validate_nim_tool_call_parses_search_alias_and_rejects_unknown_tool() -
         validate_nim_tool_call(unknown)
 
 
-def test_fetch_tool_arguments_require_a_page_reference_and_forbid_extra_actions() -> None:
+def test_fetch_tool_arguments_require_a_page_reference_and_forbid_extra_actions() -> (
+    None
+):
     # Given: a fetch call without an identifier and a write-shaped extra field
     with pytest.raises(ValidationError):
         FetchToolArguments.model_validate({})

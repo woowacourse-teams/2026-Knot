@@ -24,7 +24,11 @@ def safe_detail(detail: str, secrets: Iterable[str] = ()) -> str:
     """Truncate errors and redact bearer credentials before they leave the boundary."""
     redacted = re.sub(r"Bearer\s+[^\s\"']+", "Bearer [redacted]", detail[:500])
     return next(
-        (redacted.replace(secret, "[redacted]") for secret in secrets if secret and secret in redacted),
+        (
+            redacted.replace(secret, "[redacted]")
+            for secret in secrets
+            if secret and secret in redacted
+        ),
         redacted,
     )
 

@@ -37,7 +37,9 @@ class _McpHandler(BaseHTTPRequestHandler):
         request_body = json.loads(self.rfile.read(length)) if length else None
         headers = dict(self.headers)
         headers.pop("Authorization", None)
-        self.requests.append((self.headers.get("Mcp-Method", ""), headers, request_body))
+        self.requests.append(
+            (self.headers.get("Mcp-Method", ""), headers, request_body)
+        )
         if self.redirect_once:
             type(self).redirect_once = False
             self.send_response(307)
@@ -53,7 +55,11 @@ class _McpHandler(BaseHTTPRequestHandler):
         method = request_body.get("method") if isinstance(request_body, dict) else None
         if method == "initialize":
             self._respond_json(
-                {"jsonrpc": "2.0", "id": request_body.get("id"), "result": {"protocolVersion": "2025-11-25"}},
+                {
+                    "jsonrpc": "2.0",
+                    "id": request_body.get("id"),
+                    "result": {"protocolVersion": "2025-11-25"},
+                },
                 session_id="session-1",
             )
             return
@@ -62,12 +68,22 @@ class _McpHandler(BaseHTTPRequestHandler):
             self.end_headers()
             return
         if method != "tools/call":
-            self._respond_json({"jsonrpc": "2.0", "id": request_body.get("id"), "error": {"code": -32601, "message": "unknown"}})
+            self._respond_json(
+                {
+                    "jsonrpc": "2.0",
+                    "id": request_body.get("id"),
+                    "error": {"code": -32601, "message": "unknown"},
+                }
+            )
             return
         params = request_body.get("params", {})
         if isinstance(params, dict) and params.get("name") == "unknown-tool":
             self._respond_json(
-                {"jsonrpc": "2.0", "id": request_body.get("id"), "error": {"code": -32601, "message": "unknown tool"}}
+                {
+                    "jsonrpc": "2.0",
+                    "id": request_body.get("id"),
+                    "error": {"code": -32601, "message": "unknown tool"},
+                }
             )
             return
         type(self).call_count += 1
@@ -132,7 +148,9 @@ def test_http_client_parses_sse_and_carries_session_and_tool_headers(
 ) -> None:
     # Given: a Streamable HTTP server that initializes a session and responds with SSE
     endpoint, _server = mcp_server
-    client = McpHttpClient(McpSettings(endpoint_url=endpoint, access_token="test-token", retry_backoff_s=0))
+    client = McpHttpClient(
+        McpSettings(endpoint_url=endpoint, access_token="test-token", retry_backoff_s=0)
+    )
 
     # When: one read-only tool is called
     try:
@@ -156,7 +174,12 @@ def test_http_client_retries_rate_limit_and_reports_it(
     endpoint, _server = mcp_server
     _McpHandler.retry_once = True
     client = McpHttpClient(
-        McpSettings(endpoint_url=endpoint, access_token="test-token", max_retries=1, retry_backoff_s=0)
+        McpSettings(
+            endpoint_url=endpoint,
+            access_token="test-token",
+            max_retries=1,
+            retry_backoff_s=0,
+        )
     )
 
     # When: the client calls the tool
@@ -179,7 +202,9 @@ def test_http_client_surfaces_json_rpc_errors_as_protocol_errors(
     # Given: a client connected to the stub server
     endpoint, _server = mcp_server
     _McpHandler.retry_once = False
-    client = McpHttpClient(McpSettings(endpoint_url=endpoint, access_token="test-token", retry_backoff_s=0))
+    client = McpHttpClient(
+        McpSettings(endpoint_url=endpoint, access_token="test-token", retry_backoff_s=0)
+    )
 
     # When & then: the successful stub path is intentionally read-only and unknown calls are rejected locally
     with pytest.raises(McpProtocolError):
@@ -193,7 +218,9 @@ def test_http_client_redacts_bearer_token_when_mcp_rejects_authentication(
     # Given: an MCP server that rejects the request with a token-shaped detail
     endpoint, _server = mcp_server
     _McpHandler.auth_failure = True
-    client = McpHttpClient(McpSettings(endpoint_url=endpoint, access_token="test-token", retry_backoff_s=0))
+    client = McpHttpClient(
+        McpSettings(endpoint_url=endpoint, access_token="test-token", retry_backoff_s=0)
+    )
 
     # When & then: the transport exposes the status without leaking the credential
     with pytest.raises(McpHttpError) as caught:
@@ -211,7 +238,9 @@ def test_http_client_redacts_a_raw_echoed_token_from_mcp_error_body(
     # Given: an MCP server that accidentally echoes the bearer value without its scheme
     endpoint, _server = mcp_server
     _McpHandler.echo_token = True
-    client = McpHttpClient(McpSettings(endpoint_url=endpoint, access_token="test-token", retry_backoff_s=0))
+    client = McpHttpClient(
+        McpSettings(endpoint_url=endpoint, access_token="test-token", retry_backoff_s=0)
+    )
 
     # When & then: the transport removes the exact credential from the exposed detail
     with pytest.raises(McpHttpError) as caught:
@@ -229,7 +258,9 @@ def test_http_client_does_not_follow_redirects_with_bearer_credentials(
     # Given: an MCP endpoint that redirects the first request
     endpoint, _server = mcp_server
     _McpHandler.redirect_once = True
-    client = McpHttpClient(McpSettings(endpoint_url=endpoint, access_token="test-token", retry_backoff_s=0))
+    client = McpHttpClient(
+        McpSettings(endpoint_url=endpoint, access_token="test-token", retry_backoff_s=0)
+    )
 
     # When & then: redirects are surfaced without issuing a second authenticated request
     with pytest.raises(McpHttpError) as caught:

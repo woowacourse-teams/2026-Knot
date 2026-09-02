@@ -13,7 +13,9 @@ from mcp_errors import McpHttpError, McpProtocolError, McpTransportError
 from mcp_models import JsonObject, McpRpcResponse, McpSettings, McpToolResult
 from mcp_wire import parse_response, safe_detail
 
-_RETRYABLE_STATUSES: Final[frozenset[int]] = frozenset({408, 425, 429, 500, 502, 503, 504})
+_RETRYABLE_STATUSES: Final[frozenset[int]] = frozenset(
+    {408, 425, 429, 500, 502, 503, 504}
+)
 _LIMITS: Final[httpx2.Limits] = httpx2.Limits(
     max_connections=50,
     max_keepalive_connections=20,
@@ -84,9 +86,13 @@ class McpHttpClient:
     def call_tool(self, name: str, arguments: JsonObject) -> McpToolExchange:
         """Initialize the MCP session when needed and call one read-only tool."""
         started = time.perf_counter()
-        initialization = self._initialize() if not self._initialized else _empty_exchange()
+        initialization = (
+            self._initialize() if not self._initialized else _empty_exchange()
+        )
         self._initialized = True
-        exchange = self._request("tools/call", {"name": name, "arguments": arguments}, tool_name=name)
+        exchange = self._request(
+            "tools/call", {"name": name, "arguments": arguments}, tool_name=name
+        )
         payload = exchange.payload
         if payload is None or payload.result is None:
             raise McpProtocolError("MCP tool call returned no result")
@@ -95,7 +101,9 @@ class McpHttpClient:
         try:
             result = McpToolResult.model_validate(payload.result)
         except ValueError as error:
-            raise McpProtocolError("MCP tool result does not match the protocol") from error
+            raise McpProtocolError(
+                "MCP tool result does not match the protocol"
+            ) from error
         return McpToolExchange(
             result,
             initialization.http_requests + exchange.http_requests,
@@ -115,11 +123,17 @@ class McpHttpClient:
         )
         payload = exchange.payload
         if payload is None or payload.error is not None:
-            reason = "initialize returned no result" if payload is None else payload.error.message
+            reason = (
+                "initialize returned no result"
+                if payload is None
+                else payload.error.message
+            )
             raise McpProtocolError(reason)
         if exchange.response is not None:
             self._session_id = exchange.response.headers.get("Mcp-Session-Id")
-        notification = self._request("notifications/initialized", None, expect_response=False)
+        notification = self._request(
+            "notifications/initialized", None, expect_response=False
+        )
         return _HttpExchange(
             exchange.response,
             exchange.payload,
@@ -153,21 +167,31 @@ class McpHttpClient:
                     headers=self._headers(method, tool_name),
                     content=json.dumps(payload, ensure_ascii=False),
                 )
-            except (httpx2.ConnectError, httpx2.TimeoutException, httpx2.NetworkError) as error:
+            except (
+                httpx2.ConnectError,
+                httpx2.TimeoutException,
+                httpx2.NetworkError,
+            ) as error:
                 if attempt >= self._settings.max_retries:
                     raise McpTransportError(str(error)) from error
                 retries += 1
                 self._wait(attempt, None)
                 attempt += 1
                 continue
-            if response.status_code in _RETRYABLE_STATUSES and attempt < self._settings.max_retries:
+            if (
+                response.status_code in _RETRYABLE_STATUSES
+                and attempt < self._settings.max_retries
+            ):
                 retries += 1
                 rate_limits += response.status_code == 429
                 self._wait(attempt, response.headers.get("Retry-After"))
                 attempt += 1
                 continue
             if response.status_code >= 300:
-                raise McpHttpError(response.status_code, safe_detail(response.text, (self._access_token,)))
+                raise McpHttpError(
+                    response.status_code,
+                    safe_detail(response.text, (self._access_token,)),
+                )
             parsed = None if not expect_response else parse_response(response)
             return _HttpExchange(response, parsed, requests, retries, rate_limits)
         raise McpTransportError("MCP request retry loop ended unexpectedly")
