@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Final, Protocol, assert_never
+from typing import Final, Literal, Protocol, assert_never
 
 from pydantic import (
     AliasChoices,
@@ -44,8 +44,8 @@ class McpSettings(BaseSettings):
     endpoint_url: str = "https://mcp.notion.com/mcp"
     access_token: SecretStr = SecretStr("")
     protocol_version: str = "2025-11-25"
-    search_tool: str = McpToolName.SEARCH.value
-    fetch_tool: str = McpToolName.FETCH.value
+    search_tool: Literal["notion-search"] = McpToolName.SEARCH.value
+    fetch_tool: Literal["notion-fetch"] = McpToolName.FETCH.value
     connect_timeout_s: float = Field(default=10.0, gt=0)
     read_timeout_s: float = Field(default=90.0, gt=0)
     max_retries: int = Field(default=2, ge=0, le=5)
@@ -200,7 +200,7 @@ class NimToolCall(BaseModel):
     model_config = ConfigDict(extra="ignore", frozen=True)
 
     id: str = Field(min_length=1)
-    type: str = "function"
+    type: Literal["function"] = "function"
     function: NimFunctionCall
 
 

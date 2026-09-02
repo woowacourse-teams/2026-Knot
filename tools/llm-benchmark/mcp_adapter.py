@@ -134,6 +134,10 @@ class LiveNotionMcpAdapter:
         search_tool: str = "notion-search",
         fetch_tool: str = "notion-fetch",
     ) -> None:
+        if search_tool != McpToolName.SEARCH.value:
+            raise ValueError("only notion-search is allowed")
+        if fetch_tool != McpToolName.FETCH.value:
+            raise ValueError("only notion-fetch is allowed")
         self._client = client
         self._scope = scope
         self._search_tool = search_tool

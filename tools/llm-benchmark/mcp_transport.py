@@ -7,10 +7,11 @@ import socket
 import time
 from dataclasses import dataclass
 from typing import Final
+from urllib.parse import urlsplit
 
 import httpx2
 from mcp_errors import McpHttpError, McpProtocolError, McpTransportError
-from mcp_models import JsonObject, McpRpcResponse, McpSettings, McpToolResult
+from mcp_models import JsonObject, JsonValue, McpRpcResponse, McpSettings, McpToolResult
 from mcp_wire import parse_response, safe_detail
 
 _RETRYABLE_STATUSES: Final[frozenset[int]] = frozenset(
@@ -55,6 +56,8 @@ class McpHttpClient:
         token = settings.access_token.get_secret_value()
         if not token:
             raise McpTransportError("NOTION_MCP_ACCESS_TOKEN is required")
+        if not _is_allowed_endpoint(settings.endpoint_url):
+            raise McpTransportError("MCP endpoint must be the hosted Notion endpoint")
         timeout = httpx2.Timeout(
             connect=settings.connect_timeout_s,
             read=settings.read_timeout_s,
@@ -94,12 +97,17 @@ class McpHttpClient:
             "tools/call", {"name": name, "arguments": arguments}, tool_name=name
         )
         payload = exchange.payload
+        if payload is not None and payload.error is not None:
+            raise McpProtocolError(
+                safe_detail(payload.error.message, (self._access_token,)),
+                payload.error.code,
+            )
         if payload is None or payload.result is None:
             raise McpProtocolError("MCP tool call returned no result")
-        if payload.error is not None:
-            raise McpProtocolError(payload.error.message, payload.error.code)
         try:
-            result = McpToolResult.model_validate(payload.result)
+            result = _redact_tool_result(
+                McpToolResult.model_validate(payload.result), self._access_token
+            )
         except ValueError as error:
             raise McpProtocolError(
                 "MCP tool result does not match the protocol"
@@ -122,13 +130,15 @@ class McpHttpClient:
             },
         )
         payload = exchange.payload
-        if payload is None or payload.error is not None:
-            reason = (
-                "initialize returned no result"
-                if payload is None
-                else payload.error.message
+        if payload is None:
+            raise McpProtocolError("initialize returned no result")
+        if payload.error is not None:
+            raise McpProtocolError(
+                safe_detail(payload.error.message, (self._access_token,)),
+                payload.error.code,
             )
-            raise McpProtocolError(reason)
+        if payload.result is None:
+            raise McpProtocolError("initialize returned no result")
         if exchange.response is not None:
             self._session_id = exchange.response.headers.get("Mcp-Session-Id")
         notification = self._request(
@@ -227,3 +237,49 @@ class McpHttpClient:
 
 def _empty_exchange() -> _HttpExchange:
     return _HttpExchange(None, None, 0, 0, 0)
+
+
+def _is_allowed_endpoint(url: str) -> bool:
+    parsed = urlsplit(url)
+    if parsed.query or parsed.fragment or parsed.username or parsed.password:
+        return False
+    if parsed.scheme == "https":
+        return parsed.hostname == "mcp.notion.com" and parsed.port in (None, 443)
+    return parsed.scheme == "http" and parsed.hostname in {"127.0.0.1", "localhost"}
+
+
+def _redact_tool_result(result: McpToolResult, token: str) -> McpToolResult:
+    content = tuple(
+        block.model_copy(
+            update={
+                "text": None
+                if block.text is None
+                else safe_detail(block.text, (token,))
+            }
+        )
+        for block in result.content
+    )
+    structured_content = (
+        None
+        if result.structured_content is None
+        else _redact_object(result.structured_content, token)
+    )
+    return result.model_copy(
+        update={"content": content, "structured_content": structured_content}
+    )
+
+
+def _redact_object(value: dict[str, JsonValue], token: str) -> dict[str, JsonValue]:
+    return {key: _redact_value(child, token) for key, child in value.items()}
+
+
+def _redact_value(value: JsonValue, token: str) -> JsonValue:
+    match value:
+        case str():
+            return safe_detail(value, (token,))
+        case list():
+            return [_redact_value(child, token) for child in value]
+        case dict():
+            return _redact_object(value, token)
+        case int() | float() | bool() | None:
+            return value
