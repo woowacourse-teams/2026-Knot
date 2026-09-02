@@ -9,11 +9,7 @@
 from __future__ import annotations
 
 import pytest
-
-from benchmark_metadata import (
-    create_benchmark_metadata,
-    snapshot_fingerprint,
-)
+from benchmark_metadata import create_benchmark_metadata, snapshot_fingerprint
 
 
 def test_metadata_records_reproducibility_inputs_without_secrets() -> None:
