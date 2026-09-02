@@ -1,12 +1,10 @@
 import { GetWorkspaceResponseDto } from "@api/dto/workspace";
 import { workspaceDetailResponse } from "@api/mock/responses/workspace";
 import { ThemeProvider } from "@emotion/react";
-import { WorkspaceSidebarProvider } from "@provider/context/workspaceSidebarContext";
 import { theme } from "@provider/themeProvider";
 import { getRouterPath, PATH_ROUTE } from "@routes/PATH_ROUTE";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, within } from "@testing-library/react";
-import WorkspaceGnb from "@widgets/workspace/WorkspaceGnb";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { describe, expect, it } from "vitest";
 
@@ -24,17 +22,7 @@ const renderSidebar = () => {
     defaultOptions: { queries: { retry: false } },
   });
   const router = createMemoryRouter(
-    [
-      {
-        path: PATH_ROUTE.WORKSPACE_HOME,
-        element: (
-          <WorkspaceSidebarProvider>
-            <WorkspaceGnb />
-            <WorkspaceSidebar />
-          </WorkspaceSidebarProvider>
-        ),
-      },
-    ],
+    [{ path: PATH_ROUTE.WORKSPACE_HOME, element: <WorkspaceSidebar /> }],
     { initialEntries: [HOME_PATH] },
   );
 
@@ -46,32 +34,15 @@ const renderSidebar = () => {
     </ThemeProvider>,
   );
 
-  const toggleButton = screen.getByRole("button", { name: "사이드바" });
-
-  return { toggleButton };
-};
-
-const openSidebar = () => {
-  const { toggleButton } = renderSidebar();
-
-  fireEvent.click(toggleButton);
-
-  return screen.getByRole("complementary");
+  return screen.getByRole("complementary", { name: "워크스페이스 사이드바" });
 };
 
 const getFolderRow = (name: string) =>
   screen.getByRole("button", { name: new RegExp(`^${name}`) });
 
 describe("WorkspaceSidebar", () => {
-  it("닫혀 있으면 아무것도 그리지 않는다", () => {
-    renderSidebar();
-
-    expect(screen.queryByRole("complementary")).not.toBeInTheDocument();
-    expect(screen.queryByText(expected.name)).not.toBeInTheDocument();
-  });
-
-  it("열리면 조회 응답의 워크스페이스 이름, 폴더 라벨, 임시 트리와 동기화 안내를 보여준다", async () => {
-    const sidebar = openSidebar();
+  it("조회 응답의 워크스페이스 이름, 폴더 라벨, 임시 트리와 동기화 안내를 보여준다", async () => {
+    const sidebar = renderSidebar();
 
     expect(await within(sidebar).findByText(expected.name)).toBeInTheDocument();
     expect(within(sidebar).getByText("폴더")).toBeInTheDocument();
@@ -89,7 +60,7 @@ describe("WorkspaceSidebar", () => {
   });
 
   it("처음에는 제품과 로드맵 폴더만 펼쳐져 있다", () => {
-    openSidebar();
+    renderSidebar();
 
     expect(getFolderRow("제품")).toHaveAttribute("aria-expanded", "true");
     expect(getFolderRow("로드맵")).toHaveAttribute("aria-expanded", "true");
@@ -98,7 +69,7 @@ describe("WorkspaceSidebar", () => {
   });
 
   it("펼쳐진 폴더를 누르면 하위 항목을 접는다", () => {
-    openSidebar();
+    renderSidebar();
 
     fireEvent.click(getFolderRow("제품"));
 
@@ -114,7 +85,7 @@ describe("WorkspaceSidebar", () => {
   });
 
   it("접힌 폴더를 다시 누르면 하위 항목을 펼친다", () => {
-    openSidebar();
+    renderSidebar();
 
     fireEvent.click(getFolderRow("제품"));
     fireEvent.click(getFolderRow("제품"));
@@ -125,7 +96,7 @@ describe("WorkspaceSidebar", () => {
   });
 
   it("중간 폴더를 접어도 형제 폴더는 그대로 보인다", () => {
-    openSidebar();
+    renderSidebar();
 
     fireEvent.click(getFolderRow("로드맵"));
 
