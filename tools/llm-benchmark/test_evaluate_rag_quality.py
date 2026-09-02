@@ -8,8 +8,13 @@ from gold_set import BenchmarkCase
 from human_review import HumanReviewRow, HumanReviewStatus
 
 
-def _case(case_id: str, turns: tuple[str, ...], sources: tuple[str, ...]) -> BenchmarkCase:
-    return BenchmarkCase(case_id, "confirmed", "test", turns, "", sources)
+def _case(
+    case_id: str,
+    turns: tuple[str, ...],
+    sources: tuple[str, ...],
+    category: str = "test",
+) -> BenchmarkCase:
+    return BenchmarkCase(case_id, "confirmed", category, turns, "", sources)
 
 
 def test_no_answer_and_clarification_require_empty_sources() -> None:
@@ -127,3 +132,21 @@ def test_unregistered_workload_cases_are_left_for_human_answer_review() -> None:
 
     # Then: semantic quality remains explicitly unevaluated by automation
     assert result is None
+
+
+def test_no_answer_and_broad_workload_cases_must_not_expose_sources() -> None:
+    # Given: independent cases whose source IDs are reviewer evidence, not answer links
+    cases = (
+        _case("W-030", ("MongoDB?",), ("policy",), "no_answer"),
+        _case("W-031", ("전체 현황?",), ("policy",), "broad"),
+    )
+    rows = (
+        EvaluationRow(case_id="W-030", repeat=1, turn=1, strategy="rag", source_paths=(), retrieved_count=0),
+        EvaluationRow(case_id="W-031", repeat=1, turn=1, strategy="rag", source_paths=(), retrieved_count=0),
+    )
+
+    # When: the automatic retrieval gate evaluates those policy cases
+    summary = evaluate(rows, cases, "rag", repeats=1)
+
+    # Then: no-answer and clarification responses pass without related documents
+    assert summary.retrieval_gate_passed
