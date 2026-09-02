@@ -37,6 +37,6 @@ def test_observation_fingerprint_changes_when_answer_changes() -> None:
     }
 
     # Then: a human label cannot be reused for a changed answer
-    assert observation_fingerprint(answer="첫 답변", **common) != observation_fingerprint(
-        answer="바뀐 답변", **common
-    )
+    assert observation_fingerprint(
+        answer="첫 답변", **common
+    ) != observation_fingerprint(answer="바뀐 답변", **common)
