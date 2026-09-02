@@ -14,6 +14,7 @@
 from __future__ import annotations
 
 import json
+import time
 from collections.abc import Iterator
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from threading import Thread
@@ -21,7 +22,12 @@ from typing import ClassVar
 
 import pytest
 from mcp_models import JsonObject, McpSettings
-from mcp_transport import McpHttpClient, McpHttpError, McpProtocolError
+from mcp_transport import (
+    McpHttpClient,
+    McpHttpError,
+    McpProtocolError,
+    McpTransportError,
+)
 
 
 class _McpHandler(BaseHTTPRequestHandler):
@@ -31,6 +37,7 @@ class _McpHandler(BaseHTTPRequestHandler):
     auth_failure: ClassVar[bool] = False
     echo_token: ClassVar[bool] = False
     redirect_once: ClassVar[bool] = False
+    slow: ClassVar[bool] = False
 
     def do_POST(self) -> None:
         length = int(self.headers.get("Content-Length", "0"))
@@ -40,6 +47,8 @@ class _McpHandler(BaseHTTPRequestHandler):
         self.requests.append(
             (self.headers.get("Mcp-Method", ""), headers, request_body)
         )
+        if self.slow:
+            time.sleep(0.05)
         if self.redirect_once:
             type(self).redirect_once = False
             self.send_response(307)
@@ -132,6 +141,7 @@ def mcp_server() -> Iterator[tuple[str, ThreadingHTTPServer]]:
     _McpHandler.auth_failure = False
     _McpHandler.echo_token = False
     _McpHandler.redirect_once = False
+    _McpHandler.slow = False
     server = ThreadingHTTPServer(("127.0.0.1", 0), _McpHandler)
     thread = Thread(target=server.serve_forever, daemon=True)
     thread.start()
@@ -269,3 +279,25 @@ def test_http_client_does_not_follow_redirects_with_bearer_credentials(
 
     assert caught.value.status_code == 307
     assert len(_McpHandler.requests) == 1
+
+
+def test_http_client_surfaces_a_read_timeout_as_transport_error(
+    mcp_server: tuple[str, ThreadingHTTPServer],
+) -> None:
+    # Given: an MCP server slower than the configured read timeout
+    endpoint, _server = mcp_server
+    _McpHandler.slow = True
+    client = McpHttpClient(
+        McpSettings(
+            endpoint_url=endpoint,
+            access_token="test-token",
+            read_timeout_s=0.01,
+            max_retries=0,
+            retry_backoff_s=0,
+        )
+    )
+
+    # When & then: the timeout is classified without exposing protocol internals
+    with pytest.raises(McpTransportError, match="MCP transport error"):
+        client.call_tool("notion-search", {"query": "PostgreSQL"})
+    client.close()
