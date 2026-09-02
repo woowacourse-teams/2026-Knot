@@ -282,7 +282,9 @@ def evaluate_human_labels(
         if not row.result_fingerprint:
             continue
         result = result_by_key.get((row.case_id, row.repeat, row.turn))
-        if result is None or row.result_fingerprint != observation_fingerprint_for_row(result):
+        if result is None or row.result_fingerprint != observation_fingerprint_for_row(
+            result
+        ):
             invalid.add(row.key)
             continue
         if row.decision is HumanReviewDecision.PASS and (
