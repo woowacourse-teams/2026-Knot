@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -25,7 +26,7 @@ from human_review import (
     expected_review_keys,
     load_human_review,
 )
-from pydantic import BaseModel, ConfigDict, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 _DEFAULT_RESULTS = Path(".benchmark-data/rag-quality-retrieval-final-10x.jsonl")
 _DEFAULT_GOLD_SET = Path("docs/llm-search-benchmark-gold-set.md")
@@ -53,13 +54,13 @@ class EvaluationRow(BaseModel):
 
     model_config = ConfigDict(extra="ignore", frozen=True)
 
-    case_id: str
-    repeat: int
-    turn: int
-    strategy: str
-    answer: str = ""
-    source_paths: tuple[str, ...] = ()
-    retrieved_count: int = 0
+    case_id: str = Field(min_length=1)
+    repeat: int = Field(ge=1)
+    turn: int = Field(ge=1)
+    strategy: str = Field(min_length=1)
+    answer: str
+    source_paths: tuple[str, ...]
+    retrieved_count: int = Field(ge=0)
     error: str | None = None
 
 
@@ -298,9 +299,28 @@ def _structural_failures(row: EvaluationRow) -> tuple[str, ...]:
 def _expected_sources(case: BenchmarkCase, turn: int) -> tuple[str, ...]:
     if case.case_id in _NO_ANSWER_CASES or case.category in _NO_ANSWER_CATEGORIES:
         return ()
+    if case.source_ids_by_turn is not None:
+        return case.sources_for_turn(turn)
     if case.case_id == "G-013" and turn == 1:
         return case.source_ids[:1]
-    return case.source_ids
+    return case.sources_for_turn(turn)
+
+
+_SOURCE_TOKEN_PATTERN = re.compile(r"[0-9A-Za-z]+(?:-[0-9A-Za-z]+)*")
+_SOURCE_SUFFIX_PATTERN = re.compile(r"\.(?:csv|md|markdown|txt)$", re.IGNORECASE)
+
+
+def _normalize_source_id(value: str) -> str:
+    without_suffix = _SOURCE_SUFFIX_PATTERN.sub("", value.strip().casefold())
+    return re.sub(r"[^0-9a-z]", "", without_suffix)
+
+
+def _source_tokens(path: str) -> frozenset[str]:
+    return frozenset(
+        normalized
+        for token in _SOURCE_TOKEN_PATTERN.findall(path)
+        if (normalized := _normalize_source_id(token))
+    )
 
 
 def _source_match(
@@ -311,14 +331,20 @@ def _source_match(
 ) -> bool:
     if not expected_ids:
         return not actual_paths
-    normalized_paths = tuple(path.casefold().replace("-", "") for path in actual_paths)
-    matches = tuple(
-        any(expected.casefold().replace("-", "") in path for path in normalized_paths)
-        for expected in expected_ids
+    normalized_expected = frozenset(
+        _normalize_source_id(value) for value in expected_ids
     )
-    if case_id == "G-013" and turn == 2:
-        return all(matches) and len(actual_paths) == len(expected_ids)
-    return all(matches)
+    if len(normalized_expected) != len(expected_ids):
+        return False
+    if len(actual_paths) != len(normalized_expected):
+        return False
+    matched: list[str] = []
+    for path in actual_paths:
+        candidates = normalized_expected & _source_tokens(path)
+        if len(candidates) != 1:
+            return False
+        matched.append(next(iter(candidates)))
+    return frozenset(matched) == normalized_expected
 
 
 if __name__ == "__main__":

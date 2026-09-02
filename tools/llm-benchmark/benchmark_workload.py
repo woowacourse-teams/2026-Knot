@@ -46,6 +46,7 @@ class WorkloadCase(BaseModel):
     category: WorkloadCategory
     turns: tuple[str, ...] = Field(min_length=1)
     expected_source_ids: tuple[str, ...] = Field(min_length=1, max_length=3)
+    expected_source_ids_by_turn: tuple[tuple[str, ...], ...] | None = None
     expected_facts: tuple[str, ...] = Field(min_length=1)
     independent: bool = True
 
@@ -59,6 +60,20 @@ class WorkloadCase(BaseModel):
             raise ValueError("expected_facts must not contain blank facts")
         if not self.independent:
             raise ValueError("all workload cases must be marked independent")
+        if self.expected_source_ids_by_turn is not None:
+            if len(self.expected_source_ids_by_turn) != len(self.turns):
+                raise ValueError(
+                    "expected_source_ids_by_turn must align with every turn"
+                )
+            for source_ids in self.expected_source_ids_by_turn:
+                if not 0 < len(source_ids) <= 3:
+                    raise ValueError(
+                        "each expected source set must contain one to three IDs"
+                    )
+                if any(not source_id.strip() for source_id in source_ids):
+                    raise ValueError(
+                        "expected_source_ids_by_turn must not contain blank IDs"
+                    )
         return self
 
 

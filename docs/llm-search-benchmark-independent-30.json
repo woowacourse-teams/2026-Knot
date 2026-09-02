@@ -188,6 +188,7 @@
       "category": "follow_up",
       "turns": ["코드 포맷 검사 도구가 뭐였지?", "그럼 CI에서 언제 실패 처리해?"],
       "expected_source_ids": ["77cde1156a838268aa6c81e34bea9755", "e8ede1156a83832a8d6e01b193aa434f"],
+      "expected_source_ids_by_turn": [["77cde1156a838268aa6c81e34bea9755"], ["e8ede1156a83832a8d6e01b193aa434f"]],
       "expected_facts": ["Spotless", "spotlessCheck", "CI 실패 시 병합하지 않음"]
     },
     {
@@ -195,6 +196,7 @@
       "category": "follow_up",
       "turns": ["DB 이름 규칙은 뭐야?", "Java 변수명도 같은 규칙이야?"],
       "expected_source_ids": ["5eade1156a8383878f7981b89626dfe4", "2b1de1156a8383e7aea08154e99109de"],
+      "expected_source_ids_by_turn": [["5eade1156a8383878f7981b89626dfe4"], ["2b1de1156a8383e7aea08154e99109de"]],
       "expected_facts": ["DB는 snake_case", "Java 변수와 파라미터는 camelCase", "대상을 구분해야 함"]
     },
     {

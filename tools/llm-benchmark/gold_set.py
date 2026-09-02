@@ -38,6 +38,15 @@ class BenchmarkCase:
     turns: tuple[str, ...]
     expected_answer: str
     source_ids: tuple[str, ...]
+    source_ids_by_turn: tuple[tuple[str, ...], ...] | None = None
+
+    def sources_for_turn(self, turn: int) -> tuple[str, ...]:
+        """Return the source IDs expected for a one-based conversation turn."""
+        if not 1 <= turn <= len(self.turns):
+            raise ValueError(f"turn must be between 1 and {len(self.turns)}")
+        if self.source_ids_by_turn is None:
+            return self.source_ids
+        return self.source_ids_by_turn[turn - 1]
 
 
 def load_cases(path: Path) -> tuple[BenchmarkCase, ...]:
@@ -93,6 +102,7 @@ def _load_json_cases(path: Path) -> tuple[BenchmarkCase, ...]:
             case.turns,
             "\n".join(case.expected_facts),
             case.expected_source_ids,
+            case.expected_source_ids_by_turn,
         )
         for case in manifest.cases
     )
