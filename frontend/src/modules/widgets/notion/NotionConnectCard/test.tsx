@@ -34,7 +34,6 @@ const HOME_PATH = getRouterPath({
 const ELSEWHERE_PATH = "/elsewhere";
 const FORBIDDEN_ERROR_MESSAGE =
   "워크스페이스 소유자만 노션을 연결할 수 있어요.";
-const CALLBACK_FAILED_MESSAGE = "노션 연결에 실패했어요. 다시 시도해 주세요.";
 const UNKNOWN_ERROR_MESSAGE =
   "노션 연결을 시작하지 못했어요. 잠시 후 다시 시도해 주세요.";
 
@@ -74,6 +73,7 @@ const getConnectButton = () =>
   screen.getByRole("button", { name: "노션 연결하기" });
 const getGoHomeButton = () =>
   screen.getByRole("button", { name: "워크스페이스로 이동" });
+const getRetryButton = () => screen.getByRole("button", { name: "다시 시도" });
 
 const overrideStartStatus = (status: number) => {
   mockServer.use(
@@ -224,19 +224,50 @@ describe("NotionConnectCard", () => {
     expect(router.state.location.pathname).toBe(ELSEWHERE_PATH);
   });
 
-  it("?result=failed로 돌아오면 연결 실패 문구를 보여주고, 다시 연결하기를 누르면 지운다", async () => {
-    holdStartResponse();
+  it("?result=failed로 돌아오면 실패 화면을 보여주고 하단에 워크스페이스로 이동 버튼을 둔다", () => {
     const { router } = renderCard("?result=failed");
 
-    expect(screen.getByRole("alert")).toHaveTextContent(
-      CALLBACK_FAILED_MESSAGE,
-    );
+    expect(
+      screen.getByRole("heading", { name: "노션 연결에 실패했어요" }),
+    ).toBeInTheDocument();
+    expect(getRetryButton()).toBeEnabled();
+    expect(getGoHomeButton()).toBeEnabled();
+    expect(
+      screen.queryByRole("button", { name: "노션 연결하기" }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     expect(router.state.location.pathname).toBe(NOTION_CONNECTION_PATH);
+  });
 
-    fireEvent.click(getConnectButton());
+  it("실패 화면에서 다시 시도를 누르면 연결 시작 응답의 authorizationUrl로 페이지를 이동시킨다", async () => {
+    const assign = vi.fn();
+    vi.stubGlobal("location", { ...window.location, assign });
+    renderCard("?result=failed");
+
+    fireEvent.click(getRetryButton());
 
     await waitFor(() => {
-      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+      expect(assign).toHaveBeenCalledWith(expected.authorizationUrl);
     });
+    expect(assign).toHaveBeenCalledTimes(1);
+  });
+
+  it("실패 화면에서 다시 시도가 403이면 소유자 안내 문구를 보여준다", async () => {
+    overrideStartStatus(403);
+    renderCard("?result=failed");
+
+    fireEvent.click(getRetryButton());
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      FORBIDDEN_ERROR_MESSAGE,
+    );
+  });
+
+  it("실패 화면에서 워크스페이스로 이동을 누르면 워크스페이스 홈으로 이동한다", () => {
+    const { router } = renderCard("?result=failed");
+
+    fireEvent.click(getGoHomeButton());
+
+    expect(router.state.location.pathname).toBe(HOME_PATH);
   });
 });
