@@ -4,8 +4,9 @@
  * - `pending`: 질문만 있고 답변이 아직 없음
  * - `streaming`: 답변이 조각으로 도착하는 중
  * - `done`: 답변이 끝나 저장됨
+ * - `error`: 답변이 오다가 끊김. 여기까지 온 부분 답변은 그대로 남음
  */
-export type ChatTurnStatus = "pending" | "streaming" | "done";
+export type ChatTurnStatus = "pending" | "streaming" | "done" | "error";
 
 /**
  * 화면에 그려지는 대화 단위. 질문 하나와 그에 대한 답변 하나를 묶습니다.
