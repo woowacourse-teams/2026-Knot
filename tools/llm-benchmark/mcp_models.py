@@ -243,12 +243,24 @@ class FetchToolArguments(BaseModel):
 
 
 @dataclass(frozen=True, slots=True)
-class ValidatedToolCall:
-    """A model tool call whose name and arguments passed the MCP boundary."""
+class ValidatedSearchToolCall:
+    """A validated search call with a correlated argument type."""
 
     call_id: str
-    tool: McpToolName
-    arguments: SearchToolArguments | FetchToolArguments
+    arguments: SearchToolArguments
+
+
+@dataclass(frozen=True, slots=True)
+class ValidatedFetchToolCall:
+    """A validated fetch call with a correlated argument type."""
+
+    call_id: str
+    arguments: FetchToolArguments
+
+
+ValidatedToolCall = TypeAliasType(
+    "ValidatedToolCall", ValidatedSearchToolCall | ValidatedFetchToolCall
+)
 
 
 class McpToolCallValidationError(Exception):
@@ -304,7 +316,11 @@ def validate_nim_tool_call(
                 parsed = FetchToolArguments.model_validate(arguments)
             case unreachable:
                 assert_never(unreachable)
-        return ValidatedToolCall(call.id, tool, parsed)
+        return (
+            ValidatedSearchToolCall(call.id, parsed)
+            if tool is McpToolName.SEARCH
+            else ValidatedFetchToolCall(call.id, parsed)
+        )
     except (
         McpArgumentError,
         ValidationError,

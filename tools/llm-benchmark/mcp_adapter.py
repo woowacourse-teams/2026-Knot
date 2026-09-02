@@ -6,7 +6,7 @@ import re
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Protocol, assert_never
+from typing import Protocol
 
 from benchmark_core import ContextPack, Document, tokenize
 from mcp_adapter_errors import McpAdapterError, McpScopeError
@@ -30,6 +30,8 @@ from mcp_models import (
     McpToolResult,
     McpToolTrace,
     SearchToolArguments,
+    ValidatedFetchToolCall,
+    ValidatedSearchToolCall,
     ValidatedToolCall,
 )
 from mcp_parsing import (
@@ -233,7 +235,7 @@ class LiveNotionMcpAdapter:
 
 
 def build_mcp_context(
-    adapter: McpToolCaller, query: str, top_k: int
+    adapter: McpReadAdapter, query: str, top_k: int
 ) -> McpContextTiming:
     """Run scoped search/detail calls and render only fetched pages for the model."""
     search = adapter.search(query, top_k)
@@ -249,53 +251,40 @@ def execute_validated_tool_call(
     search_limit: int = 3,
 ) -> McpSearchResult | McpFetchResult:
     """Execute only a previously validated read-only model tool call."""
-    match call.tool:
-        case McpToolName.SEARCH:
-            match call.arguments:
-                case SearchToolArguments(query=query):
-                    return adapter.search(query, search_limit)
-                case unreachable:
-                    assert_never(unreachable)
-        case McpToolName.FETCH:
-            match call.arguments:
-                case FetchToolArguments(page_id=page_id, url=url):
-                    resolved_page_id = page_id or page_id_from_url(url or "")
-                    if resolved_page_id is None:
-                        raise McpAdapterError(
-                            f"fetch call {call.call_id!r} has no page identity"
-                        )
-                    hit = McpSearchHit(
-                        resolved_page_id,
-                        "",
-                        url or f"https://notion.so/{resolved_page_id}",
-                        "",
-                        scope.workspace_id,
-                        scope.active_snapshot_id,
-                    )
-                    if not scope.permits(
-                        McpPage(
-                            hit.page_id,
-                            hit.title,
-                            hit.url,
-                            hit.snippet,
-                            hit.workspace_id,
-                            hit.snapshot_id,
-                        )
-                    ):
-                        raise McpScopeError(
-                            f"page {hit.page_id!r} is outside the active scope"
-                        )
-                    if not is_safe_notion_url(hit.url):
-                        raise McpScopeError(f"page {hit.page_id!r} has an unsafe URL")
-                    if not page_id_matches_url(hit.page_id, hit.url):
-                        raise McpScopeError(
-                            f"page {hit.page_id!r} has a mismatched identity"
-                        )
-                    return adapter.fetch(hit)
-                case unreachable:
-                    assert_never(unreachable)
-        case unreachable:
-            assert_never(unreachable)
+    match call:
+        case ValidatedSearchToolCall(arguments=SearchToolArguments(query=query)):
+            return adapter.search(query, search_limit)
+        case ValidatedFetchToolCall(
+            call_id=call_id,
+            arguments=FetchToolArguments(page_id=page_id, url=url),
+        ):
+            resolved_page_id = page_id or page_id_from_url(url or "")
+            if resolved_page_id is None:
+                raise McpAdapterError(f"fetch call {call_id!r} has no page identity")
+            hit = McpSearchHit(
+                resolved_page_id,
+                "",
+                url or f"https://notion.so/{resolved_page_id}",
+                "",
+                scope.workspace_id,
+                scope.active_snapshot_id,
+            )
+            if not scope.permits(
+                McpPage(
+                    hit.page_id,
+                    hit.title,
+                    hit.url,
+                    hit.snippet,
+                    hit.workspace_id,
+                    hit.snapshot_id,
+                )
+            ):
+                raise McpScopeError(f"page {hit.page_id!r} is outside the active scope")
+            if not is_safe_notion_url(hit.url):
+                raise McpScopeError(f"page {hit.page_id!r} has an unsafe URL")
+            if not page_id_matches_url(hit.page_id, hit.url):
+                raise McpScopeError(f"page {hit.page_id!r} has a mismatched identity")
+            return adapter.fetch(hit)
 
 
 def _document_page(document: Document, workspace_id: str, snapshot_id: str) -> McpPage:
