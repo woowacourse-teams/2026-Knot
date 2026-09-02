@@ -70,7 +70,7 @@ class _ToolCallHandler(BaseHTTPRequestHandler):
         type(self).request_body = json.loads(self.rfile.read(length))
         body = (
             b'data: {"choices":[{"delta":{"tool_calls":[{"index":0,"id":"call-1","type":"function","function":{"name":"notion-search","arguments":"{\\"query\\":"}}]}}]}\n\n'
-            b'data: {"choices":[{"delta":{"tool_calls":[{"index":0,"function":{"arguments":"\\"PostgreSQL\\"}"}}]}}]}\n\n'
+            b'data: {"choices":[{"delta":{"tool_calls":[{"index":0,"id":"call-1","function":{"arguments":"\\"PostgreSQL\\"}"}}]}}]}\n\n'
             b"data: [DONE]\n\n"
         )
         self.send_response(200)
