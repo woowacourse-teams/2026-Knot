@@ -45,7 +45,11 @@ jobs:
               exit 1
             fi
 
-            ci_run="$(printf '%s' "$ci_runs" | jq -c '[.[] | select(.event == "push")] | sort_by(.databaseId) | last // empty')"
+            if ! ci_run="$(printf '%s' "$ci_runs" | jq -c '[.[] | select(.event == "push")] | sort_by(.databaseId) | last // empty')"; then
+              echo "Failed to parse Backend CI results for $GITHUB_SHA."
+              echo "conclusion=lookup-failed" >> "$GITHUB_OUTPUT"
+              exit 1
+            fi
 
             if [ -z "$ci_run" ]; then
               echo "Backend CI run for $GITHUB_SHA is not available yet ($attempt/90)."
@@ -315,9 +319,13 @@ jobs:
           PREVIOUS_PROFILE_FILE="$SNAPSHOT_DIR/10-development-profile.conf"
           LAST_KNOWN_GOOD_DIR="/opt/knot-backend/.last-known-good"
           LAST_KNOWN_GOOD_READY="$LAST_KNOWN_GOOD_DIR/READY"
-          LAST_KNOWN_GOOD_JAR="$LAST_KNOWN_GOOD_DIR/app.jar"
-          LAST_KNOWN_GOOD_ENV_FILE="$LAST_KNOWN_GOOD_DIR/knot-backend-dev.env"
-          LAST_KNOWN_GOOD_PROFILE_FILE="$LAST_KNOWN_GOOD_DIR/10-development-profile.conf"
+          LAST_KNOWN_GOOD_BACKUP_POINTER="$STATE_DIR/last-known-good.pointer"
+          LAST_KNOWN_GOOD_BACKUP_STATE="$STATE_DIR/last-known-good.state"
+          CANDIDATE_LAST_KNOWN_GOOD_DIR="$SNAPSHOT_DIR/last-known-good"
+          CANDIDATE_LAST_KNOWN_GOOD_READY="$CANDIDATE_LAST_KNOWN_GOOD_DIR/READY"
+          CANDIDATE_LAST_KNOWN_GOOD_JAR="$CANDIDATE_LAST_KNOWN_GOOD_DIR/app.jar"
+          CANDIDATE_LAST_KNOWN_GOOD_ENV_FILE="$CANDIDATE_LAST_KNOWN_GOOD_DIR/knot-backend-dev.env"
+          CANDIDATE_LAST_KNOWN_GOOD_PROFILE_FILE="$CANDIDATE_LAST_KNOWN_GOOD_DIR/10-development-profile.conf"
           SNAPSHOT_READY="$STATE_DIR/snapshot-ready"
           DEPLOYMENT_LOCK_FILE="/tmp/knot-backend-dev-deployment.lock"
           ROLLBACK_LOCK_FILE="$STATE_DIR/rollback.lock"
@@ -329,6 +337,10 @@ jobs:
           WATCHDOG_SCRIPT="$STATE_DIR/rollback-watchdog.sh"
           RESTORE_SCRIPT="$STATE_DIR/restore-previous.sh"
           LAST_KNOWN_GOOD_RESTORE_SCRIPT="$STATE_DIR/restore-last-known-good.sh"
+          PREFLIGHT_SCRIPT="$STATE_DIR/preflight-recovery.sh"
+          PREFLIGHT_STATUS_FILE="$STATE_DIR/status"
+          PREFLIGHT_STARTED_MARKER="$STATE_DIR/preflight-started"
+          PREFLIGHT_TERMINAL_MARKER="$STATE_DIR/preflight-terminal"
           WATCHDOG_TIMEOUT_SECONDS=420
           WATCHDOG_STARTED=false
           WATCHDOG_PID=""
@@ -337,17 +349,18 @@ jobs:
             rm -f "$CANDIDATE_JAR" "$CANDIDATE_ENV_FILE"
             rmdir "$STAGING_DIR" 2>/dev/null || true
             if [ "$WATCHDOG_STARTED" = false ]; then
-              rm -f "$WATCHDOG_SCRIPT" "$RESTORE_SCRIPT" "$LAST_KNOWN_GOOD_RESTORE_SCRIPT" "$STATE_DIR/last-known-good.ready" "$SNAPSHOT_READY" "$WATCHDOG_STARTED_MARKER"
+              rm -f "$WATCHDOG_SCRIPT" "$RESTORE_SCRIPT" "$LAST_KNOWN_GOOD_RESTORE_SCRIPT" "$PREFLIGHT_SCRIPT" "$PREFLIGHT_STARTED_MARKER" "$PREFLIGHT_TERMINAL_MARKER" "$STATE_DIR/last-known-good.ready" "$LAST_KNOWN_GOOD_BACKUP_POINTER" "$LAST_KNOWN_GOOD_BACKUP_STATE" "$SNAPSHOT_READY" "$WATCHDOG_STARTED_MARKER"
               rm -f "$MUTATION_STARTED_MARKER" "$ROLLBACK_STARTED_MARKER" "$ROLLBACK_LOCK_FILE"
               rm -f "$SUCCESS_MARKER" "$ROLLBACK_MARKER" "$STATE_DIR/status"
-              rm -f "$STATE_DIR/watchdog.log"
+              rm -f "$STATE_DIR/watchdog.log" "$STATE_DIR/preflight.log"
               rmdir "$STATE_DIR" 2>/dev/null || true
-            elif [ -f "$SUCCESS_MARKER" ] || [ -f "$ROLLBACK_MARKER" ]; then
+            elif [ -f "$SUCCESS_MARKER" ] || [ -f "$ROLLBACK_MARKER" ] || [ -f "$PREFLIGHT_TERMINAL_MARKER" ]; then
               if [ -n "$WATCHDOG_PID" ]; then
                 kill "$WATCHDOG_PID" 2>/dev/null || true
               fi
-              rm -f "$WATCHDOG_SCRIPT" "$RESTORE_SCRIPT" "$LAST_KNOWN_GOOD_RESTORE_SCRIPT" "$STATE_DIR/last-known-good.ready" "$SNAPSHOT_READY" "$WATCHDOG_STARTED_MARKER"
+              rm -f "$WATCHDOG_SCRIPT" "$RESTORE_SCRIPT" "$LAST_KNOWN_GOOD_RESTORE_SCRIPT" "$PREFLIGHT_SCRIPT" "$PREFLIGHT_STARTED_MARKER" "$PREFLIGHT_TERMINAL_MARKER" "$STATE_DIR/last-known-good.ready" "$LAST_KNOWN_GOOD_BACKUP_POINTER" "$LAST_KNOWN_GOOD_BACKUP_STATE" "$SNAPSHOT_READY" "$WATCHDOG_STARTED_MARKER"
               rm -f "$MUTATION_STARTED_MARKER" "$ROLLBACK_STARTED_MARKER" "$ROLLBACK_LOCK_FILE"
+              rm -f "$STATE_DIR/preflight.log"
             fi
           }
           trap cleanup EXIT
@@ -445,11 +458,24 @@ jobs:
           #!/usr/bin/env bash
           set -Eeuo pipefail
 
-          snapshot_dir="$1"
-          profile="$2"
-          env_file="$3"
-          app_jar="$4"
-          rollback_lock="$5"
+          snapshot_root="$1"
+          snapshot_id="$2"
+          state_dir="$3"
+          profile="$4"
+          env_file="$5"
+          app_jar="$6"
+          rollback_lock="$7"
+
+          if [[ ! "$snapshot_id" =~ ^[0-9]+-[0-9]+$ ]]; then
+            echo "Last-known-good snapshot ID is invalid."
+            exit 1
+          fi
+
+          snapshot_dir="$snapshot_root/$snapshot_id/last-known-good"
+          snapshot_ready="$snapshot_dir/READY"
+          ready_copy="$state_dir/last-known-good-candidate.ready"
+          deploy_uid="$(id -u)"
+          deploy_gid="$(id -g)"
 
           exec 8>"$rollback_lock"
           if ! /usr/bin/flock -n 8; then
@@ -468,8 +494,23 @@ jobs:
             local timeout_seconds="$1"
             shift
             /usr/bin/timeout --foreground "$timeout_seconds" \
-              sudo -n /usr/bin/install "$@"
+            sudo -n /usr/bin/install "$@"
           }
+
+          if ! install_with_timeout 30 \
+            -o "$deploy_uid" \
+            -g "$deploy_gid" \
+            -m 400 \
+            "$snapshot_ready" \
+            "$ready_copy"; then
+            echo "Last-known-good snapshot is unavailable."
+            exit 1
+          fi
+
+          if ! grep -qx 'ready' "$ready_copy"; then
+            echo "Last-known-good snapshot is not marked ready."
+            exit 1
+          fi
 
           install_with_timeout 30 \
             -o root \
@@ -558,31 +599,96 @@ jobs:
               exit 1
             fi
 
-            if ! grep -qx 'ready' "$last_known_good_ready"; then
-              echo "Last-known-good snapshot is not marked ready."
+            last_known_good_id="$(<"$last_known_good_ready")"
+            if [[ ! "$last_known_good_id" =~ ^[0-9]+-[0-9]+$ ]]; then
+              echo "Last-known-good pointer is invalid."
               echo "KNOT_FAILURE_REASON=preflight-recovery-unavailable"
               echo "KNOT_RECOVERY_STATUS=failed"
               echo "KNOT_ROLLBACK_STATUS=unavailable"
               exit 1
             fi
 
-            if "$LAST_KNOWN_GOOD_RESTORE_SCRIPT" \
-              "$LAST_KNOWN_GOOD_DIR" \
+            cat > "$PREFLIGHT_SCRIPT" <<'PREFLIGHT'
+          #!/usr/bin/env bash
+          set -Eeuo pipefail
+
+          status_file="$1"
+          terminal_marker="$2"
+          restore_script="$3"
+          snapshot_root="$4"
+          snapshot_id="$5"
+          state_dir="$6"
+          profile="$7"
+          env_file="$8"
+          app_jar="$9"
+          rollback_lock="${10}"
+
+          restore_exit=0
+          "$restore_script" \
+            "$snapshot_root" \
+            "$snapshot_id" \
+            "$state_dir" \
+            "$profile" \
+            "$env_file" \
+            "$app_jar" \
+            "$rollback_lock" || restore_exit=$?
+
+          status_tmp="$status_file.tmp"
+          if [ "$restore_exit" -eq 0 ]; then
+            printf 'KNOT_DEPLOYMENT_STATUS=preflight-recovered\nKNOT_RECOVERY_STATUS=succeeded\nKNOT_ROLLBACK_STATUS=not-needed\nKNOT_FAILURE_REASON=preflight-unhealthy-recovered\n' > "$status_tmp"
+          else
+            printf 'KNOT_DEPLOYMENT_STATUS=preflight-recovery-failed\nKNOT_RECOVERY_STATUS=failed\nKNOT_ROLLBACK_STATUS=unavailable\nKNOT_FAILURE_REASON=preflight-recovery-failed\n' > "$status_tmp"
+          fi
+          mv -f "$status_tmp" "$status_file"
+          touch "$terminal_marker"
+          exit "$restore_exit"
+          PREFLIGHT
+            chmod 700 "$PREFLIGHT_SCRIPT"
+
+            nohup /usr/bin/bash "$PREFLIGHT_SCRIPT" \
+              "$PREFLIGHT_STATUS_FILE" \
+              "$PREFLIGHT_TERMINAL_MARKER" \
+              "$LAST_KNOWN_GOOD_RESTORE_SCRIPT" \
+              "$SNAPSHOT_ROOT" \
+              "$last_known_good_id" \
+              "$STATE_DIR" \
               "$PROFILE_FILE" \
               "$ENV_FILE" \
               "$APP_JAR" \
-              "$ROLLBACK_LOCK_FILE"; then
-              echo "KNOT_FAILURE_REASON=preflight-unhealthy-recovered"
-              echo "KNOT_RECOVERY_STATUS=succeeded"
-              echo "KNOT_ROLLBACK_STATUS=not-needed"
-              echo "Candidate deployment is aborted after restoring the last-known-good version."
+              "$ROLLBACK_LOCK_FILE" \
+              > "$STATE_DIR/preflight.log" 2>&1 < /dev/null &
+            WATCHDOG_PID=$!
+            disown "$WATCHDOG_PID" 2>/dev/null || true
+            WATCHDOG_STARTED=true
+            sleep 1
+            if ! kill -0 "$WATCHDOG_PID" 2>/dev/null && [ ! -f "$PREFLIGHT_STATUS_FILE" ]; then
+              WATCHDOG_STARTED=false
+              echo "Preflight recovery worker failed to start."
+              echo "KNOT_FAILURE_REASON=preflight-recovery-failed"
+              echo "KNOT_RECOVERY_STATUS=failed"
+              echo "KNOT_ROLLBACK_STATUS=unavailable"
               exit 1
             fi
+            touch "$WATCHDOG_STARTED_MARKER" "$PREFLIGHT_STARTED_MARKER"
 
-            echo "Last-known-good recovery failed."
-            echo "KNOT_FAILURE_REASON=preflight-recovery-failed"
-            echo "KNOT_RECOVERY_STATUS=failed"
-            echo "KNOT_ROLLBACK_STATUS=unavailable"
+            preflight_deadline=$(( $(date +%s) + 180 ))
+            while [ ! -f "$PREFLIGHT_STATUS_FILE" ]; do
+              if [ "$(date +%s)" -ge "$preflight_deadline" ]; then
+                echo "Last-known-good recovery timed out."
+                echo "KNOT_FAILURE_REASON=preflight-recovery-failed"
+                echo "KNOT_RECOVERY_STATUS=failed"
+                echo "KNOT_ROLLBACK_STATUS=unavailable"
+                exit 1
+              fi
+              sleep 2
+            done
+
+            cat "$PREFLIGHT_STATUS_FILE"
+            if grep -qx 'KNOT_RECOVERY_STATUS=succeeded' "$PREFLIGHT_STATUS_FILE"; then
+              echo "Candidate deployment is aborted after restoring the last-known-good version."
+            else
+              echo "Last-known-good recovery failed."
+            fi
             exit 1
           fi
 
@@ -660,6 +766,24 @@ jobs:
             exit 1
           fi
 
+          if sudo -n /usr/bin/install \
+            -o "$DEPLOY_UID" \
+            -g "$DEPLOY_GID" \
+            -m 400 \
+            "$LAST_KNOWN_GOOD_READY" \
+            "$LAST_KNOWN_GOOD_BACKUP_POINTER"; then
+            previous_last_known_good_id="$(<"$LAST_KNOWN_GOOD_BACKUP_POINTER")"
+            if [[ ! "$previous_last_known_good_id" =~ ^[0-9]+-[0-9]+$ ]]; then
+              echo "The existing last-known-good pointer is invalid."
+              echo "KNOT_FAILURE_REASON=backup-last-known-good"
+              echo "KNOT_ROLLBACK_STATUS=unavailable"
+              exit 1
+            fi
+            printf 'ready\n' > "$LAST_KNOWN_GOOD_BACKUP_STATE"
+          else
+            printf 'absent\n' > "$LAST_KNOWN_GOOD_BACKUP_STATE"
+          fi
+
           touch "$SNAPSHOT_READY"
 
           cat > "$RESTORE_SCRIPT" <<'RESTORE'
@@ -673,6 +797,10 @@ jobs:
           previous_jar="$5"
           app_jar="$6"
           rollback_lock="$7"
+          previous_last_known_good_pointer="$8"
+          last_known_good_pointer="$9"
+          last_known_good_state="${10}"
+          last_known_good_dir="${last_known_good_pointer%/*}"
 
           exec 8>"$rollback_lock"
           if ! /usr/bin/flock -n 8; then
@@ -694,6 +822,43 @@ jobs:
             shift
             /usr/bin/timeout --foreground "$timeout_seconds" \
               sudo -n /usr/bin/install "$@"
+          }
+
+          tee_with_timeout() {
+            local timeout_seconds="$1"
+            shift
+            /usr/bin/timeout --foreground "$timeout_seconds" \
+              sudo -n /usr/bin/tee "$@"
+          }
+
+          restore_last_known_good_pointer() {
+            case "$last_known_good_state" in
+              ready)
+                previous_last_known_good_id="$(<"$previous_last_known_good_pointer")"
+                if [[ ! "$previous_last_known_good_id" =~ ^[0-9]+-[0-9]+$ ]]; then
+                  echo "The previous last-known-good pointer is invalid."
+                  return 1
+                fi
+                printf '%s\n' "$previous_last_known_good_id" \
+                  | tee_with_timeout 15 "$last_known_good_pointer" > /dev/null
+                ;;
+              absent)
+                if ! install_with_timeout 30 \
+                  -d \
+                  -o root \
+                  -g root \
+                  -m 700 \
+                  "$last_known_good_dir"; then
+                  return 1
+                fi
+                printf 'invalid\n' \
+                  | tee_with_timeout 15 "$last_known_good_pointer" > /dev/null
+                ;;
+              *)
+                echo "The previous last-known-good state is invalid."
+                return 1
+                ;;
+            esac
           }
 
           install_with_timeout 30 \
@@ -755,6 +920,10 @@ jobs:
               fi
               if systemctl_with_timeout "$remaining" \
                 is-active knot-backend.service >/dev/null; then
+                if ! restore_last_known_good_pointer; then
+                  echo "Failed to restore the previous last-known-good pointer."
+                  exit 1
+                fi
                 echo "Previous healthy deployment was restored."
                 exit 0
               fi
@@ -790,6 +959,9 @@ jobs:
           candidate_jar="${11}"
           candidate_env="${12}"
           main_pid="${13}"
+          previous_last_known_good_pointer="${14}"
+          last_known_good_pointer="${15}"
+          last_known_good_state="${16}"
 
           success_marker="$state_dir/succeeded"
           rollback_marker="$state_dir/rollback-succeeded"
@@ -852,9 +1024,12 @@ jobs:
               "$previous_jar" \
               "$app_jar" \
               "$rollback_lock" \
+              "$previous_last_known_good_pointer" \
+              "$last_known_good_pointer" \
+              "$last_known_good_state" \
               >> "$state_dir/watchdog.log" 2>&1 || restore_exit=$?
             if [ "$restore_exit" -eq 0 ]; then
-              printf 'KNOT_ROLLBACK_STATUS=succeeded\n' > "$status_file"
+              printf 'KNOT_DEPLOYMENT_STATUS=rolled-back\nKNOT_ROLLBACK_STATUS=succeeded\n' > "$status_file"
               touch "$rollback_marker"
               rm -f "$candidate_jar" "$candidate_env"
               exit 0
@@ -887,17 +1062,21 @@ jobs:
             "$CANDIDATE_JAR" \
             "$CANDIDATE_ENV_FILE" \
             "$$" \
+            "$LAST_KNOWN_GOOD_BACKUP_POINTER" \
+            "$LAST_KNOWN_GOOD_READY" \
+            "$LAST_KNOWN_GOOD_BACKUP_STATE" \
             > "$STATE_DIR/watchdog.log" 2>&1 < /dev/null &
           WATCHDOG_PID=$!
           disown "$WATCHDOG_PID" 2>/dev/null || true
+          WATCHDOG_STARTED=true
           sleep 1
           if ! kill -0 "$WATCHDOG_PID" 2>/dev/null; then
+            WATCHDOG_STARTED=false
             echo "Rollback watchdog failed to start."
             echo "KNOT_FAILURE_REASON=watchdog-start-failed"
             exit 1
           fi
           touch "$WATCHDOG_STARTED_MARKER"
-          WATCHDOG_STARTED=true
 
           restore_previous() {
             touch "$ROLLBACK_STARTED_MARKER"
@@ -914,9 +1093,12 @@ jobs:
               "$ENV_FILE" \
               "$PREVIOUS_JAR" \
               "$APP_JAR" \
-              "$ROLLBACK_LOCK_FILE" || restore_exit=$?
+              "$ROLLBACK_LOCK_FILE" \
+              "$LAST_KNOWN_GOOD_BACKUP_POINTER" \
+              "$LAST_KNOWN_GOOD_READY" \
+              "$LAST_KNOWN_GOOD_BACKUP_STATE" || restore_exit=$?
             if [ "$restore_exit" -eq 0 ]; then
-              printf 'KNOT_ROLLBACK_STATUS=succeeded\n' > "$STATE_DIR/status"
+              printf 'KNOT_DEPLOYMENT_STATUS=rolled-back\nKNOT_ROLLBACK_STATUS=succeeded\n' > "$STATE_DIR/status"
               touch "$ROLLBACK_MARKER"
               echo "KNOT_ROLLBACK_STATUS=succeeded"
               return 0
@@ -945,11 +1127,7 @@ jobs:
               -o root \
               -g root \
               -m 700 \
-              "$LAST_KNOWN_GOOD_DIR"; then
-              return 1
-            fi
-
-            if ! printf 'invalid\n' | tee_with_timeout 15 "$LAST_KNOWN_GOOD_READY" > /dev/null; then
+              "$CANDIDATE_LAST_KNOWN_GOOD_DIR"; then
               return 1
             fi
 
@@ -958,7 +1136,7 @@ jobs:
               -g root \
               -m 644 \
               "$PROFILE_FILE" \
-              "$LAST_KNOWN_GOOD_PROFILE_FILE"; then
+              "$CANDIDATE_LAST_KNOWN_GOOD_PROFILE_FILE"; then
               return 1
             fi
 
@@ -967,7 +1145,7 @@ jobs:
               -g root \
               -m 600 \
               "$ENV_FILE" \
-              "$LAST_KNOWN_GOOD_ENV_FILE"; then
+              "$CANDIDATE_LAST_KNOWN_GOOD_ENV_FILE"; then
               return 1
             fi
 
@@ -976,11 +1154,15 @@ jobs:
               -g root \
               -m 500 \
               "$APP_JAR" \
-              "$LAST_KNOWN_GOOD_JAR"; then
+              "$CANDIDATE_LAST_KNOWN_GOOD_JAR"; then
               return 1
             fi
 
-            if ! printf 'ready\n' | tee_with_timeout 15 "$LAST_KNOWN_GOOD_READY" > /dev/null; then
+            if ! printf 'ready\n' | tee_with_timeout 15 "$CANDIDATE_LAST_KNOWN_GOOD_READY" > /dev/null; then
+              return 1
+            fi
+
+            if ! printf '%s\n' "$DEPLOYMENT_ID" | tee_with_timeout 15 "$LAST_KNOWN_GOOD_READY" > /dev/null; then
               return 1
             fi
 
@@ -1063,9 +1245,10 @@ jobs:
             exit 1
           fi
 
-          printf 'KNOT_ROLLBACK_STATUS=not-needed\n' > "$STATE_DIR/status"
+          printf 'KNOT_DEPLOYMENT_STATUS=succeeded\nKNOT_ROLLBACK_STATUS=not-needed\n' > "$STATE_DIR/status"
           touch "$SUCCESS_MARKER"
           echo "Candidate deployment passed health check."
+          echo "KNOT_DEPLOYMENT_STATUS=succeeded"
           echo "KNOT_ROLLBACK_STATUS=not-needed"
           REMOTE
           then
@@ -1140,6 +1323,10 @@ jobs:
             echo "recovery=not-needed" >> "$GITHUB_OUTPUT"
           else
             echo "recovery=unknown" >> "$GITHUB_OUTPUT"
+          fi
+          deployment_status="$(awk -F= '/^KNOT_DEPLOYMENT_STATUS=/{value=$2} END {print value}' "$remote_output_file")"
+          if [ "$deployment_status" = "succeeded" ]; then
+            remote_exit=0
           fi
 
           exit "$remote_exit"
@@ -1232,9 +1419,17 @@ jobs:
           fi
 
           exec 9>"$deployment_lock_file"
-          if ! /usr/bin/flock -n 9; then
+          lock_acquired=false
+          for _ in {1..30}; do
+            if /usr/bin/flock -n 9; then
+              lock_acquired=true
+              break
+            fi
+            sleep 2
+          done
+          if [ "$lock_acquired" = false ]; then
             echo "Rollback watchdog still owns the deployment lock; preserving state."
-            exit 0
+            exit 1
           fi
 
           rm -f \
@@ -1242,6 +1437,9 @@ jobs:
             "$state_dir/restore-previous.sh" \
             "$state_dir/restore-last-known-good.sh" \
             "$state_dir/last-known-good.ready" \
+            "$state_dir/last-known-good.pointer" \
+            "$state_dir/last-known-good.state" \
+            "$state_dir/last-known-good-candidate.ready" \
             "$state_dir/snapshot-ready" \
             "$state_dir/watchdog-started" \
             "$state_dir/mutation-started" \
@@ -1250,7 +1448,8 @@ jobs:
             "$state_dir/succeeded" \
             "$state_dir/rollback-succeeded" \
             "$state_dir/status" \
-            "$state_dir/watchdog.log"
+            "$state_dir/watchdog.log" \
+            "$state_dir/preflight.log"
           rmdir "$state_dir"
           REMOTE
 
@@ -1271,7 +1470,7 @@ jobs:
           DEPLOY_FAILURE_REASON: ${{ steps.deploy.outputs.failure_reason }}
           RECOVERY_STATUS: ${{ steps.deploy.outputs.recovery }}
           STATE_CLEANUP_STATUS: ${{ steps.state_cleanup.outcome }}
-          CLEANUP_STATUS: ${{ steps.cleanup.outputs.outcome }}
+          CLEANUP_STATUS: ${{ steps.cleanup.outcome }}
           BRANCH: ${{ github.ref_name }}
           ACTOR: ${{ github.actor }}
           COMMIT_SHA: ${{ github.sha }}
@@ -1298,7 +1497,7 @@ jobs:
               lookup-failed) echo "⚠️ 조회 실패" ;;
               preflight-unhealthy) echo "⚠️ 기존 서비스 비정상" ;;
               snapshot-directory) echo "❌ snapshot 경로 실패" ;;
-              backup-profile|backup-environment|backup-jar) echo "❌ 백업 실패" ;;
+              backup-profile|backup-environment|backup-jar|backup-last-known-good) echo "❌ 백업 실패" ;;
               candidate-environment-install) echo "❌ 환경 적용 실패" ;;
               candidate-profile-update) echo "❌ profile 적용 실패" ;;
               candidate-daemon-reload) echo "❌ systemd reload 실패" ;;
