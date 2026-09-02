@@ -294,7 +294,11 @@ def _accumulate_tool_calls(
                 _ToolCallAccumulator(),
             )
             if delta.id:
-                accumulator.call_id += delta.id
+                if accumulator.call_id and accumulator.call_id != delta.id:
+                    raise NimTransportError(
+                        f"NIM tool call {delta.index} has conflicting IDs"
+                    )
+                accumulator.call_id = delta.id
             if delta.function is not None:
                 if delta.function.name:
                     accumulator.name += delta.function.name
