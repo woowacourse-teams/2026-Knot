@@ -74,14 +74,10 @@ LM Studio 앱에서 Notion MCP를 OAuth로 연결한 뒤 native `/api/v1/chat`�
 ## 4. pgvector 색인과 네 가지 비교
 
 ```bash
-cd /Users/yongtae/Desktop/knot
+cd /path/to/2026-Knot
 docker compose -f tools/llm-benchmark/compose.pgvector.yml up -d
 
 uv run --python 3.14 tools/llm-benchmark/run_four_way_benchmark.py \
-  --index-only
-
-uv run --python 3.14 tools/llm-benchmark/run_four_way_benchmark.py \
-  --skip-index \
   --repeats 10 \
   --retrieval-only \
   --output .benchmark-data/four-way-retrieval-10x.jsonl
