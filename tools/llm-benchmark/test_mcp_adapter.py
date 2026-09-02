@@ -25,10 +25,13 @@ from mcp_adapter import (
 )
 from mcp_models import (
     JsonObject,
+    McpFetchResult,
     McpPage,
     McpScope,
     McpSearchHit,
+    McpSearchResult,
     McpToolResult,
+    McpToolTrace,
     NimFunctionCall,
     NimToolCall,
     validate_nim_tool_call,
@@ -268,3 +271,51 @@ def test_live_fetch_rejects_an_out_of_scope_hit_before_network_call() -> None:
     with pytest.raises(McpScopeError):
         adapter.fetch(outside)
     assert client.calls == []
+
+
+def test_live_fetch_rejects_a_non_notion_url_before_network_call() -> None:
+    # Given: an allowed page ID paired with a URL outside the Notion host boundary
+    client = _FakeMcpClient([], [])
+    from mcp_adapter import LiveNotionMcpAdapter
+
+    adapter = LiveNotionMcpAdapter(client, _scope())
+    malicious_url = McpSearchHit(
+        "page-1",
+        "Allowed ID",
+        "https://evil.example/page-1",
+        "",
+        "workspace-a",
+        "snapshot-1",
+    )
+
+    # When & then: URL validation blocks the call before the access token is sent
+    with pytest.raises(McpScopeError):
+        adapter.fetch(malicious_url)
+    assert client.calls == []
+
+
+def test_validated_fetch_enforces_scope_even_for_a_non_scoped_adapter() -> None:
+    # Given: a generic adapter that would otherwise accept every page identity
+    class _PermissiveAdapter:
+        def __init__(self) -> None:
+            self.calls: list[McpSearchHit] = []
+
+        def search(self, query: str, limit: int) -> McpSearchResult:
+            raise AssertionError("search must not be called")
+
+        def fetch(self, hit: McpSearchHit) -> McpFetchResult:
+            self.calls.append(hit)
+            return McpFetchResult(_page(hit.page_id, "unsafe"), McpToolTrace("fetch", "fake", 0.0, 0, 0, 0, 1))
+
+    adapter = _PermissiveAdapter()
+    call = validate_nim_tool_call(
+        NimToolCall(
+            id="fetch-1",
+            function=NimFunctionCall(name="notion-fetch", arguments='{"id":"page-3"}'),
+        )
+    )
+
+    # When & then: the validated tool boundary still enforces the page allowlist
+    with pytest.raises(McpScopeError):
+        execute_validated_tool_call(call, adapter, _scope())
+    assert adapter.calls == []
