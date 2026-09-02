@@ -21,18 +21,18 @@ const Container = styled.div`
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  gap: 1rem;
+  gap: 0.5rem;
   width: 100%;
   height: 100%;
   text-align: center;
 `;
 
 const Title = styled.strong`
-  ${({ theme }) => theme.text.heading01};
-  color: ${({ theme }) => theme.neutral[0]};
+  ${({ theme }) => theme.text.label01};
+  color: ${({ theme }) => theme.neutral[900]};
 `;
 
 const Description = styled.span`
-  ${({ theme }) => theme.text.body01};
-  color: ${({ theme }) => theme.neutral[500]};
+  ${({ theme }) => theme.text.caption02};
+  color: ${({ theme }) => theme.neutral[600]};
 `;
