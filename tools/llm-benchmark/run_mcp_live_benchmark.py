@@ -39,7 +39,11 @@ from mcp_adapter import (
     McpContextTiming,
     build_mcp_context,
 )
-from mcp_models import McpScope, McpSettings, McpToolTrace
+from mcp_models import McpScope, McpSettings, McpToolCallValidationError, McpToolTrace
+from mcp_tool_loop import (
+    context_from_tool_executions,
+    generate_with_mcp_tools,
+)
 from mcp_transport import (
     McpHttpClient,
     McpHttpError,
@@ -88,6 +92,11 @@ def main(
     retrieval_only: bool = typer.Option(
         False, help="Measure MCP search/fetch without calling NIM."
     ),
+    tool_calling: bool = typer.Option(
+        True,
+        "--tool-calling/--direct-retrieval",
+        help="Let NIM choose the read-only MCP tools for normal runs.",
+    ),
 ) -> None:
     """Run scoped live Notion MCP observations without sending credentials to NIM."""
     console = Console()
@@ -128,6 +137,8 @@ def main(
                         repeat,
                         top_k,
                         retrieval_only,
+                        tool_calling,
+                        scope,
                     )
     console.print(f"[green]results written:[/green] {output}")
 
@@ -140,6 +151,8 @@ def _run_case(
     repeat: int,
     top_k: int,
     retrieval_only: bool,
+    tool_calling: bool = False,
+    scope: McpScope | None = None,
 ) -> None:
     history: list[ChatMessage] = []
     for turn, question in enumerate(benchmark_case.turns, start=1):
@@ -155,13 +168,48 @@ def _run_case(
             if query_plan.should_clarify:
                 answer = query_plan.clarification_text
             else:
-                context_timing = build_mcp_context(
-                    adapter, query_plan.search_query, top_k
-                )
-                if context_timing.context.retrieved_count == 0:
-                    answer = _NO_ANSWER_TEXT
-            access_ms = (time.perf_counter() - started) * 1000
-            if not answer and not retrieval_only:
+                if tool_calling and not retrieval_only:
+                    if chat_client is None or scope is None:
+                        raise NimTransportError(
+                            "MCP tool-calling requires a chat client and scope"
+                        )
+                    outcome = generate_with_mcp_tools(
+                        chat_client,
+                        _messages(
+                            question,
+                            ContextPack("", (), 0, 0),
+                            tuple(history),
+                        ),
+                        adapter,
+                        scope,
+                        search_limit=top_k,
+                    )
+                    context = context_from_tool_executions(outcome.executions)
+                    context_timing = McpContextTiming(
+                        context,
+                        tuple(
+                            execution.result.trace
+                            for execution in outcome.executions
+                        ),
+                    )
+                    access_ms = sum(
+                        trace.elapsed_ms for trace in context_timing.traces
+                    )
+                    model_ttft_ms = outcome.model_ttft_ms
+                    model_total_ms = outcome.model_total_ms
+                    answer = (
+                        _NO_ANSWER_TEXT
+                        if context.retrieved_count == 0
+                        else outcome.result.text
+                    )
+                else:
+                    context_timing = build_mcp_context(
+                        adapter, query_plan.search_query, top_k
+                    )
+                    if context_timing.context.retrieved_count == 0:
+                        answer = _NO_ANSWER_TEXT
+                    access_ms = (time.perf_counter() - started) * 1000
+            if not answer and not retrieval_only and not tool_calling:
                 if chat_client is None:
                     raise NimTransportError(
                         "NIM client is required unless --retrieval-only is enabled"
@@ -172,10 +220,13 @@ def _run_case(
                 answer = result.text
                 model_ttft_ms = result.ttft_ms
                 model_total_ms = result.total_ms
+            if access_ms == 0.0:
+                access_ms = (time.perf_counter() - started) * 1000
         except (
             McpAdapterError,
             McpHttpError,
             McpProtocolError,
+            McpToolCallValidationError,
             McpTransportError,
             NimRequestError,
             NimTransportError,
