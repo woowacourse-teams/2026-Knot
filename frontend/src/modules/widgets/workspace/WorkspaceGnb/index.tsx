@@ -1,84 +1,55 @@
 import styled from "@emotion/styled";
-import {
-  useWorkspaceSidebar,
-  WORKSPACE_SIDEBAR_ID,
-} from "@provider/context/workspaceSidebarContext";
+import MemberProfileAvatar from "@features/member/MemberProfileAvatar";
+import type { ReactNode } from "react";
 
-import AvatarGlyphIcon from "@/assets/icons/avatarGlyph.svg";
-import SidebarIcon from "@/assets/icons/sidebar.svg";
+import WorkspaceNavPill from "./ui/WorkspaceNavPill";
+
+interface WorkspaceGnbProps {
+  /**
+   * 좌측에 놓을 패널 트리거들.
+   *
+   * 어떤 패널을 열 수 있는지는 화면마다 다르므로(목록은 탐색 화면에만 있어요)
+   * GNB가 정하지 않고 레이아웃에서 받아요.
+   */
+  children?: ReactNode;
+}
 
 /**
  * 워크스페이스 전역 상단바(GNB).
  *
- * 좌측 버튼으로 사이드바를 열고 닫고, 우측에는 프로필 아바타를 그려요.
- * 아바타는 회원 정보 API가 없어 자리만 잡고 클릭 동작은 없어요.
- * Figma의 중앙 세그먼티드 Nav는 하단 FloatingDock을 쓰는 화면이라 만들지 않아요(dock=false).
+ * 배경 없이 본문 위에 떠 있고, 좌측 패널 트리거 · 가운데 내비 필 · 우측 프로필 아바타로 나뉘어요.
+ * 좌우 영역이 같은 비율로 늘어나 내비 필이 늘 화면 한가운데에 놓여요.
  *
- * 사이드바 열림/닫힘 상태는 `WorkspaceLayout`이 감싼 `WorkspaceSidebarProvider`가 가져요.
- *
- * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=600-10078 GNB}
+ * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=1364-6863 GNB/Floating nav=홈}
+ * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=1364-7028 GNB/Floating nav=탐색}
  */
-export default function WorkspaceGnb() {
-  const { isSidebarOpen, toggleSidebar } = useWorkspaceSidebar();
-
+export default function WorkspaceGnb({ children }: WorkspaceGnbProps) {
   return (
     <Container>
-      <SidebarToggleButton
-        type="button"
-        aria-label="사이드바"
-        aria-expanded={isSidebarOpen}
-        aria-controls={WORKSPACE_SIDEBAR_ID}
-        onClick={toggleSidebar}
-      >
-        <SidebarIcon size={18} />
-      </SidebarToggleButton>
+      <Side>{children}</Side>
 
-      <Avatar role="img" aria-label="내 프로필">
-        <AvatarGlyphIcon size={22} />
-      </Avatar>
+      <WorkspaceNavPill />
+
+      <Side $isTrailing>
+        <MemberProfileAvatar />
+      </Side>
     </Container>
   );
 }
 
 const Container = styled.header`
   display: flex;
-  flex-shrink: 0;
   align-items: center;
-  justify-content: space-between;
-  height: 3.5rem; /* 56px */
+  height: 2.75rem; /* 44px */
   padding: 0 1.5rem; /* 24px */
-  border-bottom: 1px solid ${({ theme }) => theme.neutral[200]};
 `;
 
-/** @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=555-1203 Btn/sidebar} */
-const SidebarToggleButton = styled.button`
+const Side = styled.div<{ $isTrailing?: boolean }>`
   display: flex;
+  flex: 1;
   align-items: center;
-  justify-content: center;
-  width: 2rem; /* 32px */
-  height: 2rem;
-  border-radius: 0.5rem; /* 8px */
-  color: ${({ theme }) => theme.neutral[600]};
-  transition: background-color 0.2s ease-in;
-
-  &:hover {
-    background-color: ${({ theme }) => theme.neutral[200]};
-  }
-
-  &:focus-visible {
-    outline: 2px solid ${({ theme }) => theme.sub.accent[500]};
-    outline-offset: 2px;
-  }
-`;
-
-/** @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=587-516 Avatar size=32 type=이미지} */
-const Avatar = styled.span`
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 2rem; /* 32px */
-  height: 2rem;
-  border-radius: 50%;
-  background-color: ${({ theme }) => theme.neutral[200]};
-  color: ${({ theme }) => theme.neutral[500]};
+  justify-content: ${({ $isTrailing }) =>
+    $isTrailing ? "flex-end" : "flex-start"};
+  gap: 0.5rem; /* 8px */
+  min-width: 0;
 `;
