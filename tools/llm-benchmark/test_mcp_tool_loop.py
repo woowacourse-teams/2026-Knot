@@ -82,3 +82,20 @@ def test_invalid_nim_tool_call_prevents_every_call_in_the_batch() -> None:
     # When & then: the whole batch is rejected before any adapter call can occur
     with pytest.raises(McpToolCallValidationError, match="not allowed"):
         execute_nim_tool_calls(calls, _adapter(), _scope())
+
+
+def test_nim_tool_call_batch_has_a_bounded_number_of_operations() -> None:
+    # Given: a model response that tries to fan out beyond the read budget
+    calls = tuple(
+        NimToolCall(
+            id=f"search-{index}",
+            function=NimFunctionCall(
+                name="notion-search", arguments='{"query":"PostgreSQL"}'
+            ),
+        )
+        for index in range(9)
+    )
+
+    # When & then: the batch is rejected before any adapter operation starts
+    with pytest.raises(McpToolCallValidationError, match="maximum"):
+        execute_nim_tool_calls(calls, _adapter(), _scope())

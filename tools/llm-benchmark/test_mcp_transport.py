@@ -383,3 +383,28 @@ def test_http_client_surfaces_a_read_timeout_as_transport_error(
     with pytest.raises(McpTransportError, match="MCP transport error"):
         client.call_tool("notion-search", {"query": "PostgreSQL"})
     client.close()
+
+
+def test_http_client_caps_a_server_supplied_retry_after(
+    mcp_server: tuple[str, ThreadingHTTPServer],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Given: a retry response that asks the client to wait for an excessive duration
+    endpoint, _server = mcp_server
+    client = McpHttpClient(
+        McpSettings(
+            endpoint_url=endpoint,
+            access_token="test-token",
+            max_retry_after_s=1.0,
+            retry_backoff_s=0,
+        )
+    )
+    sleeps: list[float] = []
+    monkeypatch.setattr("mcp_transport.time.sleep", sleeps.append)
+
+    # When: the transport applies the server's Retry-After value
+    client._wait(0, "999")
+    client.close()
+
+    # Then: the server cannot pause the process beyond the configured cap
+    assert sleeps == [1.0]
