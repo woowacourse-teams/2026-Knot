@@ -1,0 +1,92 @@
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.14"
+# dependencies = ["pydantic", "pytest"]
+# ///
+
+# ─── How to run ───
+#      uv run --with pydantic --with pytest pytest tools/llm-benchmark/test_benchmark_workload.py
+# ──────────────────
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+import pytest
+from benchmark_workload import WorkloadError, WorkloadManifest, load_workload
+
+_MANIFEST = Path("docs/llm-search-benchmark-independent-30.json")
+
+
+def test_independent_workload_has_thirty_cases_and_all_required_question_shapes() -> None:
+    # Given: the checked-in independent question manifest
+    manifest = load_workload(_MANIFEST)
+
+    # Then: it is large and diverse enough for the semantic review gate
+    assert len(manifest.cases) >= 30
+    assert len({case.case_id for case in manifest.cases}) == len(manifest.cases)
+    assert {case.category.value for case in manifest.cases} >= {
+        "fact",
+        "decision_reason",
+        "document_location",
+        "follow_up",
+        "conflict",
+        "no_answer",
+        "broad",
+    }
+    assert all(0 < len(case.expected_source_ids) <= 3 for case in manifest.cases)
+    assert all(case.expected_facts for case in manifest.cases)
+
+
+def test_workload_loader_rejects_duplicate_case_ids(tmp_path: Path) -> None:
+    # Given: a malformed manifest with two observations sharing one identity
+    path = tmp_path / "duplicate.json"
+    path.write_text(
+        json.dumps(
+            {
+                "version": "1",
+                "cases": [
+                    {
+                        "case_id": "W-001",
+                        "category": "fact",
+                        "turns": ["질문"],
+                        "expected_source_ids": ["page-1"],
+                        "expected_facts": ["사실"],
+                    },
+                    {
+                        "case_id": "W-001",
+                        "category": "fact",
+                        "turns": ["다른 질문"],
+                        "expected_source_ids": ["page-2"],
+                        "expected_facts": ["다른 사실"],
+                    },
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    # When & then: duplicate identities cannot enter a benchmark
+    with pytest.raises(WorkloadError, match="duplicate"):
+        load_workload(path, minimum_cases=1)
+
+
+def test_workload_manifest_rejects_more_than_three_sources() -> None:
+    # Given: a typed case with too many related documents
+    # When & then: the source contract remains bounded to the product maximum
+    with pytest.raises(ValueError):
+        WorkloadManifest.model_validate(
+            {
+                "version": "1",
+                "cases": [
+                    {
+                        "case_id": "W-001",
+                        "category": "fact",
+                        "turns": ["질문"],
+                        "expected_source_ids": ["1", "2", "3", "4"],
+                        "expected_facts": ["사실"],
+                    }
+                ],
+            }
+        )
