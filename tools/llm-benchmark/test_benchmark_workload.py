@@ -15,6 +15,7 @@ from pathlib import Path
 
 import pytest
 from benchmark_workload import WorkloadError, WorkloadManifest, load_workload
+from gold_set import load_cases
 
 _MANIFEST = Path("docs/llm-search-benchmark-independent-30.json")
 
@@ -90,3 +91,14 @@ def test_workload_manifest_rejects_more_than_three_sources() -> None:
                 ],
             }
         )
+
+
+def test_gold_set_loader_accepts_the_independent_json_workload() -> None:
+    # Given: the same independent workload used by the benchmark runners
+    cases = load_cases(_MANIFEST)
+
+    # Then: the existing runner contract exposes its turns and source IDs
+    assert len(cases) == 31
+    assert cases[0].case_id == "W-001"
+    assert cases[0].turns == ("백엔드 데이터베이스로 무엇을 사용해?",)
+    assert cases[0].source_ids == ("fffde1156a83837097bc818fab8a1fa4",)
