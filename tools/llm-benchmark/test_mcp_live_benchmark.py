@@ -187,6 +187,20 @@ class _FakeToolCallingClient:
                     ),
                 ),
             ),
+            NimResult(
+                "",
+                2.0,
+                3.0,
+                (
+                    NimToolCall(
+                        id="fetch-1",
+                        function=NimFunctionCall(
+                            name="notion-fetch",
+                            arguments='{"id":"page-1"}',
+                        ),
+                    ),
+                ),
+            ),
             NimResult("PostgreSQL을 사용합니다.", 3.0, 4.0),
         ]
 
@@ -200,7 +214,7 @@ class _FakeToolCallingClient:
 
 
 def test_live_runner_can_use_the_nim_mcp_tool_call_loop() -> None:
-    # Given: a normal live run and a deterministic NIM client that requests search
+    # Given: a normal live run and a deterministic NIM client that searches then fetches
     page = McpPage(
         "page-1",
         "DB",
@@ -209,19 +223,28 @@ def test_live_runner_can_use_the_nim_mcp_tool_call_loop() -> None:
         "workspace-a",
         "snapshot-1",
     )
-    adapter = ReplayMcpAdapter(
-        (page,), McpScope("workspace-a", "snapshot-1", frozenset({"page-1"}))
-    )
+    scope = McpScope("workspace-a", "snapshot-1", frozenset({"page-1"}))
+    adapter = ReplayMcpAdapter((page,), scope)
     output = StringIO()
     case = BenchmarkCase(
         "G-001", "confirmed", "fact", ("DB가 뭐야?",), "PostgreSQL", ("page-1",)
     )
 
     # When: the live runner enables model-driven MCP calls
-    _run_case(output, adapter, _FakeToolCallingClient(), case, 1, 1, False, True)
+    _run_case(
+        output,
+        adapter,
+        _FakeToolCallingClient(),
+        case,
+        1,
+        1,
+        False,
+        True,
+        scope,
+    )
 
     # Then: the final answer and fetched source are recorded together
     record = json.loads(output.getvalue())
     assert record["answer"] == "PostgreSQL을 사용합니다."
     assert record["source_paths"] == ["https://notion.so/page-1"]
-    assert record["tool_calls"] == 1
+    assert record["tool_calls"] == 2
