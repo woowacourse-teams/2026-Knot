@@ -37,6 +37,8 @@ develop Backend CI 성공 후 NCP 개발 배포를 진행하고 후보 실패 �
 
 개발 환경은 단일 NCP 서버를 유지하되 동일 커밋의 Backend CI 성공을 배포 전제로 삼고, 배포 전 JAR·환경·systemd 설정을 백업한다. 후보 재시작·health check 또는 SSH 세션이 실패하면 서버 측 watchdog과 workflow가 직전 정상 버전 복구를 시도하도록 해 비용을 늘리지 않고 실패 버전의 장기 실행을 막는다.
 
+health check를 통과한 후보만 root 소유의 `last-known-good` snapshot으로 승격한다. 다음 배포 시작 시 현재 서비스가 이미 비정상이면 후보 파일을 덮어쓰지 않고 이 snapshot을 먼저 복구한 뒤 해당 배포를 보류한다.
+
 ## 결과
 
 - develop Backend CI와 NCP CD가 같은 커밋을 기준으로 연결된다.
