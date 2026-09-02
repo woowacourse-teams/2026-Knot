@@ -194,3 +194,5 @@ uv run tools/llm-benchmark/run_mcp_live_benchmark.py \
 retrieval-only는 NIM을 호출하지 않고 MCP access만 측정한다. 답변까지 비교할 때는 NIM_API_KEY, NIM_BASE_URL, NIM_MODEL을 별도로 주입하고 retrieval-only를 생략한다. 결과에는 MCP HTTP 요청 수, fetch page 수, retry 수, 429 rate-limit 수, access/search 시간, 모델 TTFT·완료 시간, E2E TTFT·완료 시간이 분리되어 기록된다. 검색 시간에 모델 생성 시간을 더하지 않도록 runner에서 MCP access 측정 시점을 생성 전에 고정한다.
 
 실제 Notion MCP가 읽는 범위는 OAuth 연결에 공유된 페이지와 하위 페이지에 한정된다. Java 운영 경로에서는 token을 NIM으로 전달하지 않고, Workspace credential을 서버에서 선택한 뒤 이 adapter에만 주입한다. LM Studio가 관리하는 OAuth smoke test와 Java credential forwarding 검증은 별도 결과로 기록한다.
+
+모델이 반환한 read-only MCP 호출 묶음은 `mcp_tool_loop.py`의 `execute_nim_tool_calls` 경계에서 전부 먼저 검증한 뒤 모델이 반환한 순서대로 실행한다. 지원하지 않는 도구나 잘못된 인자가 하나라도 있으면 adapter 실행을 시작하지 않는다. 이 유틸리티는 호출 계약 테스트용이며, 실제 운영의 Workspace credential 선택과 NIM tool-calling continuation은 Java adapter 연결 단계에서 별도로 구현·검증한다.
