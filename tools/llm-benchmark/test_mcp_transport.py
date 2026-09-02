@@ -20,8 +20,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from threading import Thread
 from typing import ClassVar
 
-import pytest
 import httpx2
+import pytest
 from mcp_models import JsonObject, McpSettings, McpToolResult
 from mcp_transport import (
     McpHttpClient,
