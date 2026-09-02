@@ -17,12 +17,12 @@
 
 from __future__ import annotations
 
+from access_context import AccessContextTiming
 from benchmark_core import ContextPack
 from benchmark_metadata import create_benchmark_metadata
 from gold_set import BenchmarkCase
 from multi_schedule import MultiTrial
 from run_four_way_benchmark import _record
-from access_context import AccessContextTiming
 
 
 def test_four_way_record_keeps_the_control_run_identity() -> None:
