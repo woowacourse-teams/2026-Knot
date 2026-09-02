@@ -420,3 +420,31 @@ def test_http_client_rejects_a_non_notion_remote_endpoint() -> None:
                 access_token="test-token",
             )
         )
+
+
+def test_http_client_rejects_an_arbitrary_hosted_notion_path() -> None:
+    # Given: a hosted Notion hostname with a path outside Streamable HTTP /mcp
+    # When & then: credentials cannot be sent to an unapproved endpoint path
+    with pytest.raises(McpTransportError, match="hosted Notion endpoint"):
+        McpHttpClient(
+            McpSettings(
+                endpoint_url="https://mcp.notion.com/other",
+                access_token="test-token",
+            )
+        )
+
+
+def test_http_client_rejects_an_unknown_tool_before_initializing_a_session(
+    mcp_server: tuple[str, ThreadingHTTPServer],
+) -> None:
+    # Given: a valid local MCP endpoint and a tool outside the read-only contract
+    endpoint, _server = mcp_server
+    client = McpHttpClient(
+        McpSettings(endpoint_url=endpoint, access_token="test-token", retry_backoff_s=0)
+    )
+
+    # When & then: the transport rejects it before any authenticated network call
+    with pytest.raises(McpTransportError, match="not allowed"):
+        client.call_tool("unknown-tool", {})
+    client.close()
+    assert _McpHandler.requests == []
