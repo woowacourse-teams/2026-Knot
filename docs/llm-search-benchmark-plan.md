@@ -454,3 +454,12 @@ Notion 연결과 백엔드 읽기 도구를 구성한 뒤 다음을 비교한다
 - 로드맵 날짜·Redis의 예시/공식 결정 부재·구체화한 코드 컨벤션 질의는 동작했지만, 넓은 코드 컨벤션 질의는 관련도가 낮은 백엔드 문서를 선택했다.
 - 관측된 live 요청의 end-to-end 완료 시간은 약 38~77초였고, 후속 질문은 약 190초였다. 따라서 현재 5초 목표를 충족한다고 판정하지 않는다.
 - 이 smoke test는 LM Studio-managed OAuth 연결이며, 실제 Workspace별 Java credential forwarding·권한 격리·전체 A/B 비교는 후속 검증으로 남긴다.
+
+## 17. 2026-09-02 #274 MCP live adapter 구현 상태
+
+- Streamable HTTP MCP initialize·initialized·tools/call handshake와 JSON/SSE 응답 파싱을 benchmark 경계에 추가했다.
+- Notion search/fetch 결과를 page metadata·본문·cursor pagination으로 정규화하고, Workspace ID·active snapshot ID·허용 page ID allowlist를 모두 통과한 문서만 답변 컨텍스트에 넣는다.
+- NIM tool call은 notion-search와 notion-fetch의 읽기 전용 인자만 검증하며, Notion credential은 MCP endpoint에만 보내고 모델 컨텍스트에는 보내지 않는다.
+- live benchmark는 MCP HTTP 요청 수, fetch page 수, retry 수, 429 rate-limit 수, access 지연, 모델 TTFT·완료 시간, E2E 지연을 분리 기록한다.
+- 인증 거부·JSON-RPC 오류·페이지 범위 이탈·페이지네이션·rate limit 경계 테스트를 추가했다.
+- 현재 live benchmark 실행기는 실제 OAuth token과 연결 Workspace allowlist를 환경변수로 받아야 한다. 저장소에는 token이나 live 결과를 기록하지 않으며, Java credential forwarding과 30개 이상 사람 품질 검수는 #275의 후속 게이트다.

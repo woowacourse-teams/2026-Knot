@@ -156,3 +156,9 @@ uv run --python 3.14 tools/llm-benchmark/evaluate_rag_quality.py \
 ## 다음 판정
 
 MVP 구현 후보는 `마지막 성공 동기화 스냅샷 → PostgreSQL lexical/vector 후보 union → Qwen pgvector RAG → 필요 시 rerank`의 단계형 구조로 검증했다. 다만 #308 리뷰 반영 후 동일 조건 재실행은 `140/160`으로 검색 gate를 통과하지 못했으므로, 기존 `160/160` 결과를 최종 품질 근거로 사용하지 않는다. 실제 Notion MCP 연결은 가능하다는 것을 확인했지만, 현재 live smoke test는 end-to-end 5초 목표를 만족하지 못했고 LM Studio-managed OAuth만 검증했다. 전체 사용자 대상 운영 전환 전에는 일반화된 retrieval 규칙 보완, Java credential forwarding, 30개 이상 독립 질문, 사람이 검증한 answer/source 품질 라벨을 추가해야 한다.
+
+## 2026-09-02 #274 MCP live adapter 구현 기록
+
+현재 #274 브랜치에는 Streamable HTTP MCP handshake, JSON/SSE 응답 파싱, Notion search/fetch pagination, Workspace·snapshot·page allowlist, read-only tool-call validation, retry/rate-limit/error 계측과 retrieval-only/live runner가 포함되어 있다. 검색 access 시간과 모델 생성 시간을 분리해 기록하므로 MCP 네트워크 비용을 기존 RAG 결과와 혼동하지 않는다.
+
+이 섹션은 구현 및 계약 테스트 결과이며 새로운 live 성능 수치가 아니다. 실제 Notion OAuth token을 사용한 전체 측정, Java credential forwarding, Workspace 격리의 운영 검증은 아직 수행하지 않았고 token은 결과 파일에 기록하지 않는다.

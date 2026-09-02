@@ -172,3 +172,25 @@ uv run --python 3.14 tools/llm-benchmark/analyze_benchmark.py \
 4. 이후 실제 Notion API/MCP의 권한, 페이지네이션, rate limit, 동기화 실패를 별도로 측정한다.
 
 정답표는 [`docs/llm-search-benchmark-gold-set.md`](/Users/yongtae/Desktop/knot/docs/llm-search-benchmark-gold-set.md), 전체 도입·동기화 정책은 [`docs/llm-search-benchmark-plan.md`](/Users/yongtae/Desktop/knot/docs/llm-search-benchmark-plan.md)에 있다.
+
+## 7. 실제 Notion MCP live benchmark
+
+run_mcp_live_benchmark.py는 읽기 전용 Streamable HTTP MCP transport와 Notion adapter를 사용해 검색·fetch·페이지네이션·재시도·rate limit 계측을 수행한다. MCP access token은 환경변수로만 주입하고 결과 JSONL·프롬프트·로그에 기록하지 않는다. NOTION_MCP_ALLOWED_PAGE_IDS는 연결된 대상 범위를 명시하는 필수 allowlist다.
+
+```bash
+export NOTION_MCP_ACCESS_TOKEN="..."
+export NOTION_MCP_WORKSPACE_ID="connected-workspace-id"
+export NOTION_MCP_ALLOWED_PAGE_IDS="page-id-1,page-id-2"
+export NOTION_MCP_ACTIVE_SNAPSHOT_ID="optional-active-snapshot"
+
+uv run tools/llm-benchmark/run_mcp_live_benchmark.py \
+  --gold-set docs/llm-search-benchmark-gold-set.md \
+  --retrieval-only \
+  --case G-001,G-003,G-005 \
+  --top-k 3 \
+  --output .benchmark-data/mcp-live-retrieval.jsonl
+```
+
+retrieval-only는 NIM을 호출하지 않고 MCP access만 측정한다. 답변까지 비교할 때는 NIM_API_KEY, NIM_BASE_URL, NIM_MODEL을 별도로 주입하고 retrieval-only를 생략한다. 결과에는 MCP HTTP 요청 수, fetch page 수, retry 수, 429 rate-limit 수, access/search 시간, 모델 TTFT·완료 시간, E2E TTFT·완료 시간이 분리되어 기록된다. 검색 시간에 모델 생성 시간을 더하지 않도록 runner에서 MCP access 측정 시점을 생성 전에 고정한다.
+
+실제 Notion MCP가 읽는 범위는 OAuth 연결에 공유된 페이지와 하위 페이지에 한정된다. Java 운영 경로에서는 token을 NIM으로 전달하지 않고, Workspace credential을 서버에서 선택한 뒤 이 adapter에만 주입한다. LM Studio가 관리하는 OAuth smoke test와 Java credential forwarding 검증은 별도 결과로 기록한다.
