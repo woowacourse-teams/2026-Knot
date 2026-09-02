@@ -33,6 +33,7 @@ from mcp_models import (
     ValidatedToolCall,
 )
 from mcp_parsing import (
+    is_safe_notion_url,
     normalize_page_id,
     page_from_result,
     page_id_from_url,
@@ -167,7 +168,7 @@ class LiveNotionMcpAdapter:
         """Fetch page content and any cursor-based continuation from Notion MCP."""
         if not self._scope.permits(
             McpPage(hit.page_id, hit.title, hit.url, hit.snippet, hit.workspace_id, hit.snapshot_id)
-        ):
+        ) or not is_safe_notion_url(hit.url):
             raise McpScopeError(f"page {hit.page_id!r} is outside the active scope")
         started = time.perf_counter()
         exchanges: list[McpToolExchange] = []
@@ -241,6 +242,10 @@ def execute_validated_tool_call(
                         scope.workspace_id,
                         scope.active_snapshot_id,
                     )
+                    if not scope.permits(McpPage(hit.page_id, hit.title, hit.url, hit.snippet, hit.workspace_id, hit.snapshot_id)):
+                        raise McpScopeError(f"page {hit.page_id!r} is outside the active scope")
+                    if not is_safe_notion_url(hit.url):
+                        raise McpScopeError(f"page {hit.page_id!r} has an unsafe URL")
                     return adapter.fetch(hit)
                 case unreachable:
                     assert_never(unreachable)

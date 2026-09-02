@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from urllib.parse import urlsplit
 
 from mcp_adapter_errors import McpScopeError
 from mcp_models import (
@@ -20,6 +21,7 @@ _PAGE_ID = re.compile(
     r"(?:[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}|[0-9a-f]{32})",
     re.IGNORECASE,
 )
+_NOTION_HOSTS = frozenset({"notion.com", "notion.site", "notion.so"})
 
 
 def search_hits(result: McpToolResult, scope: McpScope) -> tuple[McpSearchHit, ...]:
@@ -34,6 +36,8 @@ def search_hits(result: McpToolResult, scope: McpScope) -> tuple[McpSearchHit, .
         if page_id is None:
             continue
         url = url or f"https://notion.so/{page_id}"
+        if not is_safe_notion_url(url):
+            continue
         normalized_id = normalize_page_id(page_id)
         if normalized_id not in scope.allowed_page_ids or normalized_id in seen:
             continue
@@ -87,6 +91,8 @@ def page_from_result(result: McpToolResult, hit: McpSearchHit, scope: McpScope) 
     )
     if not scope.permits(page):
         raise McpScopeError(f"page {page.page_id!r} is outside the active scope")
+    if not is_safe_notion_url(page.url):
+        raise McpScopeError(f"page {page.page_id!r} has an unsafe URL")
     return page
 
 
@@ -146,6 +152,17 @@ def page_id_from_url(url: str) -> str | None:
     """Extract a UUID page ID or a final URL segment from a Notion link."""
     match = _PAGE_ID.search(url)
     return match.group(0) if match is not None else url.rstrip("/").rsplit("/", 1)[-1] or None
+
+
+def is_safe_notion_url(url: str) -> bool:
+    """Allow only HTTPS URLs hosted by Notion or its supported subdomains."""
+    parsed = urlsplit(url)
+    host = parsed.hostname
+    return (
+        parsed.scheme == "https"
+        and host is not None
+        and any(host == base or host.endswith(f".{base}") for base in _NOTION_HOSTS)
+    )
 
 
 def normalize_page_id(page_id: str) -> str:
