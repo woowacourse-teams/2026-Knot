@@ -169,6 +169,34 @@ class PublishedDocumentSearchServiceTest {
     }
 
     @Test
+    @DisplayName("공개된 snapshot이 없으면 채팅 수락 전 준비 검사가 실패한다")
+    void requirePublishedSnapshot_failure_noPublishedSnapshot() {
+        // given
+        SearchChunkRepository repository = mock(SearchChunkRepository.class);
+        when(repository.findPublishedImportRunId(7L)).thenReturn(Optional.empty());
+        PublishedDocumentSearchService service = new PublishedDocumentSearchService(
+                repository,
+                mock(DocumentEmbeddingClient.class),
+                new SearchQueryTerms(),
+                new SearchQuestionClassifier(),
+                PROPERTIES,
+                new EmbeddingProperties(
+                        "qwen-embedding",
+                        1024
+                )
+        );
+
+        // when
+        ThrowingCallable action = () -> service.requirePublishedSnapshot(7L);
+
+        // then
+        assertThatThrownBy(action).isInstanceOfSatisfying(
+                SearchException.class,
+                exception -> assertThat(exception.searchErrorCode()).isEqualTo(SearchErrorCode.SEARCH_IMPORT_NOT_READY)
+        );
+    }
+
+    @Test
     @DisplayName("범위가 넓은 질문은 snapshot이 있어도 모델 검색 대신 구체화를 요청한다")
     void search_success_broadQuestionNeedsClarification() {
         // given
