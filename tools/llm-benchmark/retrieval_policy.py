@@ -83,7 +83,7 @@ def plan_query(query: str, previous_queries: tuple[str, ...]) -> QueryPlan:
     original = query.strip()
     related_documents = _contains_any(original, _RELATED_PATTERNS)
     anchor = _last_non_empty(previous_queries)
-    search_query = _expand_topic_terms(_expand_decision_summary(_rewrite(original, anchor, related_documents)))
+    search_query = _expand_decision_summary(_rewrite(original, anchor, related_documents))
     kind = classify_query(search_query)
     return QueryPlan(original, search_query, kind, kind is QueryKind.BROAD, related_documents)
 
@@ -118,27 +118,22 @@ def authority_score(source_path: str, title: str, kind: QueryKind, query: str = 
     if kind is QueryKind.MEETING_DATE and _contains_any(haystack, ("회의록", "회의")):
         return 1.0
     if kind is QueryKind.CONFLICT:
-        if _contains_any(haystack, ("자연어 기반 ai 정보 탐색",)):
-            return 0.9
+        if _contains_any(haystack, ("회의록", "회의", "컨벤션", "규칙", "정책", "요구 사항", "요구사항")):
+            return 0.75
         return 0.55
-    if kind is QueryKind.AMBIGUOUS:
-        if _contains_any(haystack, ("데이터베이스와 migration", "java 코드 작성")):
-            return 1.0
-        if "프론트" in haystack:
-            return 0.35
+    if kind is QueryKind.AMBIGUOUS and _contains_any(haystack, ("기술 스택", "규칙", "컨벤션", "정책")):
+        return 0.85
     if kind is QueryKind.DECISION_REASON and "인터뷰" in haystack and "회의록" not in haystack:
         return 0.2
     if _contains_any(haystack, ("요구 사항", "요구사항", "스크럼", "일지")):
         return 0.2
     if _contains_any(haystack, ("기술 스택", "결정 기록", "adr", "선정", "정책", "규칙")):
-        if "규칙" in haystack and not _contains_any(
-            query, ("db", "database", "데이터베이스", "테이블", "컬럼", "camelcase", "snake_case", "java")
-        ):
-            return 0.55
         return 1.0
     if _contains_any(haystack, ("회의록", "회의")):
         return 0.82
-    if _contains_any(haystack, ("위키", "명세", "테스트 전략")):
+    if _contains_any(haystack, ("테스트 전략",)):
+        return 0.9
+    if _contains_any(haystack, ("위키", "명세")):
         return 0.55
     if _contains_any(haystack, ("요구 사항", "요구사항", "커피챗", "쓰레기통", "잡다한", "스크럼", "일지")):
         return 0.24
@@ -154,24 +149,7 @@ def _rewrite(query: str, anchor: str, related_documents: bool) -> str:
 def _expand_decision_summary(query: str) -> str:
     if not _contains_any(query, ("뭘 정했", "무엇을 정했", "뭘 결정", "무엇을 결정")):
         return query
-    expanded = f"{query} 결정 사항 합의된 규칙 논의 미결"
-    if "폴더" in query or "shared/hooks" in query or "feature" in query.casefold():
-        expanded = f"{expanded} 계층 구분 위젯 피처 훅 shared/hooks/domain"
-    if "로드맵" in query:
-        expanded = f"{expanded} 사용자 인터뷰 로드맵 지정 레벨 3 기능 목록 기획안 요구사항 흑곰"
-    return expanded.strip()
-
-
-def _expand_topic_terms(query: str) -> str:
-    """Add stable domain terms when a folder-convention question asks for detail."""
-    if not ("폴더" in query or "shared/hooks" in query or "feature" in query.casefold()):
-        return query
-    if not _contains_any(query, ("회의", "컨벤션", "훅", "어디", "정했", "결정")):
-        return query
-    expanded = f"{query} 위젯 피처 계층 배치 기준 shared/hooks/domain 미결"
-    if _contains_any(query, ("어디", "확정", "미결")):
-        expanded = f"{expanded} 절충안 후보 기본 feature 두 번째 사용 shared 여러 화면 코드 리뷰"
-    return expanded.strip()
+    return f"{query} 결정 사항 합의된 규칙 논의 미결".strip()
 
 
 def _last_non_empty(values: tuple[str, ...]) -> str:

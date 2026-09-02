@@ -83,14 +83,13 @@ def _candidate_score(query: str, candidate: CandidateEvidence, query_kind: Query
     overlap = _token_overlap(query, candidate.item)
     identifier_signal = _identifier_overlap(query, candidate.item)
     score = (0.38 * vector_signal) + (0.18 * keyword_signal) + (0.14 * authority) + (0.2 * overlap)
-    score += (0.35 * _topic_evidence_bonus(query, candidate.item.content)) + _title_match_bonus(query, candidate.item)
+    score += _title_phrase_overlap(query, candidate.item)
     if identifier_signal is not None:
         score += 0.35 * identifier_signal
         if identifier_signal == 0.0:
             score -= 0.15
     if authority <= 0.2:
         score -= 0.4
-    score += _related_source_bonus(candidate.item, query_kind, query)
     if query_kind in (QueryKind.FACT, QueryKind.AMBIGUOUS, QueryKind.DECISION_REASON) and authority >= 0.9:
         score += 0.3 if query_kind is QueryKind.FACT else 0.35
     if query_kind is QueryKind.MEETING_DATE and authority >= 0.9:
@@ -110,41 +109,21 @@ def _content_evidence(query: str, item: StoredChunk, query_kind: QueryKind) -> f
     content = item.content.casefold()
     reason = sum(marker in content for marker in ("이유", "근거", "때문", "필요", "대안", "고려", "확정", "미결"))
     reason_bonus = 0.08 * reason if query_kind is QueryKind.DECISION_REASON else 0.0
-    subject_bonus = _subject_reason_bonus(query, content, query_kind)
-    topic_bonus = _topic_evidence_bonus(query, content)
     table_penalty = 0.15 if query_kind is QueryKind.DECISION_REASON and "결정 결과" in content else 0.0
-    return overlap + (0.25 * identifier) + reason_bonus + subject_bonus + topic_bonus - table_penalty
-
-
-def _subject_reason_bonus(query: str, content: str, query_kind: QueryKind) -> float:
-    if query_kind is not QueryKind.DECISION_REASON:
-        return 0.0
-    terms = set(tokenize(query))
-    if "postgresql" in terms and any(marker in content for marker in ("관계형 데이터를", "문서 임베딩", "벡터 검색", "pgvector")):
-        return 0.6
-    if "redis" in terms and any(marker in content for marker in ("중앙 session", "서버 여러", "서버 확장", "sticky session")):
-        return 0.6
-    return 0.0
-
-
-def _topic_evidence_bonus(query: str, content: str) -> float:
-    if "폴더" not in set(tokenize(query)) and not {"shared", "feature"} & set(tokenize(query)):
-        return 0.0
-    return sum(
-        weight
-        for marker, weight in (("합의된 규칙", 0.7), ("미해결 핵심 쟁점", 0.6), ("shared/hooks", 0.45), ("위젯", 0.25), ("피처", 0.25))
-        if marker in content
-    )
-
-
-def _title_match_bonus(query: str, item: StoredChunk) -> float:
-    compact_query = re.sub(r"\s+", "", query.casefold())
-    compact_title = re.sub(r"\s+", "", item.title.casefold())
-    return 0.6 if "폴더구조컨벤션회의" in compact_query and "폴더구조컨벤션회의" in compact_title else 0.0
+    return overlap + (0.25 * identifier) + reason_bonus - table_penalty
 
 
 def _rank_signal(rank: int | None) -> float:
     return 0.0 if rank is None else 1.0 / rank**0.5
+
+
+def _title_phrase_overlap(query: str, item: StoredChunk) -> float:
+    """Reward a document title that appears as a phrase in the query."""
+    compact_query = re.sub(r"\W+", "", query.casefold())
+    compact_title = re.sub(r"\W+", "", item.title.casefold())
+    if len(compact_title) < 4 or compact_title not in compact_query:
+        return 0.0
+    return 0.35
 
 
 def _token_overlap(query: str, item: StoredChunk) -> float:
@@ -196,14 +175,3 @@ def _score_margin(query_kind: QueryKind) -> float:
         QueryKind.CONFLICT: 0.15,
         QueryKind.BROAD: 0.0,
     }[query_kind]
-
-
-def _related_source_bonus(item: StoredChunk, query_kind: QueryKind, query: str) -> float:
-    if query_kind is not QueryKind.DECISION_REASON or "postgresql" not in set(tokenize(query)):
-        return 0.0
-    haystack = f"{item.source_path} {item.title}".casefold()
-    if "데이터베이스와 migration" in haystack or "테스트 전략" in haystack:
-        return 0.25
-    if "인프라" in haystack or "rds" in haystack or "docker" in haystack:
-        return -0.1
-    return 0.0

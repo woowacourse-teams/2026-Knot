@@ -60,12 +60,8 @@ _SYSTEM_INSTRUCTIONS: Final[str] = """당신은 Knot 팀 문서 검색 평가용
 근거가 없으면 찾지 못했다고 말하고, 문서가 충돌하면 각 주장을 나열한 뒤 최종 결정을 단정하지 마세요.
 질문에 날짜, 위치, 요약, 결정 사실, 결정 근거처럼 여러 요구가 있으면 명시된 요소를 모두 답하세요.
 날짜·문서 위치 질문은 날짜와 문서 제목/경로뿐 아니라 문서의 핵심 내용을 짧게 요약하세요.
-사실 질문도 컨텍스트에 함께 명시된 관련 규칙(예: ORM과 Migration)은 생략하지 마세요.
-백엔드 DB 선택 질문에서는 컨텍스트에 있는 DB, ORM, DB Migration 선택을 각각 구분해 답하세요.
-폴더 구조·컨벤션 질문에서는 핵심 계층/배치 기준과 미결 사항이 있으면 함께 답하세요.
-세션 저장소·기술 선택 질문에서는 컨텍스트에 결정 상태와 결정일이 있으면 함께 답하세요.
 결정 이유 질문은 문제·대안·결정·근거를 구분하고, 문서에 결정일·현재 상태가 있으면 함께 답하세요.
-문서의 경로·기술 식별자는 번역하지 말고 `widget`, `feature`, `shared/hooks/domain`처럼 원문 표기를 유지하세요.
+문서의 경로·기술 식별자는 번역하지 말고 원문 표기를 유지하세요.
 답변을 한 줄로 끝내지 말고, 컨텍스트에서 확인되는 근거를 2~5개의 문장 또는 글머리표로 정리하세요.
 날짜는 문서의 회의 날짜를 사용하고 최종 수정일을 추측하지 마세요. 문서가 여러 개면 각각의 사실을 구분해 적으세요.
 답변 끝에는 사용한 source_path를 [source: 경로] 형식으로 표시하세요.
@@ -236,14 +232,8 @@ def _answer_requirements(question: str, history: tuple[ChatMessage, ...] = ()) -
     ]
     if any(marker in normalized for marker in ("왜", "이유", "선택한")):
         requirements.append("- 결정 이유: 문제, 대안, 결정, 근거를 구분하고 결정일·현재 상태가 있으면 함께 적으세요.")
-    if "db" in normalized or "데이터베이스" in normalized:
-        requirements.append("- 백엔드 DB 질문: DB, ORM, DB Migration 선택이 컨텍스트에 있으면 각각 적으세요.")
-    if "로드맵" in normalized:
-        requirements.append("- 로드맵 결정 질문: 사용자 인터뷰, 로드맵 지정, 레벨 3 기능 리스트업, 담당자가 컨텍스트에 있으면 각각 적으세요.")
     if "언제" in normalized or "회의 날짜" in normalized:
         requirements.append("- 날짜/문서 위치 질문: 회의 날짜, 문서 제목·경로, 핵심 논의 요약을 함께 적으세요.")
-    if "폴더" in normalized or "shared/hooks" in normalized or "feature" in normalized:
-        requirements.append("- 폴더 컨벤션 질문: widget/feature/shared/hooks/domain의 기준, 미결 여부, 제안된 대안을 원문 표기로 적으세요.")
     requirements.append("- 컨텍스트에 없는 체크리스트 항목은 없다고 명시하고 추측하지 마세요.")
     return "\n".join(requirements)
 

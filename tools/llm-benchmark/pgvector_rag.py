@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from benchmark_core import Chunk, ContextPack, tokenize
+from benchmark_core import Chunk, ContextPack
 from pgvector_store import PgVectorStore, StoredChunk
 from retrieval_policy import QueryKind, classify_query
 from retrieval_ranking import (
@@ -101,7 +101,7 @@ def _merge_context_passages(
     query_kind: QueryKind,
 ) -> tuple[StoredChunk, ...]:
     """Attach the strongest evidence passages to each selected source document."""
-    passage_limit = _passage_limit(query, query_kind)
+    passage_limit = _passage_limit(query_kind)
     result: list[StoredChunk] = []
     for item in selected:
         passages = [item]
@@ -117,10 +117,8 @@ def _merge_context_passages(
     return tuple(result)
 
 
-def _passage_limit(query: str, query_kind: QueryKind) -> int:
-    if "폴더" in set(tokenize(query)) or {"shared", "feature"} & set(tokenize(query)):
-        return 4
-    return 3 if query_kind is QueryKind.DECISION_REASON else 2
+def _passage_limit(query_kind: QueryKind) -> int:
+    return 3 if query_kind in (QueryKind.DECISION_REASON, QueryKind.CONFLICT) else 2
 
 
 def _hybrid_select(query: str, candidates: tuple[StoredChunk, ...], top_k: int) -> tuple[StoredChunk, ...]:
