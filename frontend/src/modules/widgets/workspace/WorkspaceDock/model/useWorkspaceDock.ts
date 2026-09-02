@@ -27,12 +27,14 @@ import { useTypeToStartChat } from "./useTypeToStartChat";
  * 이 독이 탐색 화면의 입력창이기도 합니다. 탐색에서 보낸 질문은 보고 있던 대화에 그대로 이어 붙고,
  * 홈에서 보낸 질문은 탐색 화면으로 옮겨 가며 실려 갑니다. 답변이 오는 동안에는 또 보내지 못합니다.
  * 서버가 같은 세션의 동시 스트림을 409로 거절하기 때문입니다.
+ * 보내지 못했을 때의 안내는 독이 아니라 대화가 놓인 채팅 패널이 보여 줍니다. 독은 화면마다 따라다니므로
+ * 여기에 붙이면 홈으로 나가도 실패 문구가 같이 따라옵니다.
  */
 export const useWorkspaceDock = () => {
   const { workspaceId } = useParams();
   const { navigateToChat } = useNavigateToChat();
   const { isChatActive } = useWorkspaceNav();
-  const { isSending, notice, handleSubmitQuestion } = useChatStreamContext();
+  const { isSending, handleSubmitQuestion } = useChatStreamContext();
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [isExpandedByUser, setIsExpandedByUser] = useState(false);
@@ -125,8 +127,6 @@ export const useWorkspaceDock = () => {
     textareaRef,
     isExpanded,
     isHintVisible,
-    /** 보내지 못했을 때의 안내. 입력한 자리 바로 위에 남겨요 */
-    notice,
     message,
     canSubmit,
     handleExpand,

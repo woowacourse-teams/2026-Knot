@@ -46,7 +46,9 @@ const toFrame = (event: string, data: object) =>
  *
  * 조각을 언제 보낼지 테스트가 정해야 완료 전 화면을 확실히 관찰할 수 있어요.
  */
-const sseResponse = (produce: (push: (frame: string) => void) => Promise<void>) =>
+const sseResponse = (
+  produce: (push: (frame: string) => void) => Promise<void>,
+) =>
   new HttpResponse(
     new ReadableStream({
       async start(controller) {
@@ -70,7 +72,12 @@ const createGate = () => {
 /** 서버가 저장했다고 가정하는 메시지 이력 */
 const savedMessagesResponse = [
   ...chatMessagesResponse,
-  { id: 2001, role: "USER", content: QUESTION, createdAt: new Date().toISOString() },
+  {
+    id: 2001,
+    role: "USER",
+    content: QUESTION,
+    createdAt: new Date().toISOString(),
+  },
   {
     id: 2002,
     role: "ASSISTANT",
@@ -113,7 +120,8 @@ const renderChatPanel = (
   );
 };
 
-const getChatTextarea = () => screen.getByPlaceholderText("무엇이든 요청하세요");
+const getChatTextarea = () =>
+  screen.getByPlaceholderText("무엇이든 요청하세요");
 
 const submitQuestion = (question: string) => {
   fireEvent.change(getChatTextarea(), { target: { value: question } });
@@ -131,7 +139,10 @@ describe("ChatPanel", () => {
   });
 
   it("하단 독에서 질문을 들고 들어오면 도착하자마자 그 질문으로 대화를 시작한다", async () => {
-    renderChatPanel({ pathname: "/workspace/1/chat/100", state: { question: QUESTION } });
+    renderChatPanel({
+      pathname: "/workspace/1/chat/100",
+      state: { question: QUESTION },
+    });
 
     expect(await screen.findByText(QUESTION)).toBeInTheDocument();
   });
@@ -142,7 +153,9 @@ describe("ChatPanel", () => {
 
     mockServer.use(
       http.get(CHAT_MESSAGES_PATH, () =>
-        HttpResponse.json(isCompleted ? savedMessagesResponse : chatMessagesResponse),
+        HttpResponse.json(
+          isCompleted ? savedMessagesResponse : chatMessagesResponse,
+        ),
       ),
       http.post(SEND_CHAT_MESSAGE_PATH, () =>
         sseResponse(async (push) => {
@@ -298,7 +311,10 @@ describe("ChatPanel", () => {
 
     submitQuestion(QUESTION);
 
-    expect(await screen.findByText(ALREADY_ACTIVE_MESSAGE)).toBeInTheDocument();
+    const notice = await screen.findByText(ALREADY_ACTIVE_MESSAGE);
+
+    // 안내는 독이 아니라 대화 안에 남아요. 독에 붙어 있으면 홈으로 나가도 따라다녀요
+    expect(getChatTextarea().closest("form")).not.toContainElement(notice);
     expect(getChatTextarea()).not.toHaveAttribute("readonly");
     expect(screen.queryByText(QUESTION)).not.toBeInTheDocument();
     expect(screen.queryByText(FAILURE_NOTICE)).not.toBeInTheDocument();

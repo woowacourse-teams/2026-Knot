@@ -16,6 +16,9 @@ import Conversation from "./ui/Conversation";
  *
  * 홈에서 질문을 적어 들어온 경우에는 도착하자마자 그 질문으로 대화를 시작합니다.
  *
+ * 보내지 못했을 때의 안내도 여기서 보여줍니다. 독은 홈에도 그대로 있어 거기에 붙이면 화면을 나가도
+ * 실패 문구가 따라다니지만, 실패한 질문이 놓인 자리는 이 대화이기 때문입니다.
+ *
  * @see https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=506-7216 탐색 결과
  * @see https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=1198-7725 탐색 결과/대화 여러 개
  */
@@ -25,6 +28,7 @@ export default function ChatPanel() {
     streamingQuestion,
     streamedAnswer,
     isStreamFailed,
+    notice,
     handleSubmitQuestion,
   } = useChatStreamContext();
 
@@ -39,6 +43,7 @@ export default function ChatPanel() {
         streamingQuestion={streamingQuestion}
         streamedAnswer={streamedAnswer}
         isStreamFailed={isStreamFailed}
+        notice={notice}
       />
     </Container>
   );
