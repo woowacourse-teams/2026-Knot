@@ -358,6 +358,60 @@ def test_human_gate_rejects_a_pass_for_an_empty_or_failed_answer() -> None:
 
     # Then: human review cannot turn retrieval-only output into a quality pass
     assert not summary.gate_passed
+
+
+def test_run_metadata_gate_accepts_one_consistent_control_run() -> None:
+    # Given: one result carrying the reproducibility metadata of a control run
+    case = _case("W-001", ("질문",), ("page-1",))
+    row = EvaluationRow(
+        case_id="W-001",
+        repeat=1,
+        turn=1,
+        strategy="rag",
+        question="질문",
+        answer="답변",
+        source_paths=("page-1",),
+        retrieved_count=1,
+        metadata={
+            "run_id": "control-001",
+            "phase": "control",
+            "condition": "warm",
+            "snapshot_id": "snapshot-001",
+            "model": "model",
+            "prompt_sha256": "a" * 64,
+            "generation_options": {"temperature": 0.0},
+            "observed_at": "2026-09-02T09:00:00+00:00",
+        },
+    )
+
+    # When: the quality gate requires auditable run identity
+    summary = evaluate((row,), (case,), "rag", repeats=1, require_metadata=True)
+
+    # Then: a fully identified result can enter the quality gate
+    assert summary.metadata_failures == ()
+    assert summary.retrieval_gate_passed
+
+
+def test_run_metadata_gate_rejects_missing_run_identity() -> None:
+    # Given: a valid-looking answer without control/live execution metadata
+    case = _case("W-001", ("질문",), ("page-1",))
+    row = EvaluationRow(
+        case_id="W-001",
+        repeat=1,
+        turn=1,
+        strategy="rag",
+        question="질문",
+        answer="답변",
+        source_paths=("page-1",),
+        retrieved_count=1,
+    )
+
+    # When: the gate is explicitly enabled
+    summary = evaluate((row,), (case,), "rag", repeats=1, require_metadata=True)
+
+    # Then: speed/answer shape cannot hide an untraceable run
+    assert not summary.retrieval_gate_passed
+    assert summary.metadata_failures == ("run metadata is missing",)
     assert summary.invalid == (("W-001", 1, 1, "rag"),)
 
 
