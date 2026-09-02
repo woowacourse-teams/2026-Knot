@@ -358,6 +358,7 @@ def test_human_gate_rejects_a_pass_for_an_empty_or_failed_answer() -> None:
 
     # Then: human review cannot turn retrieval-only output into a quality pass
     assert not summary.gate_passed
+    assert summary.invalid == (("W-001", 1, 1, "rag"),)
 
 
 def test_run_metadata_gate_accepts_one_consistent_control_run() -> None:
@@ -412,7 +413,6 @@ def test_run_metadata_gate_rejects_missing_run_identity() -> None:
     # Then: speed/answer shape cannot hide an untraceable run
     assert not summary.retrieval_gate_passed
     assert summary.metadata_failures == ("run metadata is missing",)
-    assert summary.invalid == (("W-001", 1, 1, "rag"),)
 
 
 def test_evaluation_row_requires_the_question_identity() -> None:
