@@ -218,6 +218,9 @@ def evaluate(
         if case is None or key not in expected_keys:
             continue
         reasons = list(_structural_failures(row))
+        expected_question = case.turns[row.turn - 1]
+        if row.question != expected_question:
+            reasons.append("question does not match the workload turn")
         expected_sources = _expected_sources(case, row.turn)
         if not _source_match(
             row.source_paths, expected_sources, case.case_id, row.turn
