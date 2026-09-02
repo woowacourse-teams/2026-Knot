@@ -1,4 +1,5 @@
 import useStartNotionImportMutation from "@api/mutations/useStartNotionImportMutation";
+import useNotionConnectionQuery from "@api/queries/useNotionConnectionQuery";
 import useNotionImportStatusQuery from "@api/queries/useNotionImportStatusQuery";
 import { useEffect, useState } from "react";
 import { useParams } from "react-router";
@@ -9,7 +10,10 @@ import {
 } from "../constants/notionSync";
 
 /**
- * Notion 동기화 카드의 진행 상태.
+ * Notion 동기화 카드의 연결 상태와 진행 상태.
+ *
+ * 현재 `:workspaceId`의 Notion 연결 상태(연결 안 됨·연결됨·재인증 필요)를 조회해 `connectionStatus`로
+ * 넘기고, 조회가 실패하면 `isConnectionStatusError`로 알려요. 문구 매핑은 카드가 맡아요.
  *
  * `startSync`가 현재 `:workspaceId`의 동기화(Import)를 시작하고, 응답의 실행 ID로
  * 상태를 폴링해요. 완료(COMPLETED)·실패(FAILED 또는 시작 요청 실패) 결과를 보여준 뒤
@@ -20,6 +24,8 @@ export const useNotionSync = () => {
   const [importRunId, setImportRunId] = useState<number | null>(null);
   const [isStartFailed, setIsStartFailed] = useState(false);
 
+  const { data: connection, isError: isConnectionStatusError } =
+    useNotionConnectionQuery({ workspaceId: Number(workspaceId) });
   const { mutate: startImport, isPending: isStarting } =
     useStartNotionImportMutation();
   const { data: importStatus, isError: isStatusError } =
@@ -60,6 +66,8 @@ export const useNotionSync = () => {
   };
 
   return {
+    connectionStatus: connection?.status,
+    isConnectionStatusError,
     isSyncing,
     isSynced,
     isSyncFailed,
