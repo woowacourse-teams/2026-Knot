@@ -213,6 +213,28 @@ class _FakeToolCallingClient:
         return self.results.pop(0)
 
 
+class _InvalidToolCallingClient:
+    def generate(
+        self,
+        messages: tuple[ChatMessage, ...],
+        *,
+        tools: tuple[JsonObject, ...] = (),
+    ) -> NimResult:
+        return NimResult(
+            "",
+            1.0,
+            2.0,
+            (
+                NimToolCall(
+                    id="write-1",
+                    function=NimFunctionCall(
+                        name="notion-update", arguments="{}"
+                    ),
+                ),
+            ),
+        )
+
+
 def test_live_runner_can_use_the_nim_mcp_tool_call_loop() -> None:
     # Given: a normal live run and a deterministic NIM client that searches then fetches
     page = McpPage(
@@ -248,3 +270,31 @@ def test_live_runner_can_use_the_nim_mcp_tool_call_loop() -> None:
     assert record["answer"] == "PostgreSQL을 사용합니다."
     assert record["source_paths"] == ["https://notion.so/page-1"]
     assert record["tool_calls"] == 2
+
+
+def test_live_runner_records_invalid_model_tool_call_as_a_failed_observation() -> None:
+    # Given: a model response that attempts a non-read-only MCP operation
+    scope = McpScope("workspace-a", "snapshot-1", frozenset({"page-1"}))
+    adapter = ReplayMcpAdapter((), scope)
+    output = StringIO()
+    case = BenchmarkCase(
+        "G-001", "confirmed", "fact", ("DB가 뭐야?",), "PostgreSQL", ()
+    )
+
+    # When: the live runner processes the model-driven MCP request
+    _run_case(
+        output,
+        adapter,
+        _InvalidToolCallingClient(),
+        case,
+        1,
+        1,
+        False,
+        True,
+        scope,
+    )
+
+    # Then: the unsafe call is recorded as an error and never becomes an answer
+    record = json.loads(output.getvalue())
+    assert record["answer"] == ""
+    assert "invalid MCP tool call" in record["error"]
