@@ -1,0 +1,222 @@
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.14"
+# dependencies = ["httpx2[http2,brotli,zstd]", "pydantic", "pydantic-settings", "pytest"]
+# ///
+
+# ─── How to run ───
+# 1. Install uv (if not installed):
+#      curl -LsSf https://astral.sh/uv/install.sh | sh
+# 2. Run directly:
+#      uv run --with httpx2 --with pydantic --with pydantic-settings --with pytest pytest tools/llm-benchmark/test_mcp_adapter.py
+# ──────────────────
+
+from __future__ import annotations
+
+from pathlib import Path
+
+import pytest
+from benchmark_core import Document
+from mcp_adapter import (
+    McpScopeError,
+    ReplayMcpAdapter,
+    build_mcp_context,
+    execute_validated_tool_call,
+)
+from mcp_models import (
+    JsonObject,
+    McpPage,
+    McpScope,
+    McpSearchHit,
+    McpToolResult,
+    NimFunctionCall,
+    NimToolCall,
+    validate_nim_tool_call,
+)
+from mcp_transport import McpToolExchange
+
+
+class _FakeMcpClient:
+    """Deterministic MCP caller for adapter contract tests."""
+
+    def __init__(self, results: list[McpToolExchange], calls: list[tuple[str, JsonObject]]) -> None:
+        self.results = results
+        self.calls = calls
+
+    def call_tool(self, name: str, arguments: JsonObject) -> McpToolExchange:
+        self.calls.append((name, arguments))
+        return self.results.pop(0)
+
+
+def _scope() -> McpScope:
+    return McpScope("workspace-a", "snapshot-1", frozenset({"page-1", "page-2"}))
+
+
+def _page(page_id: str, content: str, *, workspace_id: str = "workspace-a", snapshot_id: str | None = "snapshot-1") -> McpPage:
+    return McpPage(page_id, page_id.title(), f"https://notion.so/{page_id}", content, workspace_id, snapshot_id)
+
+
+def test_replay_adapter_returns_only_active_scope_and_preserves_page_metadata() -> None:
+    # Given: a replay corpus containing an allowed page and two out-of-scope pages
+    adapter = ReplayMcpAdapter((_page("page-1", "PostgreSQL 결정"), _page("page-3", "PostgreSQL other"), _page("page-2", "Redis")), _scope())
+
+    # When: the benchmark searches and fetches the matching result
+    search = adapter.search("PostgreSQL", limit=3)
+    fetched = adapter.fetch(search.hits[0])
+
+    # Then: only the active page is exposed with provenance and timing data
+    assert tuple(hit.page_id for hit in search.hits) == ("page-1",)
+    assert fetched.page.content == "PostgreSQL 결정"
+    assert fetched.page.workspace_id == "workspace-a"
+    assert fetched.page.snapshot_id == "snapshot-1"
+    assert search.trace.http_requests == 0
+    assert fetched.trace.page_count == 1
+
+
+def test_replay_adapter_from_documents_keeps_the_same_page_identity_as_the_snapshot() -> None:
+    # Given: a normalized document path containing its Notion page ID
+    document = Document(Path("회의록/로드맵 기반 기획 회의 453de1156a838282959681990c718da2.md"), "로드맵 회의", "로드맵 결정")
+    adapter = ReplayMcpAdapter.from_documents(
+        (document,),
+        "workspace-a",
+        "snapshot-1",
+        frozenset({"453de1156a838282959681990c718da2"}),
+    )
+
+    # When & then: replay exposes the snapshot document using the same source identity
+    result = adapter.search("로드맵", limit=1)
+    assert result.hits[0].page_id == "453de1156a838282959681990c718da2"
+    assert adapter.fetch(result.hits[0]).page.title == "로드맵 회의"
+
+
+def test_validated_nim_tool_call_is_the_only_path_to_execute_search_or_fetch() -> None:
+    # Given: a read-only replay adapter and a model-produced search call
+    page = _page("page-1", "PostgreSQL 결정")
+    adapter = ReplayMcpAdapter((page,), _scope())
+    call = validate_nim_tool_call(
+        NimToolCall(
+            id="search-1",
+            function=NimFunctionCall(name="notion-search", arguments='{"query":"PostgreSQL"}'),
+        )
+    )
+
+    # When: the validated call is executed at the tool boundary
+    result = execute_validated_tool_call(call, adapter, _scope(), search_limit=1)
+
+    # Then: the model gets a scoped read result and no arbitrary operation is accepted
+    assert result.hits[0].page_id == "page-1"
+
+
+def test_replay_adapter_rejects_a_fetch_for_a_page_outside_scope() -> None:
+    # Given: a caller tries to fetch an ID that was not returned from the scoped search
+    adapter = ReplayMcpAdapter((_page("page-1", "allowed"),), _scope())
+    outside = McpSearchHit("page-3", "Outside", "https://notion.so/page-3", "", "workspace-a", "snapshot-1")
+
+    # When & then: the adapter denies the cross-range read
+    with pytest.raises(McpScopeError):
+        adapter.fetch(outside)
+
+
+def test_build_mcp_context_fetches_at_most_top_k_and_exposes_tool_traces() -> None:
+    # Given: two pages in the replay adapter
+    adapter = ReplayMcpAdapter((_page("page-1", "PostgreSQL"), _page("page-2", "PostgreSQL pgvector")), _scope())
+
+    # When: a context is built with one requested source
+    timing = build_mcp_context(adapter, "PostgreSQL", top_k=1)
+
+    # Then: the answer context contains one source and search + fetch tool accounting
+    assert timing.context.retrieved_count == 1
+    assert timing.context.tool_calls == 2
+    assert timing.context.source_paths == ("https://notion.so/page-1",)
+    assert tuple(trace.operation for trace in timing.traces) == ("search", "fetch")
+
+
+def test_live_adapter_paginates_search_and_normalizes_fetch_content() -> None:
+    # Given: a live-shaped MCP response split across two search pages and one detail response
+    first_search = McpToolExchange(
+        McpToolResult.model_validate(
+            {
+                "structuredContent": {
+                    "results": [{"id": "page-1", "url": "https://notion.so/page-1", "title": "DB", "snippet": "PostgreSQL"}],
+                    "has_more": True,
+                    "next_cursor": "cursor-2",
+                }
+            }
+        ),
+        1,
+        0,
+        0,
+        2.0,
+    )
+    second_search = McpToolExchange(
+        McpToolResult.model_validate(
+            {
+                "structuredContent": {
+                    "results": [{"id": "page-2", "url": "https://notion.so/page-2", "title": "Vector", "snippet": "pgvector"}],
+                    "has_more": False,
+                }
+            }
+        ),
+        1,
+        0,
+        0,
+        3.0,
+    )
+    detail = McpToolExchange(
+        McpToolResult.model_validate(
+            {
+                "content": [{"type": "text", "text": "# DB\nPostgreSQL과 pgvector"}],
+                "structuredContent": {"id": "page-1", "title": "DB", "last_edited_time": "2026-08-19T00:00:00Z"},
+            }
+        ),
+        1,
+        0,
+        0,
+        4.0,
+    )
+    client = _FakeMcpClient([first_search, second_search, detail], [])
+    from mcp_adapter import LiveNotionMcpAdapter
+
+    adapter = LiveNotionMcpAdapter(client, _scope(), search_tool="notion-search", fetch_tool="notion-fetch")
+
+    # When: the adapter searches and fetches the first result
+    search = adapter.search("PostgreSQL", limit=2)
+    fetched = adapter.fetch(search.hits[0])
+
+    # Then: pagination is accounted for and only normalized page content reaches context
+    assert tuple(hit.page_id for hit in search.hits) == ("page-1", "page-2")
+    assert fetched.page.title == "DB"
+    assert fetched.page.content == "# DB\nPostgreSQL과 pgvector"
+    assert search.trace.page_count == 2
+    assert search.trace.http_requests == 2
+    assert fetched.trace.http_requests == 1
+    assert client.calls == [
+        ("notion-search", {"query": "PostgreSQL"}),
+        ("notion-search", {"query": "PostgreSQL", "cursor": "cursor-2"}),
+        ("notion-fetch", {"url": "https://notion.so/page-1"}),
+    ]
+
+
+def test_live_adapter_rejects_detail_from_another_workspace() -> None:
+    # Given: a scoped hit whose server response claims another workspace
+    result = McpToolExchange(
+        McpToolResult.model_validate(
+            {
+                "structuredContent": {"id": "page-1", "workspace_id": "workspace-b", "title": "leak"},
+                "content": [{"type": "text", "text": "leak"}],
+            }
+        ),
+        1,
+        0,
+        0,
+        1.0,
+    )
+    client = _FakeMcpClient([result], [])
+    from mcp_adapter import LiveNotionMcpAdapter
+
+    adapter = LiveNotionMcpAdapter(client, _scope())
+    hit = McpSearchHit("page-1", "DB", "https://notion.so/page-1", "", "workspace-a", "snapshot-1")
+
+    # When & then: the detail cannot cross the workspace boundary
+    with pytest.raises(McpScopeError):
+        adapter.fetch(hit)
