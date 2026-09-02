@@ -376,7 +376,14 @@ def _select_strategies(value: str) -> tuple[AccessLabel, ...]:
 
 
 def _select_cases(cases: tuple[BenchmarkCase, ...], selection: str | None) -> tuple[BenchmarkCase, ...]:
-    wanted = _DEFAULT_CASES if selection is None else tuple(item.strip() for item in selection.split(",") if item.strip())
+    if selection is None:
+        wanted = (
+            tuple(item.case_id for item in cases)
+            if cases and all(item.case_id.startswith("W-") for item in cases)
+            else _DEFAULT_CASES
+        )
+    else:
+        wanted = tuple(item.strip() for item in selection.split(",") if item.strip())
     case_by_id = {item.case_id: item for item in cases}
     missing = tuple(case_id for case_id in wanted if case_id not in case_by_id)
     if missing:
