@@ -37,14 +37,18 @@ def search_hits(result: McpToolResult, scope: McpScope) -> tuple[McpSearchHit, .
         normalized_id = normalize_page_id(page_id)
         if normalized_id not in scope.allowed_page_ids or normalized_id in seen:
             continue
+        workspace_id = string(record, "workspace_id", "workspaceId") or scope.workspace_id
+        snapshot_id = string(record, "snapshot_id", "snapshotId") or scope.active_snapshot_id
+        if not scope.permits(McpPage(page_id, "", url, "", workspace_id, snapshot_id)):
+            continue
         hits.append(
             McpSearchHit(
                 page_id,
                 string(record, "title", "name") or page_id,
                 url,
                 string(record, "snippet", "text", "description") or "",
-                scope.workspace_id,
-                scope.active_snapshot_id,
+                workspace_id,
+                snapshot_id,
                 string(record, "last_edited_time", "lastEditedTime"),
             )
         )

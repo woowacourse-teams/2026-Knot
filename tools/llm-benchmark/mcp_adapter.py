@@ -165,6 +165,10 @@ class LiveNotionMcpAdapter:
 
     def fetch(self, hit: McpSearchHit) -> McpFetchResult:
         """Fetch page content and any cursor-based continuation from Notion MCP."""
+        if not self._scope.permits(
+            McpPage(hit.page_id, hit.title, hit.url, hit.snippet, hit.workspace_id, hit.snapshot_id)
+        ):
+            raise McpScopeError(f"page {hit.page_id!r} is outside the active scope")
         started = time.perf_counter()
         exchanges: list[McpToolExchange] = []
         cursor: str | None = None
@@ -262,4 +266,3 @@ def _ensure_success(result: McpToolResult) -> None:
     if result.is_error:
         detail = " ".join(text_content(result))[:200] or "tool execution failed"
         raise McpAdapterError(detail)
-
