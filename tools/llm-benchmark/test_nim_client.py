@@ -12,11 +12,10 @@
 
 from __future__ import annotations
 
+import json
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from threading import Thread
 from time import sleep
-
-import json
 
 import pytest
 from nim_client import (

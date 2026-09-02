@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import socket
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Final, Literal
 
 import httpx2
+from mcp_models import JsonObject, NimFunctionCall, NimToolCall
 from pydantic import BaseModel, ConfigDict, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -50,8 +51,10 @@ class ChatMessage(BaseModel):
 
     model_config = ConfigDict(extra="ignore", frozen=True)
 
-    role: Literal["system", "user", "assistant"]
-    content: str
+    role: Literal["system", "user", "assistant", "tool"]
+    content: str = ""
+    tool_call_id: str | None = None
+    tool_calls: tuple[NimToolCall, ...] | None = None
 
 
 class ChatRequest(BaseModel):
@@ -66,24 +69,50 @@ class ChatRequest(BaseModel):
     stream: Literal[True] = True
     reasoning_effort: ReasoningEffort | None = None
     chat_template_kwargs: dict[str, bool] | None = None
+    tools: tuple[JsonObject, ...] | None = None
+
+
+class _ToolCallFunctionDelta(BaseModel):
+    model_config = ConfigDict(extra="ignore", frozen=True)
+
+    name: str | None = None
+    arguments: str | None = None
+
+
+class _ToolCallDelta(BaseModel):
+    model_config = ConfigDict(extra="ignore", frozen=True)
+
+    index: int = Field(default=0, ge=0)
+    id: str | None = None
+    type: Literal["function"] | None = None
+    function: _ToolCallFunctionDelta | None = None
 
 
 class _Delta(BaseModel):
     model_config = ConfigDict(extra="ignore", frozen=True)
 
     content: str | None = None
+    tool_calls: tuple[_ToolCallDelta, ...] = ()
 
 
 class _Choice(BaseModel):
     model_config = ConfigDict(extra="ignore", frozen=True)
 
     delta: _Delta
+    finish_reason: str | None = None
 
 
 class _StreamChunk(BaseModel):
     model_config = ConfigDict(extra="ignore", frozen=True)
 
     choices: tuple[_Choice, ...] = Field(default_factory=tuple)
+
+
+@dataclass(slots=True)
+class _ToolCallAccumulator:
+    call_id: str = ""
+    name: str = ""
+    argument_fragments: list[str] = field(default_factory=list)
 
 
 class NimConfigurationError(Exception):
@@ -140,6 +169,7 @@ class NimResult:
     text: str
     ttft_ms: float
     total_ms: float
+    tool_calls: tuple[NimToolCall, ...] = ()
 
 
 class NimClient:
@@ -173,7 +203,12 @@ class NimClient:
         """Close the underlying HTTP connection pool."""
         self._client.close()
 
-    def generate(self, messages: tuple[ChatMessage, ...]) -> NimResult:
+    def generate(
+        self,
+        messages: tuple[ChatMessage, ...],
+        *,
+        tools: tuple[JsonObject, ...] = (),
+    ) -> NimResult:
         """Stream one answer and measure first visible content and completion."""
         request = ChatRequest(
             model=self._settings.model,
@@ -186,6 +221,7 @@ class NimClient:
                 if self._settings.enable_thinking is None
                 else {"enable_thinking": self._settings.enable_thinking}
             ),
+            tools=tools or None,
         )
         started = time.perf_counter()
         try:
@@ -200,17 +236,22 @@ class NimClient:
                 response.raise_for_status()
                 fragments: list[str] = []
                 first_content_at: float | None = None
+                tool_call_accumulators: dict[int, _ToolCallAccumulator] = {}
                 for line in response.iter_lines():
                     payload = parse_sse_line(line)
                     if payload is None:
                         continue
                     chunk = _StreamChunk.model_validate_json(payload)
                     fragment = _fragment(chunk)
-                    if not fragment:
+                    has_tool_call = _accumulate_tool_calls(
+                        chunk, tool_call_accumulators
+                    )
+                    if not fragment and not has_tool_call:
                         continue
                     if first_content_at is None:
                         first_content_at = time.perf_counter()
-                    fragments.append(fragment)
+                    if fragment:
+                        fragments.append(fragment)
         except httpx2.HTTPStatusError as error:
             response = error.response
             response.read()
@@ -219,11 +260,12 @@ class NimClient:
             raise NimTransportError(str(error)) from error
         finished = time.perf_counter()
         if first_content_at is None:
-            raise NimTransportError("NIM returned no visible answer content")
+            raise NimTransportError("NIM returned no answer content or tool call")
         return NimResult(
             "".join(fragments),
             (first_content_at - started) * 1000,
             (finished - started) * 1000,
+            _materialize_tool_calls(tool_call_accumulators),
         )
 
 
@@ -237,6 +279,50 @@ def parse_sse_line(line: str) -> str | None:
 
 def _fragment(chunk: _StreamChunk) -> str:
     return "".join(choice.delta.content or "" for choice in chunk.choices)
+
+
+def _accumulate_tool_calls(
+    chunk: _StreamChunk,
+    accumulators: dict[int, _ToolCallAccumulator],
+) -> bool:
+    found = False
+    for choice in chunk.choices:
+        for delta in choice.delta.tool_calls:
+            found = True
+            accumulator = accumulators.setdefault(
+                delta.index,
+                _ToolCallAccumulator(),
+            )
+            if delta.id:
+                accumulator.call_id += delta.id
+            if delta.function is not None:
+                if delta.function.name:
+                    accumulator.name += delta.function.name
+                if delta.function.arguments:
+                    accumulator.argument_fragments.append(delta.function.arguments)
+    return found
+
+
+def _materialize_tool_calls(
+    accumulators: dict[int, _ToolCallAccumulator],
+) -> tuple[NimToolCall, ...]:
+    calls: list[NimToolCall] = []
+    for index, accumulator in sorted(accumulators.items()):
+        if not accumulator.name:
+            raise NimTransportError(f"NIM tool call {index} has no function name")
+        try:
+            calls.append(
+                NimToolCall(
+                    id=accumulator.call_id or f"call-{index}",
+                    function=NimFunctionCall(
+                        name=accumulator.name,
+                        arguments="".join(accumulator.argument_fragments) or "{}",
+                    ),
+                )
+            )
+        except ValueError as error:
+            raise NimTransportError("NIM returned an invalid tool call") from error
+    return tuple(calls)
 
 
 def _mark_request(request: httpx2.Request) -> None:
