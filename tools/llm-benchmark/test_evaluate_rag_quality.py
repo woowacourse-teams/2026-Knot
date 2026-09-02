@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from answer_quality_policy import answer_shape_passes
 from evaluate_rag_quality import EvaluationRow, evaluate, evaluate_human_labels
 from gold_set import BenchmarkCase
 from human_review import HumanReviewRow, HumanReviewStatus
@@ -117,3 +118,12 @@ def test_human_gate_requires_one_terminal_label_per_expected_turn() -> None:
     assert summary.status is HumanReviewStatus.PENDING
     assert not summary.gate_passed
     assert summary.missing == (("G-007", 1, 2, "rag"),)
+
+
+def test_unregistered_workload_cases_are_left_for_human_answer_review() -> None:
+    # Given: a new independent workload case without a brittle lexical policy
+    # When: the automatic answer-shape checker sees it
+    result = answer_shape_passes("문서 근거를 확인했습니다.", "W-001", 1)
+
+    # Then: semantic quality remains explicitly unevaluated by automation
+    assert result is None
