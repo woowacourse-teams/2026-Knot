@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 
-def answer_shape_passes(answer: str, case_id: str, turn: int) -> bool:
-    """Check required facts without pretending to replace human review."""
+def answer_shape_passes(answer: str, case_id: str, turn: int) -> bool | None:
+    """Check known policy shapes and defer new cases to human review."""
     normalized = answer.casefold()
     groups = _GROUPS.get((case_id, turn))
     if groups is None:
-        return False
+        return None
     return _has_group(normalized, groups)
 
 
