@@ -33,11 +33,26 @@ def test_plan_query_rewrites_deictic_follow_up_with_previous_question() -> None:
     assert plan.kind is QueryKind.MEETING_DATE
 
     folder_plan = plan_query("폴더구조 회의에서 뭘 정했어?", ())
-    assert "위젯" in folder_plan.search_query
+    assert "결정 사항" in folder_plan.search_query
 
     location_plan = plan_query("폴더구조 컨벤션 회의는 언제였고 문서 어디 있어?", ())
-    assert "shared/hooks/domain" in location_plan.search_query
     assert location_plan.kind is QueryKind.MEETING_DATE
+
+
+def test_holdout_query_does_not_receive_gold_answer_terms() -> None:
+    holdout_queries = (
+        "로드맵에서 다음 분기에 뭘 정했어?",
+        "폴더 구조 회의에서 어떤 기준을 정했어?",
+        "알림 저장소에서 어떤 방식을 선택했어?",
+    )
+
+    for question in holdout_queries:
+        search_query = plan_query(question, ()).search_query.casefold()
+
+        assert "흑곰" not in search_query
+        assert "shared/hooks/domain" not in search_query
+        assert "level 3" not in search_query
+        assert "레벨 3" not in search_query
 
 
 def test_plan_query_marks_related_document_follow_up() -> None:
