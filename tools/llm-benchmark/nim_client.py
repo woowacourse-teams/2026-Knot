@@ -19,6 +19,7 @@ _LIMITS: Final[httpx2.Limits] = httpx2.Limits(
 _SOCKET_OPTIONS: Final[list[tuple[int, int, int]]] = [
     (socket.IPPROTO_TCP, socket.TCP_NODELAY, 1),
 ]
+_PROVIDER_ERROR_DETAIL: Final[str] = "provider returned an HTTP error"
 ReasoningEffort = Literal["none", "minimal", "low", "medium", "high", "xhigh", "max", "ultra"]
 
 
@@ -107,9 +108,9 @@ class NimRequestError(Exception):
     detail: str
 
     def __init__(self, status_code: int, detail: str) -> None:
-        super().__init__(status_code, detail)
+        super().__init__(status_code)
         self.status_code = status_code
-        self.detail = detail
+        self.detail = _PROVIDER_ERROR_DETAIL
 
     def __str__(self) -> str:
         return f"NIM request failed with HTTP {self.status_code}: {self.detail}"
