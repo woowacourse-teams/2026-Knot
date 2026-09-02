@@ -32,7 +32,7 @@ export const useWorkspaceDock = () => {
   const { workspaceId } = useParams();
   const { navigateToChat } = useNavigateToChat();
   const { isChatActive } = useWorkspaceNav();
-  const { isSending, handleSubmitQuestion } = useChatStreamContext();
+  const { isSending, notice, handleSubmitQuestion } = useChatStreamContext();
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [isExpandedByUser, setIsExpandedByUser] = useState(false);
@@ -49,7 +49,12 @@ export const useWorkspaceDock = () => {
   useEffect(() => {
     if (focusRequestCount === 0) return;
 
-    textareaRef.current?.focus();
+    const field = textareaRef.current;
+    if (!field) return;
+
+    field.focus();
+    // 값을 코드로 채우면 커서가 맨 앞에 남아, 이어 친 글자가 가로챈 글자 앞에 끼어들어요
+    field.setSelectionRange(field.value.length, field.value.length);
   }, [focusRequestCount]);
 
   const requestFocus = () => setFocusRequestCount((prev) => prev + 1);
@@ -120,6 +125,8 @@ export const useWorkspaceDock = () => {
     textareaRef,
     isExpanded,
     isHintVisible,
+    /** 보내지 못했을 때의 안내. 입력한 자리 바로 위에 남겨요 */
+    notice,
     message,
     canSubmit,
     handleExpand,

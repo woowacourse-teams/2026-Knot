@@ -144,6 +144,20 @@ describe("WorkspaceDock", () => {
     ).toHaveValue("회");
   });
 
+  it("가로챈 글자 뒤에 이어 적도록 커서를 맨 끝에 둔다", () => {
+    renderDock();
+
+    fireEvent.keyDown(document.body, { key: "ㅇ" });
+
+    const field = screen.getByRole("textbox", {
+      name: "무엇이든 요청하세요",
+    }) as HTMLTextAreaElement;
+
+    // 커서가 앞에 남아 있으면 이어 친 글자가 "ㅇ" 앞에 끼어들어요
+    expect(field.selectionStart).toBe(field.value.length);
+    expect(field.selectionEnd).toBe(field.value.length);
+  });
+
   it("단축키 조합이나 글자가 아닌 키는 가로채지 않는다", () => {
     renderDock();
 
