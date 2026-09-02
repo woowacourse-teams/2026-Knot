@@ -21,12 +21,13 @@ from threading import Thread
 from typing import ClassVar
 
 import pytest
-from mcp_models import JsonObject, McpSettings
+from mcp_models import JsonObject, McpSettings, McpToolResult
 from mcp_transport import (
     McpHttpClient,
     McpHttpError,
     McpProtocolError,
     McpTransportError,
+    _redact_tool_result,
 )
 
 
@@ -287,6 +288,24 @@ def test_http_client_redacts_token_from_error_tool_result(
     exchange = client.call_tool("notion-search", {"query": "PostgreSQL"})
     client.close()
     assert exchange.result.content[0].text == "server echoed [redacted]"
+
+
+def test_successful_tool_result_redaction_preserves_long_page_content() -> None:
+    # Given: a valid page payload larger than the short error-detail safety limit
+    long_content = "page-content " * 100
+    result = McpToolResult.model_validate(
+        {
+            "content": [{"type": "text", "text": long_content}],
+            "structuredContent": {"content": long_content},
+        }
+    )
+
+    # When: credentials are redacted from a successful tool result
+    redacted = _redact_tool_result(result, "test-token")
+
+    # Then: page content remains complete for JSON parsing and answer grounding
+    assert redacted.content[0].text == long_content
+    assert redacted.structured_content == {"content": long_content}
 
 
 def test_http_client_classifies_an_initialize_response_without_result(
