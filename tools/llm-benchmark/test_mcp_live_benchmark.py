@@ -14,12 +14,15 @@ from __future__ import annotations
 import json
 from io import StringIO
 
+import pytest
+import typer
 from benchmark_core import ContextPack
 from gold_set import BenchmarkCase
 from mcp_adapter import McpContextTiming, ReplayMcpAdapter
 from mcp_models import McpPage, McpScope, McpToolTrace
 from nim_client import NimTransportError
-from run_mcp_live_benchmark import _record, _run_case
+from run_mcp_live_benchmark import _record, _run_case, main
+from typer.testing import CliRunner
 
 
 def _timing() -> McpContextTiming:
@@ -81,3 +84,26 @@ def test_run_case_records_missing_chat_client_as_an_error() -> None:
     record = json.loads(output.getvalue())
     assert record["answer"] == ""
     assert record["error"] == str(NimTransportError("NIM client is required unless --retrieval-only is enabled"))
+
+
+def test_live_runner_returns_a_cli_error_when_nim_configuration_is_missing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Given: a valid MCP credential and scope but no NIM API key or model
+    monkeypatch.setenv("NOTION_MCP_ACCESS_TOKEN", "test-token")
+    monkeypatch.setenv("NOTION_MCP_ENDPOINT_URL", "http://127.0.0.1:1/mcp")
+    monkeypatch.delenv("NIM_API_KEY", raising=False)
+    monkeypatch.delenv("NIM_MODEL", raising=False)
+    app = typer.Typer()
+    app.command()(main)
+
+    # When: the normal live runner is invoked through its CLI
+    result = CliRunner().invoke(
+        app,
+        ["--workspace-id", "workspace-a", "--allowed-page-ids", "page-1", "--case", "G-001"],
+    )
+
+    # Then: configuration failure is actionable and does not expose a traceback
+    assert result.exit_code == 2
+    assert "NIM_API_KEY is required" in result.stdout
+    assert "Traceback" not in result.stdout
