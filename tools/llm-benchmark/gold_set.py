@@ -6,6 +6,8 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
+from benchmark_workload import WorkloadError, load_workload
+
 
 class GoldSetError(Exception):
     """Raised when a benchmark case cannot be parsed."""
@@ -39,7 +41,9 @@ class BenchmarkCase:
 
 
 def load_cases(path: Path) -> tuple[BenchmarkCase, ...]:
-    """Parse G-series cases from the Markdown gold-set document."""
+    """Parse Markdown G-series cases or the JSON independent workload."""
+    if path.suffix.casefold() == ".json":
+        return _load_json_cases(path)
     try:
         markdown = path.read_text(encoding="utf-8")
     except FileNotFoundError as error:
@@ -70,6 +74,24 @@ def load_cases(path: Path) -> tuple[BenchmarkCase, ...]:
     if not cases:
         raise GoldSetError(path, "unknown", "no G-series cases found")
     return tuple(cases)
+
+
+def _load_json_cases(path: Path) -> tuple[BenchmarkCase, ...]:
+    try:
+        manifest = load_workload(path)
+    except WorkloadError as error:
+        raise GoldSetError(path, "unknown", error.reason) from error
+    return tuple(
+        BenchmarkCase(
+            case.case_id,
+            "needs-human",
+            case.category.value,
+            case.turns,
+            "\n".join(case.expected_facts),
+            case.expected_source_ids,
+        )
+        for case in manifest.cases
+    )
 
 
 def _field(section: str, label: str) -> str:
