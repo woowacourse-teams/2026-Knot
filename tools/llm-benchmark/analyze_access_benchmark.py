@@ -112,10 +112,15 @@ def main(
     typer.echo(f"report written: {output}")
 
 
-def _expected_sources(cases: tuple[BenchmarkCase, ...]) -> dict[str, set[str]]:
+def _expected_sources(
+    cases: tuple[BenchmarkCase, ...],
+) -> dict[tuple[str, int], set[str]]:
     return {
-        case.case_id: {source.replace("-", "") for source in case.source_ids}
+        (case.case_id, turn): {
+            source.replace("-", "") for source in case.sources_for_turn(turn)
+        }
         for case in cases
+        for turn in range(1, len(case.turns) + 1)
     }
 
 
@@ -137,18 +142,28 @@ def _load_rows(path: Path) -> tuple[AccessRow, ...]:
     return tuple(rows)
 
 
-def _summarize(rows: tuple[AccessRow, ...], strategy: StrategyName, expected: dict[str, set[str]]) -> StrategySummary:
+def _summarize(
+    rows: tuple[AccessRow, ...],
+    strategy: StrategyName,
+    expected: dict[tuple[str, int], set[str]],
+) -> StrategySummary:
     group = tuple(row for row in rows if row.strategy == strategy)
     search = _positive_values(group, "search_ms")
     embedding = _positive_values(group, "embedding_ms")
     database = _positive_values(group, "vector_db_ms")
     model_success = tuple(row for row in group if row.error is None and _valid(row.total_ms))
     hits = sum(
-        any(source_id in path for source_id in expected.get(row.case_id, set()) for path in row.source_paths)
+        any(
+            source_id in path
+            for source_id in expected.get((row.case_id, row.turn), set())
+            for path in row.source_paths
+        )
         for row in group
-        if expected.get(row.case_id)
+        if expected.get((row.case_id, row.turn))
     )
-    quality_count = sum(bool(expected.get(row.case_id)) for row in group)
+    quality_count = sum(
+        bool(expected.get((row.case_id, row.turn))) for row in group
+    )
     return StrategySummary(
         strategy,
         len(group),
