@@ -2,6 +2,8 @@ package com.knot.backend.global.exception;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.knot.backend.chat.domain.ChatErrorCode;
+import com.knot.backend.chat.domain.ChatException;
 import com.knot.backend.global.response.ErrorResponse;
 import com.knot.backend.workspace.domain.WorkspaceErrorCode;
 import org.junit.jupiter.api.DisplayName;
@@ -11,6 +13,29 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
 class GlobalExceptionHandlerTest {
+
+    @DisplayName("문서가 준비되지 않은 채팅 요청은 409 JSON 오류로 변환한다")
+    @Test
+    void handleProjectException_success_chatDocumentsNotReady() {
+        // given
+        GlobalExceptionHandler handler = new GlobalExceptionHandler();
+        ChatException exception = new ChatException(ChatErrorCode.CHAT_DOCUMENTS_NOT_READY);
+
+        // when
+        ResponseEntity<ErrorResponse> response = handler.handleProjectException(exception);
+
+        // then
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(
+                response.getBody()
+                        .code()
+        ).isEqualTo("CHAT_DOCUMENTS_NOT_READY");
+        assertThat(
+                response.getBody()
+                        .message()
+        ).isEqualTo("문서 동기화가 완료된 후 검색할 수 있습니다");
+    }
 
     @DisplayName("호출 제한 예외는 429와 Retry-After 오류 응답으로 변환한다")
     @Test
