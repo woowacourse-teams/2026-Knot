@@ -29,6 +29,7 @@ class _McpHandler(BaseHTTPRequestHandler):
     call_count: ClassVar[int] = 0
     retry_once: ClassVar[bool] = False
     auth_failure: ClassVar[bool] = False
+    echo_token: ClassVar[bool] = False
 
     def do_POST(self) -> None:
         length = int(self.headers.get("Content-Length", "0"))
@@ -38,6 +39,9 @@ class _McpHandler(BaseHTTPRequestHandler):
         self.requests.append((self.headers.get("Mcp-Method", ""), headers, request_body))
         if self.auth_failure:
             self._respond_error(401, "Authorization: Bearer test-token")
+            return
+        if self.echo_token:
+            self._respond_error(401, "server echoed test-token")
             return
         method = request_body.get("method") if isinstance(request_body, dict) else None
         if method == "initialize":
@@ -103,6 +107,7 @@ def mcp_server() -> Iterator[tuple[str, ThreadingHTTPServer]]:
     _McpHandler.call_count = 0
     _McpHandler.retry_once = False
     _McpHandler.auth_failure = False
+    _McpHandler.echo_token = False
     server = ThreadingHTTPServer(("127.0.0.1", 0), _McpHandler)
     thread = Thread(target=server.serve_forever, daemon=True)
     thread.start()
@@ -190,3 +195,21 @@ def test_http_client_redacts_bearer_token_when_mcp_rejects_authentication(
     assert caught.value.status_code == 401
     assert "test-token" not in str(caught.value)
     assert "Bearer [redacted]" in str(caught.value)
+
+
+def test_http_client_redacts_a_raw_echoed_token_from_mcp_error_body(
+    mcp_server: tuple[str, ThreadingHTTPServer],
+) -> None:
+    # Given: an MCP server that accidentally echoes the bearer value without its scheme
+    endpoint, _server = mcp_server
+    _McpHandler.echo_token = True
+    client = McpHttpClient(McpSettings(endpoint_url=endpoint, access_token="test-token", retry_backoff_s=0))
+
+    # When & then: the transport removes the exact credential from the exposed detail
+    with pytest.raises(McpHttpError) as caught:
+        client.call_tool("notion-search", {"query": "PostgreSQL"})
+    client.close()
+
+    assert caught.value.status_code == 401
+    assert "test-token" not in str(caught.value)
+    assert "[redacted]" in str(caught.value)
