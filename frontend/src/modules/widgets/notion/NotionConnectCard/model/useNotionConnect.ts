@@ -8,7 +8,6 @@ import { useEffect, useState } from "react";
 import { useParams, useSearchParams } from "react-router";
 
 import {
-  NOTION_CONNECT_ERROR_MESSAGE,
   NOTION_CONNECTION_RESULT,
   NOTION_CONNECTION_RESULT_PARAM,
 } from "../constants/notionConnect";
@@ -26,22 +25,22 @@ const isNotFoundError = (error: unknown) =>
  * 버튼을 로딩으로 붙잡아 두 번 눌리지 않게 합니다.
  *
  * Notion에서 돌아오면 서버가 `?result=connected|failed`를 붙여 이 화면으로 보내요.
- * `connected`면 워크스페이스 홈으로 `replace` 이동하고, `failed`면 실패 문구를 띄운 채 다시 시도할 수 있게 둡니다.
+ * `connected`면 워크스페이스 홈으로 `replace` 이동하고, `failed`면 `isFailed`를 켜
+ * 카드가 실패 화면(워크스페이스로 이동)을 그리게 둡니다. 그 밖의 알 수 없는 값은
+ * 잘못된 접근으로 보고 쿼리를 지워(`replace`) 연결 카드로 되돌립니다.
  *
  * 연결 시작 실패는 401 → 로그인, 404 → 워크스페이스 선택 화면으로 `replace` 이동하고,
  * 403(OWNER 아님)과 그 외는 버튼 아래 문구로 알립니다.
  */
 export const useNotionConnect = () => {
   const { workspaceId } = useParams();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const result = searchParams.get(NOTION_CONNECTION_RESULT_PARAM);
   const isConnected = result === NOTION_CONNECTION_RESULT.connected;
+  const isFailed = result === NOTION_CONNECTION_RESULT.failed;
+  const isUnknownResult = result !== null && !isConnected && !isFailed;
 
-  const [errorMessage, setErrorMessage] = useState<string | undefined>(
-    result === NOTION_CONNECTION_RESULT.failed
-      ? NOTION_CONNECT_ERROR_MESSAGE.callbackFailed
-      : undefined,
-  );
+  const [errorMessage, setErrorMessage] = useState<string>();
   const [isRedirecting, setIsRedirecting] = useState(false);
 
   const { mutate, isPending } = useStartNotionOAuthMutation();
@@ -56,6 +55,12 @@ export const useNotionConnect = () => {
 
     navigateToWorkspaceHome({ workspaceId, replace: true });
   }, [isConnected, workspaceId, navigateToWorkspaceHome]);
+
+  useEffect(() => {
+    if (!isUnknownResult) return;
+
+    setSearchParams({}, { replace: true });
+  }, [isUnknownResult, setSearchParams]);
 
   const handleConnect = () => {
     if (workspaceId === undefined || isConnecting) return;
@@ -88,5 +93,5 @@ export const useNotionConnect = () => {
     navigateToWorkspaceHome({ workspaceId });
   };
 
-  return { isConnecting, errorMessage, handleConnect, handleGoHome };
+  return { isFailed, isConnecting, errorMessage, handleConnect, handleGoHome };
 };
