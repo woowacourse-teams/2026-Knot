@@ -60,3 +60,35 @@ def test_answer_gate_checks_policy_shape_when_answers_exist() -> None:
 
     assert summary.retrieval_gate_passed
     assert summary.answer_gate_passed is True
+
+
+def test_answer_gate_fails_when_any_evaluated_turn_has_no_policy() -> None:
+    cases = (_case("G-007", ("첫 질문", "후속 질문"), ("policy",)),)
+    rows = (
+        EvaluationRow(
+            case_id="G-007",
+            repeat=1,
+            turn=1,
+            strategy="rag",
+            answer="정책에 없는 답변",
+            source_paths=("policy",),
+            retrieved_count=1,
+        ),
+        EvaluationRow(
+            case_id="G-007",
+            repeat=1,
+            turn=2,
+            strategy="rag",
+            answer="로드맵의 level 3 기능은 흑곰 기획안 요구사항을 기준으로 정리했습니다.",
+            source_paths=("policy",),
+            retrieved_count=1,
+        ),
+    )
+
+    summary = evaluate(rows, cases, "rag", repeats=1)
+
+    assert summary.retrieval_gate_passed
+    assert summary.answer_evaluated == 2
+    assert summary.answer_passed == 1
+    assert summary.answer_gate_passed is False
+    assert summary.answer_failures[0].startswith("('G-007', 1, 1):")
