@@ -137,7 +137,9 @@ uv run --python 3.14 tools/llm-benchmark/analyze_access_benchmark.py \
   --output docs/llm-search-ab-test-report.md
 ```
 
-분석기는 검색 p50/p95, Qwen 임베딩 시간, DB 단계, end-to-end TTFT/total, 5초 내 첫 표시 비율, source hit@5, paired bootstrap CI와 sign-flip permutation p-value를 계산한다. 반복 수가 늘어도 독립 질문 수가 늘지는 않으므로, 일반화 판정 전 30개 이상 독립 질문과 사람이 확인한 품질 라벨이 필요하다.
+분석기는 검색 p50/p95, Qwen 임베딩 시간, DB 단계, end-to-end TTFT/total, 5초 내 첫 표시 비율, source hit@5, paired bootstrap CI와 sign-flip permutation p-value를 계산한다. 독립 workload 결과를 분석할 때는 반드시 같은 입력 gold set을 `--gold-set docs/llm-search-benchmark-independent-30.json`으로 전달한다. 반복 수가 늘어도 독립 질문 수가 늘지는 않으므로, 일반화 판정 전 30개 이상 독립 질문과 사람이 확인한 품질 라벨이 필요하다.
+
+생성 결과에 기록된 실행 metadata는 보고서의 `control`/`live` 별도 섹션에 run ID·condition·snapshot·model·prompt/options 지문으로 표시된다. 실제 값과 비밀값은 보고서에 복사하지 않으며, 최종 품질 평가는 `evaluate_rag_quality.py --require-run-metadata`로 동일 실행 경계를 다시 검사한다.
 
 NVIDIA hosted endpoint를 비교해야 할 때만 아래처럼 주소와 실제 Build 모델을 바꾼다.
 
