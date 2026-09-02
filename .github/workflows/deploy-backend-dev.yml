@@ -143,11 +143,15 @@ jobs:
               return
             fi
 
-            if [ -n "$staging_dir" ]; then
+            if [ -n "$staging_dir" ] && [[ "$staging_dir" =~ ^/tmp/knot-backend-dev\.[[:alnum:]]+$ ]]; then
               ssh \
                 -i "$HOME/.ssh/ncp-dev" \
                 -o IdentitiesOnly=yes \
                 -o StrictHostKeyChecking=yes \
+                -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
+                -o GlobalKnownHostsFile=/dev/null \
+                -o ConnectTimeout=10 \
+                -o BatchMode=yes \
                 "$NCP_DEV_USER@$NCP_DEV_HOST" \
                 "rm -f '$staging_dir/knot-backend-dev.jar'; rmdir '$staging_dir' 2>/dev/null || true" \
                 >/dev/null 2>&1 || true
@@ -166,21 +170,29 @@ jobs:
             -i "$HOME/.ssh/ncp-dev" \
             -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
+            -o GlobalKnownHostsFile=/dev/null \
+            -o ConnectTimeout=10 \
+            -o BatchMode=yes \
             "$NCP_DEV_USER@$NCP_DEV_HOST" \
             'umask 077; mktemp -d /tmp/knot-backend-dev.XXXXXX')"
           if [[ ! "$staging_dir" =~ ^/tmp/knot-backend-dev\.[[:alnum:]]+$ ]]; then
             echo "Unexpected remote staging directory: $staging_dir"
             exit 1
           fi
+          echo "staging_dir=$staging_dir" >> "$GITHUB_OUTPUT"
 
           scp \
             -i "$HOME/.ssh/ncp-dev" \
             -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
+            -o GlobalKnownHostsFile=/dev/null \
+            -o ConnectTimeout=10 \
+            -o BatchMode=yes \
             "$JAR_PATH" \
             "$NCP_DEV_USER@$NCP_DEV_HOST:$staging_dir/knot-backend-dev.jar"
 
-          echo "staging_dir=$staging_dir" >> "$GITHUB_OUTPUT"
           upload_succeeded=true
 
       - name: Restart backend and verify health
@@ -260,6 +272,10 @@ jobs:
             -i "$HOME/.ssh/ncp-dev" \
             -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
+            -o GlobalKnownHostsFile=/dev/null \
+            -o ConnectTimeout=10 \
+            -o BatchMode=yes \
             "$env_file" \
             "$NCP_DEV_USER@$NCP_DEV_HOST:$STAGING_DIR/knot-backend-dev.env"
 
@@ -268,6 +284,10 @@ jobs:
             -i "$HOME/.ssh/ncp-dev" \
             -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
+            -o GlobalKnownHostsFile=/dev/null \
+            -o ConnectTimeout=10 \
+            -o BatchMode=yes \
             "$NCP_DEV_USER@$NCP_DEV_HOST" \
             "DEPLOYMENT_ID='$DEPLOYMENT_ID' STAGING_DIR='$STAGING_DIR' bash -se" <<'REMOTE' >"$remote_output_file" 2>&1
           set -Eeuo pipefail
@@ -278,62 +298,128 @@ jobs:
           CANDIDATE_JAR="$STAGING_DIR/knot-backend-dev.jar"
           CANDIDATE_ENV_FILE="$STAGING_DIR/knot-backend-dev.env"
           STATE_DIR="/tmp/knot-backend-dev-deploy-$DEPLOYMENT_ID"
-          PREVIOUS_DIR="$STATE_DIR/previous"
-          PREVIOUS_JAR="$PREVIOUS_DIR/app.jar"
-          PREVIOUS_ENV_FILE="$PREVIOUS_DIR/knot-backend-dev.env"
-          PREVIOUS_PROFILE_FILE="$PREVIOUS_DIR/10-development-profile.conf"
+          SNAPSHOT_ROOT="/opt/knot-backend/.snapshots"
+          SNAPSHOT_DIR="$SNAPSHOT_ROOT/$DEPLOYMENT_ID"
+          PREVIOUS_JAR="$SNAPSHOT_DIR/app.jar"
+          PREVIOUS_ENV_FILE="$SNAPSHOT_DIR/knot-backend-dev.env"
+          PREVIOUS_PROFILE_FILE="$SNAPSHOT_DIR/10-development-profile.conf"
           SNAPSHOT_READY="$STATE_DIR/snapshot-ready"
+          DEPLOYMENT_LOCK_FILE="/tmp/knot-backend-dev-deployment.lock"
+          ROLLBACK_LOCK_FILE="$STATE_DIR/rollback.lock"
+          MUTATION_STARTED_MARKER="$STATE_DIR/mutation-started"
+          ROLLBACK_STARTED_MARKER="$STATE_DIR/rollback-started"
           WATCHDOG_STARTED_MARKER="$STATE_DIR/watchdog-started"
           SUCCESS_MARKER="$STATE_DIR/succeeded"
           ROLLBACK_MARKER="$STATE_DIR/rollback-succeeded"
           WATCHDOG_SCRIPT="$STATE_DIR/rollback-watchdog.sh"
           RESTORE_SCRIPT="$STATE_DIR/restore-previous.sh"
-          WATCHDOG_TIMEOUT_SECONDS=120
+          WATCHDOG_TIMEOUT_SECONDS=240
           WATCHDOG_STARTED=false
           WATCHDOG_PID=""
 
           cleanup() {
             rm -f "$CANDIDATE_JAR" "$CANDIDATE_ENV_FILE"
             rmdir "$STAGING_DIR" 2>/dev/null || true
-            if [ "$WATCHDOG_STARTED" = false ] || [ -f "$SUCCESS_MARKER" ] || [ -f "$ROLLBACK_MARKER" ]; then
+            if [ "$WATCHDOG_STARTED" = false ]; then
+              rm -f "$WATCHDOG_SCRIPT" "$RESTORE_SCRIPT" "$SNAPSHOT_READY" "$WATCHDOG_STARTED_MARKER"
+              rm -f "$MUTATION_STARTED_MARKER" "$ROLLBACK_STARTED_MARKER" "$ROLLBACK_LOCK_FILE"
+              rm -f "$SUCCESS_MARKER" "$ROLLBACK_MARKER" "$STATE_DIR/status"
+              rm -f "$STATE_DIR/watchdog.log"
+              rmdir "$STATE_DIR" 2>/dev/null || true
+            elif [ -f "$SUCCESS_MARKER" ] || [ -f "$ROLLBACK_MARKER" ]; then
               if [ -n "$WATCHDOG_PID" ]; then
                 kill "$WATCHDOG_PID" 2>/dev/null || true
               fi
               rm -f "$WATCHDOG_SCRIPT" "$RESTORE_SCRIPT" "$SNAPSHOT_READY" "$WATCHDOG_STARTED_MARKER"
-              rm -f "$SUCCESS_MARKER" "$ROLLBACK_MARKER" "$STATE_DIR/status"
-              rm -f "$STATE_DIR/watchdog.log"
-              rm -f "$PREVIOUS_JAR" "$PREVIOUS_ENV_FILE" "$PREVIOUS_PROFILE_FILE"
-              rmdir "$PREVIOUS_DIR" 2>/dev/null || true
-              rmdir "$STATE_DIR" 2>/dev/null || true
+              rm -f "$MUTATION_STARTED_MARKER" "$ROLLBACK_STARTED_MARKER" "$ROLLBACK_LOCK_FILE"
             fi
           }
           trap cleanup EXIT
 
-          mkdir -p "$STATE_DIR"
+          umask 077
+          if [ -L "$DEPLOYMENT_LOCK_FILE" ] || [ -d "$DEPLOYMENT_LOCK_FILE" ]; then
+            echo "Deployment lock path is not a regular file."
+            echo "KNOT_FAILURE_REASON=deployment-lock-invalid"
+            echo "KNOT_ROLLBACK_STATUS=not-needed"
+            exit 1
+          fi
+          exec 9>"$DEPLOYMENT_LOCK_FILE"
+          if ! /usr/bin/flock -n 9; then
+            echo "Another NCP development deployment is still active."
+            echo "KNOT_FAILURE_REASON=deployment-lock-held"
+            echo "KNOT_ROLLBACK_STATUS=not-needed"
+            exit 1
+          fi
+
+          mkdir "$STATE_DIR"
           chmod 700 "$STATE_DIR"
 
-          health_check() {
-            local deadline
-            deadline=$(( $(date +%s) + 60 ))
+          systemctl_with_timeout() {
+            local timeout_seconds="$1"
+            shift
+            /usr/bin/timeout --foreground "$timeout_seconds" \
+              sudo -n /usr/bin/systemctl "$@"
+          }
 
-            while [ "$(date +%s)" -lt "$deadline" ]; do
+          install_with_timeout() {
+            local timeout_seconds="$1"
+            shift
+            /usr/bin/timeout --foreground "$timeout_seconds" \
+              sudo -n /usr/bin/install "$@"
+          }
+
+          tee_with_timeout() {
+            local timeout_seconds="$1"
+            shift
+            /usr/bin/timeout --foreground "$timeout_seconds" \
+              sudo -n /usr/bin/tee "$@"
+          }
+
+          health_check() {
+            local curl_timeout
+            local deadline
+            local remaining
+            if [ "$#" -eq 0 ]; then
+              deadline=$(( $(date +%s) + 60 ))
+            else
+              deadline="$1"
+            fi
+
+            while :; do
+              remaining=$(( deadline - $(date +%s) ))
+              if [ "$remaining" -le 0 ]; then
+                return 1
+              fi
+              curl_timeout=$(( remaining < 2 ? remaining : 2 ))
+
+              if ! systemctl_with_timeout "$remaining" \
+                is-active knot-backend.service >/dev/null; then
+                return 1
+              fi
+
               if curl \
                 --fail \
                 --silent \
                 --connect-timeout 1 \
-                --max-time 2 \
+                --max-time "$curl_timeout" \
                 http://127.0.0.1:8080/actuator/health >/dev/null; then
-                return 0
-              fi
-
-              if ! sudo -n /usr/bin/systemctl is-active knot-backend.service >/dev/null; then
+                remaining=$(( deadline - $(date +%s) ))
+                if [ "$remaining" -le 0 ]; then
+                  return 1
+                fi
+                if systemctl_with_timeout "$remaining" \
+                  is-active knot-backend.service >/dev/null; then
+                  return 0
+                fi
                 return 1
               fi
 
-              sleep 2
+              remaining=$(( deadline - $(date +%s) ))
+              if [ "$remaining" -le 0 ]; then
+                return 1
+              fi
+              sleep "$(( remaining < 2 ? remaining : 2 ))"
             done
-
-            return 1
           }
 
           if ! health_check; then
@@ -358,40 +444,62 @@ jobs:
             -m 700 \
             /etc/knot
 
-          DEPLOY_UID="$(id -u)"
-          DEPLOY_GID="$(id -g)"
-          mkdir -p "$PREVIOUS_DIR"
-          chmod 700 "$PREVIOUS_DIR"
+          if ! sudo -n /usr/bin/install \
+            -d \
+            -o root \
+            -g root \
+            -m 700 \
+            "$SNAPSHOT_ROOT"; then
+            echo "Failed to prepare the root-owned snapshot directory."
+            echo "KNOT_FAILURE_REASON=snapshot-directory"
+            echo "KNOT_ROLLBACK_STATUS=unavailable"
+            exit 1
+          fi
 
           if ! sudo -n /usr/bin/install \
-            -o "$DEPLOY_UID" \
-            -g "$DEPLOY_GID" \
+            -d \
+            -o root \
+            -g root \
+            -m 700 \
+            "$SNAPSHOT_DIR"; then
+            echo "Failed to prepare the root-owned snapshot."
+            echo "KNOT_FAILURE_REASON=snapshot-directory"
+            echo "KNOT_ROLLBACK_STATUS=unavailable"
+            exit 1
+          fi
+
+          if ! sudo -n /usr/bin/install \
+            -o root \
+            -g root \
             -m 644 \
             "$PROFILE_FILE" \
             "$PREVIOUS_PROFILE_FILE"; then
             echo "Failed to back up the current systemd profile."
+            echo "KNOT_FAILURE_REASON=backup-profile"
             echo "KNOT_ROLLBACK_STATUS=unavailable"
             exit 1
           fi
 
           if ! sudo -n /usr/bin/install \
-            -o "$DEPLOY_UID" \
-            -g "$DEPLOY_GID" \
+            -o root \
+            -g root \
             -m 600 \
             "$ENV_FILE" \
             "$PREVIOUS_ENV_FILE"; then
             echo "Failed to back up the current environment file."
+            echo "KNOT_FAILURE_REASON=backup-environment"
             echo "KNOT_ROLLBACK_STATUS=unavailable"
             exit 1
           fi
 
           if ! sudo -n /usr/bin/install \
-            -o "$DEPLOY_UID" \
-            -g "$DEPLOY_GID" \
-            -m 400 \
+            -o root \
+            -g root \
+            -m 500 \
             "$APP_JAR" \
             "$PREVIOUS_JAR"; then
             echo "Failed to back up the current JAR."
+            echo "KNOT_FAILURE_REASON=backup-jar"
             echo "KNOT_ROLLBACK_STATUS=unavailable"
             exit 1
           fi
@@ -408,50 +516,100 @@ jobs:
           env_file="$4"
           previous_jar="$5"
           app_jar="$6"
+          rollback_lock="$7"
+
+          exec 8>"$rollback_lock"
+          if ! /usr/bin/flock -n 8; then
+            echo "Another rollback is already in progress."
+            exit 75
+          fi
 
           echo "Restoring the previous healthy deployment."
 
-          sudo -n /usr/bin/install \
+          systemctl_with_timeout() {
+            local timeout_seconds="$1"
+            shift
+            /usr/bin/timeout --foreground "$timeout_seconds" \
+              sudo -n /usr/bin/systemctl "$@"
+          }
+
+          install_with_timeout() {
+            local timeout_seconds="$1"
+            shift
+            /usr/bin/timeout --foreground "$timeout_seconds" \
+              sudo -n /usr/bin/install "$@"
+          }
+
+          install_with_timeout 30 \
             -o root \
             -g root \
             -m 644 \
             "$previous_profile" \
             "$profile"
 
-          sudo -n /usr/bin/install \
+          install_with_timeout 30 \
             -o root \
             -g root \
             -m 600 \
             "$previous_env" \
             "$env_file"
 
-          sudo -n /usr/bin/install \
+          install_with_timeout 30 \
             -o knot \
             -g knot \
             -m 500 \
             "$previous_jar" \
             "$app_jar"
 
-          sudo -n /usr/bin/systemctl daemon-reload
-          sudo -n /usr/bin/systemctl restart knot-backend.service
-
           deadline=$(( $(date +%s) + 60 ))
-          while [ "$(date +%s)" -lt "$deadline" ]; do
+          remaining=$(( deadline - $(date +%s) ))
+          if [ "$remaining" -le 0 ]; then
+            exit 1
+          fi
+          if ! systemctl_with_timeout "$(( remaining < 15 ? remaining : 15 ))" daemon-reload; then
+            exit 1
+          fi
+
+          remaining=$(( deadline - $(date +%s) ))
+          if [ "$remaining" -le 0 ] || ! systemctl_with_timeout "$remaining" restart knot-backend.service; then
+            exit 1
+          fi
+
+          while :; do
+            remaining=$(( deadline - $(date +%s) ))
+            if [ "$remaining" -le 0 ]; then
+              break
+            fi
+            curl_timeout=$(( remaining < 2 ? remaining : 2 ))
+
+            if ! systemctl_with_timeout "$remaining" \
+              is-active knot-backend.service >/dev/null; then
+              break
+            fi
+
             if curl \
               --fail \
               --silent \
               --connect-timeout 1 \
-              --max-time 2 \
+              --max-time "$curl_timeout" \
               http://127.0.0.1:8080/actuator/health >/dev/null; then
-              echo "Previous healthy deployment was restored."
-              exit 0
-            fi
-
-            if ! sudo -n /usr/bin/systemctl is-active knot-backend.service >/dev/null; then
+              remaining=$(( deadline - $(date +%s) ))
+              if [ "$remaining" -le 0 ]; then
+                break
+              fi
+              if systemctl_with_timeout "$remaining" \
+                is-active knot-backend.service >/dev/null; then
+                echo "Previous healthy deployment was restored."
+                exit 0
+              fi
               break
             fi
 
-            sleep 2
+            remaining=$(( deadline - $(date +%s) ))
+            if [ "$remaining" -le 0 ]; then
+              break
+            fi
+            sleep "$(( remaining < 2 ? remaining : 2 ))"
           done
 
           echo "Previous JAR health check failed after rollback."
@@ -472,17 +630,33 @@ jobs:
           env_file="$7"
           previous_jar="$8"
           app_jar="$9"
-          candidate_jar="${10}"
-          candidate_env="${11}"
+          rollback_lock="${10}"
+          candidate_jar="${11}"
+          candidate_env="${12}"
+          main_pid="${13}"
 
           success_marker="$state_dir/succeeded"
           rollback_marker="$state_dir/rollback-succeeded"
+          mutation_marker="$state_dir/mutation-started"
+          rollback_started_marker="$state_dir/rollback-started"
           status_file="$state_dir/status"
           watchdog_script="$state_dir/rollback-watchdog.sh"
-          deadline=$(( $(date +%s) + timeout_seconds ))
+          pre_mutation_deadline=$(( $(date +%s) + 60 ))
 
+          while [ ! -f "$success_marker" ] && [ ! -f "$rollback_marker" ] && [ ! -f "$mutation_marker" ]; do
+            if [ "$(date +%s)" -ge "$pre_mutation_deadline" ] || ! kill -0 "$main_pid" 2>/dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+
+          if [ ! -f "$mutation_marker" ] || [ -f "$success_marker" ] || [ -f "$rollback_marker" ]; then
+            exit 0
+          fi
+
+          deadline=$(( $(date +%s) + timeout_seconds ))
           while [ ! -f "$success_marker" ] && [ ! -f "$rollback_marker" ]; do
-            if [ "$(date +%s)" -ge "$deadline" ]; then
+            if [ "$(date +%s)" -ge "$deadline" ] || ! kill -0 "$main_pid" 2>/dev/null; then
               break
             fi
             sleep 2
@@ -492,37 +666,57 @@ jobs:
             exit 0
           fi
 
+          if [ -f "$rollback_started_marker" ]; then
+            rollback_wait_deadline=$(( $(date +%s) + 240 ))
+            while [ ! -f "$success_marker" ] && [ ! -f "$rollback_marker" ] && kill -0 "$main_pid" 2>/dev/null; do
+              if [ "$(date +%s)" -ge "$rollback_wait_deadline" ]; then
+                break
+              fi
+              sleep 2
+            done
+
+            if [ -f "$success_marker" ] || [ -f "$rollback_marker" ]; then
+              exit 0
+            fi
+          fi
+
           echo "Watchdog rollback started after deployment confirmation timed out." > "$state_dir/watchdog.log"
-          for attempt in {1..3}; do
-            echo "Rollback attempt $attempt/3." >> "$state_dir/watchdog.log"
-            if "$restore_script" \
+          for attempt in {1..2}; do
+            if [ -f "$success_marker" ] || [ -f "$rollback_marker" ]; then
+              exit 0
+            fi
+
+            echo "Rollback attempt $attempt/2." >> "$state_dir/watchdog.log"
+            restore_exit=0
+            "$restore_script" \
               "$previous_profile" \
               "$profile" \
               "$previous_env" \
               "$env_file" \
               "$previous_jar" \
               "$app_jar" \
-              >> "$state_dir/watchdog.log" 2>&1; then
+              "$rollback_lock" \
+              >> "$state_dir/watchdog.log" 2>&1 || restore_exit=$?
+            if [ "$restore_exit" -eq 0 ]; then
               printf 'KNOT_ROLLBACK_STATUS=succeeded\n' > "$status_file"
               touch "$rollback_marker"
               rm -f "$candidate_jar" "$candidate_env"
-              rm -f "$state_dir/previous"/* "$restore_script" "$watchdog_script" "$state_dir/snapshot-ready"
-              rmdir "$state_dir/previous" 2>/dev/null || true
               exit 0
             fi
 
+            if [ "$restore_exit" -eq 75 ]; then
+              sleep 2
+              continue
+            fi
             sleep 10
           done
 
-          printf 'KNOT_ROLLBACK_STATUS=failed\n' > "$status_file"
+          printf 'KNOT_ROLLBACK_STATUS=failed\nKNOT_FAILURE_REASON=watchdog-rollback-failed\n' > "$status_file"
           rm -f "$candidate_jar" "$candidate_env"
-          rm -f "$previous_profile" "$previous_env" "$previous_jar" "$restore_script" "$watchdog_script" "$state_dir/snapshot-ready"
-          rmdir "$state_dir/previous" 2>/dev/null || true
           exit 1
           WATCHDOG
           chmod 700 "$WATCHDOG_SCRIPT"
 
-          touch "$WATCHDOG_STARTED_MARKER"
           nohup /usr/bin/bash "$WATCHDOG_SCRIPT" \
             "$STATE_DIR" \
             "$WATCHDOG_TIMEOUT_SECONDS" \
@@ -533,42 +727,77 @@ jobs:
             "$ENV_FILE" \
             "$PREVIOUS_JAR" \
             "$APP_JAR" \
+            "$ROLLBACK_LOCK_FILE" \
             "$CANDIDATE_JAR" \
             "$CANDIDATE_ENV_FILE" \
+            "$$" \
             > "$STATE_DIR/watchdog.log" 2>&1 < /dev/null &
           WATCHDOG_PID=$!
           disown "$WATCHDOG_PID" 2>/dev/null || true
+          sleep 1
+          if ! kill -0 "$WATCHDOG_PID" 2>/dev/null; then
+            echo "Rollback watchdog failed to start."
+            echo "KNOT_FAILURE_REASON=watchdog-start-failed"
+            exit 1
+          fi
+          touch "$WATCHDOG_STARTED_MARKER"
           WATCHDOG_STARTED=true
 
           restore_previous() {
-            if "$RESTORE_SCRIPT" \
+            touch "$ROLLBACK_STARTED_MARKER"
+            if [ ! -f "$SNAPSHOT_READY" ]; then
+              echo "Rollback snapshot is not marked ready."
+              echo "KNOT_FAILURE_REASON=rollback-snapshot-unavailable"
+              return 1
+            fi
+            restore_exit=0
+            "$RESTORE_SCRIPT" \
               "$PREVIOUS_PROFILE_FILE" \
               "$PROFILE_FILE" \
               "$PREVIOUS_ENV_FILE" \
               "$ENV_FILE" \
               "$PREVIOUS_JAR" \
-              "$APP_JAR"; then
+              "$APP_JAR" \
+              "$ROLLBACK_LOCK_FILE" || restore_exit=$?
+            if [ "$restore_exit" -eq 0 ]; then
+              printf 'KNOT_ROLLBACK_STATUS=succeeded\n' > "$STATE_DIR/status"
               touch "$ROLLBACK_MARKER"
               echo "KNOT_ROLLBACK_STATUS=succeeded"
               return 0
             fi
 
-            echo "KNOT_ROLLBACK_STATUS=failed"
+            if [ "$restore_exit" -eq 75 ]; then
+              for _ in {1..90}; do
+                if [ -f "$ROLLBACK_MARKER" ]; then
+                  echo "KNOT_ROLLBACK_STATUS=succeeded"
+                  return 0
+                fi
+                if [ -f "$STATE_DIR/status" ] && grep -q '^KNOT_ROLLBACK_STATUS=failed$' "$STATE_DIR/status"; then
+                  return 1
+                fi
+                sleep 2
+              done
+            fi
+
+            echo "KNOT_FAILURE_REASON=rollback-attempt-failed"
             return 1
           }
 
-          if ! sudo -n /usr/bin/install \
+          touch "$MUTATION_STARTED_MARKER"
+
+          if ! install_with_timeout 30 \
             -o root \
             -g root \
             -m 600 \
             "$CANDIDATE_ENV_FILE" \
             "$ENV_FILE"; then
             echo "Failed to install the candidate environment file."
+            echo "KNOT_FAILURE_REASON=candidate-environment-install"
             restore_previous || true
             exit 1
           fi
 
-          if ! sudo -n /usr/bin/tee \
+          if ! tee_with_timeout 15 \
             "$PROFILE_FILE" \
             > /dev/null <<'UNIT'
           [Service]
@@ -578,35 +807,42 @@ jobs:
           UNIT
           then
             echo "Failed to update the development systemd profile."
+            echo "KNOT_FAILURE_REASON=candidate-profile-update"
             restore_previous || true
             exit 1
           fi
 
-          if ! sudo -n /usr/bin/systemctl daemon-reload; then
+          if ! systemctl_with_timeout 15 daemon-reload; then
             echo "Failed to reload systemd before deployment."
+            echo "KNOT_FAILURE_REASON=candidate-daemon-reload"
             restore_previous || true
             exit 1
           fi
 
-          if ! sudo -n /usr/bin/install \
+          if ! install_with_timeout 30 \
             -o knot \
             -g knot \
             -m 500 \
             "$CANDIDATE_JAR" \
             "$APP_JAR"; then
             echo "Failed to install the candidate JAR."
+            echo "KNOT_FAILURE_REASON=candidate-jar-install"
             restore_previous || true
             exit 1
           fi
 
-          if ! sudo -n /usr/bin/systemctl restart knot-backend.service; then
+          readiness_deadline=$(( $(date +%s) + 60 ))
+          remaining=$(( readiness_deadline - $(date +%s) ))
+          if [ "$remaining" -le 0 ] || ! systemctl_with_timeout "$remaining" restart knot-backend.service; then
             echo "Candidate service restart failed."
+            echo "KNOT_FAILURE_REASON=candidate-restart"
             restore_previous || true
             exit 1
           fi
 
-          if ! health_check; then
+          if ! health_check "$readiness_deadline"; then
             echo "Candidate JAR health check failed or timed out."
+            echo "KNOT_FAILURE_REASON=candidate-health-check"
             restore_previous || true
             exit 1
           fi
@@ -616,6 +852,7 @@ jobs:
             exit 1
           fi
 
+          printf 'KNOT_ROLLBACK_STATUS=not-needed\n' > "$STATE_DIR/status"
           touch "$SUCCESS_MARKER"
           echo "Candidate deployment passed health check."
           echo "KNOT_ROLLBACK_STATUS=not-needed"
@@ -628,11 +865,16 @@ jobs:
 
           if [ "$remote_exit" -ne 0 ] && ! grep -q '^KNOT_ROLLBACK_STATUS=' "$remote_output_file"; then
             echo "Remote session ended before deployment status was returned; waiting for the server-side rollback watchdog."
-            for _ in {1..180}; do
+            recovery_deadline=$(( $(date +%s) + 600 ))
+            while [ "$(date +%s)" -lt "$recovery_deadline" ]; do
               state_probe="$(ssh \
                 -i "$HOME/.ssh/ncp-dev" \
                 -o IdentitiesOnly=yes \
                 -o StrictHostKeyChecking=yes \
+                -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
+                -o GlobalKnownHostsFile=/dev/null \
+                -o ConnectTimeout=10 \
+                -o BatchMode=yes \
                 "$NCP_DEV_USER@$NCP_DEV_HOST" \
                 "if [ -f '/tmp/knot-backend-dev-deploy-$DEPLOYMENT_ID/watchdog-started' ]; then printf active; elif [ -d '/tmp/knot-backend-dev-deploy-$DEPLOYMENT_ID' ]; then printf pending; else printf absent; fi" \
                 2>/dev/null || true)"
@@ -651,6 +893,10 @@ jobs:
                 -i "$HOME/.ssh/ncp-dev" \
                 -o IdentitiesOnly=yes \
                 -o StrictHostKeyChecking=yes \
+                -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
+                -o GlobalKnownHostsFile=/dev/null \
+                -o ConnectTimeout=10 \
+                -o BatchMode=yes \
                 "$NCP_DEV_USER@$NCP_DEV_HOST" \
                 "if [ -f '/tmp/knot-backend-dev-deploy-$DEPLOYMENT_ID/status' ]; then cat '/tmp/knot-backend-dev-deploy-$DEPLOYMENT_ID/status'; fi" \
                 2>/dev/null || true)"
@@ -679,8 +925,8 @@ jobs:
           exit "$remote_exit"
 
       - name: Clean up NCP staging files
+        id: cleanup
         if: always() && steps.upload.outputs.staging_dir != ''
-        continue-on-error: true
         shell: bash
         env:
           NCP_DEV_HOST: ${{ secrets.NCP_DEV_HOST }}
@@ -707,8 +953,12 @@ jobs:
             -i "$HOME/.ssh/ncp-dev" \
             -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
+            -o GlobalKnownHostsFile=/dev/null \
+            -o ConnectTimeout=10 \
+            -o BatchMode=yes \
             "$NCP_DEV_USER@$NCP_DEV_HOST" \
-            "rm -f '$STAGING_DIR/knot-backend-dev.jar' '$STAGING_DIR/knot-backend-dev.env'; rmdir '$STAGING_DIR' 2>/dev/null || true"
+            "if [ -d '$STAGING_DIR' ]; then rm -f '$STAGING_DIR/knot-backend-dev.jar' '$STAGING_DIR/knot-backend-dev.env'; rmdir '$STAGING_DIR'; fi"
 
       - name: Notify Discord
         if: always()
@@ -725,6 +975,7 @@ jobs:
           CI_RUN_ID: ${{ steps.ci_gate.outputs.run_id }}
           ROLLBACK_STATUS: ${{ steps.deploy.outputs.rollback }}
           DEPLOY_FAILURE_REASON: ${{ steps.deploy.outputs.failure_reason }}
+          CLEANUP_STATUS: ${{ steps.cleanup.outputs.outcome }}
           BRANCH: ${{ github.ref_name }}
           ACTOR: ${{ github.actor }}
           COMMIT_SHA: ${{ github.sha }}
@@ -750,6 +1001,20 @@ jobs:
               timeout) echo "⏱️ 시간 초과" ;;
               lookup-failed) echo "⚠️ 조회 실패" ;;
               preflight-unhealthy) echo "⚠️ 기존 서비스 비정상" ;;
+              snapshot-directory) echo "❌ snapshot 경로 실패" ;;
+              backup-profile|backup-environment|backup-jar) echo "❌ 백업 실패" ;;
+              candidate-environment-install) echo "❌ 환경 적용 실패" ;;
+              candidate-profile-update) echo "❌ profile 적용 실패" ;;
+              candidate-daemon-reload) echo "❌ systemd reload 실패" ;;
+              candidate-jar-install) echo "❌ JAR 적용 실패" ;;
+              candidate-restart) echo "❌ 재시작 실패" ;;
+              candidate-health-check) echo "❌ health check 실패" ;;
+              rollback-attempt-failed) echo "⚠️ 롤백 재시도 중" ;;
+              watchdog-start-failed) echo "❌ watchdog 시작 실패" ;;
+              rollback-snapshot-unavailable) echo "❌ rollback snapshot 없음" ;;
+              deployment-lock-held|deployment-lock-invalid) echo "⚠️ 배포 잠금" ;;
+              watchdog-rollback-failed) echo "❌ watchdog 롤백 실패" ;;
+              cleanup-failed) echo "⚠️ 임시 파일 정리 실패" ;;
               unknown) echo "❔ 확인 불가" ;;
               *) echo "⚪ $1" ;;
             esac
@@ -772,7 +1037,12 @@ jobs:
             deploy_failure_reason="unknown"
           fi
 
-          if [ "$JOB_STATUS" = "success" ]; then
+          if [ "$CLEANUP_STATUS" = "failure" ]; then
+            TITLE="⚠️ Backend Dev CD 임시 파일 정리 실패"
+            DESCRIPTION="배포 결과와 별개로 NCP 임시 staging 파일을 정리하지 못했습니다. 서버의 임시 파일을 확인해야 합니다."
+            COLOR=16705372
+            STATUS_LABEL="임시 파일 정리 실패"
+          elif [ "$JOB_STATUS" = "success" ]; then
             TITLE="✅ Backend Dev CD 성공"
             DESCRIPTION="develop 브랜치의 NCP 개발 서버 배포가 완료되었습니다."
             COLOR=5763719
@@ -824,6 +1094,7 @@ jobs:
             --arg ci_run_id "$CI_RUN_ID" \
             --arg rollback "$(stage_label "$rollback_status")" \
             --arg failure_reason "$(stage_label "$deploy_failure_reason")" \
+            --arg cleanup "$(stage_label "${CLEANUP_STATUS:-skipped}")" \
             --arg run_url "$RUN_URL" \
             --arg repository "$GITHUB_REPOSITORY" \
             --argjson color "$COLOR" \
@@ -847,6 +1118,7 @@ jobs:
                     { name: "서비스 재시작", value: $deploy, inline: true },
                     { name: "롤백", value: $rollback, inline: true },
                     { name: "실패 원인", value: $failure_reason, inline: true },
+                    { name: "임시 파일 정리", value: $cleanup, inline: true },
                     { name: "커밋", value: ("`" + $commit + "`"), inline: true },
                     { name: "실행자", value: ("`" + $actor + "`"), inline: true },
                     { name: "Backend CI 로그", value: (
