@@ -10,6 +10,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.knot.backend.chat.domain.ChatErrorCode;
+import com.knot.backend.chat.domain.ChatException;
 import com.knot.backend.chat.domain.ChatMessage;
 import com.knot.backend.chat.domain.ChatMessageRepository;
 import com.knot.backend.chat.domain.ChatMessageRole;
@@ -47,6 +48,8 @@ class ChatMessageServiceTest {
         ChatSession session = mock(ChatSession.class);
         when(session.getMemberId()).thenReturn(2L);
         when(session.getWorkspaceId()).thenReturn(1L);
+        when(userMessage.getRole()).thenReturn(ChatMessageRole.USER);
+        when(userMessage.getContent()).thenReturn("질문");
         when(chatSessionRepository.findById(10L)).thenReturn(java.util.Optional.of(session));
         when(
                 workspaceMemberRepository.existsByWorkspaceIdAndMemberId(
@@ -180,6 +183,96 @@ class ChatMessageServiceTest {
                 any(),
                 any()
         );
+        verify(
+                persistenceService,
+                never()
+        ).saveMessage(
+                anyLong(),
+                org.mockito.ArgumentMatchers.eq(ChatMessageRole.ASSISTANT),
+                any(),
+                any()
+        );
+    }
+
+    @Test
+    @DisplayName("chunk을 받은 뒤 스트림이 끊기면 부분 assistant를 저장하지 않는다")
+    void sendMessage_failure_streamEndsBeforeDone_doesNotPersistPartialAssistant() {
+        // given
+        ChatSessionRepository chatSessionRepository = mock(ChatSessionRepository.class);
+        WorkspaceMemberRepository workspaceMemberRepository = mock(WorkspaceMemberRepository.class);
+        ChatSessionAccessPolicy accessPolicy = new ChatSessionAccessPolicy(
+                chatSessionRepository,
+                workspaceMemberRepository
+        );
+        ChatMessageRepository chatMessageRepository = mock(ChatMessageRepository.class);
+        ChatMessagePersistenceService persistenceService = mock(ChatMessagePersistenceService.class);
+        LlmClient llmClient = mock(LlmClient.class);
+        LlmStream llmStream = new LlmStream() {
+            private boolean chunkReturned;
+
+            @Override
+            public boolean hasNext() {
+                if (!chunkReturned) {
+                    return true;
+                }
+                throw new ChatException(ChatErrorCode.LLM_STREAM_FAILED);
+            }
+
+            @Override
+            public String next() {
+                chunkReturned = true;
+                return "부분 ";
+            }
+
+            @Override
+            public void close() {}
+        };
+        ChatStreamListener listener = mock(ChatStreamListener.class);
+        ChatMessage userMessage = mock(ChatMessage.class);
+        ChatSession session = mock(ChatSession.class);
+        when(session.getMemberId()).thenReturn(2L);
+        when(session.getWorkspaceId()).thenReturn(1L);
+        when(userMessage.getRole()).thenReturn(ChatMessageRole.USER);
+        when(userMessage.getContent()).thenReturn("질문");
+        when(chatSessionRepository.findById(10L)).thenReturn(java.util.Optional.of(session));
+        when(
+                workspaceMemberRepository.existsByWorkspaceIdAndMemberId(
+                        1L,
+                        2L
+                )
+        ).thenReturn(true);
+        when(
+                persistenceService.saveMessage(
+                        anyLong(),
+                        any(),
+                        any(),
+                        any()
+                )
+        ).thenReturn(userMessage);
+        when(chatMessageRepository.findAllBySessionId(10L)).thenReturn(List.of(userMessage));
+        when(llmClient.start(any())).thenReturn(llmStream);
+        when(listener.onChunk(any())).thenReturn(true);
+        Executor directExecutor = Runnable::run;
+        ChatMessageService service = new ChatMessageService(
+                accessPolicy,
+                persistenceService,
+                chatMessageRepository,
+                llmClient,
+                new ActiveChatStreamRegistry(),
+                directExecutor
+        );
+
+        // when
+        service.sendMessage(
+                10L,
+                2L,
+                "질문",
+                listener
+        );
+
+        // then
+        verify(listener).onChunk("부분 ");
+        verify(listener).onError(ChatErrorCode.LLM_STREAM_FAILED);
         verify(
                 persistenceService,
                 never()

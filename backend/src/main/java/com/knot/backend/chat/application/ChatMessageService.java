@@ -1,6 +1,7 @@
 package com.knot.backend.chat.application;
 
 import com.knot.backend.chat.application.dto.command.LlmMessage;
+import com.knot.backend.chat.application.dto.command.LlmMessageRole;
 import com.knot.backend.chat.application.dto.command.LlmRequest;
 import com.knot.backend.chat.domain.ChatErrorCode;
 import com.knot.backend.chat.domain.ChatException;
@@ -84,10 +85,10 @@ public class ChatMessageService {
                         true
                 );
                 try {
-                    closeStream(streamReference);
+                    cancel(futureReference);
                 } finally {
                     try {
-                        cancel(futureReference);
+                        closeStream(streamReference);
                     } finally {
                         releaseStream.run();
                     }
@@ -185,7 +186,10 @@ public class ChatMessageService {
                 history.stream()
                         .map(
                                 message -> new LlmMessage(
-                                        message.getRole(),
+                                        LlmMessageRole.valueOf(
+                                                message.getRole()
+                                                        .name()
+                                        ),
                                         message.getContent()
                                 )
                         )
