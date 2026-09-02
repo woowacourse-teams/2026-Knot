@@ -5,13 +5,14 @@
  * - 호출 방식(토큰·allowedTools·stream-json 진행 출력·실패 분류)은 scripts/review.mjs 와 동일하다.
  * - 토큰은 `frontend/.env.local`(gitignored)의 CLAUDE_CODE_OAUTH_TOKEN 또는 셸 환경변수에서 읽는다.
  * - 토큰 값은 어떤 출력·로그에도 남기지 않는다.
- * - 비대화 모드에는 Artifact 도구가 없으므로 변경 설명 페이지 게시(스킬 3-2)는 건너뛰고,
- *   PR 문서에는 로컬 HTML 경로를 적는다. 게시는 대화 세션에서 사용자가 직접 한다.
+ * - 비대화 모드에는 Artifact 도구가 없으므로 변경 설명 페이지 게시(스킬 3-2)는 claude 가 아니라
+ *   스크립트가 수행한다. HTML 을 비공개 gist 로 올리고, gist 원본을 text/html 로 서빙하는
+ *   githack 뷰어 URL 로 PR 문서의 링크를 교체한다.
  */
 import { spawn, spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { createInterface } from "node:readline";
-import { dirname, resolve } from "node:path";
+import { basename, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseEnv } from "node:util";
 
@@ -21,6 +22,8 @@ const TOKEN_KEY = "CLAUDE_CODE_OAUTH_TOKEN";
 const TMP_DIR = "/tmp";
 const PR_DIR = `${TMP_DIR}/knot-pr`;
 const BASE_BRANCH = "develop";
+/** gist 원본을 text/html 로 그대로 서빙하는 뷰어. 실행마다 새 비공개 gist 를 만들므로 영구 캐시 도메인을 쓴다. */
+const GIST_VIEWER_ORIGIN = "https://gistcdn.githack.com";
 
 /** 종료 코드: 실행 실패 원인만 구분한다. */
 const EXIT = {
@@ -33,6 +36,7 @@ const EXIT = {
   NO_TARGET: 6,
   GIT: 7,
   ISSUE_MISSING: 8,
+  GIST_FAILED: 9,
 };
 
 /** 스킬 frontmatter의 allowed-tools와 동일. 비대화 모드는 권한 프롬프트에 답할 수 없어 사전에 허용한다. */
@@ -57,8 +61,9 @@ const ALLOWED_TOOLS = [
 const HELP = `사용법: pnpm pr-content [옵션]
 
 기존 /create-pr-content 스킬을 claude -p 로 비대화 실행하여 PR 본문 md를 ${PR_DIR} 에 저장합니다.
-변경 설명 HTML은 ${TMP_DIR}/<YYYY-MM-DD>-explanation-<브랜치>.html 에 함께 생성합니다.
-(비대화 모드에는 Artifact 도구가 없어 설명 페이지 게시는 하지 않습니다. 대화 세션에서 직접 게시하세요.)
+변경 설명 HTML은 ${TMP_DIR}/<YYYY-MM-DD>-explanation-<브랜치>.html 에 생성한 뒤 비공개 gist 로 올리고,
+PR 문서의 링크를 ${GIST_VIEWER_ORIGIN} 뷰어 URL 로 교체합니다.
+(비대화 모드에는 Artifact 도구가 없어 Artifact 대신 gist 를 씁니다. 링크를 아는 사람만 열 수 있고, 실행마다 새 gist 가 만들어집니다.)
 
 옵션:
   --issue <번호>   이슈 번호를 직접 지정 (기본: 브랜치명 → 커밋 메시지 순으로 자동 추출)
@@ -75,6 +80,7 @@ const HELP = `사용법: pnpm pr-content [옵션]
   6  PR 대상 커밋 없음
   7  git 기준(develop) 확인 실패
   8  이슈 번호 확인 실패 (--issue 로 지정)
+  9  변경 설명 페이지 gist 게시 실패 (PR 문서는 작성됐지만 링크에 로컬 경로가 남아 있음)
 `;
 
 // ---------- 출력 유틸 ----------
@@ -510,6 +516,80 @@ function classifyFailure({
   return null;
 }
 
+// ---------- gist 게시 ----------
+
+/** HTML 을 비공개 gist 로 올리고 뷰어 URL 을 만든다. 실패해도 예외를 던지지 않는다. */
+function publishExplanationGist({ htmlPath, issueNumber, branch }) {
+  const created = spawnSync(
+    "gh",
+    [
+      "gist",
+      "create",
+      "--desc",
+      `Knot PR 변경 설명: #${issueNumber} (${branch})`,
+      htmlPath,
+    ],
+    { encoding: "utf8" },
+  );
+  if (created.error || created.status !== 0) {
+    return {
+      ok: false,
+      reason:
+        (created.stderr || created.error?.message || "").trim() ||
+        "gh gist create 실패",
+    };
+  }
+
+  const gistUrl = created.stdout.trim().split("\n").pop() ?? "";
+  const match = gistUrl.match(
+    /^https:\/\/gist\.github\.com\/(?:([^/]+)\/)?([0-9a-f]+)$/,
+  );
+  if (!match) {
+    return { ok: false, reason: `gist URL 을 해석하지 못했습니다: ${gistUrl}` };
+  }
+
+  let [, owner, id] = match;
+  if (!owner) {
+    const login = spawnSync("gh", ["api", "user", "--jq", ".login"], {
+      encoding: "utf8",
+    });
+    owner = (login.stdout ?? "").trim();
+    if (login.status !== 0 || !owner) {
+      return {
+        ok: false,
+        reason: `gist 소유자 계정을 확인하지 못했습니다. (gist 는 생성됨: ${gistUrl})`,
+      };
+    }
+  }
+
+  return {
+    ok: true,
+    gistUrl,
+    viewerUrl: `${GIST_VIEWER_ORIGIN}/${owner}/${id}/raw/${basename(htmlPath)}`,
+  };
+}
+
+/** 뷰어가 gist 를 text/html 로 응답하는지 확인한다. 문제가 없으면 null, 있으면 사유를 돌려준다. */
+async function checkViewerUrl(url) {
+  try {
+    const response = await fetch(url, { signal: AbortSignal.timeout(10_000) });
+    const type = response.headers.get("content-type") ?? "";
+    if (response.ok && type.includes("text/html")) return null;
+    return `HTTP ${response.status} (${type || "content-type 없음"})`;
+  } catch (error) {
+    return error?.message ?? String(error);
+  }
+}
+
+/** PR 문서 안의 로컬 HTML 경로를 게시 URL 로 바꾸고 교체한 개수를 돌려준다. */
+function replaceExplanationLink(prPath, htmlPath, url) {
+  const before = readFileSync(prPath, "utf8");
+  const parts = before.split(htmlPath);
+  if (parts.length === 1) return 0;
+  writeFileSync(prPath, parts.join(url));
+  return parts.length - 1;
+}
+
 // ---------- main ----------
 
 async function main() {
@@ -594,6 +674,9 @@ async function main() {
     info(`\n[dry-run] allowedTools: ${ALLOWED_TOOLS.join(", ")}`);
     info(`[dry-run] PR 문서 저장 예정 경로: ${prPath}`);
     info(`[dry-run] 설명 HTML 저장 예정 경로: ${htmlPath}`);
+    info(
+      `[dry-run] 설명 HTML 게시 예정: 비공개 gist → ${GIST_VIEWER_ORIGIN}/<계정>/<gist id>/raw/${basename(htmlPath)}`,
+    );
     process.exit(EXIT.OK);
   }
 
@@ -622,10 +705,30 @@ async function main() {
       `마지막 응답: ${(result?.result ?? "").trim().slice(0, 500)}`,
     );
   }
-  if (!existsSync(htmlPath)) {
-    warn(
-      `변경 설명 HTML ${htmlPath} 이 생성되지 않았습니다. PR 문서의 설명 페이지 문구를 확인하세요.`,
-    );
+  let gist = {
+    ok: false,
+    reason: `변경 설명 HTML ${htmlPath} 이 생성되지 않았습니다.`,
+  };
+  if (existsSync(htmlPath)) {
+    gist = gh.available
+      ? publishExplanationGist({ htmlPath, issueNumber: issue.number, branch })
+      : { ok: false, reason: gh.reason };
+  }
+
+  let replaced = 0;
+  if (gist.ok) {
+    const problem = await checkViewerUrl(gist.viewerUrl);
+    if (problem) {
+      warn(
+        `뷰어 URL 응답을 확인하지 못했습니다 (${problem}). 브라우저에서 직접 열어 확인하세요: ${gist.viewerUrl}`,
+      );
+    }
+    replaced = replaceExplanationLink(prPath, htmlPath, gist.viewerUrl);
+    if (replaced === 0) {
+      warn(
+        `PR 문서에서 ${htmlPath} 를 찾지 못해 링크를 교체하지 못했습니다. 아래 게시 URL 을 직접 넣으세요.`,
+      );
+    }
   }
 
   const minutes = result?.duration_ms
@@ -635,11 +738,20 @@ async function main() {
   info((result?.result ?? "").trim());
   info(`소요 시간: ${minutes}분 / 턴: ${result?.num_turns ?? "?"}`);
   info("=".repeat(60));
+
+  if (!gist.ok) {
+    fail(
+      EXIT.GIST_FAILED,
+      `변경 설명 페이지를 gist 로 게시하지 못했습니다: ${gist.reason}`,
+      `PR 문서 ${prPath} 의 링크에는 로컬 경로 ${htmlPath} 가 남아 있습니다. HTML 을 직접 게시한 뒤 링크를 교체하세요.`,
+    );
+  }
   info(
     [
       "",
-      "변경 설명 페이지는 비대화 모드에서 게시할 수 없어 로컬 HTML 로만 남겼습니다.",
-      "대화형 claude 세션에서 위 HTML 을 Artifact 로 게시한 뒤, PR 문서의 로컬 경로를 게시 URL 로 교체하고 페이지의 공유(Share)를 켜 주세요.",
+      `변경 설명 페이지: ${gist.viewerUrl}`,
+      `비공개 gist: ${gist.gistUrl} (링크를 아는 사람만 열 수 있습니다)`,
+      `PR 문서의 링크 ${replaced}곳을 게시 URL 로 교체했습니다.`,
     ].join("\n"),
   );
   process.exit(EXIT.OK);
