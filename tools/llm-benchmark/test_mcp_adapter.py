@@ -448,7 +448,9 @@ def test_live_search_discards_a_hit_claiming_another_workspace() -> None:
     assert search.hits == ()
 
 
-def test_live_search_discards_an_external_markdown_link_with_an_allowed_page_id() -> None:
+def test_live_search_discards_an_external_markdown_link_with_an_allowed_page_id() -> (
+    None
+):
     # Given: a Markdown link that embeds an allowed page ID on an untrusted host
     result = McpToolExchange(
         McpToolResult.model_validate(
