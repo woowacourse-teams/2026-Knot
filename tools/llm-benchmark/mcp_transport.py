@@ -68,7 +68,7 @@ class McpHttpClient:
         self._client = httpx2.Client(
             transport=transport,
             timeout=timeout,
-            follow_redirects=True,
+            follow_redirects=False,
             headers={"Authorization": f"Bearer {token}"},
         )
         self._settings = settings
@@ -166,7 +166,7 @@ class McpHttpClient:
                 self._wait(attempt, response.headers.get("Retry-After"))
                 attempt += 1
                 continue
-            if response.status_code >= 400:
+            if response.status_code >= 300:
                 raise McpHttpError(response.status_code, safe_detail(response.text, (self._access_token,)))
             parsed = None if not expect_response else parse_response(response)
             return _HttpExchange(response, parsed, requests, retries, rate_limits)
