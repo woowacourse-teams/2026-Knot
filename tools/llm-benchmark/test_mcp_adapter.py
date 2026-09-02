@@ -220,3 +220,51 @@ def test_live_adapter_rejects_detail_from_another_workspace() -> None:
     # When & then: the detail cannot cross the workspace boundary
     with pytest.raises(McpScopeError):
         adapter.fetch(hit)
+
+
+def test_live_search_discards_a_hit_claiming_another_workspace() -> None:
+    # Given: a search response that assigns an allowed page ID to another workspace
+    result = McpToolExchange(
+        McpToolResult.model_validate(
+            {
+                "structuredContent": {
+                    "results": [
+                        {
+                            "id": "page-1",
+                            "workspace_id": "workspace-b",
+                            "title": "leak",
+                            "snippet": "secret",
+                        }
+                    ]
+                }
+            }
+        ),
+        1,
+        0,
+        0,
+        1.0,
+    )
+    client = _FakeMcpClient([result], [])
+    from mcp_adapter import LiveNotionMcpAdapter
+
+    adapter = LiveNotionMcpAdapter(client, _scope())
+
+    # When: the live adapter normalizes the search response
+    search = adapter.search("secret", limit=1)
+
+    # Then: response metadata cannot widen the connected workspace scope
+    assert search.hits == ()
+
+
+def test_live_fetch_rejects_an_out_of_scope_hit_before_network_call() -> None:
+    # Given: a model or caller supplies a page ID outside the active allowlist
+    client = _FakeMcpClient([], [])
+    from mcp_adapter import LiveNotionMcpAdapter
+
+    adapter = LiveNotionMcpAdapter(client, _scope())
+    outside = McpSearchHit("page-3", "Outside", "https://notion.so/page-3", "", "workspace-a", "snapshot-1")
+
+    # When & then: scope is checked before the Notion endpoint is called
+    with pytest.raises(McpScopeError):
+        adapter.fetch(outside)
+    assert client.calls == []
