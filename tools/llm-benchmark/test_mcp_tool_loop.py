@@ -18,7 +18,11 @@ from mcp_models import (
     NimFunctionCall,
     NimToolCall,
 )
-from mcp_tool_loop import execute_nim_tool_calls, generate_with_mcp_tools
+from mcp_tool_loop import (
+    context_from_tool_executions,
+    execute_nim_tool_calls,
+    generate_with_mcp_tools,
+)
 from nim_client import ChatMessage, NimResult
 
 
@@ -152,3 +156,34 @@ def test_tool_calling_loop_executes_validated_mcp_results_and_resumes_generation
     assert resumed_messages[-1].role == "tool"
     assert resumed_messages[-1].tool_call_id == "search-1"
     assert "page-1" in resumed_messages[-1].content
+
+
+def test_tool_executions_render_only_fetched_pages_as_grounding_context() -> None:
+    # Given: one search result followed by one fetched page
+    executions = execute_nim_tool_calls(
+        (
+            NimToolCall(
+                id="search-1",
+                function=NimFunctionCall(
+                    name="notion-search", arguments='{"query":"PostgreSQL"}'
+                ),
+            ),
+            NimToolCall(
+                id="fetch-1",
+                function=NimFunctionCall(
+                    name="notion-fetch", arguments='{"id":"page-1"}'
+                ),
+            ),
+        ),
+        _adapter(),
+        _scope(),
+    )
+
+    # When: the tool loop prepares context for the final answer
+    context = context_from_tool_executions(executions)
+
+    # Then: only fetched content is grounded and every actual call is accounted for
+    assert context.retrieved_count == 1
+    assert context.tool_calls == 2
+    assert context.source_paths == ("https://notion.so/page-1",)
+    assert "PostgreSQL 결정" in context.text
