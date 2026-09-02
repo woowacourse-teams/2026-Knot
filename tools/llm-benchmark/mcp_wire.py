@@ -35,13 +35,23 @@ def redact_secrets(detail: str, secrets: Iterable[str] = ()) -> str:
 
 
 def _parse_sse(body: str) -> McpRpcResponse:
-    for line in body.splitlines():
-        if not line.startswith("data:"):
+    for event in re.split(r"\r?\n\r?\n", body):
+        data_lines = [
+            line.removeprefix("data:").lstrip()
+            for line in event.splitlines()
+            if line.startswith("data:")
+        ]
+        payload = "\n".join(data_lines).strip()
+        if not payload or payload == "[DONE]":
             continue
-        payload = line.removeprefix("data:").strip()
-        if payload and payload != "[DONE]":
-            try:
-                return McpRpcResponse.model_validate_json(payload)
-            except ValueError as error:
-                raise McpProtocolError("MCP SSE data is not valid JSON-RPC") from error
+        try:
+            parsed = McpRpcResponse.model_validate_json(payload)
+        except ValueError as error:
+            raise McpProtocolError("MCP SSE data is not valid JSON-RPC") from error
+        if (
+            parsed.id is not None
+            or parsed.result is not None
+            or parsed.error is not None
+        ):
+            return parsed
     raise McpProtocolError("MCP SSE response contained no JSON-RPC data")
