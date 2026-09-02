@@ -16,6 +16,7 @@ MetricName = Literal["ttft_ms", "total_ms"]
 _DEFAULT_BOOTSTRAP_ITERATIONS: Final[int] = 10_000
 _DEFAULT_PERMUTATION_ITERATIONS: Final[int] = 10_000
 _RANDOM_SEED: Final[int] = 20260901
+_FIVE_SECOND_LIMIT_MS: Final[float] = 5_000.0
 
 
 class ReportError(Exception):
@@ -86,6 +87,9 @@ class MetricSummary:
     relative_median_ci_low: float
     relative_median_ci_high: float
     permutation_p_value: float
+    a_under_5s: int
+    b_under_5s: int
+    observations: int
 
 
 @dataclass(frozen=True, slots=True)
@@ -192,6 +196,9 @@ def _summarize(
         relative_low,
         relative_high,
         _permutation_p_value(log_ratios, permutation_iterations, rng),
+        int(np.count_nonzero(a <= _FIVE_SECOND_LIMIT_MS)),
+        int(np.count_nonzero(b <= _FIVE_SECOND_LIMIT_MS)),
+        len(a),
     )
 
 

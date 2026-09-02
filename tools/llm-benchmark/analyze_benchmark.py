@@ -111,7 +111,12 @@ def _status(result: AnalysisResult, alpha: float, minimum_pairs: int, minimum_un
         return "BLOCKED — no successful paired model observations"
     if result.pair_count < minimum_pairs or result.unique_case_count < minimum_unique_cases:
         return "INSUFFICIENT SAMPLE — do not claim statistical significance"
-    if result.ttft is not None and result.ttft.permutation_p_value < alpha and result.ttft.median_delta_ci_high < 0:
+    if (
+        result.ttft is not None
+        and result.ttft.permutation_p_value < alpha
+        and result.ttft.median_delta_ci_high < 0
+        and result.ttft.b_under_5s >= result.ttft.a_under_5s
+    ):
         return "PASS — B is faster on primary TTFT under the configured gate"
     return "NO SIGNIFICANT WIN — keep the current architecture undecided"
 
@@ -126,6 +131,7 @@ def _render_metric(label: str, summary: MetricSummary) -> tuple[str, ...]:
         f"- p95 delta (B−A), 95% CI: `{summary.p95_delta:.2f}` ms (`{summary.p95_delta_ci_low:.2f}`, `{summary.p95_delta_ci_high:.2f}`)",
         f"- robust median change: `{summary.relative_median_pct:.2f}%` (95% CI `{summary.relative_median_ci_low:.2f}%` to `{summary.relative_median_ci_high:.2f}%`)",
         f"- paired sign-flip permutation p-value: `{summary.permutation_p_value:.5f}`",
+        f"- TTFT ≤ 5 seconds: A `{summary.a_under_5s}/{summary.observations}` ({100 * summary.a_under_5s / summary.observations:.1f}%), B `{summary.b_under_5s}/{summary.observations}` ({100 * summary.b_under_5s / summary.observations:.1f}%)",
         "",
     )
 
