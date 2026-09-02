@@ -58,6 +58,12 @@ _DEFAULT_OUTPUT = Path(".benchmark-data/results.jsonl")
 _SYSTEM_INSTRUCTIONS: Final[str] = """당신은 Knot 팀 문서 검색 평가용 답변자입니다.
 반드시 제공된 문서 컨텍스트만 근거로 답하세요.
 근거가 없으면 찾지 못했다고 말하고, 문서가 충돌하면 각 주장을 나열한 뒤 최종 결정을 단정하지 마세요.
+질문에 날짜, 위치, 요약, 결정 사실, 결정 근거처럼 여러 요구가 있으면 명시된 요소를 모두 답하세요.
+날짜·문서 위치 질문은 날짜와 문서 제목/경로뿐 아니라 문서의 핵심 내용을 짧게 요약하세요.
+결정 이유 질문은 문제·대안·결정·근거를 구분하고, 문서에 결정일·현재 상태가 있으면 함께 답하세요.
+문서의 경로·기술 식별자는 번역하지 말고 원문 표기를 유지하세요.
+답변을 한 줄로 끝내지 말고, 컨텍스트에서 확인되는 근거를 2~5개의 문장 또는 글머리표로 정리하세요.
+날짜는 문서의 회의 날짜를 사용하고 최종 수정일을 추측하지 마세요. 문서가 여러 개면 각각의 사실을 구분해 적으세요.
 답변 끝에는 사용한 source_path를 [source: 경로] 형식으로 표시하세요.
 """
 
@@ -208,8 +214,28 @@ def _messages(
     context: ContextPack,
     history: tuple[ChatMessage, ...],
 ) -> tuple[ChatMessage, ...]:
-    prompt = f"""<documents>\n{context.text or '(검색된 문서 없음)'}\n</documents>\n\n질문: {question}"""
+    prompt = f"""{_answer_requirements(question, history)}
+<documents>
+{context.text or '(검색된 문서 없음)'}
+</documents>
+
+질문: {question}"""
     return (ChatMessage(role="system", content=_SYSTEM_INSTRUCTIONS), *history, ChatMessage(role="user", content=prompt))
+
+
+def _answer_requirements(question: str, history: tuple[ChatMessage, ...] = ()) -> str:
+    """Give the generator a small checklist for the supported question shapes."""
+    previous = " ".join(message.content for message in history if message.role == "user")
+    normalized = f"{previous} {question}".casefold()
+    requirements: list[str] = [
+        "[답변 체크리스트] 문서 컨텍스트에 있는 사실만 사용하고, 아래 질문의 명시된 요구 요소를 빠짐없이 답하세요.",
+    ]
+    if any(marker in normalized for marker in ("왜", "이유", "선택한")):
+        requirements.append("- 결정 이유: 문제, 대안, 결정, 근거를 구분하고 결정일·현재 상태가 있으면 함께 적으세요.")
+    if "언제" in normalized or "회의 날짜" in normalized:
+        requirements.append("- 날짜/문서 위치 질문: 회의 날짜, 문서 제목·경로, 핵심 논의 요약을 함께 적으세요.")
+    requirements.append("- 컨텍스트에 없는 체크리스트 항목은 없다고 명시하고 추측하지 마세요.")
+    return "\n".join(requirements)
 
 
 def _write_dry_run(
@@ -253,6 +279,7 @@ def _write_dry_run(
 
 def _write_record(stream: TextIO, record: BenchmarkRecord) -> None:
     stream.write(json.dumps(asdict(record), ensure_ascii=False, sort_keys=True) + "\n")
+    stream.flush()
 
 
 def _load_settings(console: Console) -> NimSettings:

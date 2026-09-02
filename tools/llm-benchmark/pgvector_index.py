@@ -19,13 +19,33 @@ def chunk_documents(documents: tuple[Document, ...], size: int, overlap: int) ->
         raise typer.BadParameter("chunk_overlap must be smaller than chunk_size")
     chunks: list[Chunk] = []
     for document in documents:
+        metadata = _metadata_prefix(document.content)
         chunks.extend(
-            Chunk(document.path, document.title, content, 0.0)
+            Chunk(document.path, document.title, _with_metadata(content, metadata), 0.0)
             for content in chunk_text(document.content, size, overlap)
         )
     if not chunks:
         raise SnapshotError(Path("<documents>"), "no chunks generated")
     return tuple(chunks)
+
+
+def _metadata_prefix(content: str) -> str:
+    """Keep compact document metadata available on every passage."""
+    lines: list[str] = []
+    for line in content.splitlines():
+        if line.startswith("## "):
+            break
+        if line.startswith("# ") or any(
+            label in line.casefold() for label in ("날짜:", "date:", "회의 유형:", "회의 주제:", "참석자:")
+        ):
+            lines.append(line.strip())
+    return "\n".join(dict.fromkeys(lines))
+
+
+def _with_metadata(content: str, metadata: str) -> str:
+    if not metadata or metadata in content:
+        return content
+    return f"{metadata}\n\n{content}"
 
 
 def index_corpus(

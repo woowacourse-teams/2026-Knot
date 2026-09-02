@@ -3,13 +3,21 @@
 from __future__ import annotations
 
 import time
-from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-from benchmark_core import Chunk, ContextPack, tokenize
-from nim_embedding_client import NimEmbeddingClient
+from benchmark_core import Chunk, ContextPack
 from pgvector_store import PgVectorStore, StoredChunk
+from retrieval_policy import QueryKind, classify_query
+from retrieval_ranking import (
+    _content_evidence,
+    _missing_identifier_evidence,
+    rank_hybrid_candidates,
+)
+
+if TYPE_CHECKING:
+    from nim_embedding_client import NimEmbeddingClient
 
 
 @dataclass(frozen=True, slots=True)
@@ -27,13 +35,32 @@ def retrieve_pgvector_context(
     embedding_client: NimEmbeddingClient,
     corpus_key: str,
     top_k: int,
+    *,
+    query_kind: QueryKind | None = None,
+    excluded_source_paths: frozenset[str] = frozenset(),
+    related_documents: bool = False,
 ) -> RetrievalTiming:
-    """Embed a query, search pgvector, and build the LLM context pack."""
+    """Embed a query, union lexical/vector candidates, and build context."""
     embedding_batch = embedding_client.embed((query,), "query")
     vector = embedding_batch.vectors[0]
     database_started = time.perf_counter()
-    candidates = store.search(corpus_key, vector, max(top_k * 50, top_k))
-    stored = _hybrid_select(query, candidates, top_k)
+    candidate_limit = max(top_k * 10, 50)
+    vector_passages = store.search(corpus_key, vector, candidate_limit, distinct_sources=False)
+    keyword_passages = store.search_keyword(corpus_key, query, candidate_limit, distinct_sources=False)
+    vector_candidates = _distinct_source_passages(vector_passages, candidate_limit)
+    keyword_candidates = _distinct_source_passages(keyword_passages, candidate_limit)
+    stored = rank_hybrid_candidates(
+        query,
+        vector_candidates,
+        keyword_candidates,
+        query_kind or classify_query(query),
+        top_k,
+        excluded_source_paths,
+        related_documents,
+    )
+    if _missing_identifier_evidence(query, keyword_candidates):
+        stored = ()
+    stored = _merge_context_passages(query, stored, vector_passages, keyword_passages, query_kind or classify_query(query))
     database_ms = (time.perf_counter() - database_started) * 1000
     context = _context_pack(stored)
     return RetrievalTiming(context, embedding_batch.elapsed_ms, database_ms)
@@ -49,19 +76,54 @@ def _context_pack(stored: tuple[StoredChunk, ...]) -> ContextPack:
     )
 
 
+def _distinct_source_passages(
+    passages: tuple[StoredChunk, ...],
+    limit: int,
+) -> tuple[StoredChunk, ...]:
+    """Collapse ranked passages to one source-level candidate per document."""
+    selected: list[StoredChunk] = []
+    seen: set[str] = set()
+    for passage in passages:
+        if passage.source_path in seen:
+            continue
+        seen.add(passage.source_path)
+        selected.append(passage)
+        if len(selected) == limit:
+            break
+    return tuple(selected)
+
+
+def _merge_context_passages(
+    query: str,
+    selected: tuple[StoredChunk, ...],
+    vector_passages: tuple[StoredChunk, ...],
+    keyword_passages: tuple[StoredChunk, ...],
+    query_kind: QueryKind,
+) -> tuple[StoredChunk, ...]:
+    """Attach the strongest evidence passages to each selected source document."""
+    passage_limit = _passage_limit(query_kind)
+    result: list[StoredChunk] = []
+    for item in selected:
+        passages = [item]
+        passages.extend(passage for passage in vector_passages if passage.source_path == item.source_path)
+        passages.extend(passage for passage in keyword_passages if passage.source_path == item.source_path)
+        unique = {passage.content: passage for passage in passages}
+        ranked = sorted(
+            unique.values(),
+            key=lambda passage: (-_content_evidence(query, passage, query_kind), passage.content),
+        )
+        content = "\n\n--- related passage ---\n\n".join(passage.content for passage in ranked[:passage_limit])
+        result.append(StoredChunk(item.source_path, item.title, content, item.score))
+    return tuple(result)
+
+
+def _passage_limit(query_kind: QueryKind) -> int:
+    return 3 if query_kind in (QueryKind.DECISION_REASON, QueryKind.CONFLICT) else 2
+
+
 def _hybrid_select(query: str, candidates: tuple[StoredChunk, ...], top_k: int) -> tuple[StoredChunk, ...]:
-    query_terms = Counter(tokenize(query))
-    lexical_scores = tuple(
-        sum(min(count, Counter(tokenize(f"{item.title} {item.source_path} {item.content}"))[token]) for token, count in query_terms.items())
-        for item in candidates
-    )
-    lexical_order = sorted(range(len(candidates)), key=lambda index: (-lexical_scores[index], index))
-    lexical_ranks = {index: rank + 1 for rank, index in enumerate(lexical_order)}
-    ranked = sorted(
-        enumerate(candidates),
-        key=lambda pair: -(1 / (60 + pair[0] + 1) + 1 / (60 + lexical_ranks[pair[0]])),
-    )
-    return tuple(item for _, item in ranked[:top_k])
+    """Keep the old private helper compatible with deterministic tests."""
+    return rank_hybrid_candidates(query, candidates, (), classify_query(query), top_k)
 
 
 def _render_chunk(chunk: Chunk) -> str:

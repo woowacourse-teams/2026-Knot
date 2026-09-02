@@ -40,6 +40,7 @@ from nim_embedding_client import NimEmbeddingClient
 from pgvector_index import chunk_documents, index_corpus
 from pgvector_store import PgVectorStore, PgVectorStoreError
 from pydantic import ValidationError
+from retrieval_policy import plan_query
 from rich.console import Console
 from run_benchmark import BenchmarkRecord, _messages, _write_record
 
@@ -48,6 +49,8 @@ _DEFAULT_GOLD_SET = Path("docs/llm-search-benchmark-gold-set.md")
 _DEFAULT_OUTPUT = Path(".benchmark-data/four-way-results.jsonl")
 _DEFAULT_DATABASE_URL = "postgresql://knot_benchmark:knot_benchmark@localhost:55432/knot_benchmark"
 _DEFAULT_CORPUS_KEY: Final[str] = "notion-export"
+_DEFAULT_CHUNK_SIZE: Final[int] = 1200
+_DEFAULT_CHUNK_OVERLAP: Final[int] = 180
 _DEFAULT_CASES: Final[tuple[str, ...]] = (
     "G-001",
     "G-002",
@@ -82,11 +85,11 @@ def main(
     case: str | None = typer.Option(None, help="Comma-separated case IDs; defaults to ten single-turn cases."),
     strategy: str = typer.Option(RunMode.ALL, help="all, raw, rag, db, or mcp-replay."),
     repeats: int = typer.Option(10, min=1, help="Repeats per case."),
-    top_k: int = typer.Option(5, min=1, help="Distinct source documents per retrieved context."),
+    top_k: int = typer.Option(3, min=1, help="Distinct source documents per retrieved context."),
     seed: int = typer.Option(20260901, help="Randomization seed."),
     warmup: int = typer.Option(1, min=0, help="Unrecorded chat warm-up calls."),
-    chunk_size: int = typer.Option(700, min=100, help="Passage chunk size in characters."),
-    chunk_overlap: int = typer.Option(100, min=0, help="Passage overlap in characters."),
+    chunk_size: int = typer.Option(_DEFAULT_CHUNK_SIZE, min=100, help="Passage chunk size in characters."),
+    chunk_overlap: int = typer.Option(_DEFAULT_CHUNK_OVERLAP, min=0, help="Passage overlap in characters."),
     max_generation_context_chars: int = typer.Option(120_000, min=1, help="Reject oversized model contexts."),
     retrieval_only: bool = typer.Option(False, help="Measure access latency without calling the chat model."),
     skip_index: bool = typer.Option(False, help="Reuse the existing persisted Qwen pgvector corpus."),
@@ -149,12 +152,65 @@ def _run_observation(
         started = time.perf_counter()
         context = ContextPack("", (), 0, 0)
         timing = AccessContextTiming(context, 0.0, 0.0)
+        query_plan = plan_query(question, _previous_questions(history))
         try:
-            timing = build_access_context(label, question, documents, store, embedding_client, corpus_key, top_k)
+            if query_plan.should_clarify:
+                answer = query_plan.clarification_text
+                _write_record(
+                    stream,
+                    _record(
+                        benchmark_case,
+                        trial,
+                        turn_number,
+                        label,
+                        question,
+                        context,
+                        (time.perf_counter() - started) * 1000,
+                        timing,
+                        answer,
+                        None,
+                        None,
+                        None,
+                    ),
+                )
+                history.extend((ChatMessage(role="user", content=question), ChatMessage(role="assistant", content=answer)))
+                continue
+            timing = build_access_context(
+                label,
+                question,
+                documents,
+                store,
+                embedding_client,
+                corpus_key,
+                top_k,
+                query_plan=query_plan,
+            )
             context = timing.context
             search_ms = (time.perf_counter() - started) * 1000
+            if label == "rag" and context.retrieved_count == 0:
+                answer = "현재 동기화된 팀 문서에서는 관련된 정보를 찾지 못했습니다. 최신 문서가 반영되지 않았다면 동기화 후 다시 검색해보세요."
+                _write_record(
+                    stream,
+                    _record(
+                        benchmark_case,
+                        trial,
+                        turn_number,
+                        label,
+                        question,
+                        context,
+                        search_ms,
+                        timing,
+                        answer,
+                        None,
+                        None,
+                        None,
+                    ),
+                )
+                history.extend((ChatMessage(role="user", content=question), ChatMessage(role="assistant", content=answer)))
+                continue
             if retrieval_only:
                 _write_record(stream, _record(benchmark_case, trial, turn_number, label, question, context, search_ms, timing, None, None, None, None))
+                history.append(ChatMessage(role="user", content=question))
                 continue
             if chat_client is None:
                 raise NimTransportError("chat client is not configured")
@@ -168,6 +224,10 @@ def _run_observation(
         except (NimRequestError, NimTransportError, PgVectorStoreError) as error:
             search_ms = (time.perf_counter() - started) * 1000
             _write_record(stream, _record(benchmark_case, trial, turn_number, label, question, context, search_ms, timing, "", None, None, str(error)))
+
+
+def _previous_questions(history: list[ChatMessage]) -> tuple[str, ...]:
+    return tuple(message.content for message in history if message.role == "user")
 
 
 def _record(
