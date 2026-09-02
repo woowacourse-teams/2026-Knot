@@ -4,13 +4,9 @@ import Avatar from "@primitives/ui/Avatar";
 
 import ChevronDownIcon from "@/assets/icons/chevronDown.svg";
 import PlusIcon from "@/assets/icons/plus.svg";
-import SyncIcon from "@/assets/icons/sync.svg";
 import { useParams } from "react-router";
 
-import {
-  LAST_SYNCED_LABEL,
-  WORKSPACE_TREE,
-} from "./constants/workspaceSidebar";
+import { WORKSPACE_TREE } from "./constants/workspaceSidebar";
 import { useWorkspaceTree } from "./model/useWorkspaceTree";
 import SidebarTreeList from "./ui/SidebarTreeList";
 
@@ -22,7 +18,7 @@ import SidebarTreeList from "./ui/SidebarTreeList";
  *
  * 헤더의 워크스페이스 이름은 현재 `:workspaceId`의 워크스페이스 조회 응답에서 오고, 레이아웃의 진입 판정과
  * 같은 쿼리라 요청은 한 번만 나가요. 응답 전에는 이름 자리를 비워 둬요.
- * 워크스페이스 전환·폴더 추가·하단 동기화는 API가 없어 모양만 그리고,
+ * 워크스페이스 전환·폴더 추가는 API가 없어 모양만 그리고,
  * 임시 트리의 폴더 행만 눌러서 펼치고 접을 수 있어요.
  *
  * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=1382-2171 Sidebar/Drawer}
@@ -61,17 +57,6 @@ export default function WorkspaceSidebar() {
         isFolderExpanded={isFolderExpanded}
         onToggleFolder={toggleFolder}
       />
-
-      <SyncPill>
-        <SyncStatus>
-          <SyncIcon size={16} />
-          지금 동기화
-        </SyncStatus>
-        <SyncedAt>
-          <SyncedDot />
-          {LAST_SYNCED_LABEL}
-        </SyncedAt>
-      </SyncPill>
     </Container>
   );
 }
@@ -128,51 +113,4 @@ const FolderHead = styled.div`
 
 const FolderLabel = styled.span`
   ${({ theme }) => theme.text.caption01};
-`;
-
-/** @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=1381-5292 Sidebar/SyncPill} */
-const SyncPill = styled.div`
-  display: flex;
-  flex-shrink: 0;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  height: 2.75rem; /* 44px */
-  margin-top: auto;
-  padding: 0 0.75rem 0 0.875rem; /* 0 12px 0 14px */
-  border: 1px solid ${({ theme }) => theme.neutral[200]};
-  border-radius: 62.4375rem; /* 999px */
-  background-color: ${({ theme }) => theme.neutral[0]};
-`;
-
-const SyncStatus = styled.span`
-  display: flex;
-  align-items: center;
-  gap: 0.5rem; /* 8px */
-  color: ${({ theme }) => theme.neutral[800]};
-  ${({ theme }) => theme.text.caption02};
-
-  & > svg {
-    flex-shrink: 0;
-    color: ${({ theme }) => theme.neutral[400]};
-  }
-`;
-
-const SyncedAt = styled.span`
-  display: flex;
-  align-items: center;
-  gap: 0.25rem; /* 4px */
-  color: ${({ theme }) => theme.neutral[400]};
-  ${({ theme }) => theme.text.caption01};
-`;
-
-/** @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=687-558 Indicator/Dot 없음} */
-const SyncedDot = styled.span`
-  display: block;
-  width: 0.75rem; /* 12px 상자 안 6px 점 */
-  height: 0.75rem;
-  border: 0.1875rem solid transparent; /* 3px */
-  border-radius: 50%;
-  background-color: ${({ theme }) => theme.sub.accent[500]};
-  background-clip: padding-box;
 `;

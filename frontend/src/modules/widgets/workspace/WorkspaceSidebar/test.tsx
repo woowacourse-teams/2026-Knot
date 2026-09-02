@@ -41,7 +41,7 @@ const getFolderRow = (name: string) =>
   screen.getByRole("button", { name: new RegExp(`^${name}`) });
 
 describe("WorkspaceSidebar", () => {
-  it("조회 응답의 워크스페이스 이름, 폴더 라벨, 임시 트리와 동기화 안내를 보여준다", async () => {
+  it("조회 응답의 워크스페이스 이름, 폴더 라벨, 임시 트리를 보여준다", async () => {
     const sidebar = renderSidebar();
 
     expect(await within(sidebar).findByText(expected.name)).toBeInTheDocument();
@@ -54,9 +54,6 @@ describe("WorkspaceSidebar", () => {
     expect(within(getFolderRow("리서치")).getByText("18")).toBeInTheDocument();
     expect(within(getFolderRow("회의록")).getByText("41")).toBeInTheDocument();
     expect(within(getFolderRow("초안")).getByText("6")).toBeInTheDocument();
-
-    expect(within(sidebar).getByText("지금 동기화")).toBeInTheDocument();
-    expect(within(sidebar).getByText("2분 전")).toBeInTheDocument();
   });
 
   it("처음에는 제품과 로드맵 폴더만 펼쳐져 있다", () => {

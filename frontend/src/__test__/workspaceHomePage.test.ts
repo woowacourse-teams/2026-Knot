@@ -20,7 +20,7 @@ import { expect, test, type Page } from "@playwright/test";
  * 홈 진입, 사이드바 열고 닫기, 폴더 트리 펼침·접힘, 초대 링크·코드 복사, Notion 동기화,
  * 하단 Dock으로 탐색 이동까지 홈 화면 위에서 사용자가 밟는 플로우를 페이지 단위로 확인해요.
  * 회원·워크스페이스·초대·동기화는 dev 서버의 msw mock 응답(`API_MOCKING`)에서 오므로 기대값도 같은
- * 응답을 DTO로 변환해 가져와요. 사이드바 트리와 마지막 동기화 시각은 API가 아직 없어 위젯의 임시 상수예요.
+ * 응답을 DTO로 변환해 가져와요. 사이드바 트리와 Notion 카드의 마지막 동기화 시각은 API가 아직 없어 위젯의 임시 상수예요.
  */
 
 const expectedMe = new GetMeResponseDto(meResponse);
@@ -152,9 +152,6 @@ test.describe("사이드바", () => {
     await expect(getFolderRow({ page, name: "리서치" })).toContainText("18");
     await expect(getFolderRow({ page, name: "회의록" })).toContainText("41");
     await expect(getFolderRow({ page, name: "초안" })).toContainText("6");
-
-    await expect(sidebar.getByText("지금 동기화")).toBeVisible();
-    await expect(sidebar.getByText("2분 전")).toBeVisible();
 
     await toggle.click();
 

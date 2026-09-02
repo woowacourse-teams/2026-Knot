@@ -53,6 +53,3 @@ export const WORKSPACE_TREE: WorkspaceTreeNode[] = [
 // TODO(#266): 트리 응답을 받으면 처음 펼쳐 둘 폴더 기준을 다시 정해요
 /** Figma 예시에서 처음부터 펼쳐져 있는 폴더예요. */
 export const INITIAL_EXPANDED_FOLDER_IDS = ["product", "roadmap"];
-
-// TODO(#266): 동기화 API 연결 후 마지막 동기화 시각으로 교체
-export const LAST_SYNCED_LABEL = "2분 전";
