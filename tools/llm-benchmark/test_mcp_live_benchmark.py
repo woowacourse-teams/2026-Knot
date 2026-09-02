@@ -307,6 +307,57 @@ def test_live_runner_can_use_the_nim_mcp_tool_call_loop() -> None:
     assert record["tool_calls"] == 2
 
 
+def test_live_runner_passes_one_live_metadata_identity_to_each_observation() -> None:
+    # Given: a scoped replay stand-in and a deterministic tool-calling client
+    scope = McpScope("workspace-a", "snapshot-1", frozenset({"page-1"}))
+    adapter = ReplayMcpAdapter(
+        (
+            McpPage(
+                "page-1",
+                "DB",
+                "https://notion.so/page-1",
+                "PostgreSQL 결정",
+                "workspace-a",
+                "snapshot-1",
+            ),
+        ),
+        scope,
+    )
+    output = StringIO()
+    case = BenchmarkCase(
+        "G-001", "confirmed", "fact", ("DB가 뭐야?",), "PostgreSQL", ("page-1",)
+    )
+    metadata = create_benchmark_metadata(
+        run_id="live-001",
+        phase="live",
+        condition="cold",
+        snapshot_id="notion-live",
+        model="qwen/qwen3.6-27b",
+        prompt="system prompt",
+        generation_options={"tool_calling": True},
+        observed_at="2026-09-02T09:00:00+00:00",
+    )
+
+    # When: the runner receives a live run identity
+    _run_case(
+        output,
+        adapter,
+        _FakeToolCallingClient(),
+        case,
+        1,
+        1,
+        False,
+        True,
+        scope,
+        metadata,
+    )
+
+    # Then: the serialized observation preserves the live identity
+    record = json.loads(output.getvalue())
+    assert record["metadata"]["run_id"] == "live-001"
+    assert record["metadata"]["phase"] == "live"
+
+
 def test_live_runner_records_invalid_model_tool_call_as_a_failed_observation() -> None:
     # Given: a model response that attempts a non-read-only MCP operation
     scope = McpScope("workspace-a", "snapshot-1", frozenset({"page-1"}))
