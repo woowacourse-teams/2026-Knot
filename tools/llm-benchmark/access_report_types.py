@@ -6,6 +6,21 @@ from dataclasses import dataclass
 
 
 @dataclass(frozen=True, slots=True)
+class RunMetadataSummary:
+    """One reproducibility identity group represented in an access report."""
+
+    input_label: str
+    rows: int
+    phase: str
+    condition: str
+    run_id: str
+    snapshot_id: str
+    model: str
+    prompt_sha256: str
+    options_sha256: str
+
+
+@dataclass(frozen=True, slots=True)
 class StrategySummary:
     """Latency, reliability, and source-hit summary for one strategy."""
 
