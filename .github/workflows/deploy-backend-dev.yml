@@ -283,6 +283,7 @@ jobs:
           PREVIOUS_ENV_FILE="$PREVIOUS_DIR/knot-backend-dev.env"
           PREVIOUS_PROFILE_FILE="$PREVIOUS_DIR/10-development-profile.conf"
           SNAPSHOT_READY="$STATE_DIR/snapshot-ready"
+          WATCHDOG_STARTED_MARKER="$STATE_DIR/watchdog-started"
           SUCCESS_MARKER="$STATE_DIR/succeeded"
           ROLLBACK_MARKER="$STATE_DIR/rollback-succeeded"
           WATCHDOG_SCRIPT="$STATE_DIR/rollback-watchdog.sh"
@@ -298,7 +299,7 @@ jobs:
               if [ -n "$WATCHDOG_PID" ]; then
                 kill "$WATCHDOG_PID" 2>/dev/null || true
               fi
-              rm -f "$WATCHDOG_SCRIPT" "$RESTORE_SCRIPT" "$SNAPSHOT_READY"
+              rm -f "$WATCHDOG_SCRIPT" "$RESTORE_SCRIPT" "$SNAPSHOT_READY" "$WATCHDOG_STARTED_MARKER"
               rm -f "$SUCCESS_MARKER" "$ROLLBACK_MARKER" "$STATE_DIR/status"
               rm -f "$STATE_DIR/watchdog.log"
               rm -f "$PREVIOUS_JAR" "$PREVIOUS_ENV_FILE" "$PREVIOUS_PROFILE_FILE"
@@ -521,6 +522,7 @@ jobs:
           WATCHDOG
           chmod 700 "$WATCHDOG_SCRIPT"
 
+          touch "$WATCHDOG_STARTED_MARKER"
           nohup /usr/bin/bash "$WATCHDOG_SCRIPT" \
             "$STATE_DIR" \
             "$WATCHDOG_TIMEOUT_SECONDS" \
@@ -632,12 +634,15 @@ jobs:
                 -o IdentitiesOnly=yes \
                 -o StrictHostKeyChecking=yes \
                 "$NCP_DEV_USER@$NCP_DEV_HOST" \
-                "if [ -d '/tmp/knot-backend-dev-deploy-$DEPLOYMENT_ID' ]; then printf present; else printf absent; fi" \
+                "if [ -f '/tmp/knot-backend-dev-deploy-$DEPLOYMENT_ID/watchdog-started' ]; then printf active; elif [ -d '/tmp/knot-backend-dev-deploy-$DEPLOYMENT_ID' ]; then printf pending; else printf absent; fi" \
                 2>/dev/null || true)"
               if [ "$state_probe" = "absent" ]; then
                 break
               fi
-              if [ "$state_probe" != "present" ]; then
+              if [ "$state_probe" = "pending" ]; then
+                break
+              fi
+              if [ "$state_probe" != "active" ]; then
                 sleep 2
                 continue
               fi
