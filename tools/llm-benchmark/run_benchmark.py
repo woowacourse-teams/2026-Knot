@@ -40,6 +40,7 @@ from benchmark_core import (
     build_context,
     load_snapshot,
 )
+from benchmark_metadata import BenchmarkMetadata
 from benchmark_result_identity import observation_fingerprint
 from gold_set import BenchmarkCase, GoldSetError, load_cases
 from nim_client import (
@@ -101,6 +102,7 @@ class BenchmarkRecord:
     error: str | None
     embedding_ms: float = 0.0
     vector_db_ms: float = 0.0
+    metadata: BenchmarkMetadata | None = None
     result_fingerprint: str = field(init=False)
 
     def __post_init__(self) -> None:
