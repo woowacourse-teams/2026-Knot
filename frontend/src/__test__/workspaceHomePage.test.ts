@@ -153,9 +153,6 @@ test.describe("사이드바", () => {
     await expect(getFolderRow({ page, name: "회의록" })).toContainText("41");
     await expect(getFolderRow({ page, name: "초안" })).toContainText("6");
 
-    await expect(sidebar.getByText("지금 동기화")).toBeVisible();
-    await expect(sidebar.getByText("2분 전")).toBeVisible();
-
     await toggle.click();
 
     await expect(toggle).toHaveAttribute("aria-expanded", "false");

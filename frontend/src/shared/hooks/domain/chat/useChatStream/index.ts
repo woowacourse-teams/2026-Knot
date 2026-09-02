@@ -19,15 +19,15 @@ interface StartStreamParams {
 /**
  * 질문 전송부터 답변이 서버 저장본으로 바뀌기까지의 상태를 들고 있습니다.
  *
- * 이 상태를 채팅 패널이 드는 이유는 두 가지입니다. 첫 질문으로 세션이 생기면 주소가
- * `/chat`에서 `/chat/:sessionId`로 바뀌는데, 두 주소가 같은 자리에 같은 패널을 그리므로
- * 여기의 상태는 이동을 견딥니다. 또 대화 목록을 펼쳤다 닫아도 패널은 그대로 있어
- * 답변이 도착하는 동안 목록을 구경해도 답변이 끊기지 않습니다.
+ * 대화를 그리는 패널과 질문을 적는 독이 화면의 다른 구획에 있어 둘이 같은 상태를 봐야 하므로,
+ * 두 곳 위의 `ChatStreamProvider`가 이 훅을 한 번 불러 그 값을 나눠 줍니다.
+ * 이 훅을 화면(라우트)이 아니라 그 위에서 부르는 덕에, 첫 질문으로 세션이 생겨 주소가
+ * `/chat`에서 `/chat/:sessionId`로 바뀌어도 상태가 이동을 견딥니다.
  *
  * 조각(`delta`)은 뮤테이션이 아니라 여기에 쌓습니다. 
  * 뮤테이션은 보내는 중인지, 실패했는지, 끝났는지만 알고, 화면에 그릴 부분 답변은 이 state가 정본입니다.
  */
-export const useChatStream = () => {
+const useChatStream = () => {
   const { workspaceId, sessionId } = useParams();
   const { navigateToChatSession } = useNavigateToChatSession();
 
@@ -195,3 +195,5 @@ export const useChatStream = () => {
     handleSubmitQuestion,
   };
 };
+
+export default useChatStream;

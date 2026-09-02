@@ -236,6 +236,55 @@ describe("WorkspaceLayout", () => {
     );
   });
 
+  it("레일은 하나만 담으므로 대화 목록을 고정하면 사이드바는 저절로 접힌다", async () => {
+    renderLayout(CHAT_PATH);
+
+    expect(await screen.findByText(CHAT_TEXT)).toBeInTheDocument();
+    const sidebarTrigger = screen.getByRole("button", { name: "사이드바" });
+    const chatListTrigger = screen.getByRole("button", { name: "대화 목록" });
+
+    fireEvent.click(sidebarTrigger);
+
+    expect(sidebarTrigger).toHaveAttribute("aria-pressed", "true");
+
+    fireEvent.click(chatListTrigger);
+
+    expect(chatListTrigger).toHaveAttribute("aria-pressed", "true");
+    expect(sidebarTrigger).toHaveAttribute("aria-pressed", "false");
+    expect(
+      screen.queryByRole("complementary", { name: "워크스페이스 사이드바" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("고정한 패널을 다시 누르면 레일이 비어 아무것도 고정돼 있지 않다", async () => {
+    renderLayout(CHAT_PATH);
+
+    expect(await screen.findByText(CHAT_TEXT)).toBeInTheDocument();
+    const chatListTrigger = screen.getByRole("button", { name: "대화 목록" });
+
+    fireEvent.click(chatListTrigger);
+    fireEvent.click(chatListTrigger);
+
+    expect(chatListTrigger).toHaveAttribute("aria-pressed", "false");
+    expect(
+      document.getElementById(WORKSPACE_DOCK_RAIL_ID),
+    ).toBeEmptyDOMElement();
+  });
+
+  it("사이드바를 고정해도 GNB는 레일 바깥에 남아 화면 전체 폭을 쓴다", async () => {
+    renderLayout();
+
+    expect(await screen.findByText(HOME_TEXT)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "사이드바" }));
+
+    const rail = document.getElementById(WORKSPACE_DOCK_RAIL_ID);
+
+    expect(rail?.parentElement).not.toContainElement(
+      screen.getByRole("banner"),
+    );
+  });
+
   it("그 외 실패면 이동하지 않고 스피너를 유지한다", async () => {
     overrideWorkspaceStatus(500);
     const { router } = renderLayout();

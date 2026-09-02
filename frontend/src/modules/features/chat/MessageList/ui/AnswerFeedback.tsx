@@ -67,7 +67,7 @@ const Container = styled.div`
 const Message = styled.p`
   white-space: nowrap;
   ${({ theme }) => theme.text.caption02};
-  color: ${({ theme }) => theme.neutral[500]};
+  color: ${({ theme }) => theme.neutral[600]};
 `;
 
 const FeedbackButton = styled.button<{ $isActive: boolean }>`
@@ -79,7 +79,7 @@ const FeedbackButton = styled.button<{ $isActive: boolean }>`
   transition: color 0.3s ease-in;
 
   color: ${({ theme, $isActive }) =>
-    $isActive ? theme.sub.accent[500] : theme.neutral[500]};
+    $isActive ? theme.sub.accent[500] : theme.neutral[600]};
 
   & > svg {
     flex-shrink: 0;

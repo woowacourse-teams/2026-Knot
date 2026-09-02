@@ -14,6 +14,9 @@ import { describe, expect, it } from "vitest";
 
 import type { ChatNavigationState } from "@/shared/types/chat";
 
+import WorkspaceDock from "@widgets/workspace/WorkspaceDock";
+import { ChatStreamProvider } from "@provider/context/chatStreamContext";
+
 import ChatPanel from ".";
 
 const WORKSPACE_CONVERSATIONS_PATH =
@@ -76,6 +79,10 @@ const savedMessagesResponse = [
   },
 ];
 
+/**
+ * 대화는 패널이 그리고 질문은 하단 독에서 적으므로, 실제 화면처럼 둘을 함께 놓고 봅니다.
+ * 둘 다 `ChatStreamProvider` 안에 있어야 같은 대화를 봅니다(실제로는 워크스페이스 레이아웃이 감싸요).
+ */
 const renderChatPanel = (
   initialEntry: string | { pathname: string; state: ChatNavigationState },
 ) => {
@@ -84,13 +91,21 @@ const renderChatPanel = (
     defaultOptions: { queries: { retry: false } },
   });
 
+  // 프로바이더는 라우트 안에 둬야 `:workspaceId`·`:sessionId`를 봅니다(앱에서는 레이아웃이 그 자리예요)
+  const screenElement = (
+    <ChatStreamProvider>
+      <ChatPanel />
+      <WorkspaceDock />
+    </ChatStreamProvider>
+  );
+
   return render(
     <ThemeProvider theme={theme}>
       <QueryClientProvider client={queryClient}>
         <MemoryRouter initialEntries={[initialEntry]}>
           <Routes>
-            <Route path={PATH_ROUTE.CHAT} element={<ChatPanel />} />
-            <Route path={PATH_ROUTE.CHAT_SESSION} element={<ChatPanel />} />
+            <Route path={PATH_ROUTE.CHAT} element={screenElement} />
+            <Route path={PATH_ROUTE.CHAT_SESSION} element={screenElement} />
           </Routes>
         </MemoryRouter>
       </QueryClientProvider>
@@ -102,14 +117,17 @@ const getChatTextarea = () => screen.getByPlaceholderText("무엇이든 요청�
 
 const submitQuestion = (question: string) => {
   fireEvent.change(getChatTextarea(), { target: { value: question } });
-  fireEvent.click(screen.getByRole("button", { name: "질문 보내기" }));
+  fireEvent.click(screen.getByRole("button", { name: "보내기" }));
 };
 
 describe("ChatPanel", () => {
-  it("대화 화면을 보여준다", () => {
+  it("저장된 대화를 보여주고, 질문은 하단 독에서 적는다", async () => {
     renderChatPanel("/workspace/1/chat/100");
 
-    expect(screen.getByRole("heading", { name: "knotted" })).toBeInTheDocument();
+    expect(
+      await screen.findByText(expectedMessages[0].content),
+    ).toBeInTheDocument();
+    expect(getChatTextarea()).toBeInTheDocument();
   });
 
   it("하단 독에서 질문을 들고 들어오면 도착하자마자 그 질문으로 대화를 시작한다", async () => {
@@ -174,7 +192,7 @@ describe("ChatPanel", () => {
     expect(screen.getByText(QUESTION)).toBeInTheDocument();
   });
 
-  it("전송 중에는 입력과 전송 버튼이 잠기고, 끝나면 풀린다", async () => {
+  it("전송 중에는 전송 버튼이 잠기고, 끝나면 풀린다", async () => {
     const gate = createGate();
 
     mockServer.use(
@@ -191,16 +209,17 @@ describe("ChatPanel", () => {
 
     submitQuestion(QUESTION);
 
+    // 답변이 오는 중에 또 보내면 서버가 409로 거절하므로 애초에 못 누르게 합니다
     await waitFor(() => {
-      expect(getChatTextarea()).toHaveAttribute("readonly");
+      expect(screen.getByRole("button", { name: "보내기" })).toBeDisabled();
     });
-    expect(getChatTextarea()).toHaveAttribute("aria-disabled", "true");
-    expect(screen.getByRole("button", { name: "질문 보내기" })).toBeDisabled();
 
     gate.open();
 
+    fireEvent.change(getChatTextarea(), { target: { value: QUESTION } });
+
     await waitFor(() => {
-      expect(getChatTextarea()).not.toHaveAttribute("readonly");
+      expect(screen.getByRole("button", { name: "보내기" })).toBeEnabled();
     });
   });
 

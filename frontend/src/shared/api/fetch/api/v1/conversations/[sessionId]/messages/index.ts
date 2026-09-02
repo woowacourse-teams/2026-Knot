@@ -48,9 +48,12 @@ export class ChatStreamRequestError extends Error {
 /**
  * fetch는 axios와 달리 baseURL을 모르고 상대 경로도 못 받으므로 직접 절대 주소로 만듭니다.
  * 배포 환경에서는 API 도메인이 따로 있고, 없으면 지금 보고 있는 오리진을 씁니다.
+ *
+ * `??`가 아니라 `||`인 이유는 mock 모드의 `API_BASE_URL`이 없는 값이 아니라 빈 문자열이기 때문입니다.
+ * 빈 문자열을 base로 넘기면 `new URL`이 곧바로 던져서, 요청이 나가기도 전에 답변이 실패로 끝납니다.
  */
 const toAbsoluteUrl = (path: string) =>
-  new URL(path, process.env.API_BASE_URL ?? window.location.origin).toString();
+  new URL(path, process.env.API_BASE_URL || window.location.origin).toString();
 
 /** 연결 전 실패 응답의 본문을 읽어 throw할 오류로 바꿉니다 */
 const toRequestError = async (response: Response) => {
