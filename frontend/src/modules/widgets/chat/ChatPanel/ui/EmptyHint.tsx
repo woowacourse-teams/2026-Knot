@@ -23,12 +23,13 @@ const Container = styled.div`
   align-items: center;
   gap: 1rem;
   width: 100%;
-  height: 100%;
+  /* 아래에 실패 안내가 붙어도 넘치지 않도록 남는 자리만 차지해요 */
+  flex: 1;
 `;
 
 const Title = styled.strong`
   ${({ theme }) => theme.text.heading01};
-  color: ${({ theme }) => theme.neutral[0]};
+  color: ${({ theme }) => theme.neutral[900]};
 `;
 
 const Description = styled.span`

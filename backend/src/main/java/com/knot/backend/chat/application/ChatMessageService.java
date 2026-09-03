@@ -82,6 +82,7 @@ public class ChatMessageService {
             }
         };
         try {
+            requirePublishedSnapshot(session.getWorkspaceId());
             chatMessagePersistenceService.saveMessage(
                     sessionId,
                     ChatMessageRole.USER,
@@ -140,6 +141,17 @@ public class ChatMessageService {
         } catch (RuntimeException exception) {
             releaseStream.run();
             throw exception;
+        }
+    }
+
+    private void requirePublishedSnapshot(long workspaceId) {
+        try {
+            documentSearchService.requirePublishedSnapshot(workspaceId);
+        } catch (SearchException exception) {
+            throw new ChatException(
+                    mapSearchError(exception),
+                    exception
+            );
         }
     }
 

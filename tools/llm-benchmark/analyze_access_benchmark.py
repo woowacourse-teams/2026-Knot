@@ -10,6 +10,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 from dataclasses import replace
 from pathlib import Path
@@ -18,8 +19,9 @@ from typing import Final, Literal, assert_never
 import numpy as np
 import typer
 from access_report_render import render_report
-from access_report_types import PairSummary, StrategySummary
-from gold_set import load_cases
+from access_report_types import PairSummary, RunMetadataSummary, StrategySummary
+from evaluate_rag_quality import EvaluationMetadata
+from gold_set import BenchmarkCase, load_cases
 from pydantic import BaseModel, ConfigDict, ValidationError
 
 MetricName = Literal[
@@ -71,11 +73,13 @@ class AccessRow(BaseModel):
     ttft_ms: float | None = None
     total_ms: float | None = None
     error: str | None = None
+    metadata: EvaluationMetadata | None = None
 
 
 def main(
     results: Path = typer.Option(..., help="JSONL output from run_four_way_benchmark.py."),
     e2e_results: Path | None = typer.Option(None, help="Optional JSONL with model-generation observations."),
+    gold_set: Path = typer.Option(Path("docs/llm-search-benchmark-gold-set.md"), help="Gold set used to resolve expected source IDs."),
     output: Path = typer.Option(Path("docs/llm-search-ab-test-report.md"), help="Markdown report path."),
     chat_model: str = typer.Option("qwen/qwen3.6-27b"),
     embedding_model: str = typer.Option("text-embedding-qwen3-embedding-0.6b:2"),
@@ -87,8 +91,8 @@ def main(
     """Write a report without declaring a winner below the sample gate."""
     rows = _load_rows(results)
     generation_rows = rows if e2e_results is None else _load_rows(e2e_results)
-    cases = load_cases(Path("docs/llm-search-benchmark-gold-set.md"))
-    expected = {case.case_id: {source.replace("-", "") for source in case.source_ids} for case in cases}
+    cases = load_cases(gold_set)
+    expected = _expected_sources(cases)
     rng = np.random.default_rng(_SEED)
     summaries = tuple(
         _merge_summary(_summarize(rows, strategy, expected), _summarize(generation_rows, strategy, expected))
@@ -107,8 +111,82 @@ def main(
         for left, right in _comparisons()
     )
     output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text(render_report(len(rows), sum(row.error is None for row in rows), summaries, retrieval_pairs, e2e_ttft_pairs, e2e_pairs, chat_model, embedding_model, context_length, max_tokens), encoding="utf-8")
+    metadata_summaries = (
+        *_metadata_summaries("검색 결과", rows),
+        *_metadata_summaries("생성 결과", generation_rows),
+    )
+    output.write_text(
+        render_report(
+            len(rows),
+            sum(row.error is None for row in rows),
+            summaries,
+            retrieval_pairs,
+            e2e_ttft_pairs,
+            e2e_pairs,
+            chat_model,
+            embedding_model,
+            context_length,
+            max_tokens,
+            metadata_summaries,
+        ),
+        encoding="utf-8",
+    )
     typer.echo(f"report written: {output}")
+
+
+def _expected_sources(
+    cases: tuple[BenchmarkCase, ...],
+) -> dict[tuple[str, int], set[str]]:
+    return {
+        (case.case_id, turn): {
+            source.replace("-", "") for source in case.sources_for_turn(turn)
+        }
+        for case in cases
+        for turn in range(1, len(case.turns) + 1)
+    }
+
+
+def _metadata_summaries(
+    input_label: str,
+    rows: tuple[AccessRow, ...],
+) -> tuple[RunMetadataSummary, ...]:
+    groups: dict[tuple[str, str, str, str, str, str, str], int] = {}
+    missing = 0
+    for row in rows:
+        metadata = row.metadata
+        if metadata is None:
+            missing += 1
+            continue
+        options = json.dumps(
+            metadata.generation_options,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        options_sha256 = hashlib.sha256(options.encode("utf-8")).hexdigest()
+        identity = (
+            metadata.phase,
+            metadata.condition,
+            metadata.run_id,
+            metadata.snapshot_id,
+            metadata.model,
+            metadata.prompt_sha256,
+            options_sha256,
+        )
+        groups[identity] = groups.get(identity, 0) + 1
+    summaries = [
+        RunMetadataSummary(input_label, count, *identity)
+        for identity, count in sorted(
+            groups.items(), key=lambda item: (_phase_order(item[0][0]), item[0])
+        )
+    ]
+    if missing:
+        summaries.append(RunMetadataSummary(input_label, missing, "missing", "", "", "", "", "", ""))
+    return tuple(summaries)
+
+
+def _phase_order(phase: str) -> int:
+    return {"control": 0, "live": 1, "missing": 2}.get(phase, 3)
 
 
 def _load_rows(path: Path) -> tuple[AccessRow, ...]:
@@ -129,18 +207,28 @@ def _load_rows(path: Path) -> tuple[AccessRow, ...]:
     return tuple(rows)
 
 
-def _summarize(rows: tuple[AccessRow, ...], strategy: StrategyName, expected: dict[str, set[str]]) -> StrategySummary:
+def _summarize(
+    rows: tuple[AccessRow, ...],
+    strategy: StrategyName,
+    expected: dict[tuple[str, int], set[str]],
+) -> StrategySummary:
     group = tuple(row for row in rows if row.strategy == strategy)
     search = _positive_values(group, "search_ms")
     embedding = _positive_values(group, "embedding_ms")
     database = _positive_values(group, "vector_db_ms")
     model_success = tuple(row for row in group if row.error is None and _valid(row.total_ms))
     hits = sum(
-        any(source_id in path for source_id in expected.get(row.case_id, set()) for path in row.source_paths)
+        any(
+            source_id in path
+            for source_id in expected.get((row.case_id, row.turn), set())
+            for path in row.source_paths
+        )
         for row in group
-        if expected.get(row.case_id)
+        if expected.get((row.case_id, row.turn))
     )
-    quality_count = sum(bool(expected.get(row.case_id)) for row in group)
+    quality_count = sum(
+        bool(expected.get((row.case_id, row.turn))) for row in group
+    )
     return StrategySummary(
         strategy,
         len(group),

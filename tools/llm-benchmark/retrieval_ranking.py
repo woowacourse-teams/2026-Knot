@@ -9,6 +9,16 @@ from benchmark_core import tokenize
 from pgvector_store import StoredChunk
 from retrieval_policy import QueryKind, authority_score
 
+_MULTI_SOURCE_PATTERNS = (
+    "중 어떤",
+    "팀원마다",
+    "처음 실행될 때",
+    "삭제된 페이지",
+    "동기화 실패",
+    "서로 다른",
+    "어느 쪽",
+)
+
 
 @dataclass(frozen=True, slots=True)
 class CandidateEvidence:
@@ -66,13 +76,15 @@ def rank_hybrid_candidates(
         return ()
     if related_documents:
         return tuple(pair[0].item for pair in ranked[:top_k])
+    selection_limit = _selection_limit(query, query_kind, top_k)
+    if selection_limit == 1:
+        return (ranked[0][0].item,)
     maximum = ranked[0][1]
-    selected = [pair for pair in ranked if pair[1] >= maximum - _score_margin(query_kind)][:top_k]
-    if query_kind is QueryKind.MEETING_DATE and selected:
-        title = selected[0][0].item.title.casefold().strip()
-        duplicates = [pair for pair in ranked if pair[0].item.title.casefold().strip() == title]
-        if len(duplicates) > 1:
-            selected = duplicates[:top_k]
+    selected = [
+        pair
+        for pair in ranked
+        if pair[1] >= maximum - _score_margin(query_kind)
+    ][:selection_limit]
     return tuple(pair[0].item for pair in selected)
 
 
@@ -175,3 +187,14 @@ def _score_margin(query_kind: QueryKind) -> float:
         QueryKind.CONFLICT: 0.15,
         QueryKind.BROAD: 0.0,
     }[query_kind]
+
+
+def _selection_limit(query: str, query_kind: QueryKind, top_k: int) -> int:
+    """Keep one source by default and expand only for explicit multi-source questions."""
+    if top_k < 1:
+        return 0
+    if query_kind is QueryKind.AMBIGUOUS:
+        return min(top_k, 2)
+    if any(pattern in query.casefold() for pattern in _MULTI_SOURCE_PATTERNS):
+        return min(top_k, 2)
+    return 1

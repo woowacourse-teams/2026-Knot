@@ -1,0 +1,224 @@
+{
+  "version": "2026-09-02",
+  "cases": [
+    {
+      "case_id": "W-001",
+      "category": "fact",
+      "turns": ["백엔드 데이터베이스로 무엇을 사용해?"],
+      "expected_source_ids": ["fffde1156a83837097bc818fab8a1fa4"],
+      "expected_facts": ["PostgreSQL", "Spring Data JPA", "Flyway"]
+    },
+    {
+      "case_id": "W-002",
+      "category": "decision_reason",
+      "turns": ["왜 PostgreSQL을 선택했어?"],
+      "expected_source_ids": ["fffde1156a83837097bc818fab8a1fa4"],
+      "expected_facts": ["관계형 데이터 안정적 관리", "pgvector 확장", "문서에 있는 근거만 답변"]
+    },
+    {
+      "case_id": "W-003",
+      "category": "fact",
+      "turns": ["프로젝트 Java 기준 버전이 뭐야?"],
+      "expected_source_ids": ["fffde1156a83837097bc818fab8a1fa4"],
+      "expected_facts": ["Java 25 LTS", "Preview 기능과 Incubator API는 운영 코드에서 사용하지 않음"]
+    },
+    {
+      "case_id": "W-004",
+      "category": "decision_reason",
+      "turns": ["Java 25를 고른 이유가 뭐야?"],
+      "expected_source_ids": ["fffde1156a83837097bc818fab8a1fa4"],
+      "expected_facts": ["신규 프로젝트", "JVM 및 동시성 개선", "지원 기간"]
+    },
+    {
+      "case_id": "W-005",
+      "category": "fact",
+      "turns": ["Spring Boot와 Spring Framework 버전은 어떻게 정했어?"],
+      "expected_source_ids": ["fffde1156a83837097bc818fab8a1fa4"],
+      "expected_facts": ["Spring Boot 4.1.0", "Spring Framework 7.x"]
+    },
+    {
+      "case_id": "W-006",
+      "category": "fact",
+      "turns": ["Entity와 Domain 객체를 분리해서 관리해?"],
+      "expected_source_ids": ["6b1de1156a8382b59310018e7162f45c"],
+      "expected_facts": ["JPA Entity가 Domain 모델 역할을 함께 수행", "변환 비용과 복잡도 고려"]
+    },
+    {
+      "case_id": "W-007",
+      "category": "decision_reason",
+      "turns": ["JPA Entity와 Domain을 분리하지 않은 이유는 뭐야?"],
+      "expected_source_ids": ["6b1de1156a8382b59310018e7162f45c"],
+      "expected_facts": ["ORM 교체 가능성 낮음", "변환 코드와 관리 비용 증가", "현재 규모에서 복잡도가 더 큼"]
+    },
+    {
+      "case_id": "W-008",
+      "category": "fact",
+      "turns": ["Controller가 Repository를 직접 호출해도 돼?"],
+      "expected_source_ids": ["6b1de1156a8382b59310018e7162f45c"],
+      "expected_facts": ["직접 호출 금지", "Application Service 호출", "비즈니스 규칙은 Controller 책임 아님"]
+    },
+    {
+      "case_id": "W-009",
+      "category": "fact",
+      "turns": ["Entity를 생성할 때 어떤 방식을 써?"],
+      "expected_source_ids": ["89ade1156a8382fa9c3781e6335ae7b2"],
+      "expected_facts": ["정적 팩토리 메서드", "create/of/from", "생성 시 불변식 검증"]
+    },
+    {
+      "case_id": "W-010",
+      "category": "fact",
+      "turns": ["Request DTO와 Response DTO를 하나로 재사용해?"],
+      "expected_source_ids": ["89ade1156a8382fa9c3781e6335ae7b2"],
+      "expected_facts": ["항상 분리", "입력과 출력 책임이 다름", "Entity를 API 응답으로 직접 반환하지 않음"]
+    },
+    {
+      "case_id": "W-011",
+      "category": "fact",
+      "turns": ["DB 테이블과 컬럼 이름 규칙 알려줘."],
+      "expected_source_ids": ["5eade1156a8383878f7981b89626dfe4"],
+      "expected_facts": ["snake_case", "테이블 복수형", "컬럼 단수형"]
+    },
+    {
+      "case_id": "W-012",
+      "category": "fact",
+      "turns": ["DB의 기본 PK 설계는 어떻게 해?"],
+      "expected_source_ids": ["5eade1156a8383878f7981b89626dfe4"],
+      "expected_facts": ["단일 id 컬럼", "BIGINT GENERATED ALWAYS AS IDENTITY", "공개 식별자는 UUID로 분리 가능"]
+    },
+    {
+      "case_id": "W-013",
+      "category": "fact",
+      "turns": ["전체 수정과 부분 수정 API는 각각 어떤 HTTP Method를 사용해?"],
+      "expected_source_ids": ["828de1156a838390942a01d1091a2280"],
+      "expected_facts": ["전체 상태는 PUT", "일부 상태는 PATCH", "상태 변경은 도메인 메서드"]
+    },
+    {
+      "case_id": "W-014",
+      "category": "fact",
+      "turns": ["리소스를 새로 만들었을 때 성공 상태 코드는 뭐야?"],
+      "expected_source_ids": ["828de1156a838390942a01d1091a2280"],
+      "expected_facts": ["201 Created", "조회 가능하면 Location 헤더"]
+    },
+    {
+      "case_id": "W-015",
+      "category": "fact",
+      "turns": ["Java 클래스명과 변수명 네이밍은 어떻게 해?"],
+      "expected_source_ids": ["2b1de1156a8383e7aea08154e99109de"],
+      "expected_facts": ["클래스 PascalCase", "변수와 파라미터 camelCase", "메서드는 동사로 시작"]
+    },
+    {
+      "case_id": "W-016",
+      "category": "fact",
+      "turns": ["조회 메서드에서 findById와 getById는 어떻게 구분해?"],
+      "expected_source_ids": ["2b1de1156a8383e7aea08154e99109de"],
+      "expected_facts": ["findById는 결과가 없을 수 있음", "getById는 반드시 존재해야 함", "existsByEmail은 존재 여부 반환"]
+    },
+    {
+      "case_id": "W-017",
+      "category": "fact",
+      "turns": ["도메인 테스트는 Spring Context를 띄워야 해?"],
+      "expected_source_ids": ["3abde1156a8382f0a64501fa2f046d15"],
+      "expected_facts": ["순수 Java 테스트", "외부 의존성 없는 POJO", "비즈니스 규칙 직접 검증"]
+    },
+    {
+      "case_id": "W-018",
+      "category": "fact",
+      "turns": ["Repository 통합 테스트에는 어떤 DB 환경을 사용해?"],
+      "expected_source_ids": ["5c3de1156a83838680b8810c452e7cb3"],
+      "expected_facts": ["PostgreSQL Testcontainers", "DataJpaTest", "integration 태그"]
+    },
+    {
+      "case_id": "W-019",
+      "category": "fact",
+      "turns": ["CI에서 백엔드 검증은 어떤 순서로 진행해?"],
+      "expected_source_ids": ["e8ede1156a83832a8d6e01b193aa434f"],
+      "expected_facts": ["spotlessCheck", "unit/slice test", "integration test", "acceptance test", "bootJar"]
+    },
+    {
+      "case_id": "W-020",
+      "category": "decision_reason",
+      "turns": ["Gradle 버전을 팀원마다 다르게 써도 돼?"],
+      "expected_source_ids": ["fffde1156a83837097bc818fab8a1fa4", "a25de1156a838235bd9f01ebd104bcb1"],
+      "expected_facts": ["Gradle Wrapper", "동일한 버전으로 빌드", "개별 버전 직접 고정은 특별한 이유가 있을 때만"]
+    },
+    {
+      "case_id": "W-021",
+      "category": "fact",
+      "turns": ["코드 포맷은 어떤 도구로 자동 검사해?"],
+      "expected_source_ids": ["77cde1156a838268aa6c81e34bea9755"],
+      "expected_facts": ["Spotless", "google-java-format AOSP", "spotlessCheck"]
+    },
+    {
+      "case_id": "W-022",
+      "category": "document_location",
+      "turns": ["로컬 PostgreSQL을 실행할 때 Compose 파일은 어디에 둬?"],
+      "expected_source_ids": ["534de1156a838293a7b38171f10898a9"],
+      "expected_facts": ["프로젝트 루트", "compose.yml", "비밀번호와 운영 Secret을 직접 기록하지 않음"]
+    },
+    {
+      "case_id": "W-023",
+      "category": "decision_reason",
+      "turns": ["Notion 동기화 범위는 Workspace 전체야, 선택한 페이지만이야?"],
+      "expected_source_ids": ["d8dde1156a83825695f0015f270ebc17"],
+      "expected_facts": ["현재는 전체 Workspace 우선", "가져오는 기능을 먼저 확인", "연결에 공유된 범위가 실제 읽기 범위"]
+    },
+    {
+      "case_id": "W-024",
+      "category": "fact",
+      "turns": ["Notion Import가 처음 실행될 때 어떤 문서를 대상으로 해?"],
+      "expected_source_ids": ["a5ede1156a83835b9a7181ba4632a067", "e4fde1156a838280a171815a30d9a982"],
+      "expected_facts": ["접근 가능한 Notion 데이터", "최초 동기화", "Import 기능 요구사항"]
+    },
+    {
+      "case_id": "W-025",
+      "category": "fact",
+      "turns": ["Notion에서 삭제된 페이지는 Knot에서 어떻게 처리해?"],
+      "expected_source_ids": ["e3ade1156a8382b69b4801a785d459d7", "ffcde1156a8382908a638162a09077e4"],
+      "expected_facts": ["삭제 처리 정책", "Notion 삭제와 권한 해제를 구분", "논리적 삭제 검토"]
+    },
+    {
+      "case_id": "W-026",
+      "category": "fact",
+      "turns": ["동기화 실패하면 기존에 검색되던 데이터는 어떻게 돼?"],
+      "expected_source_ids": ["a05de1156a838373b44d81068b84a1eb", "fbade1156a838359bef801549ffc595a"],
+      "expected_facts": ["기존 데이터 보호", "부분 실패 처리", "마지막 성공 결과 유지"]
+    },
+    {
+      "case_id": "W-027",
+      "category": "follow_up",
+      "turns": ["코드 포맷 검사 도구가 뭐였지?", "그럼 CI에서 언제 실패 처리해?"],
+      "expected_source_ids": ["77cde1156a838268aa6c81e34bea9755", "e8ede1156a83832a8d6e01b193aa434f"],
+      "expected_source_ids_by_turn": [["77cde1156a838268aa6c81e34bea9755"], ["e8ede1156a83832a8d6e01b193aa434f"]],
+      "expected_facts": ["Spotless", "spotlessCheck", "CI 실패 시 병합하지 않음"]
+    },
+    {
+      "case_id": "W-028",
+      "category": "follow_up",
+      "turns": ["DB 이름 규칙은 뭐야?", "Java 변수명도 같은 규칙이야?"],
+      "expected_source_ids": ["5eade1156a8383878f7981b89626dfe4", "2b1de1156a8383e7aea08154e99109de"],
+      "expected_source_ids_by_turn": [["5eade1156a8383878f7981b89626dfe4"], ["2b1de1156a8383e7aea08154e99109de"]],
+      "expected_facts": ["DB는 snake_case", "Java 변수와 파라미터는 camelCase", "대상을 구분해야 함"]
+    },
+    {
+      "case_id": "W-029",
+      "category": "conflict",
+      "turns": ["DB 네이밍 문서와 Java 네이밍 문서가 서로 다른데 어느 쪽이 맞아?"],
+      "expected_source_ids": ["5eade1156a8383878f7981b89626dfe4", "2b1de1156a8383e7aea08154e99109de"],
+      "expected_facts": ["문서별 적용 대상이 다름", "snake_case와 camelCase를 임의로 하나로 통합하지 않음", "충돌 여부를 근거와 함께 설명"]
+    },
+    {
+      "case_id": "W-030",
+      "category": "no_answer",
+      "turns": ["우리 프로젝트에서 MongoDB도 사용하기로 했지?"],
+      "expected_source_ids": ["856de1156a83825396be810bf12c4384"],
+      "expected_facts": ["동기화된 문서에서 확인되지 않으면 찾지 못했다고 답변", "MongoDB 사용을 추측하지 않음"]
+    },
+    {
+      "case_id": "W-031",
+      "category": "broad",
+      "turns": ["우리 프로젝트는 전체적으로 어떻게 진행되고 있어?"],
+      "expected_source_ids": ["856de1156a83825396be810bf12c4384"],
+      "expected_facts": ["범위를 좁혀달라고 요청", "최근 결정사항·로드맵·백엔드 진행 상황 중 선택지를 제시", "전체 요약을 임의로 생성하지 않음"]
+    }
+  ]
+}

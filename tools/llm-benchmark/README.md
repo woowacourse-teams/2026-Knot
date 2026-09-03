@@ -74,14 +74,10 @@ LM Studio 앱에서 Notion MCP를 OAuth로 연결한 뒤 native `/api/v1/chat`�
 ## 4. pgvector 색인과 네 가지 비교
 
 ```bash
-cd /Users/yongtae/Desktop/knot
+cd /path/to/2026-Knot
 docker compose -f tools/llm-benchmark/compose.pgvector.yml up -d
 
 uv run --python 3.14 tools/llm-benchmark/run_four_way_benchmark.py \
-  --index-only
-
-uv run --python 3.14 tools/llm-benchmark/run_four_way_benchmark.py \
-  --skip-index \
   --repeats 10 \
   --retrieval-only \
   --output .benchmark-data/four-way-retrieval-10x.jsonl
@@ -92,7 +88,23 @@ uv run --python 3.14 tools/llm-benchmark/evaluate_rag_quality.py \
 
 `--retrieval-only` 실행은 모델을 호출하지 않고 네 전략의 검색·컨텍스트 구성 시간을 10개 질문 × 10회씩 기록한다. 실제 답변 생성은 다음처럼 실행한다.
 
+four-way 결과의 각 행에는 `metadata`가 함께 기록된다. `metadata.run_id`는 한 실행을 묶고, `phase`는 `control`/`live`, `condition`은 `cold`/`warm`, `snapshot_id`는 정규화된 내보내기 지문, `model`은 채팅 모델, `prompt_sha256`은 system prompt 지문, `generation_options`는 비밀값을 제외한 생성·검색 옵션, `observed_at`은 실행 시각이다. `--run-id`로 재현 가능한 이름을 지정할 수 있으며, `--condition`을 생략하면 `--warmup 0`은 `cold`, 그 외에는 `warm`으로 기록한다. 기본 independent JSON workload를 지정하면 W-001부터 W-031까지를 자동으로 모두 선택한다.
+
 품질 평가기는 gold set의 모든 case/turn/repeat가 생성됐는지, 출처 page ID가 기대값과 일치하는지, 출처가 3개를 넘지 않는지, 무응답·명확화 케이스가 빈 출처로 종료되는지를 검사한다. retrieval-only 결과에서는 답변 의미 품질을 `NOT_EVALUATED`로 표시하므로, 생성 결과는 `--require-answer`로 별도 검사하고 최종 의미 왜곡 여부는 사람이 원문과 대조한다.
+
+최종 비교에 사용할 결과는 실행 메타데이터까지 검사한다.
+
+~~~bash
+uv run --python 3.14 tools/llm-benchmark/evaluate_rag_quality.py \
+  --gold-set docs/llm-search-benchmark-independent-30.json \
+  --results .benchmark-data/independent-rag-e2e.jsonl \
+  --strategy rag \
+  --repeats 1 \
+  --require-answer \
+  --require-run-metadata
+~~~
+
+`--require-run-metadata`를 켜면 모든 결과 행이 하나의 run ID·phase·cold/warm 조건·snapshot·모델·system prompt·생성 옵션을 공유해야 한다. 서로 다른 실행 결과를 합쳐 통계적으로 보이게 만드는 실수를 차단한다.
 
 그룹별 e2e 결과를 합치지 않고도 다음처럼 `--results`를 반복해 한 번에 검사할 수 있다.
 
@@ -125,7 +137,9 @@ uv run --python 3.14 tools/llm-benchmark/analyze_access_benchmark.py \
   --output docs/llm-search-ab-test-report.md
 ```
 
-분석기는 검색 p50/p95, Qwen 임베딩 시간, DB 단계, end-to-end TTFT/total, 5초 내 첫 표시 비율, source hit@5, paired bootstrap CI와 sign-flip permutation p-value를 계산한다. 반복 수가 늘어도 독립 질문 수가 늘지는 않으므로, 일반화 판정 전 30개 이상 독립 질문과 사람이 확인한 품질 라벨이 필요하다.
+분석기는 검색 p50/p95, Qwen 임베딩 시간, DB 단계, end-to-end TTFT/total, 5초 내 첫 표시 비율, source hit@5, paired bootstrap CI와 sign-flip permutation p-value를 계산한다. 독립 workload 결과를 분석할 때는 반드시 같은 입력 gold set을 `--gold-set docs/llm-search-benchmark-independent-30.json`으로 전달한다. 반복 수가 늘어도 독립 질문 수가 늘지는 않으므로, 일반화 판정 전 30개 이상 독립 질문과 사람이 확인한 품질 라벨이 필요하다.
+
+생성 결과에 기록된 실행 metadata는 보고서의 `control`/`live` 별도 섹션에 run ID·condition·snapshot·model·prompt/options 지문으로 표시된다. 실제 값과 비밀값은 보고서에 복사하지 않으며, 최종 품질 평가는 `evaluate_rag_quality.py --require-run-metadata`로 동일 실행 경계를 다시 검사한다.
 
 NVIDIA hosted endpoint를 비교해야 할 때만 아래처럼 주소와 실제 Build 모델을 바꾼다.
 
@@ -196,3 +210,42 @@ retrieval-only는 NIM을 호출하지 않고 MCP access만 측정한다. 답변�
 실제 Notion MCP가 읽는 범위는 OAuth 연결에 공유된 페이지와 하위 페이지에 한정된다. Java 운영 경로에서는 token을 NIM으로 전달하지 않고, Workspace credential을 서버에서 선택한 뒤 이 adapter에만 주입한다. LM Studio가 관리하는 OAuth smoke test와 Java credential forwarding 검증은 별도 결과로 기록한다.
 
 모델이 반환한 read-only MCP 호출 묶음은 `mcp_tool_loop.py`의 `execute_nim_tool_calls` 경계에서 전부 먼저 검증한 뒤 모델이 반환한 순서대로 실행한다. 지원하지 않는 도구나 잘못된 인자가 하나라도 있으면 adapter 실행을 시작하지 않는다. 이 유틸리티는 호출 계약 테스트용이며, 실제 운영의 Workspace credential 선택과 NIM tool-calling continuation은 Java adapter 연결 단계에서 별도로 구현·검증한다.
+
+## 8. 30개 이상 독립 질문과 사람 검수
+
+기존 Markdown 골드셋은 대화형 핵심 시나리오를 보존하고, 독립 표본의 일반화 검증은 [docs/llm-search-benchmark-independent-30.json](/Users/yongtae/Desktop/knot/docs/llm-search-benchmark-independent-30.json)으로 분리한다. 이 manifest는 31개 case와 33개 turn을 포함하며, 각 항목에 질문 유형·기대 page ID·사람이 확인할 핵심 사실을 기록한다. 후속 대화는 `expected_source_ids_by_turn`으로 turn별 근거를 구분한다. expected_source_ids는 원문 검토용 기준이며, no_answer와 broad 응답에서 사용자에게 source를 노출하라는 뜻이 아니다.
+
+통제된 검색 실행은 동일한 Qwen·스냅샷·옵션으로 수행한다. 31개 case 전체를 명시해야 하며, 반복 횟수는 독립 case 수와 별개로 기록한다.
+
+~~~bash
+uv run --python 3.14 tools/llm-benchmark/run_four_way_benchmark.py \
+  --gold-set docs/llm-search-benchmark-independent-30.json \
+  --case W-001,W-002,W-003,W-004,W-005,W-006,W-007,W-008,W-009,W-010,W-011,W-012,W-013,W-014,W-015,W-016,W-017,W-018,W-019,W-020,W-021,W-022,W-023,W-024,W-025,W-026,W-027,W-028,W-029,W-030,W-031 \
+  --strategy rag \
+  --repeats 10 \
+  --retrieval-only \
+  --output .benchmark-data/independent-rag-retrieval-10x.jsonl
+
+uv run --python 3.14 tools/llm-benchmark/evaluate_rag_quality.py \
+  --gold-set docs/llm-search-benchmark-independent-30.json \
+  --results .benchmark-data/independent-rag-retrieval-10x.jsonl \
+  --strategy rag \
+  --repeats 10
+~~~
+
+답변 의미와 source 관련성은 [docs/llm-search-benchmark-human-review-template.jsonl](/Users/yongtae/Desktop/knot/docs/llm-search-benchmark-human-review-template.jsonl)을 복사해 실제 생성 결과를 보며 채운다. 결과 JSONL에는 각 관측의 `result_fingerprint`가 포함되며, terminal 라벨은 해당 지문을 함께 기록해야 한다. 템플릿은 33개 행을 모두 pending으로 시작한다. 각 행의 answer_correct, sources_relevant, policy_compliant를 모두 확인한 뒤에만 decision을 pass 또는 fail로 바꾼다.
+
+~~~bash
+cp docs/llm-search-benchmark-human-review-template.jsonl .benchmark-data/independent-rag-human-review.jsonl
+
+uv run --python 3.14 tools/llm-benchmark/evaluate_rag_quality.py \
+  --gold-set docs/llm-search-benchmark-independent-30.json \
+  --results .benchmark-data/independent-rag-e2e.jsonl \
+  --strategy rag \
+  --repeats 1 \
+  --human-labels .benchmark-data/independent-rag-human-review.jsonl \
+  --human-repeat 1 \
+  --require-human-review
+~~~
+
+human_gate=PASS가 되기 전에는 5초 TTFT가 좋아도 품질 승자나 최종 아키텍처로 판정하지 않는다. 모델 답변·Notion 원문·access token은 이 저장소에 추가하지 않는다.

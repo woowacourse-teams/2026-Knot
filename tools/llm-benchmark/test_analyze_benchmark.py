@@ -50,3 +50,6 @@ def test_analyze_pairs_reports_faster_b_with_confidence_shape() -> None:
     assert result.ttft.b_median < result.ttft.a_median
     assert 0.0 <= result.ttft.permutation_p_value <= 1.0
     assert result.ttft.median_delta_ci_low <= result.ttft.median_delta_ci_high
+    assert result.ttft.a_under_5s == 4
+    assert result.ttft.b_under_5s == 4
+    assert result.ttft.observations == 4

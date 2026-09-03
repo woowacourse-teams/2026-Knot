@@ -463,3 +463,12 @@ Notion 연결과 백엔드 읽기 도구를 구성한 뒤 다음을 비교한다
 - live benchmark는 MCP HTTP 요청 수, fetch page 수, retry 수, 429 rate-limit 수, access 지연, 모델 TTFT·완료 시간, E2E 지연을 분리 기록한다.
 - 인증 거부·JSON-RPC 오류·페이지 범위 이탈·페이지네이션·rate limit 경계 테스트를 추가했다.
 - 현재 live benchmark 실행기는 실제 OAuth token과 연결 Workspace allowlist를 환경변수로 받아야 한다. 저장소에는 token이나 live 결과를 기록하지 않으며, Java credential forwarding과 30개 이상 사람 품질 검수는 #275의 후속 게이트다.
+
+## 18. 2026-09-02 #275 품질 게이트 구현 상태
+
+- 독립 질문 workload를 기존 13개 대화형 골드셋과 분리해 31개 case·33개 turn으로 추가했다.
+- benchmark runner가 JSON workload를 기존 BenchmarkCase 입력으로 읽을 수 있게 했다.
+- 자동 gate는 검색 결과의 source·중복·오류·무응답·광범위 질문을 검사하고, 등록되지 않은 답변 형식은 자동 성공/실패로 단정하지 않는다.
+- 사람 검수는 answer_correct, sources_relevant, policy_compliant 세 축을 모두 채운 terminal label만 허용하며, 누락·중복·pending이 있으면 통과하지 않는다.
+- 현재 사람 검수 파일은 템플릿만 제공하고 실제 생성 결과에 대한 라벨은 비어 있다. 따라서 #275의 품질 통과와 최종 아키텍처 판정은 아직 완료로 표시하지 않는다.
+- 실제 NIM e2e 결과, 실제 Notion MCP-live 결과, Java Workspace credential forwarding, cold/warm 반복 조건을 모두 동일 실행 ID로 채운 뒤 사람 검수를 수행한다.

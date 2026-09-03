@@ -12,7 +12,7 @@ interface ChatSessionRowProps {
  *
  * 지금 보고 있는 대화는 `isSelected`로 채워진 모양이 되며, 이 상태를 `aria-current`로도 알립니다.
  *
- * @see https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=580-1438
+ * @see https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=1379-8248 SessionRow
  */
 export default function ChatSessionRow({
   title,
@@ -37,19 +37,19 @@ const Container = styled.button<{ $isSelected: boolean }>`
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 0.25rem;
+  gap: 0.1875rem; /* 3px */
   width: 100%;
-  padding: 0.75rem;
-  border-radius: 0.875rem;
+  padding: 0.625rem; /* 10px */
+  border-radius: 0.75rem; /* 12px */
   text-align: left;
   cursor: pointer;
   transition: background-color 0.3s ease-in;
 
-  background-color: ${({ $isSelected }) =>
-    $isSelected ? "rgba(255, 255, 255, 0.08)" : "transparent"};
+  background-color: ${({ theme, $isSelected }) =>
+    $isSelected ? theme.neutral[100] : "transparent"};
 
   &:hover {
-    background-color: rgba(255, 255, 255, 0.04);
+    background-color: ${({ theme }) => theme.neutral[100]};
   }
 
   &:focus-visible {
@@ -63,13 +63,13 @@ const Title = styled.span<{ $isSelected: boolean }>`
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  ${({ theme }) => theme.text.body01};
+  ${({ theme }) => theme.text.caption02};
 
   color: ${({ theme, $isSelected }) =>
-    $isSelected ? theme.neutral[0] : theme.neutral[300]};
+    $isSelected ? theme.neutral[900] : theme.neutral[600]};
 `;
 
 const Time = styled.span`
   ${({ theme }) => theme.text.caption01};
-  color: ${({ theme }) => theme.neutral[500]};
+  color: ${({ theme }) => theme.neutral[600]};
 `;

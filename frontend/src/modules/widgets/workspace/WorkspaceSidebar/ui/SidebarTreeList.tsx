@@ -9,13 +9,14 @@ interface SidebarTreeListProps {
   nodes: WorkspaceTreeNode[];
   /** 이 목록에 속한 행의 깊이. 최상위는 0이에요. */
   depth: number;
-  isFolderExpanded: (folderId: string) => boolean;
-  onToggleFolder: (folderId: string) => void;
+  isFolderExpanded: (folderId: number) => boolean;
+  onToggleFolder: (folderId: number) => void;
 }
 
 /**
  * 폴더·문서 행을 깊이만큼 들여써서 나열하는 재귀 목록.
  *
+ * 하위 페이지를 가진 페이지는 펼칠 수 있는 폴더 행으로, 없는 페이지는 문서 행으로 그려요.
  * 펼쳐진 폴더 아래에는 같은 목록을 한 단계 깊게 다시 그리고,
  * 그 하위 목록 왼쪽에는 부모 폴더의 chevron 중앙을 지나는 들여쓰기 가이드를 세워요.
  */
@@ -29,7 +30,7 @@ export default function SidebarTreeList({
     <List $depth={depth}>
       {nodes.map((node) => (
         <li key={node.id}>
-          {node.type === "folder" ? (
+          {node.children.length > 0 ? (
             <>
               <SidebarFolderRow
                 depth={depth}
@@ -38,7 +39,7 @@ export default function SidebarTreeList({
                 isExpanded={isFolderExpanded(node.id)}
                 onToggle={() => onToggleFolder(node.id)}
               />
-              {isFolderExpanded(node.id) && node.children.length > 0 && (
+              {isFolderExpanded(node.id) && (
                 <SidebarTreeList
                   nodes={node.children}
                   depth={depth + 1}

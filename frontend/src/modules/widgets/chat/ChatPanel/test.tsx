@@ -1,13 +1,7 @@
 import { GetChatMessagesResponseDto } from "@api/dto/chatMessage";
-import {
-  GetChatSessionsResponseDto,
-  PostChatSessionResponseDto,
-} from "@api/dto/chatSession";
+import { PostChatSessionResponseDto } from "@api/dto/chatSession";
 import { chatMessagesResponse } from "@api/mock/responses/chatMessage";
-import {
-  chatSessionResponse,
-  chatSessionsResponse,
-} from "@api/mock/responses/chatSession";
+import { chatSessionResponse } from "@api/mock/responses/chatSession";
 import { mockServer } from "@api/mock/server";
 import { ThemeProvider } from "@emotion/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -17,6 +11,11 @@ import { theme } from "@provider/themeProvider";
 import { MemoryRouter, Route, Routes } from "react-router";
 import { PATH_ROUTE } from "@routes/PATH_ROUTE";
 import { describe, expect, it } from "vitest";
+
+import type { ChatNavigationState } from "@/shared/types/chat";
+
+import WorkspaceDock from "@widgets/workspace/WorkspaceDock";
+import { ChatStreamProvider } from "@provider/context/chatStreamContext";
 
 import ChatPanel from ".";
 
@@ -31,9 +30,6 @@ const SAVED_ANSWER = "서버에 저장된 답변";
 const FAILURE_NOTICE = "답변을 만들지 못했어요. 잠시 후 다시 시도해 주세요.";
 const ALREADY_ACTIVE_MESSAGE = "이미 답변을 만들고 있어요";
 
-const { sessions: expectedSessions } = new GetChatSessionsResponseDto(
-  chatSessionsResponse,
-);
 const { messages: expectedMessages } = new GetChatMessagesResponseDto(
   chatMessagesResponse,
 );
@@ -50,7 +46,9 @@ const toFrame = (event: string, data: object) =>
  *
  * 조각을 언제 보낼지 테스트가 정해야 완료 전 화면을 확실히 관찰할 수 있어요.
  */
-const sseResponse = (produce: (push: (frame: string) => void) => Promise<void>) =>
+const sseResponse = (
+  produce: (push: (frame: string) => void) => Promise<void>,
+) =>
   new HttpResponse(
     new ReadableStream({
       async start(controller) {
@@ -74,7 +72,12 @@ const createGate = () => {
 /** 서버가 저장했다고 가정하는 메시지 이력 */
 const savedMessagesResponse = [
   ...chatMessagesResponse,
-  { id: 2001, role: "USER", content: QUESTION, createdAt: new Date().toISOString() },
+  {
+    id: 2001,
+    role: "USER",
+    content: QUESTION,
+    createdAt: new Date().toISOString(),
+  },
   {
     id: 2002,
     role: "ASSISTANT",
@@ -83,19 +86,33 @@ const savedMessagesResponse = [
   },
 ];
 
-const renderChatPanel = (initialEntry: string) => {
+/**
+ * 대화는 패널이 그리고 질문은 하단 독에서 적으므로, 실제 화면처럼 둘을 함께 놓고 봅니다.
+ * 둘 다 `ChatStreamProvider` 안에 있어야 같은 대화를 봅니다(실제로는 워크스페이스 레이아웃이 감싸요).
+ */
+const renderChatPanel = (
+  initialEntry: string | { pathname: string; state: ChatNavigationState },
+) => {
   // 테스트끼리 캐시가 새지 않도록 매번 새 client를 씁니다
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
+
+  // 프로바이더는 라우트 안에 둬야 `:workspaceId`·`:sessionId`를 봅니다(앱에서는 레이아웃이 그 자리예요)
+  const screenElement = (
+    <ChatStreamProvider>
+      <ChatPanel />
+      <WorkspaceDock />
+    </ChatStreamProvider>
+  );
 
   return render(
     <ThemeProvider theme={theme}>
       <QueryClientProvider client={queryClient}>
         <MemoryRouter initialEntries={[initialEntry]}>
           <Routes>
-            <Route path={PATH_ROUTE.CHAT} element={<ChatPanel />} />
-            <Route path={PATH_ROUTE.CHAT_SESSION} element={<ChatPanel />} />
+            <Route path={PATH_ROUTE.CHAT} element={screenElement} />
+            <Route path={PATH_ROUTE.CHAT_SESSION} element={screenElement} />
           </Routes>
         </MemoryRouter>
       </QueryClientProvider>
@@ -103,66 +120,31 @@ const renderChatPanel = (initialEntry: string) => {
   );
 };
 
-const getChatTextarea = () => screen.getByPlaceholderText("무엇이든 요청하세요");
+const getChatTextarea = () =>
+  screen.getByPlaceholderText("무엇이든 요청하세요");
 
 const submitQuestion = (question: string) => {
   fireEvent.change(getChatTextarea(), { target: { value: question } });
-  fireEvent.click(screen.getByRole("button", { name: "질문 보내기" }));
+  fireEvent.click(screen.getByRole("button", { name: "보내기" }));
 };
 
 describe("ChatPanel", () => {
-  it("워크스페이스에 쌓인 대화 목록을 보여준다", async () => {
-    renderChatPanel("/workspace/1/chat?chatSessionList=open");
-
-    expect(
-      await screen.findByRole("button", {
-        name: new RegExp(expectedSessions[0].title),
-      }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", {
-        name: new RegExp(expectedSessions[1].title),
-      }),
-    ).toBeInTheDocument();
-  });
-
-  it("대화를 고르면 목록이 닫히고 그 대화의 이력을 보여준다", async () => {
-    renderChatPanel("/workspace/1/chat?chatSessionList=open");
-
-    fireEvent.click(
-      await screen.findByRole("button", {
-        name: new RegExp(expectedSessions[0].title),
-      }),
-    );
-
-    expect(
-      screen.queryByRole("heading", { name: "대화 목록" }),
-    ).not.toBeInTheDocument();
-    expect(
-      await screen.findByText(expectedMessages[0].content),
-    ).toBeInTheDocument();
-    expect(screen.getByText(expectedMessages[1].content)).toBeInTheDocument();
-  });
-
-  it("대화가 하나도 없으면 빈 목록 안내를 보여준다", async () => {
-    mockServer.use(
-      http.get(WORKSPACE_CONVERSATIONS_PATH, () => HttpResponse.json([])),
-    );
-
-    renderChatPanel("/workspace/1/chat?chatSessionList=open");
-
-    expect(
-      await screen.findByText("아직 나눈 대화가 없어요"),
-    ).toBeInTheDocument();
-  });
-
-  it("목록을 열어둔 주소가 아니면 대화 화면을 보여준다", () => {
+  it("저장된 대화를 보여주고, 질문은 하단 독에서 적는다", async () => {
     renderChatPanel("/workspace/1/chat/100");
 
     expect(
-      screen.queryByRole("heading", { name: "대화 목록" }),
-    ).not.toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "knotted" })).toBeInTheDocument();
+      await screen.findByText(expectedMessages[0].content),
+    ).toBeInTheDocument();
+    expect(getChatTextarea()).toBeInTheDocument();
+  });
+
+  it("하단 독에서 질문을 들고 들어오면 도착하자마자 그 질문으로 대화를 시작한다", async () => {
+    renderChatPanel({
+      pathname: "/workspace/1/chat/100",
+      state: { question: QUESTION },
+    });
+
+    expect(await screen.findByText(QUESTION)).toBeInTheDocument();
   });
 
   it("질문을 보내면 부분 답변이 쌓이고, 완료 후 서버 저장본으로 바뀐다", async () => {
@@ -171,7 +153,9 @@ describe("ChatPanel", () => {
 
     mockServer.use(
       http.get(CHAT_MESSAGES_PATH, () =>
-        HttpResponse.json(isCompleted ? savedMessagesResponse : chatMessagesResponse),
+        HttpResponse.json(
+          isCompleted ? savedMessagesResponse : chatMessagesResponse,
+        ),
       ),
       http.post(SEND_CHAT_MESSAGE_PATH, () =>
         sseResponse(async (push) => {
@@ -221,7 +205,7 @@ describe("ChatPanel", () => {
     expect(screen.getByText(QUESTION)).toBeInTheDocument();
   });
 
-  it("전송 중에는 입력과 전송 버튼이 잠기고, 끝나면 풀린다", async () => {
+  it("전송 중에는 전송 버튼이 잠기고, 끝나면 풀린다", async () => {
     const gate = createGate();
 
     mockServer.use(
@@ -238,16 +222,17 @@ describe("ChatPanel", () => {
 
     submitQuestion(QUESTION);
 
+    // 답변이 오는 중에 또 보내면 서버가 409로 거절하므로 애초에 못 누르게 합니다
     await waitFor(() => {
-      expect(getChatTextarea()).toHaveAttribute("readonly");
+      expect(screen.getByRole("button", { name: "보내기" })).toBeDisabled();
     });
-    expect(getChatTextarea()).toHaveAttribute("aria-disabled", "true");
-    expect(screen.getByRole("button", { name: "질문 보내기" })).toBeDisabled();
 
     gate.open();
 
+    fireEvent.change(getChatTextarea(), { target: { value: QUESTION } });
+
     await waitFor(() => {
-      expect(getChatTextarea()).not.toHaveAttribute("readonly");
+      expect(screen.getByRole("button", { name: "보내기" })).toBeEnabled();
     });
   });
 
@@ -309,39 +294,6 @@ describe("ChatPanel", () => {
     gate.open();
   });
 
-  it("새 대화에서 첫 질문을 보내면 세션이 생기고 목록에 나타난다", async () => {
-    // 생성 전에는 기존 세션만, 생성 뒤에는 새 세션까지 돌려줍니다
-    let isCreated = false;
-    mockServer.use(
-      http.get(WORKSPACE_CONVERSATIONS_PATH, () =>
-        HttpResponse.json(
-          isCreated
-            ? [chatSessionResponse, ...chatSessionsResponse]
-            : chatSessionsResponse,
-        ),
-      ),
-      http.post(WORKSPACE_CONVERSATIONS_PATH, () => {
-        isCreated = true;
-
-        return HttpResponse.json(chatSessionResponse, { status: 201 });
-      }),
-    );
-
-    renderChatPanel("/workspace/1/chat");
-
-    submitQuestion(QUESTION);
-
-    fireEvent.click(
-      await screen.findByRole("button", { name: "대화 목록 열기" }),
-    );
-
-    expect(
-      await screen.findByRole("button", {
-        name: new RegExp(expectedNewSession.title),
-      }),
-    ).toBeInTheDocument();
-  });
-
   it("409로 거절당하면 안내만 하고 입력을 되살린다", async () => {
     mockServer.use(
       http.post(SEND_CHAT_MESSAGE_PATH, () =>
@@ -359,7 +311,10 @@ describe("ChatPanel", () => {
 
     submitQuestion(QUESTION);
 
-    expect(await screen.findByText(ALREADY_ACTIVE_MESSAGE)).toBeInTheDocument();
+    const notice = await screen.findByText(ALREADY_ACTIVE_MESSAGE);
+
+    // 안내는 독이 아니라 대화 안에 남아요. 독에 붙어 있으면 홈으로 나가도 따라다녀요
+    expect(getChatTextarea().closest("form")).not.toContainElement(notice);
     expect(getChatTextarea()).not.toHaveAttribute("readonly");
     expect(screen.queryByText(QUESTION)).not.toBeInTheDocument();
     expect(screen.queryByText(FAILURE_NOTICE)).not.toBeInTheDocument();

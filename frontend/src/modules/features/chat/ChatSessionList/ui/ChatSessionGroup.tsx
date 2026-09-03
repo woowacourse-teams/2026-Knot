@@ -50,12 +50,12 @@ const Container = styled.div`
 const Label = styled.h3`
   width: 100%;
   ${({ theme }) => theme.text.caption01};
-  color: ${({ theme }) => theme.neutral[500]};
+  color: ${({ theme }) => theme.neutral[600]};
 `;
 
 const Rows = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: 0.5rem; /* 8px */
   width: 100%;
 `;

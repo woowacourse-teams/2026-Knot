@@ -5,12 +5,13 @@ import { ThemeProvider } from "@emotion/react";
 import { theme } from "@provider/themeProvider";
 import { getRouterPath, PATH_ROUTE } from "@routes/PATH_ROUTE";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { delay, http, HttpResponse } from "msw";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { describe, expect, it } from "vitest";
 
 import WorkspaceLayout from ".";
+import { WORKSPACE_DOCK_RAIL_ID } from "./constants/dockRail";
 
 const WORKSPACE_ID = 1;
 const HOME_PATH = getRouterPath({
@@ -198,6 +199,90 @@ describe("WorkspaceLayout", () => {
     await goBack(router);
 
     expect(router.state.location.pathname).toBe(ELSEWHERE_PATH);
+  });
+
+  it("대화 목록 버튼은 탐색 화면에서만 둔다", async () => {
+    renderLayout();
+
+    expect(await screen.findByText(HOME_TEXT)).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "대화 목록" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "사이드바" })).toBeInTheDocument();
+  });
+
+  it("탐색 화면에서는 사이드바와 대화 목록을 둘 다 열 수 있다", async () => {
+    renderLayout(CHAT_PATH);
+
+    expect(await screen.findByText(CHAT_TEXT)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "사이드바" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "대화 목록" }),
+    ).toBeInTheDocument();
+  });
+
+  it("사이드바 버튼을 누르면 사이드바가 왼쪽 레일로 옮겨 가 자리를 차지한다", async () => {
+    renderLayout();
+
+    expect(await screen.findByText(HOME_TEXT)).toBeInTheDocument();
+    const rail = document.getElementById(WORKSPACE_DOCK_RAIL_ID);
+
+    expect(rail).toBeEmptyDOMElement();
+
+    fireEvent.click(screen.getByRole("button", { name: "사이드바" }));
+
+    expect(rail).toContainElement(
+      screen.getByRole("complementary", { name: "워크스페이스 사이드바" }),
+    );
+  });
+
+  it("레일은 하나만 담으므로 대화 목록을 고정하면 사이드바는 저절로 접힌다", async () => {
+    renderLayout(CHAT_PATH);
+
+    expect(await screen.findByText(CHAT_TEXT)).toBeInTheDocument();
+    const sidebarTrigger = screen.getByRole("button", { name: "사이드바" });
+    const chatListTrigger = screen.getByRole("button", { name: "대화 목록" });
+
+    fireEvent.click(sidebarTrigger);
+
+    expect(sidebarTrigger).toHaveAttribute("aria-pressed", "true");
+
+    fireEvent.click(chatListTrigger);
+
+    expect(chatListTrigger).toHaveAttribute("aria-pressed", "true");
+    expect(sidebarTrigger).toHaveAttribute("aria-pressed", "false");
+    expect(
+      screen.queryByRole("complementary", { name: "워크스페이스 사이드바" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("고정한 패널을 다시 누르면 레일이 비어 아무것도 고정돼 있지 않다", async () => {
+    renderLayout(CHAT_PATH);
+
+    expect(await screen.findByText(CHAT_TEXT)).toBeInTheDocument();
+    const chatListTrigger = screen.getByRole("button", { name: "대화 목록" });
+
+    fireEvent.click(chatListTrigger);
+    fireEvent.click(chatListTrigger);
+
+    expect(chatListTrigger).toHaveAttribute("aria-pressed", "false");
+    expect(
+      document.getElementById(WORKSPACE_DOCK_RAIL_ID),
+    ).toBeEmptyDOMElement();
+  });
+
+  it("사이드바를 고정해도 GNB는 레일 바깥에 남아 화면 전체 폭을 쓴다", async () => {
+    renderLayout();
+
+    expect(await screen.findByText(HOME_TEXT)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "사이드바" }));
+
+    const rail = document.getElementById(WORKSPACE_DOCK_RAIL_ID);
+
+    expect(rail?.parentElement).not.toContainElement(
+      screen.getByRole("banner"),
+    );
   });
 
   it("그 외 실패면 이동하지 않고 스피너를 유지한다", async () => {
