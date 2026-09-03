@@ -14,6 +14,8 @@ interface ConversationProps {
   streamedAnswer: string;
   /** 답변이 오다가 끊겼는지 여부 */
   isStreamFailed: boolean;
+  /** 질문을 아예 보내지 못했을 때의 안내. 없으면 null */
+  notice: string | null;
 }
 
 /**
@@ -22,12 +24,15 @@ interface ConversationProps {
  * 세션도 진행 중인 질문도 없으면 대화 대신 빈 화면 안내를 보여줍니다.
  * 질문을 적는 자리는 이 안이 아니라 화면 아래 독이므로, 여기는 대화만 그리고 남는 자리는 비워 둡니다.
  *
+ * 보내지 못한 질문의 안내는 답변이 놓였을 자리인 대화 맨 아래에 남깁니다.
+ *
  * @see https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=506-7216
  */
 export default function Conversation({
   streamingQuestion,
   streamedAnswer,
   isStreamFailed,
+  notice,
 }: ConversationProps) {
   const { sessionId } = useParams();
   // 질문을 보낸 순간과 답변이 길어지는 동안 모두 바닥을 따라갑니다
@@ -48,6 +53,8 @@ export default function Conversation({
       ) : (
         <EmptyHint />
       )}
+
+      {notice && <Notice role="alert">{notice}</Notice>}
     </Container>
   );
 }
@@ -55,10 +62,20 @@ export default function Conversation({
 const Container = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 1.5rem; /* 24px */
+  gap: 3rem; /* 48px — 턴 사이 간격과 같아, 실패 안내도 대화의 다음 줄처럼 놓여요 */
   height: 100%;
   /* 스크롤바가 생겨도 글이 밀리거나 그 아래에 깔리지 않게 자리를 미리 비워 둬요 */
   padding-right: 0.75rem; /* 12px */
   overflow-y: auto;
   scrollbar-gutter: stable;
+`;
+
+/**
+ * 보내지 못했을 때 대화 맨 아래에 남기는 문구.
+ *
+ * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=1432-2031 탐색 결과/전송 실패}
+ */
+const Notice = styled.p`
+  color: ${({ theme }) => theme.sub.warning[600]};
+  ${({ theme }) => theme.text.caption02};
 `;

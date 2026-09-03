@@ -41,7 +41,6 @@ export default function WorkspaceDock() {
     textareaRef,
     isExpanded,
     isHintVisible,
-    notice,
     message,
     canSubmit,
     handleExpand,
@@ -53,7 +52,6 @@ export default function WorkspaceDock() {
   return (
     <Bar ref={formRef} $isExpanded={isExpanded} onSubmit={handleSubmit}>
       {isHintVisible && <DockHintTooltip />}
-      {notice && <Notice role="alert">{notice}</Notice>}
 
       {isExpanded ? (
         <>
@@ -95,7 +93,7 @@ export default function WorkspaceDock() {
  * 안의 내용은 그 자리에서 갈리므로 폭이 벌어지는 동안 뒤따라 나타나도록 살짝 흐리게 시작해요.
  */
 const Bar = styled.form<{ $isExpanded: boolean }>`
-  position: relative; /* 안내 말풍선과 실패 문구가 이 자리를 기준으로 위에 놓여요 */
+  position: relative; /* 안내 말풍선이 이 자리를 기준으로 위에 놓여요 */
   display: flex;
   align-items: flex-end; /* 여러 줄로 자라도 보내기 버튼은 아래에 남아요 */
   gap: 0.625rem; /* 10px */
@@ -116,7 +114,7 @@ const Bar = styled.form<{ $isExpanded: boolean }>`
     padding 0.28s cubic-bezier(0.22, 1, 0.36, 1),
     border-radius 0.28s cubic-bezier(0.22, 1, 0.36, 1);
 
-  /* 말풍선과 실패 문구는 제 모션이 따로 있으므로 한 줄에 놓이는 것들만 뒤따라 나타나게 해요 */
+  /* 말풍선은 제 모션이 따로 있으므로 한 줄에 놓이는 것들만 뒤따라 나타나게 해요 */
   & > div,
   & > button {
     animation: ${fadeIn} 0.28s ease-out;
@@ -130,15 +128,6 @@ const Bar = styled.form<{ $isExpanded: boolean }>`
       animation: none;
     }
   }
-`;
-
-/** 보내지 못했을 때 독 바로 위에 남기는 문구 */
-const Notice = styled.p`
-  position: absolute;
-  bottom: calc(100% + 0.625rem); /* 10px */
-  left: 0;
-  ${({ theme }) => theme.text.caption02};
-  color: ${({ theme }) => theme.sub.warning[600]};
 `;
 
 const CollapsedButton = styled.button`
