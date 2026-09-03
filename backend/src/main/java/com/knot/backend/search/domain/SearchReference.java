@@ -9,13 +9,13 @@ public record SearchReference(
         int rank,
         double relevanceScore,
         ContentSourceProvider source,
-        NotionPageReference notionPage
+        ContentPageReference page
 ) {
 
-    public record NotionPageReference(
-            String id,
+    public record ContentPageReference(
+            String externalPageId,
             String title,
-            String notionUrl,
+            String sourceUrl,
             Instant createdAt,
             Instant updatedAt
     ) {

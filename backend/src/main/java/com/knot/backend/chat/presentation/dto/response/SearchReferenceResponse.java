@@ -15,7 +15,7 @@ public record SearchReferenceResponse(
 ) {
 
     public static SearchReferenceResponse from(SearchReference reference) {
-        SearchReference.NotionPageReference notionPage = reference.notionPage();
+        SearchReference.ContentPageReference page = reference.page();
         return new SearchReferenceResponse(
                 reference.id(),
                 reference.messageId(),
@@ -23,11 +23,11 @@ public record SearchReferenceResponse(
                 reference.relevanceScore(),
                 reference.source(),
                 new NotionPageReferenceResponse(
-                        notionPage.id(),
-                        notionPage.title(),
-                        notionPage.notionUrl(),
-                        notionPage.createdAt(),
-                        notionPage.updatedAt()
+                        page.externalPageId(),
+                        page.title(),
+                        page.sourceUrl(),
+                        page.createdAt(),
+                        page.updatedAt()
                 )
         );
     }
