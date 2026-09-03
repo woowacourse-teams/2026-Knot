@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from access_report_types import PairSummary, StrategySummary
+from access_report_types import PairSummary, RunMetadataSummary, StrategySummary
 
 
 def render_report(
@@ -18,6 +18,7 @@ def render_report(
     embedding_model: str,
     context_length: int,
     max_tokens: int,
+    metadata_summaries: Sequence[RunMetadataSummary] = (),
 ) -> str:
     """Render the complete report while keeping conclusions conservative."""
     lines = [
@@ -47,6 +48,7 @@ def render_report(
             f"{summary.source_hit_count}/{summary.source_quality_count} |"
         )
     lines.extend(("", "`source hit@5`는 골드셋에 기록된 page ID가 관련 문서 후보에 포함됐는지만 나타내며, 답변의 의미 정확성을 보장하지 않는다.", ""))
+    lines.extend(render_metadata(metadata_summaries))
     lines.extend(render_pairs("## 검색 단계 paired 비교", retrieval_pairs))
     lines.extend(render_pairs("## 답변 첫 표시(end-to-end TTFT) paired 비교", e2e_ttft_pairs))
     lines.extend(render_pairs("## 답변 포함 end-to-end paired 비교", e2e_pairs))
@@ -76,6 +78,43 @@ def render_report(
         )
     )
     return "\n".join(lines)
+
+
+def render_metadata(summaries: Sequence[RunMetadataSummary]) -> list[str]:
+    """Render control/live identities without exposing prompt or option values."""
+    if not summaries:
+        return []
+    lines = [
+        "## 실행 메타데이터",
+        "",
+        "통제 실행과 live 실행은 동일 결과로 합치지 않고 phase·run ID별로 표시한다. prompt와 생성 옵션은 값 대신 SHA-256 지문만 표시한다.",
+        "",
+    ]
+    for phase in ("control", "live", "missing"):
+        phase_summaries = tuple(item for item in summaries if item.phase == phase)
+        if not phase_summaries:
+            continue
+        title = {"control": "control", "live": "live", "missing": "메타데이터 누락"}[phase]
+        lines.extend(
+            (
+                f"### {title}",
+                "",
+                "| 입력 | 행 | condition | run ID | snapshot ID | model | prompt SHA-256 | options SHA-256 |",
+                "| --- | ---: | --- | --- | --- | --- | --- | --- |",
+            )
+        )
+        for item in phase_summaries:
+            lines.append(
+                f"| {item.input_label} | {item.rows} | {item.condition or '—'} | {item.run_id or '—'} | {item.snapshot_id or '—'} | {item.model or '—'} | {item.prompt_sha256 or '—'} | {item.options_sha256 or '—'} |"
+            )
+        lines.append("")
+    lines.extend(
+        (
+            "`--require-run-metadata`를 사용하는 최종 평가에서는 metadata 누락, 서로 다른 run ID/phase/condition/snapshot/model/prompt/options 혼합을 실패로 처리한다.",
+            "",
+        )
+    )
+    return lines
 
 
 def render_pairs(title: str, pairs: Sequence[PairSummary]) -> list[str]:

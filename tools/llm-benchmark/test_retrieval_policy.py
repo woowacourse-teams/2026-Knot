@@ -93,6 +93,92 @@ def test_hybrid_rerank_unions_keyword_only_authoritative_source() -> None:
     assert len({item.source_path for item in selected}) == len(selected)
 
 
+def test_hybrid_rerank_limits_a_single_subject_fact_to_one_source() -> None:
+    # Given: the answer source and a nearby database-rules document
+    primary = _chunk(
+        "백엔드/01 기술 스택과 라이브러리 도입.md",
+        "기술 스택",
+        "PostgreSQL을 사용하기로 결정했다.",
+    )
+    related = _chunk(
+        "백엔드/05 데이터베이스와 Migration 규칙.md",
+        "데이터베이스와 Migration 규칙",
+        "PostgreSQL 테이블은 snake_case로 작성한다.",
+    )
+
+    # When: a fact question asks for one project-level decision
+    selected = rank_hybrid_candidates(
+        "우리 백엔드 DB 뭐 쓰기로 했지?",
+        (primary, related),
+        (),
+        QueryKind.FACT,
+        3,
+    )
+
+    # Then: a nearby document is not presented as an additional answer source
+    assert tuple(item.source_path for item in selected) == (primary.source_path,)
+
+
+def test_hybrid_rerank_keeps_two_sources_for_an_ambiguous_comparison() -> None:
+    # Given: two naming rules and an unrelated third convention document
+    database = _chunk(
+        "백엔드/05 데이터베이스와 Migration 규칙.md",
+        "데이터베이스와 Migration 규칙",
+        "DB 테이블과 컬럼은 snake_case를 사용한다.",
+    )
+    java = _chunk(
+        "백엔드/06 Java 코드 작성 규칙.md",
+        "Java 코드 작성 규칙",
+        "Java 메서드와 변수는 camelCase를 사용한다.",
+    )
+    unrelated = _chunk(
+        "프론트/코드 컨벤션.md",
+        "프론트 코드 컨벤션",
+        "컴포넌트 규칙을 정의한다.",
+    )
+
+    # When: the question explicitly asks which of two rules applies
+    selected = rank_hybrid_candidates(
+        "camelCase랑 snake_case 중 어떤 걸 써?",
+        (database, java, unrelated),
+        (),
+        QueryKind.AMBIGUOUS,
+        3,
+    )
+
+    # Then: both subjects remain while the unrelated third source is excluded
+    assert {item.source_path for item in selected} == {
+        database.source_path,
+        java.source_path,
+    }
+
+
+def test_hybrid_rerank_does_not_expand_same_title_meeting_duplicates() -> None:
+    # Given: two exported pages with the same meeting title
+    first = _chunk(
+        "회의록/폴더구조 컨벤션 회의 da1de1156a8383a09397012c78e7ee84.md",
+        "폴더구조 컨벤션 회의",
+        "2026년 8월 14일 회의 내용",
+    )
+    duplicate = _chunk(
+        "회의록/폴더구조 컨벤션 회의 c5ade1156a838221978e816f5cd57c4a.md",
+        "폴더구조 컨벤션 회의",
+        "다른 내보내기 문서",
+    )
+
+    # When: a date/location question asks for the matching meeting
+    selected = rank_hybrid_candidates(
+        "폴더구조 컨벤션 회의는 언제였고 문서 어디 있어?",
+        (first, duplicate),
+        (),
+        QueryKind.MEETING_DATE,
+        3,
+    )
+
+    # Then: same-title duplicates do not inflate the related-document list
+    assert tuple(item.source_path for item in selected) == (first.source_path,)
+
+
 def test_hybrid_rerank_prioritizes_meeting_source_for_date_question() -> None:
     vector_candidates = (
         _chunk("쓰레기통/로드맵 정리.md", "로드맵 정리"),
