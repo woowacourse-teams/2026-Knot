@@ -1,6 +1,6 @@
 services:
   postgres:
-    image: postgres:18.4
+    image: pgvector/pgvector:pg18
     container_name: knot-postgres
 
     environment:

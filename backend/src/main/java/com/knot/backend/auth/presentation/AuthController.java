@@ -8,6 +8,7 @@ import com.knot.backend.auth.presentation.dto.response.AuthenticatedMemberRespon
 import com.knot.backend.auth.presentation.dto.response.CsrfTokenResponse;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -20,8 +21,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/auth")
+@RequestMapping("/api/v1/auth")
 @RequiredArgsConstructor
+@Tag(name = "인증", description = "회원가입, 로그인, 리프레쉬, 로그아웃, 확인")
 public class AuthController {
     private final AuthService authService;
     private final AuthCookieManager authCookieManager;

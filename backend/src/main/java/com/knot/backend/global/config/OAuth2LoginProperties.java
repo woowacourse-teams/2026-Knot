@@ -8,7 +8,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @Setter
 @ConfigurationProperties(prefix = "auth.oauth2")
 public class OAuth2LoginProperties {
-    private String successRedirectUri = "/auth/me";
-    private String nicknameRedirectUri = "/nickname";
+    private String successRedirectUri = "/api/v1/auth/me";
+    private String nicknameRedirectUri = "/onboarding";
     private String failureRedirectUri = "/login?error=oauth2";
 }

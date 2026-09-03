@@ -46,7 +46,7 @@ class OAuthIdentityRepositoryTest {
 
     @BeforeEach
     void clearTables() {
-        jdbcTemplate.update("TRUNCATE TABLE oauth_identities, members RESTART IDENTITY");
+        jdbcTemplate.update("TRUNCATE TABLE workspace_members, oauth_identities, members RESTART IDENTITY CASCADE");
     }
 
     @Test

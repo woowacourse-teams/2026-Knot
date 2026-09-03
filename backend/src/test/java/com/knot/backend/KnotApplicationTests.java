@@ -1,6 +1,7 @@
 package com.knot.backend;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.startsWith;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
@@ -49,6 +50,7 @@ import tools.jackson.databind.ObjectMapper;
 @TestConstructor(autowireMode = AutowireMode.ALL)
 class KnotApplicationTests {
     private static final String FRONTEND_ORIGIN = "https://knoted.kr";
+    private static final String LOCAL_FRONTEND_ORIGIN = "http://localhost:3000";
     private static final String UNALLOWED_ORIGIN = "https://attacker.example";
     private static final String JWT_COOKIE_NAME = "KNOT_ACCESS_TOKEN";
     private static final String NICKNAME_COOKIE_NAME = "KNOT_NICKNAME_TOKEN";
@@ -109,7 +111,7 @@ class KnotApplicationTests {
 
         // when
         ResultActions result = mockMvc.perform(
-                get("/auth/me").cookie(
+                get("/api/v1/auth/me").cookie(
                         new Cookie(
                                 JWT_COOKIE_NAME,
                                 token
@@ -130,7 +132,7 @@ class KnotApplicationTests {
         // given
 
         // when
-        ResultActions result = mockMvc.perform(get("/auth/me"));
+        ResultActions result = mockMvc.perform(get("/api/v1/auth/me"));
 
         // then
         result.andExpect(status().isUnauthorized())
@@ -145,7 +147,7 @@ class KnotApplicationTests {
 
         // when
         ResultActions result = mockMvc.perform(
-                get("/auth/me").cookie(
+                get("/api/v1/auth/me").cookie(
                         new Cookie(
                                 JWT_COOKIE_NAME,
                                 "invalid-token"
@@ -166,7 +168,7 @@ class KnotApplicationTests {
 
         // when
         ResultActions result = mockMvc.perform(
-                get("/auth/me").cookie(
+                get("/api/v1/auth/me").cookie(
                         new Cookie(
                                 JWT_COOKIE_NAME,
                                 expiredToken
@@ -193,7 +195,7 @@ class KnotApplicationTests {
 
         // when
         ResultActions result = mockMvc.perform(
-                get("/auth/me").cookie(
+                get("/api/v1/auth/me").cookie(
                         new Cookie(
                                 JWT_COOKIE_NAME,
                                 nicknameToken
@@ -213,7 +215,7 @@ class KnotApplicationTests {
 
         // when
         ResultActions result = mockMvc.perform(
-                options("/auth/nickname").header(
+                options("/api/v1/auth/nickname").header(
                         HttpHeaders.ORIGIN,
                         FRONTEND_ORIGIN
                 )
@@ -244,13 +246,56 @@ class KnotApplicationTests {
     }
 
     @Test
+    @DisplayName("허용된 프론트 Origin의 마지막 워크스페이스 PUT preflight 요청을 허용한다")
+    void lastViewedWorkspacePreflight_success_allowedOrigin() throws Exception {
+        // given
+
+        // when
+        ResultActions result = mockMvc.perform(
+                options("/api/v1/members/me/last-viewed-workspace").header(
+                        HttpHeaders.ORIGIN,
+                        FRONTEND_ORIGIN
+                )
+                        .header(
+                                HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD,
+                                HttpMethod.PUT.name()
+                        )
+                        .header(
+                                HttpHeaders.ACCESS_CONTROL_REQUEST_HEADERS,
+                                "content-type,x-xsrf-token"
+                        )
+        );
+
+        // then
+        result.andExpect(status().isOk())
+                .andExpect(
+                        header().string(
+                                HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN,
+                                FRONTEND_ORIGIN
+                        )
+                )
+                .andExpect(
+                        header().string(
+                                HttpHeaders.ACCESS_CONTROL_ALLOW_METHODS,
+                                containsString(HttpMethod.PUT.name())
+                        )
+                )
+                .andExpect(
+                        header().string(
+                                HttpHeaders.ACCESS_CONTROL_ALLOW_CREDENTIALS,
+                                "true"
+                        )
+                );
+    }
+
+    @Test
     @DisplayName("허용하지 않은 Origin에는 CORS 허용 헤더를 제공하지 않는다")
     void completeNicknameSetupPreflight_failure_unallowedOrigin() throws Exception {
         // given
 
         // when
         ResultActions result = mockMvc.perform(
-                options("/auth/nickname").header(
+                options("/api/v1/auth/nickname").header(
                         HttpHeaders.ORIGIN,
                         UNALLOWED_ORIGIN
                 )
@@ -265,12 +310,41 @@ class KnotApplicationTests {
     }
 
     @Test
+    @DisplayName("localhost 프론트 Origin에서 CSRF 토큰을 조회한다")
+    void csrf_success_localFrontendOrigin() throws Exception {
+        // given
+
+        // when
+        ResultActions result = mockMvc.perform(
+                get("/api/v1/auth/csrf").header(
+                        HttpHeaders.ORIGIN,
+                        LOCAL_FRONTEND_ORIGIN
+                )
+        );
+
+        // then
+        result.andExpect(status().isOk())
+                .andExpect(
+                        header().string(
+                                HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN,
+                                LOCAL_FRONTEND_ORIGIN
+                        )
+                )
+                .andExpect(
+                        header().string(
+                                HttpHeaders.ACCESS_CONTROL_ALLOW_CREDENTIALS,
+                                "true"
+                        )
+                );
+    }
+
+    @Test
     @DisplayName("인증 없이 CSRF 토큰을 조회하고 쿠키와 응답에 동일한 토큰을 반환한다")
     void csrf_success_unauthenticated() throws Exception {
         // given
 
         // when
-        MvcResult result = mockMvc.perform(get("/auth/csrf"))
+        MvcResult result = mockMvc.perform(get("/api/v1/auth/csrf"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.token").isNotEmpty())
                 .andReturn();
@@ -293,7 +367,7 @@ class KnotApplicationTests {
     @DisplayName("CSRF 토큰 조회 API에서 받은 토큰으로 닉네임 설정을 완료한다")
     void completeNicknameSetup_success_withCsrfTokenEndpoint() throws Exception {
         // given
-        MvcResult csrfResult = mockMvc.perform(get("/auth/csrf"))
+        MvcResult csrfResult = mockMvc.perform(get("/api/v1/auth/csrf"))
                 .andExpect(status().isOk())
                 .andReturn();
         Cookie csrfCookie = csrfResult.getResponse()
@@ -311,7 +385,7 @@ class KnotApplicationTests {
 
         // when
         ResultActions result = mockMvc.perform(
-                post("/auth/nickname").cookie(
+                post("/api/v1/auth/nickname").cookie(
                         new Cookie(
                                 NICKNAME_COOKIE_NAME,
                                 nicknameToken
@@ -347,7 +421,7 @@ class KnotApplicationTests {
 
         // when
         ResultActions result = mockMvc.perform(
-                post("/auth/nickname").cookie(
+                post("/api/v1/auth/nickname").cookie(
                         new Cookie(
                                 NICKNAME_COOKIE_NAME,
                                 nicknameToken
@@ -358,7 +432,9 @@ class KnotApplicationTests {
         );
 
         // then
-        result.andExpect(status().isForbidden());
+        result.andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("FORBIDDEN"))
+                .andExpect(jsonPath("$.message").value("요청 권한이 없습니다"));
     }
 
     @Test
@@ -371,7 +447,7 @@ class KnotApplicationTests {
                 null
         );
         String token = authTokenProvider.issue(member);
-        MvcResult csrfResult = mockMvc.perform(get("/auth/csrf"))
+        MvcResult csrfResult = mockMvc.perform(get("/api/v1/auth/csrf"))
                 .andExpect(status().isOk())
                 .andReturn();
         Cookie csrfCookie = csrfResult.getResponse()
@@ -381,7 +457,7 @@ class KnotApplicationTests {
 
         // when
         ResultActions result = mockMvc.perform(
-                post("/logout").cookie(
+                post("/api/v1/auth/logout").cookie(
                         new Cookie(
                                 JWT_COOKIE_NAME,
                                 token

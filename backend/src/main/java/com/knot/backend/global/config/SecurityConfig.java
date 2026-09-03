@@ -4,6 +4,7 @@ import com.knot.backend.auth.domain.AuthErrorCode;
 import com.knot.backend.auth.domain.AuthException;
 import com.knot.backend.auth.infrastructure.github.GithubOAuth2UserService;
 import com.knot.backend.auth.infrastructure.jwt.JwtAuthenticationFilter;
+import com.knot.backend.auth.presentation.handler.AuthAccessDeniedHandler;
 import com.knot.backend.auth.presentation.handler.AuthAuthenticationEntryPoint;
 import com.knot.backend.auth.presentation.handler.JwtLogoutHandler;
 import com.knot.backend.auth.presentation.handler.OAuth2AuthenticationFailureHandler;
@@ -28,7 +29,8 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 @Configuration
 @EnableWebSecurity
-@EnableConfigurationProperties({JwtProperties.class, OAuth2LoginProperties.class, CorsProperties.class})
+@EnableConfigurationProperties({JwtProperties.class, OAuth2LoginProperties.class, CorsProperties.class,
+        ApiDocumentationProperties.class})
 @RequiredArgsConstructor
 public class SecurityConfig {
     private final GithubOAuth2UserService githubOAuth2UserService;
@@ -36,23 +38,27 @@ public class SecurityConfig {
     private final OAuth2AuthenticationSuccessHandler successHandler;
     private final OAuth2AuthenticationFailureHandler failureHandler;
     private final AuthAuthenticationEntryPoint authenticationEntryPoint;
+    private final AuthAccessDeniedHandler accessDeniedHandler;
     private final JwtLogoutHandler jwtLogoutHandler;
     private final JwtProperties jwtProperties;
     private final CorsProperties corsProperties;
+    private final ApiDocumentationProperties apiDocumentationProperties;
 
     @Bean
     public UrlBasedCorsConfigurationSource corsConfigurationSource() {
-        String allowedOrigin = corsProperties.getAllowedOrigin();
-        if (allowedOrigin == null || allowedOrigin.isBlank() || "*".equals(allowedOrigin)) {
+        List<String> allowedOrigins = corsProperties.getAllowedOrigins();
+        if (allowedOrigins == null || allowedOrigins.isEmpty() || allowedOrigins.stream()
+                .anyMatch(this::isInvalidCorsOrigin)) {
             throw new AuthException(AuthErrorCode.OAUTH_CONFIGURATION_INVALID);
         }
 
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of(allowedOrigin));
+        configuration.setAllowedOrigins(allowedOrigins);
         configuration.setAllowedMethods(
                 List.of(
                         HttpMethod.GET.name(),
                         HttpMethod.POST.name(),
+                        HttpMethod.PUT.name(),
                         HttpMethod.OPTIONS.name()
                 )
         );
@@ -62,6 +68,7 @@ public class SecurityConfig {
                         "X-XSRF-TOKEN"
                 )
         );
+        configuration.setExposedHeaders(List.of(HttpHeaders.RETRY_AFTER));
         configuration.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
@@ -70,6 +77,10 @@ public class SecurityConfig {
                 configuration
         );
         return source;
+    }
+
+    private boolean isInvalidCorsOrigin(String origin) {
+        return origin == null || origin.isBlank() || "*".equals(origin);
     }
 
     @Bean
@@ -83,20 +94,40 @@ public class SecurityConfig {
         );
 
         http.cors(Customizer.withDefaults())
-                .authorizeHttpRequests(
-                        auth -> auth.requestMatchers(
-                                "/oauth2/**",
-                                "/login/**",
-                                "/auth/nickname",
-                                "/auth/csrf",
-                                "/actuator/health",
-                                "/error"
+                .authorizeHttpRequests(auth -> {
+                    if (apiDocumentationProperties.isEnabled()) {
+                        auth.requestMatchers(
+                                "/swagger-ui.html",
+                                "/swagger-ui/**",
+                                "/v3/api-docs",
+                                "/v3/api-docs/**",
+                                "/v3/api-docs.yaml",
+                                "/webjars/**"
                         )
-                                .permitAll()
-                                .anyRequest()
-                                .authenticated()
+                                .permitAll();
+                    }
+                    auth.requestMatchers(
+                            "/oauth2/**",
+                            "/login/**",
+                            "/api/v1/auth/nickname",
+                            "/api/v1/auth/csrf",
+                            "/actuator/health",
+                            "/error"
+                    )
+                            .permitAll()
+                            .requestMatchers(
+                                    HttpMethod.GET,
+                                    "/api/v1/invitations/*",
+                                    "/api/v1/notion/oauth/callback"
+                            )
+                            .permitAll()
+                            .anyRequest()
+                            .authenticated();
+                })
+                .exceptionHandling(
+                        exception -> exception.authenticationEntryPoint(authenticationEntryPoint)
+                                .accessDeniedHandler(accessDeniedHandler)
                 )
-                .exceptionHandling(exception -> exception.authenticationEntryPoint(authenticationEntryPoint))
                 .csrf(
                         csrf -> csrf.csrfTokenRepository(csrfTokenRepository)
                                 .csrfTokenRequestHandler(new CsrfTokenRequestAttributeHandler())
@@ -107,7 +138,10 @@ public class SecurityConfig {
                                 .successHandler(successHandler)
                                 .failureHandler(failureHandler)
                 )
-                .logout(logout -> logout.addLogoutHandler(jwtLogoutHandler))
+                .logout(
+                        logout -> logout.logoutUrl("/api/v1/auth/logout")
+                                .addLogoutHandler(jwtLogoutHandler)
+                )
                 .addFilterBefore(
                         jwtAuthenticationFilter,
                         UsernamePasswordAuthenticationFilter.class
