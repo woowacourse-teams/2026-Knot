@@ -13,6 +13,8 @@ import com.knot.backend.chat.application.ChatStreamHandle;
 import com.knot.backend.chat.domain.ChatErrorCode;
 import com.knot.backend.chat.domain.ChatException;
 import com.knot.backend.chat.presentation.dto.request.SendChatMessageRequest;
+import com.knot.backend.global.config.ChatStreamingProperties;
+import java.time.Duration;
 import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -25,7 +27,12 @@ class ChatMessageControllerTest {
     void sendMessage_success() {
         // given
         ChatMessageService service = mock(ChatMessageService.class);
-        ChatMessageController controller = new ChatMessageController(service);
+        ChatStreamingProperties properties = new ChatStreamingProperties();
+        properties.setTimeout(Duration.ofSeconds(90));
+        ChatMessageController controller = new ChatMessageController(
+                service,
+                properties
+        );
         when(
                 service.sendMessage(
                         anyLong(),
@@ -49,6 +56,7 @@ class ChatMessageControllerTest {
 
         // then
         assertThat(result).isNotNull();
+        assertThat(result.getTimeout()).isEqualTo(90_000L);
     }
 
     @Test
@@ -56,7 +64,10 @@ class ChatMessageControllerTest {
     void sendMessage_failure_documentsNotReady() {
         // given
         ChatMessageService service = mock(ChatMessageService.class);
-        ChatMessageController controller = new ChatMessageController(service);
+        ChatMessageController controller = new ChatMessageController(
+                service,
+                new ChatStreamingProperties()
+        );
         when(
                 service.sendMessage(
                         anyLong(),
