@@ -6,6 +6,7 @@ import com.knot.backend.chat.application.ChatStreamHandle;
 import com.knot.backend.chat.application.ChatStreamListener;
 import com.knot.backend.chat.domain.ChatErrorCode;
 import com.knot.backend.chat.presentation.dto.request.SendChatMessageRequest;
+import com.knot.backend.global.config.ChatStreamingProperties;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
@@ -21,9 +22,8 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 @RequestMapping("/api/v1/conversations")
 @RequiredArgsConstructor
 public class ChatMessageController {
-    private static final long SSE_TIMEOUT_MILLIS = 30_000L;
-
     private final ChatMessageService chatMessageService;
+    private final ChatStreamingProperties chatStreamingProperties;
 
     @PostMapping(path = "/{sessionId}/messages", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter sendMessage(
@@ -31,7 +31,7 @@ public class ChatMessageController {
             @Valid @RequestBody SendChatMessageRequest request,
             @AuthenticationPrincipal AuthenticatedMember authenticatedMember
     ) {
-        SseEmitter emitter = new SseEmitter(SSE_TIMEOUT_MILLIS);
+        SseEmitter emitter = new SseEmitter(chatStreamingProperties.timeoutMillis());
         ChatStreamListener listener = new ChatSseStreamListener(emitter);
         ChatStreamHandle handle = chatMessageService.sendMessage(
                 sessionId,
