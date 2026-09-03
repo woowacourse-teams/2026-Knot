@@ -42,6 +42,12 @@ public enum ChatErrorCode implements ErrorCode {
             "채팅 메시지의 세션 ID가 올바르지 않습니다"
     ),
 
+    INVALID_CHAT_MESSAGE_ID(
+            ErrorCategory.INVALID_INPUT,
+            "INVALID_CHAT_MESSAGE_ID",
+            "채팅 메시지 ID가 올바르지 않습니다"
+    ),
+
     INVALID_CHAT_MESSAGE_ROLE(
             ErrorCategory.INVALID_INPUT,
             "INVALID_CHAT_MESSAGE_ROLE",
