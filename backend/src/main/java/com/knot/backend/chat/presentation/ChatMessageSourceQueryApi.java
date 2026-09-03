@@ -8,12 +8,14 @@ import com.knot.backend.global.response.ErrorResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
+import io.swagger.v3.oas.annotations.headers.Header;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 
@@ -27,6 +29,11 @@ public interface ChatMessageSourceQueryApi {
             @ApiResponse(
                     responseCode = "200",
                     description = "저장된 검색 출처 조회 성공. 출처가 없으면 빈 배열",
+                    headers = @Header(
+                            name = HttpHeaders.CACHE_CONTROL,
+                            description = "사용자별 출처 응답 캐시 방지",
+                            schema = @Schema(type = "string", example = "no-store")
+                    ),
                     content = @Content(
                             mediaType = MediaType.APPLICATION_JSON_VALUE,
                             schema = @Schema(implementation = SearchReferencesResponse.class)
@@ -58,7 +65,7 @@ public interface ChatMessageSourceQueryApi {
             ),
             @ApiResponse(
                     responseCode = "404",
-                    description = "메시지를 찾을 수 없음",
+                    description = "메시지를 찾을 수 없거나 assistant 메시지가 아님",
                     content = @Content(
                             mediaType = MediaType.APPLICATION_JSON_VALUE,
                             schema = @Schema(implementation = ErrorResponse.class)
@@ -69,7 +76,8 @@ public interface ChatMessageSourceQueryApi {
             @Parameter(
                     description = "AI 답변 메시지 ID",
                     in = ParameterIn.PATH,
-                    example = "102"
+                    example = "102",
+                    required = true
             ) Long messageId,
             @Parameter(hidden = true) AuthenticatedMember authenticatedMember
     );

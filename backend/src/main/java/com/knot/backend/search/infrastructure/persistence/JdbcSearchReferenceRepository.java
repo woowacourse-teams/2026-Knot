@@ -33,6 +33,11 @@ public class JdbcSearchReferenceRepository implements SearchReferenceRepository 
                     page.created_at,
                     page.updated_at
                 FROM search_references reference
+                JOIN chat_messages message
+                    ON message.id = reference.message_id
+                JOIN chat_sessions session
+                    ON session.id = message.session_id
+                    AND session.workspace_id = reference.workspace_id
                 JOIN imported_pages page
                     ON page.id = reference.imported_page_id
                     AND page.workspace_id = reference.workspace_id
@@ -138,7 +143,7 @@ public class JdbcSearchReferenceRepository implements SearchReferenceRepository 
                 resultSet.getInt("reference_rank"),
                 resultSet.getDouble("relevance_score"),
                 ContentSourceProvider.valueOf(resultSet.getString("source")),
-                new SearchReference.NotionPageReference(
+                new SearchReference.ContentPageReference(
                         resultSet.getString("external_page_id"),
                         resultSet.getString("title"),
                         resultSet.getString("source_url"),

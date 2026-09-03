@@ -4,6 +4,7 @@ import com.knot.backend.chat.domain.ChatErrorCode;
 import com.knot.backend.chat.domain.ChatException;
 import com.knot.backend.chat.domain.ChatMessage;
 import com.knot.backend.chat.domain.ChatMessageRepository;
+import com.knot.backend.chat.domain.ChatMessageRole;
 import com.knot.backend.search.domain.SearchReference;
 import com.knot.backend.search.domain.SearchReferenceRepository;
 import java.util.List;
@@ -30,12 +31,19 @@ public class ChatMessageSourceQueryService {
                 chatMessage.getSessionId(),
                 memberId
         );
+        requireAssistantMessage(chatMessage);
         return searchReferenceRepository.findAllByMessageId(messageId);
     }
 
     private void validateMessageId(long messageId) {
         if (messageId <= 0) {
             throw new ChatException(ChatErrorCode.INVALID_CHAT_MESSAGE_ID);
+        }
+    }
+
+    private void requireAssistantMessage(ChatMessage chatMessage) {
+        if (chatMessage.getRole() != ChatMessageRole.ASSISTANT) {
+            throw new ChatException(ChatErrorCode.CHAT_MESSAGE_NOT_FOUND);
         }
     }
 }
