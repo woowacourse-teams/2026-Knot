@@ -210,7 +210,11 @@ class ChatMessageServiceTest {
         LlmClient llmClient = mock(LlmClient.class);
         LlmStream llmStream = mock(LlmStream.class);
         when(llmClient.start(any())).thenReturn(llmStream);
-        when(llmStream.hasNext()).thenReturn(false);
+        when(llmStream.hasNext()).thenReturn(
+                true,
+                false
+        );
+        when(llmStream.next()).thenReturn("근거 기반 답변");
         ChatStreamListener listener = mock(ChatStreamListener.class);
         SearchChunk reference = SearchChunk.retrieved(
                 1L,
@@ -279,7 +283,7 @@ class ChatMessageServiceTest {
                 .contains("pgvector");
         verify(persistenceService).saveAssistantWithReferences(
                 org.mockito.ArgumentMatchers.eq(10L),
-                anyString(),
+                org.mockito.ArgumentMatchers.eq("근거 기반 답변"),
                 any(),
                 org.mockito.ArgumentMatchers.eq(List.of(reference))
         );
@@ -593,6 +597,152 @@ class ChatMessageServiceTest {
                 any(),
                 any()
         );
+    }
+
+    @Test
+    @DisplayName("visible content가 없는 LLM 응답은 assistant로 저장하지 않고 오류 이벤트를 전달한다")
+    void sendMessage_failure_emptyVisibleContent() {
+        // given
+        ChatSessionRepository chatSessionRepository = mock(ChatSessionRepository.class);
+        WorkspaceMemberRepository workspaceMemberRepository = mock(WorkspaceMemberRepository.class);
+        ChatSession session = mock(ChatSession.class);
+        when(session.getMemberId()).thenReturn(2L);
+        when(session.getWorkspaceId()).thenReturn(1L);
+        when(chatSessionRepository.findById(10L)).thenReturn(java.util.Optional.of(session));
+        when(
+                workspaceMemberRepository.existsByWorkspaceIdAndMemberId(
+                        1L,
+                        2L
+                )
+        ).thenReturn(true);
+        ChatMessageRepository chatMessageRepository = mock(ChatMessageRepository.class);
+        ChatMessagePersistenceService persistenceService = mock(ChatMessagePersistenceService.class);
+        ChatMessage userMessage = mock(ChatMessage.class);
+        when(userMessage.getRole()).thenReturn(ChatMessageRole.USER);
+        when(userMessage.getContent()).thenReturn("질문");
+        when(
+                persistenceService.saveMessage(
+                        anyLong(),
+                        any(),
+                        any(),
+                        any()
+                )
+        ).thenReturn(userMessage);
+        when(chatMessageRepository.findAllBySessionId(10L)).thenReturn(List.of(userMessage));
+        LlmClient llmClient = mock(LlmClient.class);
+        LlmStream llmStream = mock(LlmStream.class);
+        when(llmClient.start(any())).thenReturn(llmStream);
+        when(llmStream.hasNext()).thenReturn(false);
+        ChatStreamListener listener = mock(ChatStreamListener.class);
+        ActiveChatStreamRegistry registry = new ActiveChatStreamRegistry();
+        ChatMessageService service = new ChatMessageService(
+                new ChatSessionAccessPolicy(
+                        chatSessionRepository,
+                        workspaceMemberRepository
+                ),
+                persistenceService,
+                chatMessageRepository,
+                llmClient,
+                documentSearchService,
+                registry,
+                Runnable::run
+        );
+
+        // when
+        service.sendMessage(
+                10L,
+                2L,
+                "질문",
+                listener
+        );
+
+        // then
+        verify(listener).onError(ChatErrorCode.LLM_STREAM_FAILED);
+        verify(
+                persistenceService,
+                never()
+        ).saveAssistantWithReferences(
+                anyLong(),
+                anyString(),
+                any(),
+                any()
+        );
+        assertThat(registry.tryAcquire(10L)).isTrue();
+    }
+
+    @Test
+    @DisplayName("클라이언트 연결이 끊기면 LLM 스트림과 활성 스트림 점유를 해제한다")
+    void sendMessage_clientDisconnect_releasesStream() {
+        // given
+        ChatSessionRepository chatSessionRepository = mock(ChatSessionRepository.class);
+        WorkspaceMemberRepository workspaceMemberRepository = mock(WorkspaceMemberRepository.class);
+        ChatSession session = mock(ChatSession.class);
+        when(session.getMemberId()).thenReturn(2L);
+        when(session.getWorkspaceId()).thenReturn(1L);
+        when(chatSessionRepository.findById(10L)).thenReturn(java.util.Optional.of(session));
+        when(
+                workspaceMemberRepository.existsByWorkspaceIdAndMemberId(
+                        1L,
+                        2L
+                )
+        ).thenReturn(true);
+        ChatMessageRepository chatMessageRepository = mock(ChatMessageRepository.class);
+        ChatMessagePersistenceService persistenceService = mock(ChatMessagePersistenceService.class);
+        ChatMessage userMessage = mock(ChatMessage.class);
+        when(userMessage.getRole()).thenReturn(ChatMessageRole.USER);
+        when(userMessage.getContent()).thenReturn("질문");
+        when(
+                persistenceService.saveMessage(
+                        anyLong(),
+                        any(),
+                        any(),
+                        any()
+                )
+        ).thenReturn(userMessage);
+        when(chatMessageRepository.findAllBySessionId(10L)).thenReturn(List.of(userMessage));
+        LlmClient llmClient = mock(LlmClient.class);
+        LlmStream llmStream = mock(LlmStream.class);
+        when(llmClient.start(any())).thenReturn(llmStream);
+        when(llmStream.hasNext()).thenReturn(true);
+        when(llmStream.next()).thenReturn("응답");
+        ChatStreamListener listener = mock(ChatStreamListener.class);
+        when(listener.onChunk("응답")).thenReturn(false);
+        ActiveChatStreamRegistry registry = new ActiveChatStreamRegistry();
+        ChatMessageService service = new ChatMessageService(
+                new ChatSessionAccessPolicy(
+                        chatSessionRepository,
+                        workspaceMemberRepository
+                ),
+                persistenceService,
+                chatMessageRepository,
+                llmClient,
+                documentSearchService,
+                registry,
+                Runnable::run
+        );
+
+        // when
+        service.sendMessage(
+                10L,
+                2L,
+                "질문",
+                listener
+        );
+
+        // then
+        verify(llmClient).start(any());
+        verify(listener).onChunk("응답");
+        verify(llmStream).close();
+        verify(
+                persistenceService,
+                never()
+        ).saveAssistantWithReferences(
+                anyLong(),
+                anyString(),
+                any(),
+                any()
+        );
+        assertThat(registry.tryAcquire(10L)).isTrue();
     }
 
     @Test

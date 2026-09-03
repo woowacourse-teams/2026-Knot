@@ -84,6 +84,10 @@ final class OpenAiCompatibleLlmClient implements LlmClient {
                 "temperature",
                 properties.temperature()
         );
+        payload.put(
+                "reasoning_effort",
+                properties.reasoningEffort()
+        );
         return HttpRequest.newBuilder(properties.chatCompletionsUri())
                 .timeout(properties.requestTimeout())
                 .header(

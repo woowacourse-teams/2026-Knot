@@ -80,7 +80,7 @@ class OpenAiCompatibleLlmClientTest {
                 baseUri,
                 "server-token",
                 "qwen/qwen3.6-27b",
-                512,
+                2048,
                 0.2,
                 Duration.ofSeconds(5)
         );
@@ -117,12 +117,165 @@ class OpenAiCompatibleLlmClientTest {
                         .asBoolean()
         ).isTrue();
         assertThat(
+                payload.get("max_tokens")
+                        .asInt()
+        ).isEqualTo(2048);
+        assertThat(
+                payload.get("reasoning_effort")
+                        .asString()
+        ).isEqualTo("medium");
+        assertThat(
                 payload.get("messages")
                         .get(0)
                         .get("role")
                         .asString()
         ).isEqualTo("user");
         assertThat(payload.toString()).doesNotContain("server-token");
+    }
+
+    @Test
+    @DisplayName("reasoning content만 포함된 응답은 reasoning을 사용자 chunk로 노출하지 않는다")
+    void stream_reasoningOnly_doesNotExposeReasoningContent() throws Exception {
+        // given
+        URI baseUri = startServer(
+                exchange -> respond(
+                        exchange,
+                        200,
+                        """
+                                data: {"choices":[{"delta":{"reasoning_content":"내부 추론"}}]}
+
+                                data: {"choices":[{"delta":{},"finish_reason":"stop"}]}
+
+                                data: [DONE]
+
+                                """
+                )
+        );
+        OpenAiCompatibleLlmClient client = new OpenAiCompatibleLlmClient(
+                HttpClient.newHttpClient(),
+                objectMapper,
+                new LlmProperties(
+                        baseUri,
+                        "server-token",
+                        "qwen/qwen3.6-27b",
+                        512,
+                        0.2,
+                        Duration.ofSeconds(5)
+                )
+        );
+        LlmStream stream = client.start(new LlmRequest(List.of()));
+
+        // when & then
+        assertThatThrownBy(stream::hasNext).isInstanceOfSatisfying(
+                ChatException.class,
+                exception -> assertThat(exception.getErrorCode()).isEqualTo(ChatErrorCode.LLM_STREAM_FAILED)
+        );
+    }
+
+    @Test
+    @DisplayName("토큰 한도에 도달한 SSE 응답은 정상 완료로 처리하지 않는다")
+    void stream_failure_finishReasonLength() throws Exception {
+        // given
+        URI baseUri = startServer(
+                exchange -> respond(
+                        exchange,
+                        200,
+                        """
+                                data: {"choices":[{"delta":{"reasoning_content":"추론"},"finish_reason":"length"}]}
+
+                                data: [DONE]
+
+                                """
+                )
+        );
+        OpenAiCompatibleLlmClient client = new OpenAiCompatibleLlmClient(
+                HttpClient.newHttpClient(),
+                objectMapper,
+                new LlmProperties(
+                        baseUri,
+                        "server-token",
+                        "qwen/qwen3.6-27b",
+                        512,
+                        0.2,
+                        Duration.ofSeconds(5)
+                )
+        );
+        LlmStream stream = client.start(new LlmRequest(List.of()));
+
+        // when & then
+        assertThatThrownBy(stream::hasNext).isInstanceOfSatisfying(
+                ChatException.class,
+                exception -> assertThat(exception.getErrorCode()).isEqualTo(ChatErrorCode.LLM_STREAM_FAILED)
+        );
+    }
+
+    @Test
+    @DisplayName("SSE provider 오류 event는 정상 완료로 처리하지 않는다")
+    void stream_failure_providerErrorEvent() throws Exception {
+        // given
+        URI baseUri = startServer(
+                exchange -> respond(
+                        exchange,
+                        200,
+                        """
+                                data: {"error":{"message":"provider failure"}}
+
+                                data: [DONE]
+
+                                """
+                )
+        );
+        OpenAiCompatibleLlmClient client = new OpenAiCompatibleLlmClient(
+                HttpClient.newHttpClient(),
+                objectMapper,
+                new LlmProperties(
+                        baseUri,
+                        "server-token",
+                        "qwen/qwen3.6-27b",
+                        512,
+                        0.2,
+                        Duration.ofSeconds(5)
+                )
+        );
+        LlmStream stream = client.start(new LlmRequest(List.of()));
+
+        // when & then
+        assertThatThrownBy(stream::hasNext).isInstanceOfSatisfying(
+                ChatException.class,
+                exception -> assertThat(exception.getErrorCode()).isEqualTo(ChatErrorCode.LLM_STREAM_FAILED)
+        );
+    }
+
+    @Test
+    @DisplayName("JSON이 아닌 SSE data는 스트림 실패로 변환한다")
+    void stream_failure_malformedSseData() throws Exception {
+        // given
+        URI baseUri = startServer(
+                exchange -> respond(
+                        exchange,
+                        200,
+                        "data: {malformed}\n\n"
+                )
+        );
+        OpenAiCompatibleLlmClient client = new OpenAiCompatibleLlmClient(
+                HttpClient.newHttpClient(),
+                objectMapper,
+                new LlmProperties(
+                        baseUri,
+                        "server-token",
+                        "qwen/qwen3.6-27b",
+                        512,
+                        0.2,
+                        Duration.ofSeconds(5)
+                )
+        );
+        LlmStream stream = client.start(new LlmRequest(List.of()));
+
+        // when & then
+        assertThatThrownBy(stream::hasNext).isInstanceOfSatisfying(
+                ChatException.class,
+                exception -> assertThat(exception.getErrorCode()).isEqualTo(ChatErrorCode.LLM_STREAM_FAILED)
+        );
     }
 
     @Test

@@ -21,6 +21,7 @@ final class OpenAiCompatibleLlmStream implements LlmStream {
     private final AtomicBoolean closed = new AtomicBoolean();
     private String nextChunk;
     private boolean doneReceived;
+    private boolean visibleContentReceived;
 
     OpenAiCompatibleLlmStream(
             InputStream inputStream,
@@ -54,11 +55,15 @@ final class OpenAiCompatibleLlmStream implements LlmStream {
                         .trim();
                 if ("[DONE]".equals(data)) {
                     doneReceived = true;
+                    if (!visibleContentReceived) {
+                        throw new ChatException(ChatErrorCode.LLM_STREAM_FAILED);
+                    }
                     closeInputStream();
                     return false;
                 }
                 String content = contentFrom(data);
                 if (content != null && !content.isEmpty()) {
+                    visibleContentReceived = true;
                     nextChunk = content;
                     return true;
                 }
@@ -66,8 +71,13 @@ final class OpenAiCompatibleLlmStream implements LlmStream {
             if (closed.get()) {
                 return false;
             }
-            closeInputStream();
             throw new ChatException(ChatErrorCode.LLM_STREAM_FAILED);
+        } catch (ChatException exception) {
+            if (closed.get()) {
+                return false;
+            }
+            closeInputStream();
+            throw exception;
         } catch (JacksonException | IOException exception) {
             if (closed.get()) {
                 return false;
@@ -97,12 +107,23 @@ final class OpenAiCompatibleLlmStream implements LlmStream {
 
     private String contentFrom(String data) throws JacksonException {
         JsonNode response = objectMapper.readTree(data);
+        if (response == null || !response.isObject()) {
+            throw new ChatException(ChatErrorCode.LLM_STREAM_FAILED);
+        }
+        JsonNode error = response.get("error");
+        if (error != null && !error.isNull()) {
+            throw new ChatException(ChatErrorCode.LLM_STREAM_FAILED);
+        }
         JsonNode choices = response.get("choices");
         if (choices == null || !choices.isArray() || choices.isEmpty()) {
             return null;
         }
-        JsonNode delta = choices.get(0)
-                .get("delta");
+        JsonNode choice = choices.get(0);
+        JsonNode finishReason = choice.get("finish_reason");
+        if (finishReason != null && "length".equals(finishReason.asString())) {
+            throw new ChatException(ChatErrorCode.LLM_STREAM_FAILED);
+        }
+        JsonNode delta = choice.get("delta");
         if (delta == null) {
             return null;
         }
