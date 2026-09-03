@@ -13,12 +13,32 @@ public record LlmProperties(
         String model,
         int maxTokens,
         double temperature,
-        Duration requestTimeout
+        Duration requestTimeout,
+        String reasoningEffort
 ) {
+
+    public LlmProperties(
+            URI baseUri,
+            String apiKey,
+            String model,
+            int maxTokens,
+            double temperature,
+            Duration requestTimeout
+    ) {
+        this(
+                baseUri,
+                apiKey,
+                model,
+                maxTokens,
+                temperature,
+                requestTimeout,
+                "medium"
+        );
+    }
 
     public void validate() {
         if (!isAbsoluteHttpUri(baseUri) || isBlank(apiKey) || isBlank(model) || maxTokens <= 0 || temperature < 0
-                || temperature > 2 || !isPositive(requestTimeout)) {
+                || temperature > 2 || !isPositive(requestTimeout) || isBlank(reasoningEffort)) {
             throw new ChatException(ChatErrorCode.LLM_CONFIGURATION_INVALID);
         }
     }

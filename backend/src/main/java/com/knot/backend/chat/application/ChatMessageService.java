@@ -25,11 +25,14 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Service
 public class ChatMessageService {
     private static final int MAX_SEARCH_HISTORY_MESSAGES = 4;
     private static final int MAX_SEARCH_QUERY_CHARACTERS = 4000;
+    private static final Logger log = LoggerFactory.getLogger(ChatMessageService.class);
 
     private final ChatSessionAccessPolicy chatSessionAccessPolicy;
     private final ChatMessagePersistenceService chatMessagePersistenceService;
@@ -206,12 +209,23 @@ public class ChatMessageService {
                 }
             }
 
+            String answerContent = answer.toString();
+            if (answerContent.isBlank()) {
+                if (!handle.isCancelled()) {
+                    log.warn(
+                            "LLM 응답에 사용자에게 표시할 content가 없습니다. sessionId={}",
+                            sessionId
+                    );
+                    listener.onError(ChatErrorCode.LLM_STREAM_FAILED);
+                }
+                return;
+            }
             if (!handle.beginCompletion()) {
                 return;
             }
             ChatMessage assistantMessage = chatMessagePersistenceService.saveAssistantWithReferences(
                     sessionId,
-                    answer.toString(),
+                    answerContent,
                     Instant.now(),
                     searchContext.references()
             );
@@ -224,10 +238,20 @@ public class ChatMessageService {
             }
         } catch (SearchException exception) {
             if (!handle.isCancelled()) {
+                log.warn(
+                        "채팅 문서 검색에 실패했습니다. sessionId={}, errorCode={}",
+                        sessionId,
+                        exception.searchErrorCode()
+                );
                 listener.onError(mapSearchError(exception));
             }
         } catch (RuntimeException exception) {
             if (!handle.isCancelled()) {
+                log.error(
+                        "LLM 채팅 스트림 처리에 실패했습니다. sessionId={}",
+                        sessionId,
+                        exception
+                );
                 listener.onError(ChatErrorCode.LLM_STREAM_FAILED);
             }
         } finally {
