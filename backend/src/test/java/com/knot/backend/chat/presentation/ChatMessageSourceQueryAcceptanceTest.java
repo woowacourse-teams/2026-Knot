@@ -2,6 +2,7 @@ package com.knot.backend.chat.presentation;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -20,6 +21,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.test.context.TestConstructor;
@@ -79,6 +81,12 @@ class ChatMessageSourceQueryAcceptanceTest {
 
         // then
         result.andExpect(status().isOk())
+                .andExpect(
+                        header().string(
+                                HttpHeaders.CACHE_CONTROL,
+                                "no-store"
+                        )
+                )
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.searchReferences").isArray())
                 .andExpect(jsonPath("$.searchReferences").isNotEmpty())
@@ -177,6 +185,61 @@ class ChatMessageSourceQueryAcceptanceTest {
         // then
         result.andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("INVALID_CHAT_MESSAGE_ID"));
+    }
+
+    @Test
+    @DisplayName("메시지와 다른 workspace에 저장된 출처는 반환하지 않는다")
+    void findSources_success_excludesDifferentWorkspaceReference() throws Exception {
+        // given
+        Fixture fixture = saveFixture();
+        saveCrossWorkspaceReference(fixture);
+
+        // when
+        ResultActions result = mockMvc.perform(
+                get(
+                        "/api/v1/messages/{messageId}/sources",
+                        fixture.messageId()
+                ).cookie(accessTokenCookie(fixture.ownerId()))
+        );
+
+        // then
+        result.andExpect(status().isOk())
+                .andExpect(jsonPath("$.searchReferences").isArray())
+                .andExpect(jsonPath("$.searchReferences").isEmpty());
+    }
+
+    @Test
+    @DisplayName("사용자 메시지는 출처 조회 대상이 아니다")
+    void findSources_failure_userMessage() throws Exception {
+        // given
+        Fixture fixture = saveFixture();
+        long userMessageId = jdbcClient.sql("""
+                INSERT INTO chat_messages (session_id, role, content, created_at)
+                VALUES (:sessionId, 'USER', 'PostgreSQL을 왜 사용했나요?', :createdAt)
+                RETURNING id
+                """)
+                .param(
+                        "sessionId",
+                        fixture.sessionId()
+                )
+                .param(
+                        "createdAt",
+                        CREATED_AT_OFFSET.plusSeconds(2)
+                )
+                .query(Long.class)
+                .single();
+
+        // when
+        ResultActions result = mockMvc.perform(
+                get(
+                        "/api/v1/messages/{messageId}/sources",
+                        userMessageId
+                ).cookie(accessTokenCookie(fixture.ownerId()))
+        );
+
+        // then
+        result.andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("CHAT_MESSAGE_NOT_FOUND"));
     }
 
     private Fixture saveFixture() {
@@ -359,6 +422,7 @@ class ChatMessageSourceQueryAcceptanceTest {
                 ownerId,
                 otherMemberId,
                 messageId,
+                sessionId,
                 workspaceId,
                 importRunId,
                 importedPageId,
@@ -396,6 +460,76 @@ class ChatMessageSourceQueryAcceptanceTest {
                 .param(
                         "secondImportedPageId",
                         fixture.secondImportedPageId()
+                )
+                .update();
+    }
+
+    private void saveCrossWorkspaceReference(Fixture fixture) {
+        jdbcClient.sql("""
+                WITH foreign_workspace AS (
+                    INSERT INTO workspaces (name, created_at)
+                    VALUES ('다른 팀', :createdAt)
+                    RETURNING id
+                ), foreign_membership AS (
+                    INSERT INTO workspace_members (workspace_id, member_id, role, joined_at)
+                    SELECT id, :memberId, 'OWNER', :createdAt
+                    FROM foreign_workspace
+                    RETURNING workspace_id, member_id
+                ), foreign_connection AS (
+                    INSERT INTO content_source_connections (
+                        workspace_id, provider, access_credential_ciphertext,
+                        external_source_id, provider_connection_id, authorization_owner_type,
+                        authorizing_member_id, created_at, updated_at
+                    )
+                    SELECT workspace_id, 'NOTION', 'foreign-ciphertext',
+                        'foreign-notion-workspace', 'foreign-notion-connection', 'WORKSPACE',
+                        member_id, :createdAt, :createdAt
+                    FROM foreign_membership
+                    RETURNING id, workspace_id
+                ), foreign_import_run AS (
+                    INSERT INTO content_import_runs (
+                        workspace_id, content_source_connection_id, requested_by_member_id,
+                        status, total_page_count, processed_page_count,
+                        started_at, completed_at, created_at
+                    )
+                    SELECT workspace_id, id, :memberId,
+                        'COMPLETED', 1, 1,
+                        :createdAt, :updatedAt, :createdAt
+                    FROM foreign_connection
+                    RETURNING id, workspace_id
+                ), foreign_page AS (
+                    INSERT INTO imported_pages (
+                        workspace_id, import_run_id, external_page_id, title,
+                        markdown_content, position, source_url, created_at, updated_at
+                    )
+                    SELECT workspace_id, id, 'foreign-page', '다른 팀 문서',
+                        '다른 팀의 문서 내용', 0, 'https://www.notion.so/foreign-page',
+                        :createdAt, :updatedAt
+                    FROM foreign_import_run
+                    RETURNING id, workspace_id, import_run_id
+                )
+                INSERT INTO search_references (
+                    message_id, workspace_id, import_run_id, imported_page_id,
+                    reference_rank, relevance_score
+                )
+                SELECT :messageId, workspace_id, import_run_id, id, 1, 0.99
+                FROM foreign_page
+                """)
+                .param(
+                        "memberId",
+                        fixture.ownerId()
+                )
+                .param(
+                        "messageId",
+                        fixture.messageId()
+                )
+                .param(
+                        "createdAt",
+                        CREATED_AT_OFFSET
+                )
+                .param(
+                        "updatedAt",
+                        CREATED_AT_OFFSET.plusSeconds(1)
                 )
                 .update();
     }
@@ -459,6 +593,7 @@ class ChatMessageSourceQueryAcceptanceTest {
             long ownerId,
             long otherMemberId,
             long messageId,
+            long sessionId,
             long workspaceId,
             long importRunId,
             long importedPageId,
