@@ -1,0 +1,7 @@
+{
+  "extends": "./tsconfig.json",
+  "include": ["src/preload/**/*.ts", "src/shared/**/*.ts"],
+  "compilerOptions": {
+    "lib": ["es2023", "dom"]
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "include": ["src/main/**/*.ts", "src/shared/**/*.ts", "test/**/*.ts", "forge.config.ts", "vitest.config.ts"],
+  "exclude": ["node_modules", "out"],
+  "compilerOptions": {
+    "target": "es2023",
+    "lib": ["es2023"],
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "noEmit": true,
+    "types": ["node"]
+  }
+}

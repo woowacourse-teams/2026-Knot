@@ -1,0 +1,12 @@
+# Electron·Forge 공식 요구: pnpm 의존성을 호이스팅해야 한다(지식 문서 3.2).
+# pnpm 11은 이 설정을 워크스페이스 루트 단위로 읽으므로 desktop/을 frontend/와 분리된
+# 독립 워크스페이스 루트로 둔다(로드맵 Q4).
+nodeLinker: hoisted
+
+# Forge 7.11.2 → @electron/rebuild@3.7.2가 @electron/node-gyp을 git 저장소로 참조한다.
+# pnpm 11의 blockExoticSubdeps 기본값(true)이 이를 막아 설치가 실패한다.
+# Electron 공식 조직의 node-gyp 포크이므로 이 워크스페이스에서만 허용한다.
+blockExoticSubdeps: false
+
+allowBuilds:
+  esbuild: true
