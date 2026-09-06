@@ -46,7 +46,7 @@
 | 제품 | "팀 프로젝트에서 문서화의 병목화를 최소화 해주는 앱". 핵심 기능은 Notion 문서를 색인한 AI 문서 검색 채팅 | `frontend/CLAUDE.md:3`, `docs/llm-search-feature-spec.md` |
 | 루트 README | 0바이트(제품 설명 없음) | `README.md` |
 | 프론트 오리진 | 운영 `https://knoted.kr`, 개발 `https://dev.knoted.kr` (Cloudflare Workers 정적 자산 + SPA fallback) | `frontend/wrangler.jsonc`, `deploy-backend-dev.yml:1204` |
-| 백엔드 API 오리진 | 개발 `https://api.dev.knoted.kr` 확정(`frontend/.env.local:3`). 운영은 `vars.API_BASE_URL_PROD`(GitHub 변수)라 저장소에 값이 없음. **프론트와 API는 크로스 오리진**(같은 오리진 프록시 아님) | `frontend/.env.local`, `httpClient/index.ts:67` 주석 |
+| 백엔드 API 오리진 | **정정 2026-09-06(`A1` 실측)**: 배포된 dev SPA(`https://dev.knoted.kr`)가 실제로 이동하는 오리진은 `https://dev-api.knoted.kr`이다. `frontend/.env.local:3`의 `https://api.dev.knoted.kr`은 gitignore된 로컬 파일 값이고 배포 빌드는 `vars.API_BASE_URL_DEV`를 쓴다 — 둘이 다르다. 운영은 `vars.API_BASE_URL_PROD`(GitHub 변수)라 저장소에 값이 없음. **프론트와 API는 크로스 오리진**(같은 오리진 프록시 아님) | Electron 셸 네비게이션 로그(`~/Library/Logs/Knot/main.log`, GitHub 로그인 버튼 클릭 시 `https://dev-api.knoted.kr/oauth2/authorization/github`), `frontend/.env.local`, `httpClient/index.ts:67` 주석 |
 | 백엔드 런타임 | Spring Boot 4.1.0, Java 25(temurin), PostgreSQL + pgvector(`pgvector/pgvector:pg18`), Flyway, springdoc 3.1.0 | `backend/build.gradle:3,13`, `backend/compose.yml` |
 | 백엔드 배포 | develop → NCP 단일 서버(SSH/SCP, systemd `knot-backend.service`, 포트 8080), main → AWS CodeDeploy(`buildspec.yml`, `backend/appspec.yml`) | `deploy-backend-dev.yml`, ADR 212·328 |
 | 리버스 프록시·TLS 설정 | 저장소에 없음(서버 밖 관리) | 전체 탐색 |
@@ -139,12 +139,14 @@ public interface LlmStream extends AutoCloseable { boolean hasNext(); String nex
 
 | 구현체 | 조건 | 경로 |
 | --- | --- | --- |
-| `FakeLlmClient` | `llm.provider=fake` (기본, `matchIfMissing=true`) | `chat/infrastructure/FakeLlmClient.java` |
-| `OpenAiCompatibleLlmClient` | `llm.provider=openai-compatible` → `POST {base-uri}/chat/completions` (`stream:true`) | `chat/infrastructure/LlmClientConfig.java:25-36` |
-| HTTP | JDK `HttpClient`(`llmHttpClient` 빈, `connectTimeout`, `followRedirects(NEVER)`). 서드파티 LLM SDK 없음 | `LlmClientConfig.java:16-23` |
-| 임베딩 | `OpenAiCompatibleEmbeddingClient`가 같은 `llmHttpClient` 공유. Qwen3-Embedding 1,024차원 하드 게이트 | `search/infrastructure/EmbeddingClientConfig.java` |
+| `FakeLlmClient` | `llm.chat.provider=fake` (기본, `matchIfMissing=true`) | `chat/infrastructure/FakeLlmClient.java:11` |
+| `OpenAiCompatibleLlmClient` | `llm.chat.provider=openai-compatible` → `POST {base-uri}/chat/completions` (`stream:true`) | `chat/infrastructure/LlmClientConfig.java:12,25-36` |
+| HTTP | JDK `HttpClient`(`connectTimeout`, `followRedirects(NEVER)`). 채팅은 `chatLlmHttpClient`, 임베딩은 `embeddingLlmHttpClient`로 빈이 나뉜다. 서드파티 LLM SDK 없음 | `LlmClientConfig.java:16-23`, `EmbeddingClientConfig.java:19-27` |
+| 임베딩 | `llm.embedding.provider`가 `openai-compatible`이면 `OpenAiCompatibleEmbeddingClient`, `fake`(기본)면 `FakeDocumentEmbeddingClient`. 접속 설정(`llm.base-uri`·`api-key`·`request-timeout`)은 채팅과 공유한다. Qwen3-Embedding 1,024차원 하드 게이트 | `search/infrastructure/EmbeddingClientConfig.java` |
 
-**설정 키(`llm.*`)**: `provider`(`fake`), `base-uri`(`http://localhost:1234/v1`), `api-key`(빈값), `model`(`qwen/qwen3.6-27b`), `max-tokens`(1024), `temperature`(0.2), `request-timeout`(PT30S), `embedding.model`(`text-embedding-qwen3-embedding-0.6b:2`), `embedding.dimensions`(1024), `search.chunk-size`(1200), `search.chunk-overlap`(180), `search.candidate-limit`(50), `search.top-k`(3), `search.max-context-characters`(10000), `search.embedding-batch-size`(64), `search.minimum-relevance-score`(0.35). 바인딩: `LlmProperties`, `EmbeddingProperties`, `SearchProperties`.
+> 정정 2026-09-06(`B0` 구현): provider 스위치가 `llm.provider` 하나에서 `llm.chat.provider`/`llm.embedding.provider` 둘로 나뉘었고 `llmHttpClient` 공유 빈이 사라졌다. `llm.provider`는 두 키의 fallback으로 남는다(`application.properties:38-40`).
+
+**설정 키(`llm.*`)**: `provider`(`fake`, 레거시 fallback), `chat.provider`(`${llm.provider}`), `embedding.provider`(`${llm.provider}`), `base-uri`(`http://localhost:1234/v1`), `api-key`(빈값), `model`(`qwen/qwen3.6-27b`), `max-tokens`(1024), `temperature`(0.2), `request-timeout`(PT30S), `embedding.model`(`text-embedding-qwen3-embedding-0.6b:2`), `embedding.dimensions`(1024), `search.chunk-size`(1200), `search.chunk-overlap`(180), `search.candidate-limit`(50), `search.top-k`(3), `search.max-context-characters`(10000), `search.embedding-batch-size`(64), `search.minimum-relevance-score`(0.35). 바인딩: `LlmProperties`, `EmbeddingProperties`, `SearchProperties`.
 
 **SSE 이벤트 계약** (`chat/presentation/ChatSseStreamListener.java`)
 
@@ -287,9 +289,11 @@ Electron 기획에 미치는 함의:
 
 ### 2.1 버전·릴리즈 [확인]
 
+> 정정 2026-09-06: `electron` npm `latest`가 **44.2.0**(배포 2026-09-04)이다. 근거: `npm view electron version`, `npm view electron time`. 이전 값 44.1.1(2026-09-02 조사)은 배포일도 2026-09-01T18:25Z로 확인됐다. Chromium·Node 버전은 44.2.0 릴리즈 노트를 재확인하지 않았으므로 44.1.1 조사값을 유지한다.
+
 | 채널 | 버전 | 릴리즈일 | Chromium | Node.js | V8 |
 | --- | --- | --- | --- | --- | --- |
-| 최신 안정(major 44) | **44.1.1** | 2026-09-02 | 152.0.7977.65 | 24.19.0 | 15.2 계열 |
+| 최신 안정(major 44) | **44.2.0** | 2026-09-04 | 152.0.7977.65 | 24.19.0 | 15.2 계열 |
 | 지원(major 43) | 43.6.0 | 2026-09-04 | 150.0.7871.250 | 24.20.0 | — |
 | 지원(major 42) | 42.11.1 | 2026-09-02 | 148.0.7778.280 | 24.19.0 | — |
 | 다음 메이저 45 | alpha 2026-08-27 → beta 09-29 → **stable 2026-10-20** | | M156 | 24.20.0 | |
@@ -493,7 +497,7 @@ protocol.handle('app', (req) => {
 
 | 패키지 | 안정 | 프리릴리즈 | 비고 |
 | --- | --- | --- | --- |
-| `electron` | 44.1.1 | 45.0.0-alpha.4 | Chromium 152 / Node 24.19 |
+| `electron` | 44.2.0 (정정 2026-09-06, `npm view electron version`) | 45.0.0-alpha.4 | Chromium 152 / Node 24.19 |
 | `@electron-forge/*` | **7.11.2**(2026-05-20) | 8.0.0-alpha.10 (ESM, Node ≥22.12) | Forge 7: Node ≥16.4, pnpm은 v7.7.0부터 지원 |
 | `electron-builder` | 26.15.3 | 26.16.0(`v26` 태그), 27.0.0-alpha.8(`next`, ESM) | 커뮤니티 유지보수 |
 | `electron-updater` | 6.8.9 | 7.0.0-alpha.7 | electron-builder 전용 |
@@ -502,7 +506,7 @@ protocol.handle('app', (req) => {
 | `@electron/osx-sign` / `notarize` / `windows-sign` / `fuses` / `universal` / `rebuild` / `asar` | 2.7.0 / 3.1.1 / 2.0.6 / 2.1.3 / 3.0.6 / 4.2.0 / 4.3.0 | — | notarize 3.0에서 `altool` 제거 |
 | `update-electron-app` | 3.3.0 | — | update.electronjs.org 클라이언트 |
 | `electron-winstaller` / `electron-squirrel-startup` | 5.4.4 / 1.0.1 | — | Squirrel.Windows |
-| `@playwright/test` | 1.62.1 | 1.63 alpha/beta | Electron 지원 experimental |
+| `@playwright/test` | 1.63.0 (정정 2026-09-06, `npm view @playwright/test version`) | — | Electron 지원 experimental |
 | `@sentry/electron` / `electron-log` / `vitest` | 7.18.0 / 5.4.4 / 5.0.0 | — | vitest 5는 Node ^22.12 |
 | `pnpm` | 11.25.0 | 12.3.1(`latest-12`) | Knot은 pnpm 11 |
 | GitHub Actions | `actions/checkout@v7`, `actions/setup-node@v7`, `actions/cache@v6`, `actions/upload-artifact@v7`, `softprops/action-gh-release@v3`, `pnpm/setup@v2`(pnpm 11+ 전용, `pnpm/action-setup@v6`은 pnpm ≤10) | | Knot 워크플로우는 `pnpm/action-setup@v4`·`setup-node@v4` 사용 중 |
@@ -521,6 +525,8 @@ protocol.handle('app', (req) => {
 | 번들링 | `plugin-webpack`/`plugin-vite`(experimental) 또는 hooks(`generateAssets`·`prePackage`)로 외부 빌드 | 별도(electron-vite 등), `files`로 포함 |
 
 **pnpm 호이스팅** [문서]: Electron 튜토리얼 "you must set `nodeLinker: hoisted` in pnpm", Forge CLI "set `node-linker=hoisted` in your project's `.npmrc`". pnpm 11은 설정을 **`pnpm-workspace.yaml`**에서 읽고(인증 관련만 `.npmrc`), 워크스페이스 루트 단위로 적용된다 → [추론] `frontend/`만 hoisted로 만들 수 없으므로 Electron 앱을 **별도 워크스페이스 루트**(예 `desktop/`)로 두거나 전체를 hoisted로 바꿔야 한다. electron-builder 문서에는 pnpm 호이스팅 문장이 없다.
+
+**pnpm 11 `blockExoticSubdeps`** [확인, 2026-09-06 `A1` 실측]: `@electron-forge/cli@7.11.2` 설치가 pnpm 11.20.0에서 실패한다. `@electron-forge/shared-types` → `@electron/rebuild@3.7.2`가 `@electron/node-gyp`을 **git 저장소로** 참조하는데 pnpm 11의 `blockExoticSubdeps` 기본값(true)이 하위 의존성의 git 참조를 막기 때문이다. 오류: `[ERR_PNPM_EXOTIC_SUBDEP] Exotic dependency "@electron/node-gyp" (resolved via git-repository) is not allowed in subdependencies when blockExoticSubdeps is enabled`. 해소: `desktop/pnpm-workspace.yaml`에 `blockExoticSubdeps: false`. 이 설정도 워크스페이스 루트 단위라 `desktop/`을 별도 루트로 둔 결정(D7·Q4)과 맞물려 `frontend/`에는 영향이 없다.
 
 **기존 webpack SPA 재사용** [추론, 부록 §1.6]: 원격 로드면 renderer 빌드가 없어 hooks에서 main·preload만 `tsc`/esbuild로 빌드하면 된다. 로컬 번들이면 `output.publicPath: 'auto'|'./'` + HashRouter 또는 `app://` 스킴 + `protocol.handle` fallback이 필요하다. `plugin-webpack`을 main/preload 전용으로 쓰는 방법은 미확인.
 

@@ -1,7 +1,7 @@
 # Knot 데스크톱 앱(Electron) 기술 기획서
 
 - 문서 상태: Draft (팀 검토 전)
-- 기준일: 2026-09-04
+- 기준일: 2026-09-04 (인증 설계는 2026-09-06 개정 — 3절 `D11`, 5.1)
 - 기준 커밋: `develop` `b1d4801` (`[BE] 채팅 답변 출처 조회 API 구현 (#351)`)
 - 선행 문서: [`llm-electron-subscription-architecture-review.md`](./llm-electron-subscription-architecture-review.md) (이하 "검토 문서")
 - 근거 자료: [`electron-desktop-app-knowledge.md`](./electron-desktop-app-knowledge.md) (이하 "지식 문서"). 본문에서 `지식 §n`으로 참조한다.
@@ -16,7 +16,7 @@
 
 한 줄 결론:
 
-> Knot 데스크톱 앱은 `https://knoted.kr` 웹 앱을 원격 로드하는 Electron 셸이다. 채팅·검색·LLM 호출·답변 저장은 기존 Spring 백엔드 계약을 그대로 쓴다. 데스크톱이 더하는 것은 상시 실행, 딥링크, 알림, 퀵 질문 창, 자동 업데이트다. 인증은 1단계에서 웹의 쿠키 세션을 그대로 재사용하고, 2단계에서 시스템 브라우저 로그인 + 디바이스 토큰(Bearer)으로 옮긴다. 채팅 모델을 Claude로 바꾸는 일은 Electron과 무관하게 백엔드 `LlmClient`에 Anthropic 어댑터를 추가해 해결한다.
+> Knot 데스크톱 앱은 `https://knoted.kr` 웹 앱을 원격 로드하는 Electron 셸이다. 채팅·검색·LLM 호출·답변 저장은 기존 Spring 백엔드 계약을 그대로 쓴다. 데스크톱이 더하는 것은 상시 실행, 딥링크, 알림, 퀵 질문 창, 자동 업데이트다. 인증은 웹·데스크톱 모두 `Authorization: Bearer <JWT>`를 쓰고 쿠키를 쓰지 않는다. 토큰은 웹이 `localStorage`, 데스크톱이 main의 `safeStorage`에 둔다(`D11`, 5.1). 2단계에서 시스템 브라우저 로그인 + 리프레시 토큰(디바이스 세션)을 얹는다. 채팅 모델을 Claude로 바꾸는 일은 Electron과 무관하게 백엔드 `LlmClient`에 Anthropic 어댑터를 추가해 해결한다.
 
 제안 대비 무엇이 달라졌는지:
 
@@ -25,7 +25,7 @@
 | Electron Main이 Agent SDK로 사용자 구독으로 모델 호출 | 백엔드가 Console API 키로 Anthropic Messages API 호출(검토 문서 7절 B안) | 서드파티 제품의 claude.ai 로그인·구독 한도 제공은 사전 승인 없이 금지(지식 §6.1) |
 | in-process MCP `search_knowledge` 툴 + `POST /v1/search` | 백엔드가 LLM 호출 전 검색 결과를 system prompt에 주입(현행). 재검색은 서버 측 tool use 플래그로 선택 | 검색 REST 노출·클라이언트 저장 API·무결성 정책이 모두 불필요해짐 |
 | SDK `resume`로 세션 관리 | `chat_sessions`·`chat_messages` DB가 세션 진실 | 다기기·재설치 복원 요구(기능 기획서 12절) |
-| 서비스 JWT Bearer 가정 | 1단계 쿠키 재사용, 2단계 디바이스 토큰 Bearer 경로 추가 | 현행 필터는 쿠키만 읽음(지식 §1.2) |
+| 서비스 JWT Bearer 가정 | 1단계부터 Bearer JWT로 전환(`D11`), 2단계에서 디바이스 세션·리프레시 추가 | 현행 필터가 쿠키만 읽는 것(지식 §1.2)을 `D11`에서 Bearer만 읽도록 바꾼다 |
 | 로컬 번들 또는 원격 URL | 원격 URL 고정 | 로컬 번들은 `__Host-`·SameSite=Lax·CORS에서 구조적으로 깨짐(지식 §2.4, §4.7) |
 
 ## 2. 목표와 비목표
@@ -56,9 +56,10 @@
 | ID | 결정 | 선택 | 실제로 검토한 대안 | 선택 이유 | ADR |
 | --- | --- | --- | --- | --- | --- |
 | D1 | 데스크톱 셸 | **Electron 44** | Tauri 2, PWA | 웹과 동일한 Chromium 렌더링, main·preload·renderer 전부 TypeScript, Playwright 지원, 채택 사례(지식 §5.1). PWA는 트레이·글로벌 단축키·자동 시작이 없음 | 필요 |
-| D2 | 콘텐츠 로드 | **원격 URL `https://knoted.kr`** | 로컬 번들(`app://`) | 쿠키·CSRF·CORS·라우터·SSE를 웹과 동일하게 유지, 웹 배포로 즉시 반영(Slack 하이브리드 모델). 로컬 번들은 인증 경로 변경이 선행돼야 함(지식 §2.4, §4.7) | D1과 함께 |
+| D2 | 콘텐츠 로드 | **원격 URL `https://knoted.kr`** | 로컬 번들(`app://`) | CORS·라우터·SSE를 웹과 동일하게 유지, 웹 배포로 즉시 반영(Slack 하이브리드 모델). 로컬 번들을 막던 쿠키 제약(`__Host-`·SameSite)은 `D11`로 사라졌으므로 전환 검토(`A12`)는 열려 있다(지식 §2.4, §4.7) | D1과 함께 |
 | D3 | 모델 호출 위치 | **백엔드 유지 + Anthropic 어댑터(B안)** | D안(클라이언트 Agent SDK), C안(Workspace BYO 키) | 정책 허용 경로, 기존 `LlmClient`/`LlmStream` 추상화가 provider 교체 전제. C안은 B안 위에 후속 | 필요(검토 문서 7절) |
-| D4 | 인증 | **1단계: 웹 쿠키 세션 재사용(패턴 C) → 2단계: 시스템 브라우저 + 디바이스 토큰 Bearer(패턴 A·B), Device flow(D)는 fallback** | 처음부터 2단계, 2단계 없이 C 유지 | C는 백엔드 변경 0으로 가장 빨리 출시 가능하나 RFC 8252 §8.12·1시간 만료·리프레시 부재가 상시 실행 앱에 부적합(지식 §4.4). 2단계는 인증 계층 변경이라 고위험 경로로 분리 | 필요(ADR 314 재논의) |
+| D4 | 인증 | **1단계: 앱 창 GitHub 로그인 + Bearer JWT(`D11`) → 2단계: 시스템 브라우저 + 디바이스 토큰(패턴 A·B), Device flow(D)는 fallback** | 처음부터 2단계, 1단계에서 멈추기 | 1단계는 로그인 창 위치만 앱 안이고 자격증명 전달은 이미 2단계와 같은 Bearer다. RFC 8252 §8.12·1시간 만료·리프레시 부재가 상시 실행 앱에 부적합하므로(지식 §4.4) 2단계는 유지하되, 남은 차이는 **로그인 창 위치와 리프레시**뿐이다 | 필요(ADR 314 재논의) |
+| D11 | 인증 자격증명 전달·저장 | **`Authorization: Bearer <JWT>` + 클라이언트 저장(웹 `localStorage`, 데스크톱 main `safeStorage`). 쿠키·CSRF 폐기** | 현행 `HttpOnly` 쿠키 유지, 쿠키+Bearer 이중 경로, 메모리 전용 저장 | 쿠키는 저장 위치를 브라우저가 정해 데스크톱이 `safeStorage`를 쓸 수 없고, `app://` 로컬 번들에서 깨진다(지식 §2.4·§4.7). 이중 경로는 필터·CSRF 매처·CORS가 두 경로를 동시에 지탱해야 한다. 메모리 전용은 새로고침마다 재로그인이라 리프레시 토큰(2단계) 없이는 못 쓴다. 대가로 `HttpOnly`의 XSS 격리를 잃는다(5.1·5.3) | 필요(ADR 314 보완) |
 | D5 | 빌드·패키징 도구 | **Electron Forge 7.x** | electron-builder 26, electron-vite | Electron 공식 권장, Fuses·ASAR 무결성·서명·공증·publisher 통합, Squirrel + update.electronjs.org 무료 경로. electron-builder는 NSIS·차등 업데이트·스테이지 롤아웃·프라이빗 업데이트가 필요할 때 유리(지식 §3.2). 상세는 10절 | D1과 함께 |
 | D6 | 자동 업데이트 채널 | **GitHub Releases + `update-electron-app`(update.electronjs.org)** | electron-updater + generic 서버, 자체 서버(Hazel 등) | 저장소가 공개(PUBLIC)라 무료 서비스 조건(공개 저장소 + macOS 서명) 충족. 자체 서버는 2년 이상 정체. 상세는 10절 | D5와 함께 |
 | D7 | 저장소 위치 | **루트 `desktop/` 독립 pnpm 패키지, 브랜치 area `fe`** | `frontend/desktop/` 하위 패키지 | `deploy-frontend-*.yml`이 `frontend/**`를 감시하므로 분리해야 웹 배포가 불필요하게 돌지 않음. Governance area는 `be|fe`뿐이라 `fe`를 쓴다(지식 §1.6) | 불필요(메모) |
@@ -156,12 +157,14 @@ export interface KnotDesktopApi {
 
 | 환경 | 웹 오리진(로드 URL) | API 오리진 | 비고 |
 | --- | --- | --- | --- |
-| prod | `https://knoted.kr` | GitHub vars `API_BASE_URL_PROD` 값(저장소에 없음, 대칭성상 `https://api.knoted.kr` 추정) | 서명 빌드 |
-| dev | `https://dev.knoted.kr` | `https://api.dev.knoted.kr` | 내부 테스트 빌드 |
+| prod | `https://knoted.kr` | GitHub vars `API_BASE_URL_PROD` 값(저장소에 없음). 빌드 환경변수로 주입한다(Q3) | 서명 빌드 |
+| dev | `https://dev.knoted.kr` | `https://dev-api.knoted.kr` (정정 2026-09-06, `A1` 실측) | 내부 테스트 빌드 |
 | local | `http://localhost:3000` | 같은 오리진(`API_MOCKING=true`, msw + devServer OAuth 302 미들웨어) | `pnpm dev`와 함께 |
 
 - 환경은 빌드 시 상수로 고정한다(`KNOT_DESKTOP_ENV`). 런타임 전환 UI는 두지 않는다(피싱 표면).
+- **API 오리진을 추정하지 않는다**(정정 2026-09-06). dev의 실제 값이 `dev-api.knoted.kr`로 확인되면서 `api.<env>.knoted.kr` 대칭 가정이 깨졌다. prod 값은 `A3` 배포 시점에 사람이 `KNOT_API_ORIGIN`으로 주입한다.
 - 네비게이션 허용 목록: 웹 오리진, API 오리진, `https://github.com`(1단계 로그인), Notion OAuth 경유 도메인(`https://api.notion.com`, `https://www.notion.so` — 구현 시 실제 302 체인으로 확정). 목록 밖 URL은 `preventDefault` 후 `shell.openExternal`.
+- **차단은 `will-navigate`와 `will-redirect` 두 이벤트 모두에 건다**(정정 2026-09-06, `A1`). `will-navigate`는 링크 클릭·`window.location` 변경 같은 네비게이션 *시작*에서 발화하고, 그 네비게이션 도중의 서버 302는 `will-redirect`로 발화한다. OAuth 로그인은 302 체인이므로 `will-navigate`만 막으면 허용 오리진에서 시작한 뒤 목록 밖으로 넘어가는 경로가 통과한다. `did-start-navigation`·`did-redirect-navigation`은 취소할 수 없어 **기록 전용**으로 쓴다(U2 체인 수집).
 - 새 창(`window.open`, `target=_blank`)은 전부 `deny` + 검증된 `https:`만 외부 브라우저.
 - CORS: 원격 로드이므로 백엔드 `AUTH_CORS_ALLOWED_ORIGINS` 변경이 없다. 2단계 Bearer 요청도 renderer 오리진이 웹 오리진이라 동일하다.
 
@@ -261,7 +264,7 @@ export interface KnotDesktopApi {
 
 | 항목 | 설계 |
 | --- | --- |
-| 활성화 | `llm.provider=anthropic` 분기를 `LlmClientConfig`에 추가. 임베딩은 Qwen(`openai-compatible`) 그대로 → 채팅과 임베딩 provider를 분리하는 설정 키(`llm.chat.provider` / `llm.embedding.provider`)가 필요하다. 현재 두 클라이언트가 `llmHttpClient`와 `llm.provider`를 공유하므로 이 분리가 선행 작업이다(지식 §1.4) |
+| 활성화 | `llm.chat.provider=anthropic` 분기를 `LlmClientConfig`에 추가. 임베딩은 `llm.embedding.provider=openai-compatible`(Qwen) 그대로 둔다. provider 키 분리와 HTTP 클라이언트 빈 분리는 `B0`에서 끝났다(정정 2026-09-06, 지식 §1.4) |
 | 설정 | `llm.anthropic.api-key`(`ANTHROPIC_API_KEY`), `llm.anthropic.model`(기본 `claude-opus-5`), `llm.anthropic.effort`(기본 `medium`, 채팅 QA 측정 후 조정), `llm.anthropic.max-tokens`(기본 4096), `llm.anthropic.request-timeout`(PT30S — SSE 타임아웃과 정합), `llm.anthropic.research-loop.enabled`(기본 false) |
 | 클래스 | `chat/infrastructure/anthropic/AnthropicLlmClient implements LlmClient`, `AnthropicLlmStream implements LlmStream`(pull형: `hasNext`/`next`가 `content_block_delta.text_delta`만 돌려주고 `message_stop`에서 종료), `AnthropicRequestMapper`(`SearchContext.groundingPrompt` → `system`, 히스토리 → `messages`) |
 | HTTP | 옵션 1: `com.anthropic:anthropic-java`(`client.messages().createStreaming`) 도입. 옵션 2: 기존 JDK `HttpClient`로 `POST /v1/messages`(`x-api-key`, `anthropic-version`, `stream:true`) 직접 호출 + SSE 파서 재사용. 구현 Issue에서 결정(검토 문서 7절) |
@@ -270,7 +273,7 @@ export interface KnotDesktopApi {
 | 오류 매핑 | 401/403 → `LLM_CONFIGURATION_INVALID`, 429·529(overloaded) → `LLM_RATE_LIMITED`(SSE `error` + `Retry-After`), 타임아웃 → 기존 `LLM_STREAM_TIMEOUT`, `stop_reason=refusal` → 기존 "정보 없음" 정책 문구가 아닌 별도 코드 `LLM_REFUSED`로 사용자에게 안내(`stop_details.category` 로그) |
 | 계측 | 기존 단계별 시간 기록에 `usage.input_tokens`·`output_tokens`·`cache_read_input_tokens`를 추가 저장(비용 관측) |
 | 재검색 루프(선택) | `research-loop.enabled=true`면 `search_knowledge` 툴을 정의하고 `stop_reason=tool_use` 시 서버가 `PublishedDocumentSearchService`를 실행, `tool_result`를 한 user 메시지로 반환, 최대 2회. 기본 off — 왕복 2회로 TTFT가 늘어나므로(검토 문서 5.6절) 실측 후 결정 |
-| 품질 재검증 | 모델 교체 전 `docs/llm-search-benchmark-independent-30.json` gold set 30문항 + 사람 검수, TTFT 5초 실측(ADR 271 조건). 통과 전 `llm.provider=anthropic`을 운영에 켜지 않는다 |
+| 품질 재검증 | 모델 교체 전 `docs/llm-search-benchmark-independent-30.json` gold set 30문항 + 사람 검수, TTFT 5초 실측(ADR 271 조건). 통과 전 `llm.chat.provider=anthropic`을 운영에 켜지 않는다 |
 | 비용 가드 | 질문당 입력 상한(근거 문서 10,000자 유지), 세션당 히스토리 상한(현행 4개 메시지·4,000자), 일일 토큰 예산 로그 경고 |
 
 ### 6.3 C안(Workspace BYO 키) 후속
@@ -302,10 +305,10 @@ Electron 공식 Security 문서 20항목(지식 §2.3)을 Knot 값으로 고정�
 | 4 | sandbox | `app.enableSandbox()`로 전체 강제 |
 | 5 | 권한 요청 핸들러 | 웹 오리진에서 온 `notifications`·`clipboard-read`·`clipboard-sanitized-write`만 허용, 나머지 거부 |
 | 6 | `webSecurity` | 기본 true |
-| 7 | CSP | 웹 응답 헤더가 담당. Cloudflare Workers 정적 자산의 `_headers`로 `Content-Security-Policy`를 추가하는 웹 측 Issue를 분리(Emotion은 `style-src 'unsafe-inline'` 또는 nonce). 앱은 `onHeadersReceived`로 CSP를 완화하지 않는다 |
+| 7 | CSP | 웹 응답 헤더가 담당(웹 측 작업 `W1`~`W3`의 `W3`). Cloudflare Workers 정적 자산의 `_headers`로 `Content-Security-Policy`를 넣는다. 정적 자산 응답은 요청마다 nonce를 만들 수 없으므로 Emotion 인라인 스타일은 `style-src 'unsafe-inline'`으로 허용한다. 지시문은 9.4를 정본으로 한다. 앱은 `onHeadersReceived`로 CSP를 완화하지 않는다 |
 | 8~10 | `allowRunningInsecureContent`·`experimentalFeatures`·`enableBlinkFeatures` | 사용 금지 |
 | 11~12 | `<webview>` | `webviewTag: false`(기본), `will-attach-webview`에서 전부 거부 |
-| 13 | 네비게이션 제한 | `will-navigate` + `did-start-navigation` 허용 목록, 목록 밖은 외부 브라우저 |
+| 13 | 네비게이션 제한 | `will-navigate` + `will-redirect` 허용 목록 차단(둘 다 `preventDefault` 가능), 목록 밖은 외부 브라우저. `did-start-navigation`·`did-redirect-navigation`은 취소 불가이므로 기록 전용 (정정 2026-09-06) |
 | 14 | 새 창 제한 | `setWindowOpenHandler` → `deny` |
 | 15 | `shell.openExternal` | `https:`·`mailto:`만, 문자열 검증 후 |
 | 16 | Electron 버전 | 44 시작, 메이저 1개씩 8주 주기 추적, EOL 전 업그레이드(Renovate 등록) |
@@ -368,6 +371,25 @@ desktop/
 | 다운로드 페이지(`/download`, OS 감지) | P1 | 정적 라우트 |
 | `<title>` 수정(`Document` → `Knot`) | P1 | 창 제목에 그대로 보인다 |
 | CSP 헤더(`_headers`) | P1 병행 | 웹 보안 Issue로 분리 |
+
+### 9.4 웹 CSP 헤더(`_headers`)
+
+Cloudflare Workers 정적 자산이 읽는 `_headers`를 빌드 산출물(`frontend/dist`)에 함께 만들어 모든 경로(`/*`)에 아래 지시문을 붙인다.
+
+| 지시문 | 값 | 이유 |
+| --- | --- | --- |
+| `default-src` | `'self'` | 아래에서 따로 열지 않은 것은 같은 오리진만 |
+| `script-src` | `'self'` | 번들 1개만 실행한다. 인라인 스크립트·`eval` 없음 |
+| `style-src` | `'self' 'unsafe-inline' https://cdn.jsdelivr.net` | Emotion이 런타임에 `<style>`을 만들고, 정적 응답에는 요청별 nonce를 넣을 수 없다. Pretendard CSS는 jsDelivr에서 온다(`index.html`) |
+| `font-src` | `'self' https://cdn.jsdelivr.net` | 위 CSS가 참조하는 woff2 |
+| `img-src` | `'self' data: https:` | GitHub 프로필·Notion 이미지의 호스트가 고정되지 않는다 |
+| `connect-src` | `'self' {API 오리진}` | 프론트와 API가 크로스 오리진(지식 §1.1). 값은 빌드 시 `API_BASE_URL`에서 넣고 저장소에 고정하지 않는다(로드맵 Q3·Q11) |
+| `frame-ancestors` | `'none'` | 클릭재킹 차단 |
+| `base-uri` | `'self'` | `<base>` 주입으로 번들 경로를 바꾸지 못하게 한다 |
+| `form-action` | `'self'` | 폼 전송 목적지 고정 |
+| `object-src` | `'none'` | 플러그인 미사용 |
+
+`_headers`는 배포 산출물에만 필요하므로 저장소에 정적 파일로 두지 않고 웹팩 빌드가 만든다. 개발 서버(`pnpm dev`)와 vitest·Playwright는 이 헤더를 받지 않는다.
 
 ## 10. 빌드·패키징·서명·배포·업데이트
 
