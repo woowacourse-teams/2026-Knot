@@ -3,6 +3,8 @@ import webpack from "webpack";
 import path from "path";
 import HtmlWebpackPlugin from "html-webpack-plugin";
 
+import { HeadersPlugin } from "./webpack.headers.js";
+
 const __dirname = import.meta.dirname;
 
 export default (env, argv) => {
@@ -21,6 +23,9 @@ export default (env, argv) => {
     process.env.API_MOCKING === undefined
       ? isDev
       : process.env.API_MOCKING === "true";
+
+  // mock 모드에서는 오리진 없이(같은 오리진) 요청해야 msw와 mock OAuth 미들웨어가 받아요
+  const apiBaseUrl = isApiMockingEnabled ? "" : process.env.API_BASE_URL;
 
   return {
     entry: "./src/index.tsx", // 모듈 진입점
@@ -206,13 +211,12 @@ ${exports}
         inject: true, // <script> 태그 자동 삽입
       }),
       new webpack.DefinePlugin({
-        // mock 모드에서는 오리진 없이(같은 오리진) 요청해야 msw와 mock OAuth 미들웨어가 받아요
-        "process.env.API_BASE_URL": JSON.stringify(
-          isApiMockingEnabled ? "" : process.env.API_BASE_URL,
-        ),
+        "process.env.API_BASE_URL": JSON.stringify(apiBaseUrl),
         // 문자열 리터럴로 넣어 src/index.tsx의 분기가 빌드 시점에 접혀요
         "process.env.API_MOCKING": JSON.stringify(String(isApiMockingEnabled)),
       }),
+      // 배포된 응답에 CSP를 붙여요. 개발 서버는 이 파일을 쓰지 않아요
+      new HeadersPlugin({ apiBaseUrl }),
     ],
   };
 };
