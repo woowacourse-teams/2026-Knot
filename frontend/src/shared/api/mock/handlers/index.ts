@@ -1,4 +1,5 @@
 import { authCsrfHandlers } from "./api/v1/auth/csrf";
+import { authLogoutHandlers } from "./api/v1/auth/logout";
 import { authMeHandlers } from "./api/v1/auth/me";
 import { authNicknameHandlers } from "./api/v1/auth/nickname";
 import { chatMessagesHandlers } from "./api/v1/conversations/[sessionId]";
@@ -18,10 +19,11 @@ import { workspaceNotionConnectionHandlers } from "./api/v1/workspaces/[workspac
 import { workspaceNotionOAuthAuthorizationsHandlers } from "./api/v1/workspaces/[workspaceId]/notionOauthAuthorizations";
 import { workspaceNotionPageTreeHandlers } from "./api/v1/workspaces/[workspaceId]/notionPages/tree";
 
-// 리다이렉트 엔드포인트(OAuth 시작·로그아웃)는 XHR 응답이 아니라 두지 않아요
+// 페이지를 통째로 이동시키는 엔드포인트(OAuth 시작)는 XHR 응답이 아니라 두지 않아요
 export const handlers = [
   ...authMeHandlers,
   ...authCsrfHandlers,
+  ...authLogoutHandlers,
   ...authNicknameHandlers,
   ...lastViewedWorkspaceHandlers,
   ...workspacesHandlers,

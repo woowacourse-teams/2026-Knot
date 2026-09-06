@@ -1,5 +1,6 @@
 import { http, HttpResponse } from "msw";
 
+import { AUTH_LOGOUT_API_PATH } from "@api/fetch/api/v1/auth/logout";
 import { AUTH_ME_API_PATH } from "@api/fetch/api/v1/auth/me";
 import { AUTH_NICKNAME_API_PATH } from "@api/fetch/api/v1/auth/nickname";
 import { meResponse } from "@api/mock/responses/auth";
@@ -48,6 +49,14 @@ export const devAuthHandlers = [
     document.cookie = `${MOCK_AUTH_COOKIE_NAME}=${MOCK_AUTH_STATUS.MEMBER}; path=/; SameSite=Lax`;
 
     return new HttpResponse(null, { status: 200 });
+  }),
+
+  http.post(`*${AUTH_LOGOUT_API_PATH}`, () => {
+    // 실제 백엔드가 인증 쿠키를 만료시키는 것을 흉내내요. 이걸 지우지 않으면
+    // 로그아웃 후에도 me가 200을 주고 로그인 화면에서 다시 홈으로 튕겨요
+    document.cookie = `${MOCK_AUTH_COOKIE_NAME}=; path=/; SameSite=Lax; max-age=0`;
+
+    return new HttpResponse(null, { status: 204 });
   }),
 ];
 
