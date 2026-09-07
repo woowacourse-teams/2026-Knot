@@ -2,6 +2,7 @@ package com.knot.backend.search.application;
 
 import com.knot.backend.search.domain.SearchChunk;
 import com.knot.backend.search.domain.SearchResultStatus;
+import java.util.ArrayList;
 import java.util.List;
 
 public final class SearchContext {
@@ -59,6 +60,15 @@ public final class SearchContext {
         );
     }
 
+    /** 데스크톱이 사용자 LLM 프롬프트 앞에 그대로 붙이는 근거 규칙 문장(기획서 6.4). 서버 SSE 경로와 같은 문장이다. */
+    public static String groundingRules() {
+        return GROUNDING_INSTRUCTION;
+    }
+
+    public SearchResultStatus status() {
+        return status;
+    }
+
     public boolean isReady() {
         return status == SearchResultStatus.READY;
     }
@@ -79,8 +89,13 @@ public final class SearchContext {
         };
     }
 
-    public String groundingPrompt() {
-        StringBuilder prompt = new StringBuilder(GROUNDING_INSTRUCTION);
+    /**
+     * 프롬프트 예산(maxContextCharacters)에 맞춰 본문을 자른 근거 목록. 규칙 문장 + 근거 블록 헤더 + 본문을 순서대로
+     * 누적해 예산을 넘는 본문은 자르고, 예산이 다한 뒤의 근거는 뺀다(로드맵 Q28·Q33).
+     * {@link #groundingPrompt()}와 검색 API 응답이 같은 목록을 쓴다.
+     */
+    public List<SearchChunk> contextReferences() {
+        List<SearchChunk> trimmed = new ArrayList<>();
         int usedCharacters = GROUNDING_INSTRUCTION.length();
         for (int index = 0; index < references.size() && usedCharacters < maxContextCharacters; index++) {
             SearchChunk reference = references.get(index);
@@ -92,19 +107,38 @@ public final class SearchContext {
                         remainingCharacters
                 );
             }
-            prompt.append("[근거 문서 ")
-                    .append(index + 1)
-                    .append("]\n제목: ")
-                    .append(reference.title())
-                    .append("\n문서 ID: ")
-                    .append(reference.importedPageId())
-                    .append("\n문서 링크: ")
-                    .append(reference.sourceUrl())
-                    .append("\n내용:\n")
-                    .append(content)
-                    .append("\n\n");
-            usedCharacters = prompt.length();
+            trimmed.add(reference.withContent(content));
+            usedCharacters += groundingBlock(
+                    index,
+                    reference,
+                    content
+            ).length();
+        }
+        return List.copyOf(trimmed);
+    }
+
+    public String groundingPrompt() {
+        StringBuilder prompt = new StringBuilder(GROUNDING_INSTRUCTION);
+        List<SearchChunk> contextReferences = contextReferences();
+        for (int index = 0; index < contextReferences.size(); index++) {
+            SearchChunk reference = contextReferences.get(index);
+            prompt.append(
+                    groundingBlock(
+                            index,
+                            reference,
+                            reference.content()
+                    )
+            );
         }
         return prompt.toString();
+    }
+
+    private static String groundingBlock(
+            int index,
+            SearchChunk reference,
+            String content
+    ) {
+        return "[근거 문서 " + (index + 1) + "]\n제목: " + reference.title() + "\n문서 ID: " + reference.importedPageId()
+                + "\n문서 링크: " + reference.sourceUrl() + "\n내용:\n" + content + "\n\n";
     }
 }

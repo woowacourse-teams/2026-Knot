@@ -4,13 +4,10 @@ import com.knot.backend.search.domain.SearchChunk;
 import com.knot.backend.search.domain.SearchChunkRepository;
 import com.knot.backend.search.domain.SearchErrorCode;
 import com.knot.backend.search.domain.SearchException;
-import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -148,7 +145,8 @@ public class PublishedDocumentSearchService {
                     Double::sum
             );
         }
-        List<SearchChunk> rankedChunks = selectedByChunk.entrySet()
+        // 청크 단위 상위 top-k. 같은 페이지의 청크가 여럿 들어가도 제외하지 않는다(기획서 6.4, 로드맵 Q29).
+        return selectedByChunk.entrySet()
                 .stream()
                 .map(
                         entry -> entry.getValue()
@@ -165,18 +163,8 @@ public class PublishedDocumentSearchService {
                                 .thenComparing(SearchChunk::title)
                                 .thenComparingInt(SearchChunk::chunkIndex)
                 )
+                .limit(properties.topK())
                 .toList();
-        List<SearchChunk> sources = new ArrayList<>();
-        Set<Long> pageIds = new HashSet<>();
-        for (SearchChunk chunk : rankedChunks) {
-            if (pageIds.add(chunk.importedPageId())) {
-                sources.add(chunk);
-            }
-            if (sources.size() >= properties.topK()) {
-                break;
-            }
-        }
-        return List.copyOf(sources);
     }
 
     private boolean isRelevant(SearchChunk candidate) {

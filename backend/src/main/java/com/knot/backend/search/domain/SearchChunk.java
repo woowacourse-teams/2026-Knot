@@ -73,6 +73,20 @@ public final class SearchChunk {
         );
     }
 
+    public SearchChunk withContent(String content) {
+        return retrieved(
+                workspaceId,
+                importedPageId,
+                importRunId,
+                chunkIndex,
+                title,
+                sourceUrl,
+                createdAt,
+                content,
+                score
+        );
+    }
+
     public Long importedPageId() {
         return importedPageId;
     }
