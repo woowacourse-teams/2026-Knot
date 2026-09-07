@@ -1,6 +1,6 @@
 package com.knot.backend.chat.presentation;
 
-import static com.knot.backend.global.config.OpenApiConfig.ACCESS_TOKEN_COOKIE;
+import static com.knot.backend.global.config.OpenApiConfig.BEARER_AUTH;
 
 import com.knot.backend.auth.domain.AuthenticatedMember;
 import com.knot.backend.chat.presentation.dto.response.SearchReferencesResponse;
@@ -20,7 +20,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 
 @Tag(name = "Chat Message", description = "AI 답변 메시지의 검색 출처 조회")
-@SecurityRequirement(name = ACCESS_TOKEN_COOKIE)
+@SecurityRequirement(name = BEARER_AUTH)
 public interface ChatMessageSourceQueryApi {
 
     // @formatter:off

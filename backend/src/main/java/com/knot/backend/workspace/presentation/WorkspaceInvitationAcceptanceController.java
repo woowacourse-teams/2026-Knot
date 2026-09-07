@@ -8,8 +8,6 @@ import com.knot.backend.workspace.application.dto.result.WorkspaceInvitationAcce
 import com.knot.backend.workspace.presentation.dto.request.WorkspaceInvitationAcceptanceRequest;
 import com.knot.backend.workspace.presentation.dto.response.WorkspaceInvitationAcceptanceResponse;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
-import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import io.swagger.v3.oas.annotations.headers.Header;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -29,7 +27,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @Tag(name = "워크스페이스 초대", description = "워크스페이스 초대 코드와 링크 발급, 조회, 재발급")
-@SecurityRequirement(name = OpenApiConfig.ACCESS_TOKEN_COOKIE)
+@SecurityRequirement(name = OpenApiConfig.BEARER_AUTH)
 @RestController
 @RequestMapping("/api/v1/invitations")
 public class WorkspaceInvitationAcceptanceController {
@@ -42,16 +40,7 @@ public class WorkspaceInvitationAcceptanceController {
     }
 
     // @formatter:off
-    @Operation(
-            summary = "초대 코드 또는 링크 토큰으로 워크스페이스 참여",
-            parameters = @Parameter(
-                    name = "X-XSRF-TOKEN",
-                    description = "CSRF 토큰",
-                    in = ParameterIn.HEADER,
-                    required = true,
-                    schema = @Schema(type = "string")
-            )
-    )
+    @Operation(summary = "초대 코드 또는 링크 토큰으로 워크스페이스 참여")
     @ApiResponses({
             @ApiResponse(
                     responseCode = "200",
@@ -87,7 +76,7 @@ public class WorkspaceInvitationAcceptanceController {
             ),
             @ApiResponse(
                     responseCode = "403",
-                    description = "CSRF 검증 실패",
+                    description = "권한 없음",
                     content = @Content(
                             mediaType = MediaType.APPLICATION_JSON_VALUE,
                             schema = @Schema(implementation = ErrorResponse.class)

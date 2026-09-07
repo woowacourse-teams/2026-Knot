@@ -1,14 +1,12 @@
 package com.knot.backend.workspace.presentation;
 
-import static com.knot.backend.global.config.OpenApiConfig.ACCESS_TOKEN_COOKIE;
+import static com.knot.backend.global.config.OpenApiConfig.BEARER_AUTH;
 
 import com.knot.backend.auth.domain.AuthenticatedMember;
-import com.knot.backend.global.config.OpenApiConfig;
 import com.knot.backend.global.response.ErrorResponse;
 import com.knot.backend.workspace.presentation.dto.response.NotionImportStartResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
-import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import io.swagger.v3.oas.annotations.headers.Header;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -21,19 +19,12 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 
 @Tag(name = "Notion Import", description = "Notion 문서 가져오기 실행")
-@SecurityRequirement(name = ACCESS_TOKEN_COOKIE)
+@SecurityRequirement(name = BEARER_AUTH)
 public interface NotionImportRetryApi {
 
     // @formatter:off
     @Operation(
-            summary = "실패한 Notion Import 재시도",
-            parameters = @Parameter(
-                    name = OpenApiConfig.CSRF_TOKEN_HEADER_NAME,
-                    in = ParameterIn.HEADER,
-                    required = true,
-                    schema = @Schema(type = "string"),
-                    description = "CSRF 토큰"
-            )
+            summary = "실패한 Notion Import 재시도"
     )
     @ApiResponses({
             @ApiResponse(
@@ -67,7 +58,7 @@ public interface NotionImportRetryApi {
             ),
             @ApiResponse(
                     responseCode = "403",
-                    description = "CSRF 토큰 누락 또는 OWNER 권한 없음",
+                    description = "OWNER 권한 없음",
                     content = @Content(
                             mediaType = MediaType.APPLICATION_JSON_VALUE,
                             schema = @Schema(implementation = ErrorResponse.class)

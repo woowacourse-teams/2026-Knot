@@ -25,9 +25,8 @@ import org.springframework.web.method.HandlerMethod;
 
 @Configuration
 public class OpenApiConfig {
-    public static final String ACCESS_TOKEN_COOKIE = "accessTokenCookie";
-    public static final String CSRF_TOKEN_HEADER = "csrfTokenHeader";
-    public static final String CSRF_TOKEN_HEADER_NAME = "X-XSRF-TOKEN";
+    /** `Authorization: Bearer <JWT>` 보안 스킴 이름. 인증 자격증명은 이것 하나뿐이다(기획서 5.1) */
+    public static final String BEARER_AUTH = "bearerAuth";
     private static final String WORKSPACE_PACKAGE = "com.knot.backend.workspace.presentation.";
     private static final String WORKSPACE_CONTROLLER = WORKSPACE_PACKAGE + "WorkspaceController";
     private static final String WORKSPACE_QUERY_CONTROLLER = WORKSPACE_PACKAGE + "WorkspaceQueryController";
@@ -64,24 +63,19 @@ public class OpenApiConfig {
     private void customizeWorkspaceCreateOperation(Operation operation) {
         operation.summary("워크스페이스 생성")
                 .responses(workspaceCreateResponses());
-        operation.security(
-                List.of(
-                        new SecurityRequirement().addList(ACCESS_TOKEN_COOKIE)
-                                .addList(CSRF_TOKEN_HEADER)
-                )
-        );
+        operation.security(List.of(new SecurityRequirement().addList(BEARER_AUTH)));
     }
 
     private void customizeWorkspaceDetailOperation(Operation operation) {
         operation.summary("워크스페이스 단건 조회")
                 .responses(workspaceDetailResponses());
-        operation.security(List.of(new SecurityRequirement().addList(ACCESS_TOKEN_COOKIE)));
+        operation.security(List.of(new SecurityRequirement().addList(BEARER_AUTH)));
     }
 
     private void customizeWorkspaceListOperation(Operation operation) {
         operation.summary("내 워크스페이스 목록 조회")
                 .responses(workspaceListResponses());
-        operation.security(List.of(new SecurityRequirement().addList(ACCESS_TOKEN_COOKIE)));
+        operation.security(List.of(new SecurityRequirement().addList(BEARER_AUTH)));
     }
 
     private ApiResponses workspaceCreateResponses() {
@@ -109,7 +103,7 @@ public class OpenApiConfig {
                 .addApiResponse(
                         "403",
                         jsonResponse(
-                                "CSRF 토큰 누락 또는 권한 없음",
+                                "권한 없음",
                                 "ErrorResponse"
                         )
                 );
@@ -212,17 +206,11 @@ public class OpenApiConfig {
 
     private Components securityComponents() {
         return new Components().addSecuritySchemes(
-                ACCESS_TOKEN_COOKIE,
-                new SecurityScheme().type(SecurityScheme.Type.APIKEY)
-                        .in(SecurityScheme.In.COOKIE)
-                        .name("__Host-KNOT_ACCESS_TOKEN")
+                BEARER_AUTH,
+                new SecurityScheme().type(SecurityScheme.Type.HTTP)
+                        .scheme("bearer")
+                        .bearerFormat("JWT")
         )
-                .addSecuritySchemes(
-                        CSRF_TOKEN_HEADER,
-                        new SecurityScheme().type(SecurityScheme.Type.APIKEY)
-                                .in(SecurityScheme.In.HEADER)
-                                .name(CSRF_TOKEN_HEADER_NAME)
-                )
                 .addSchemas(
                         "ErrorResponse",
                         errorResponseSchema()
@@ -286,24 +274,6 @@ public class OpenApiConfig {
                                         )
                                 )
                 )
-        )
-                .addPathItem(
-                        "/api/v1/auth/logout",
-                        new PathItem().post(
-                                new Operation().operationId("logout")
-                                        .summary("로그아웃")
-                                        .addTagsItem("인증")
-                                        .responses(
-                                                new ApiResponses().addApiResponse(
-                                                        "302",
-                                                        new ApiResponse().description("로그아웃 후 로그인 화면으로 redirect")
-                                                                .addHeaderObject(
-                                                                        "Location",
-                                                                        new Header().description("로그인 화면 URL")
-                                                                )
-                                                )
-                                        )
-                        )
-                );
+        );
     }
 }

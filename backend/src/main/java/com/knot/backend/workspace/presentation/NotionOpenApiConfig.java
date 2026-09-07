@@ -6,8 +6,6 @@ import io.swagger.v3.oas.models.headers.Header;
 import io.swagger.v3.oas.models.media.Content;
 import io.swagger.v3.oas.models.media.MediaType;
 import io.swagger.v3.oas.models.media.Schema;
-import io.swagger.v3.oas.models.media.StringSchema;
-import io.swagger.v3.oas.models.parameters.Parameter;
 import io.swagger.v3.oas.models.responses.ApiResponse;
 import io.swagger.v3.oas.models.responses.ApiResponses;
 import io.swagger.v3.oas.models.security.SecurityRequirement;
@@ -80,7 +78,7 @@ public class NotionOpenApiConfig {
                                 .addApiResponse(
                                         "403",
                                         jsonResponse(
-                                                "CSRF 검증 실패 또는 OWNER 권한 없음",
+                                                "OWNER 권한 없음",
                                                 ERROR_RESPONSE_SCHEMA
                                         )
                                 )
@@ -99,8 +97,7 @@ public class NotionOpenApiConfig {
                                         )
                                 )
                 )
-                .security(authenticatedWithCsrf())
-                .addParametersItem(csrfTokenParameter());
+                .security(authenticated());
     }
 
     private void customizeCallback(Operation operation) {
@@ -168,22 +165,11 @@ public class NotionOpenApiConfig {
                                         )
                                 )
                 )
-                .security(List.of(new SecurityRequirement().addList(OpenApiConfig.ACCESS_TOKEN_COOKIE)));
+                .security(List.of(new SecurityRequirement().addList(OpenApiConfig.BEARER_AUTH)));
     }
 
-    private List<SecurityRequirement> authenticatedWithCsrf() {
-        return List.of(
-                new SecurityRequirement().addList(OpenApiConfig.ACCESS_TOKEN_COOKIE)
-                        .addList(OpenApiConfig.CSRF_TOKEN_HEADER)
-        );
-    }
-
-    private Parameter csrfTokenParameter() {
-        return new Parameter().name(OpenApiConfig.CSRF_TOKEN_HEADER_NAME)
-                .in("header")
-                .required(true)
-                .description("CSRF 방지 토큰")
-                .schema(new StringSchema());
+    private List<SecurityRequirement> authenticated() {
+        return List.of(new SecurityRequirement().addList(OpenApiConfig.BEARER_AUTH));
     }
 
     private ApiResponse jsonResponse(

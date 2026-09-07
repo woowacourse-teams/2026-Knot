@@ -7,7 +7,6 @@ import io.swagger.v3.oas.models.media.Content;
 import io.swagger.v3.oas.models.media.MediaType;
 import io.swagger.v3.oas.models.media.Schema;
 import io.swagger.v3.oas.models.media.StringSchema;
-import io.swagger.v3.oas.models.parameters.Parameter;
 import io.swagger.v3.oas.models.responses.ApiResponse;
 import io.swagger.v3.oas.models.responses.ApiResponses;
 import io.swagger.v3.oas.models.security.SecurityRequirement;
@@ -47,8 +46,7 @@ public class WorkspaceInvitationOpenApiConfig {
     private void customizeIssueOperation(Operation operation) {
         operation.summary("워크스페이스 초대 발급")
                 .responses(issueResponses())
-                .security(accessTokenSecurity())
-                .addParametersItem(csrfTokenParameter());
+                .security(accessTokenSecurity());
     }
 
     private void customizeGetOperation(Operation operation) {
@@ -60,8 +58,7 @@ public class WorkspaceInvitationOpenApiConfig {
     private void customizeReissueOperation(Operation operation) {
         operation.summary("워크스페이스 초대 재발급")
                 .responses(reissueResponses())
-                .security(accessTokenSecurity())
-                .addParametersItem(csrfTokenParameter());
+                .security(accessTokenSecurity());
     }
 
     private ApiResponses issueResponses() {
@@ -93,7 +90,7 @@ public class WorkspaceInvitationOpenApiConfig {
                 .addApiResponse(
                         "403",
                         jsonResponse(
-                                "CSRF 검증 실패 또는 워크스페이스 접근 거부",
+                                "워크스페이스 접근 거부",
                                 ERROR_RESPONSE_SCHEMA
                         )
                 )
@@ -180,7 +177,7 @@ public class WorkspaceInvitationOpenApiConfig {
                 .addApiResponse(
                         "403",
                         jsonResponse(
-                                "CSRF 검증 실패 또는 워크스페이스 접근 거부",
+                                "워크스페이스 접근 거부",
                                 ERROR_RESPONSE_SCHEMA
                         )
                 )
@@ -224,16 +221,8 @@ public class WorkspaceInvitationOpenApiConfig {
                 );
     }
 
-    private Parameter csrfTokenParameter() {
-        return new Parameter().name(OpenApiConfig.CSRF_TOKEN_HEADER_NAME)
-                .description("CSRF 토큰")
-                .in("header")
-                .required(true)
-                .schema(new StringSchema());
-    }
-
     private List<SecurityRequirement> accessTokenSecurity() {
-        return List.of(new SecurityRequirement().addList(OpenApiConfig.ACCESS_TOKEN_COOKIE));
+        return List.of(new SecurityRequirement().addList(OpenApiConfig.BEARER_AUTH));
     }
 
     private boolean isWorkspaceInvitationOperation(HandlerMethod handlerMethod) {

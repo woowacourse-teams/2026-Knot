@@ -25,7 +25,7 @@ public interface NotionPageTreeApi {
     // @formatter:off
     @Operation(
             summary = "Notion Page Tree 조회",
-            security = @SecurityRequirement(name = OpenApiConfig.ACCESS_TOKEN_COOKIE)
+            security = @SecurityRequirement(name = OpenApiConfig.BEARER_AUTH)
     )
     @ApiResponses({
             @ApiResponse(

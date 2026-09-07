@@ -23,7 +23,7 @@ public interface NotionImportApi {
     // @formatter:off
     @Operation(
             summary = "Notion Import 상태 조회",
-            security = @SecurityRequirement(name = OpenApiConfig.ACCESS_TOKEN_COOKIE)
+            security = @SecurityRequirement(name = OpenApiConfig.BEARER_AUTH)
     )
     @ApiResponses({
             @ApiResponse(
