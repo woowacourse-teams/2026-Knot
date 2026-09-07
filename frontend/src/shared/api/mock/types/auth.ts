@@ -4,6 +4,8 @@ export interface MeResponse {
   profileImageUrl: string;
 }
 
-export interface CsrfTokenResponse {
-  token: string;
+export interface NicknameResponse {
+  accessToken: string;
+  tokenType: string;
+  expiresIn: number;
 }

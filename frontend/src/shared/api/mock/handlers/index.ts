@@ -1,4 +1,3 @@
-import { authCsrfHandlers } from "./api/v1/auth/csrf";
 import { authLogoutHandlers } from "./api/v1/auth/logout";
 import { authMeHandlers } from "./api/v1/auth/me";
 import { authNicknameHandlers } from "./api/v1/auth/nickname";
@@ -22,7 +21,6 @@ import { workspaceNotionPageTreeHandlers } from "./api/v1/workspaces/[workspaceI
 // 페이지를 통째로 이동시키는 엔드포인트(OAuth 시작)는 XHR 응답이 아니라 두지 않아요
 export const handlers = [
   ...authMeHandlers,
-  ...authCsrfHandlers,
   ...authLogoutHandlers,
   ...authNicknameHandlers,
   ...lastViewedWorkspaceHandlers,

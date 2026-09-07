@@ -1,4 +1,4 @@
-import { GetCsrfTokenResponseDto, GetMeResponseDto } from "@api/dto/auth";
+import { GetMeResponseDto, PostNicknameResponseDto } from "@api/dto/auth";
 import { GetChatMessagesResponseDto } from "@api/dto/chatMessage";
 import {
   GetNotionConnectionResponseDto,
@@ -20,7 +20,6 @@ import {
   PostWorkspaceInvitationReissueResponseDto,
   PostWorkspaceInvitationResponseDto,
 } from "@api/dto/workspaceInvitation";
-import { getCsrfTokenApi } from "@api/fetch/api/v1/auth/csrf";
 import { getMeApi } from "@api/fetch/api/v1/auth/me";
 import { completeNicknameApi } from "@api/fetch/api/v1/auth/nickname";
 import { getChatMessagesApi } from "@api/fetch/api/v1/conversations/[sessionId]";
@@ -41,7 +40,7 @@ import { getNotionConnectionApi } from "@api/fetch/api/v1/workspaces/[workspaceI
 import { startNotionOAuthApi } from "@api/fetch/api/v1/workspaces/[workspaceId]/notionOauthAuthorizations";
 import { issueWorkspaceInvitationApi } from "@api/fetch/api/v1/workspaces/[workspaceId]/invitations";
 import { reissueWorkspaceInvitationApi } from "@api/fetch/api/v1/workspaces/[workspaceId]/invitations/reissue";
-import { csrfTokenResponse, meResponse } from "@api/mock/responses/auth";
+import { meResponse, nicknameResponse } from "@api/mock/responses/auth";
 import {
   notionConnectionResponse,
   notionOAuthAuthorizationResponse,
@@ -76,16 +75,10 @@ describe("mock 기본 핸들러와 fetch 요청 함수의 대응", () => {
       );
     });
 
-    it("GET /api/v1/auth/csrf는 csrfTokenResponse를 돌려준다", async () => {
-      await expect(getCsrfTokenApi()).resolves.toEqual(
-        new GetCsrfTokenResponseDto(csrfTokenResponse),
-      );
-    });
-
-    it("POST /api/v1/auth/nickname은 본문 없이 성공한다", async () => {
+    it("POST /api/v1/auth/nickname은 nicknameResponse를 돌려준다", async () => {
       await expect(
         completeNicknameApi({ nickname: "노티드" }),
-      ).resolves.toBeUndefined();
+      ).resolves.toEqual(new PostNicknameResponseDto(nicknameResponse));
     });
   });
 

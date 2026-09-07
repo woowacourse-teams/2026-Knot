@@ -48,7 +48,8 @@ export default (env, argv) => {
       historyApiFallback: true, // SPA 라우팅을 위해 추가
       // mock 모드에서 GitHub 로그인 진입을 대신해요. GithubLoginButton은 페이지를 통째로
       // 이동시키는데 msw는 네비게이션을 가로채지 못하므로, dev 서버가 실제 백엔드처럼
-      // 로그인 상태 쿠키(src/shared/api/mock/handlers/dev와 같은 약속)를 심고 302로 돌려보내요.
+      // 토큰을 리다이렉트 주소의 프래그먼트에 실어 302로 돌려보내요.
+      // 토큰 값은 src/shared/api/mock/handlers/dev와 같은 약속이에요.
       // 기본은 기존 회원(→ /), 주소창에 ?scenario=onboarding을 붙이면 신규 가입(→ /onboarding)이에요.
       setupMiddlewares: (middlewares) => {
         if (isApiMockingEnabled) {
@@ -62,10 +63,11 @@ export default (env, argv) => {
 
               res.statusCode = 302;
               res.setHeader(
-                "Set-Cookie",
-                `KNOT_MOCK_AUTH=${isOnboarding ? "onboarding" : "member"}; Path=/; SameSite=Lax`,
+                "Location",
+                isOnboarding
+                  ? "/onboarding#onboarding_token=mock-onboarding-token&expires_in=600"
+                  : "/#access_token=mock-access-token&token_type=Bearer&expires_in=3600",
               );
-              res.setHeader("Location", isOnboarding ? "/onboarding" : "/");
               res.end();
             },
           });
