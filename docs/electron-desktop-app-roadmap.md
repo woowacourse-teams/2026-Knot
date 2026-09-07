@@ -116,7 +116,7 @@
 
 ### G1 — 스파이크 결과 게이트 (M0 → M1, 현재 위치)
 
-- [ ] Electron 창에서 GitHub 로그인이 경고·차단 없이 **끝까지** 동작한다 (U1) — 2026-09-06 부분 확인: `dev-api.knoted.kr/oauth2/authorization/github` → 302 `github.com/login/oauth/authorize` → 302 `github.com/login`까지 경고·차단 없이 진행하고 GitHub 로그인 폼(패스키 옵션 포함)이 정상 렌더된다. **자격증명 입력 이후(콜백·토큰 발급)는 사람이 로그인해야 확인된다**
+- [x] Electron 창에서 GitHub 로그인이 경고·차단 없이 **끝까지** 동작한다 (U1 해소) — 2026-09-07 종단 확인: `github.com/login` → `github.com/session`(비밀번호) → `sessions/two-factor/webauthn` → `sessions/two-factor/mobile`(2FA 승인) → `login/oauth/authorize` → `dev-api.knoted.kr/login/oauth2/code/github?code=…` → `dev.knoted.kr/`. 차단 0건이고 **2FA까지 앱 창 안에서 동작한다**. 단 이 경로는 GitHub 계정 직접 로그인이며 소셜 로그인(Google)은 미검증(U21)
 - [ ] Notion OAuth 302 체인의 실제 도메인을 기록했다 (U2 해소) → `desktop/src/shared/env.ts` 허용 목록에 반영 — 로그인이 선행이라 미측정
 - [ ] 채팅 SSE가 Electron renderer에서 웹과 동일하게 스트리밍된다 — 로그인이 선행이라 미측정
 - [ ] 실패 시 결정: 2단계 인증(`A6`·`A7`)을 M1으로 당기고 M1 범위를 재작성했다
@@ -253,13 +253,16 @@ G0 미통과 상태에서도 착수할 수 있다.
 
 | ID | 확인할 것 | 어디서 해소 | 상태 |
 | --- | --- | --- | --- |
-| U1 | GitHub이 Electron 창(embedded UA) 로그인을 경고·차단하는가 | A1 | 부분 해소(2026-09-06): 로그인 **페이지까지는 경고·차단 없음**. `github.com/login`이 정상 렌더되고 "Sign in with a passkey"·Google·Apple 옵션도 나온다. 자격증명 입력 이후는 미측정 |
+| U1 | GitHub이 Electron 창(embedded UA) 로그인을 경고·차단하는가 | A1 | 해소(2026-09-07): 종단 성공. 비밀번호 로그인 + 2FA(webauthn 화면 → 모바일 승인)까지 앱 창 안에서 차단·경고 없이 끝나고 `dev.knoted.kr/`로 복귀했다. GitHub은 embedded UA를 막지 않는다 |
+| U20 | GitHub 소셜 로그인(Google) 경유 도메인이 허용 목록 밖이라 로그인이 깨지는가 | A1 | 해소(2026-09-07): `github.com/login`에서 Google 버튼을 누르면 `github.com/sessions/social/google/initiate` → `accounts.google.com/o/oauth2/v2/auth`로 나가고, 후자가 목록 밖이라 외부 브라우저로 빠졌다. Google 인증만 다른 브라우저에서 끝나 GitHub 소셜 `state` 세션이 갈리고 콜백이 "We could not validate the response from your social login provider"로 실패한다. `accounts.google.com`을 목록에 추가 |
+| U21 | `accounts.google.com`이 Electron embedded UA를 `disallowed_useragent`로 거부하는가 | A1 | 미확인(2026-09-07 재측정 시 Google 버튼을 쓰지 않아 이 홉을 지나지 않았다). Google은 임베디드 브라우저 OAuth를 정책으로 막는다. 거부되면 허용 목록 확장으로는 해결되지 않고 `A6`·`A7`(시스템 브라우저 로그인)이 유일한 경로가 된다 |
+| U22 | 로컬 실 백엔드(`:8080`) GitHub OAuth 체인이 셸 안에서 끝까지 지나가는가 | A1 | 해소(2026-09-07): `local` API 오리진을 `:8080`으로 고친 뒤 4홉(`:8080/oauth2/authorization/github` → `github.com/login/oauth/authorize` → `:8080/login/oauth2/code/github?code=` → `:3000/#access_token=`)이 차단 0건으로 지나갔다. 고치기 전에는 1홉에서 `will-navigate` 차단 후 `shell.openExternal`도 `http:`라 거부해 버튼이 무반응이었다 |
 | U2 | Notion OAuth 302 체인의 실제 도메인 | A1 | 미확인(로그인 선행) |
 | U9 | Forge `maker-squirrel`을 macOS 호스트에서 빌드할 수 있는가(문서 상충) | A3 (Windows 러너 사용 시 무관) | 미확인 |
 | U10 | `@electron/notarize`가 자동 staple 하는가 | A3 (`xcrun stapler validate`로 검증) | 미확인 |
 | U11 | `update-electron-app`의 draft/prerelease 처리 | A4 | 미확인 |
 | U14 | Spring `CsrfFilter.DEFAULT_CSRF_MATCHER` 7.1.1 시그니처 | A6 | 무효(2026-09-06): `C1`이 CSRF를 제거해 매처를 건드릴 일이 없어졌다 |
-| U17 | `safeStorage.isEncryptionAvailable()`이 미서명 로컬 빌드(macOS)에서 true인가 | C3 | 미확인(사람이 앱을 실행해야 안다). false여도 동작하도록 메모리 대체 경로를 구현하고 테스트로 덮었다 — 그때는 실행 중에만 로그인이 유지된다(Q16 기본값) |
+| U17 | `safeStorage.isEncryptionAvailable()`이 미서명 로컬 빌드(macOS)에서 true인가 | C3 | 해소(2026-09-07): true. `local` 빌드로 실 로그인한 뒤 `~/Library/Application Support/Knot/auth.bin`이 419바이트·`0600`으로 생겼고, 선두가 Chromium OSCrypt의 `v10` 프리픽스라 평문 JWT가 아니다(`grep eyJ` 0건). 메모리 대체 경로는 남겨 둔다 |
 | U15 | Cloudflare `_headers` CSP와 Emotion 인라인 스타일 충돌 | W3 | 해소(2026-09-06). `style-src 'unsafe-inline'`을 넣으면 충돌 없음. `wrangler dev`로 `dist`를 띄워 실측 — CSP 위반 0건, Emotion `<style>` 2개 적용, jsDelivr Pretendard CSS·woff2 로드, API 요청은 CSP가 아닌 DNS 미해소로만 실패 |
 | U16 | `will-navigate`가 서버 302 리다이렉트에서 발화하지 않는다는 전제(기획서 4.5 정정)를 실제 OAuth 체인으로 확인 | A1 | 해소(2026-09-06): GitHub OAuth 3홉 중 SPA가 시작한 1홉만 `will-navigate`, 서버 302인 나머지 2홉은 `will-redirect`로 들어왔다. `will-navigate`만 검사했다면 `github.com`으로 넘어가는 두 홉이 허용 목록 검사를 거치지 않았다 |
 | V1 | 착수 시점의 Electron·Forge·Playwright 최신 버전 재조회 | A1 착수 시 | 해소(2026-09-06): `electron@44.2.0`(2026-09-04 배포), `@electron-forge/cli@7.11.2`(latest, 8은 `8.0.0-alpha.10`), `@playwright/test@1.63.0`, `update-electron-app@3.3.0`, `electron-log@5.4.4`, `@electron/fuses@2.1.3`, `@electron/notarize@3.1.1`, `esbuild@0.28.2`. 근거: `npm view <pkg> version` |
@@ -299,7 +302,8 @@ G0 미통과 상태에서도 착수할 수 있다.
 
 | # | 요지 | 소유 작업 | 상태 |
 | --- | --- | --- | --- |
-| R1 | GitHub이 Electron 창 로그인을 차단할 수 있음 | A1 (U1) | 완화(2026-09-06): 로그인 페이지까지 차단·경고 없음. 종단은 미확인 |
+| R1 | GitHub이 Electron 창 로그인을 차단할 수 있음 | A1 (U1) | 해소(2026-09-07): 비밀번호 + 2FA 종단 성공 |
+| R16 | 3자 IdP(Google·Apple)가 GitHub 로그인 체인에 끼어들어 허용 목록을 계속 넓히게 됨 | A1 (U20·U21), A7 (해소) | 미해소. 2026-09-07 `accounts.google.com` 추가로 Google만 뚫었다. Apple(`appleid.apple.com`)은 그대로 깨져 있고, IdP가 embedded UA를 거부하면 목록 확장 자체가 막힌다. 근본 해소는 시스템 브라우저 로그인(`A7`) |
 | R2 | Notion OAuth 도메인이 허용 목록과 다를 수 있음 | A1 (U2) | 미해소 |
 | R3 | 운영 API 오리진이 저장소에 없음 | Q3 | 미해소. 2026-09-06 dev 값이 `dev-api.knoted.kr`로 확인되면서 `api.<env>.knoted.kr` 대칭 추정이 깨졌다 — 운영 값을 추측하지 않는다 |
 | R4 | access 1시간·리프레시 없음 | A6 | 미해소 |
@@ -345,3 +349,4 @@ G0 미통과 상태에서도 착수할 수 있다.
 | 2026-09-06 | `A1` 셸 구현(`desktop/`) 후 상태 `검증중`. U1 부분 해소·U16 해소, R1 완화·R3 보강, G1 체크박스에 실측 기록. Q13(앱 식별자) 행 추가(다른 세션의 Q9와 번호가 겹쳐 옮김) | `A1` 실행·패키징 실측 |
 | 2026-09-06 | `C1`~`C3` 구현 완료로 `검증중`. 백엔드 `check` 전량 통과(main에 쿠키·CSRF 참조 0건), 프론트 vitest 291건·tsc 통과, 데스크톱 vitest 25건·typecheck 통과. GC 세 번째 항목에 로컬 mock 종단 확인 기록, U17 보강 | `C1`~`C3` 구현·검증 |
 | 2026-09-06 | **인증을 쿠키 → Bearer JWT로 전환**. 트랙 C(`C1`~`C3`) 신설, `W2` 폐기(`C1` 흡수), 게이트 `GC` 추가, G3 문구 정정, Q14~Q19 추가, U14 무효·U17 추가, R14·R15 추가, 불변 계약 10번 추가. 설계는 기획서 `D11`·5.1 | 사용자 지시(`기존의 쿠키 방식을 jwt토큰으로 변경`) |
+| 2026-09-07 | `local` API 오리진을 같은 오리진(mock 전제) → `http://localhost:8080`(실 백엔드)으로 정정(기획서 4.5, 8 #1). U22 추가 후 해소, U17 해소 | 사용자 지시(`서버까지 띄워서 검사해야해. 목을 보지 않도록`) + `A1` 셸 실측(정정 전 로그인 버튼 무반응 → 정정 후 OAuth 4홉 종단 통과, `auth.bin` 암호화 확인) |

@@ -168,11 +168,14 @@ export interface KnotDesktopApi {
 | --- | --- | --- | --- |
 | prod | `https://knoted.kr` | GitHub vars `API_BASE_URL_PROD` 값(저장소에 없음). 빌드 환경변수로 주입한다(Q3) | 서명 빌드 |
 | dev | `https://dev.knoted.kr` | `https://dev-api.knoted.kr` (정정 2026-09-06, `A1` 실측) | 내부 테스트 빌드 |
-| local | `http://localhost:3000` | 같은 오리진(`API_MOCKING=true`, msw + devServer OAuth 302 미들웨어) | `pnpm dev`와 함께 |
+| local | `http://localhost:3000` | `http://localhost:8080` (정정 2026-09-07) | 프론트 `pnpm dev`(`API_MOCKING=false`) + 백엔드 `bootRun`과 함께 |
 
 - 환경은 빌드 시 상수로 고정한다(`KNOT_DESKTOP_ENV`). 런타임 전환 UI는 두지 않는다(피싱 표면).
+- **`local`은 실 백엔드를 본다**(정정 2026-09-07). 처음에는 `API_MOCKING=true`인 mock 프론트 단독 구동을 전제해 웹과 API를 같은 오리진(`:3000`)으로 뒀다. 그 조합으로는 셸 안에서 실제 GitHub OAuth가 한 번도 지나가지 않는다 — devServer의 302 미들웨어가 로그인을 대신하므로 백엔드로 나가는 홉 자체가 없고, 따라서 허용 목록도 검증되지 않는다. 실 로그인은 SPA가 `http://localhost:8080/oauth2/authorization/github`로 이동하면서 시작하므로 이 오리진이 목록에 있어야 한다. 없으면 `will-navigate`에서 차단된 뒤 대체 경로인 `shell.openExternal`마저 `http:`라 거부해 **로그인 버튼이 무반응**이 된다(2026-09-07 실측). mock 구동을 막지는 않는다 — 그때는 `:8080` 홉이 없어 목록에 있어도 지나가지 않는다.
 - **API 오리진을 추정하지 않는다**(정정 2026-09-06). dev의 실제 값이 `dev-api.knoted.kr`로 확인되면서 `api.<env>.knoted.kr` 대칭 가정이 깨졌다. prod 값은 `A3` 배포 시점에 사람이 `KNOT_API_ORIGIN`으로 주입한다.
-- 네비게이션 허용 목록: 웹 오리진, API 오리진, `https://github.com`(1단계 로그인), Notion OAuth 경유 도메인(`https://api.notion.com`, `https://www.notion.so` — 구현 시 실제 302 체인으로 확정). 목록 밖 URL은 `preventDefault` 후 `shell.openExternal`.
+- 네비게이션 허용 목록: 웹 오리진, API 오리진, `https://github.com`(1단계 로그인), GitHub 소셜 로그인 IdP(`https://accounts.google.com` — 추가 2026-09-07), Notion OAuth 경유 도메인(`https://api.notion.com`, `https://www.notion.so` — 구현 시 실제 302 체인으로 확정). 목록 밖 URL은 `preventDefault` 후 `shell.openExternal`.
+- **GitHub 로그인 폼이 제공하는 소셜 로그인(Google·Apple) 경유 도메인도 목록에 있어야 한다**(추가 2026-09-07, `A1` 실측). GitHub 계정 자체를 Google로 만든 사용자는 `github.com/login`에서 "Sign in with Google"을 누르고, 체인이 `github.com/sessions/social/google/initiate` → `accounts.google.com/o/oauth2/v2/auth`로 나간다. 이 홉을 외부 브라우저로 넘기면 Google 인증만 다른 브라우저에서 끝나고, GitHub이 소셜 로그인 `state`를 심어둔 세션 쿠키는 앱 세션에 남아 있으므로 콜백에서 대조가 실패한다(관측 문구: "We could not validate the response from your social login provider"). **로그인 체인은 한 브라우저 세션 안에서 끝나야 한다** — 중간 홉만 외부로 빼면 흐름이 깨진다.
+- Apple(`https://appleid.apple.com`)은 같은 이유로 아직 깨진다. 필요해지면 같은 근거로 추가한다(미해소, 2026-09-07).
 - **차단은 `will-navigate`와 `will-redirect` 두 이벤트 모두에 건다**(정정 2026-09-06, `A1`). `will-navigate`는 링크 클릭·`window.location` 변경 같은 네비게이션 *시작*에서 발화하고, 그 네비게이션 도중의 서버 302는 `will-redirect`로 발화한다. OAuth 로그인은 302 체인이므로 `will-navigate`만 막으면 허용 오리진에서 시작한 뒤 목록 밖으로 넘어가는 경로가 통과한다. `did-start-navigation`·`did-redirect-navigation`은 취소할 수 없어 **기록 전용**으로 쓴다(U2 체인 수집).
 - 새 창(`window.open`, `target=_blank`)은 전부 `deny` + 검증된 `https:`만 외부 브라우저.
 - CORS: 원격 로드이므로 백엔드 `AUTH_CORS_ALLOWED_ORIGINS` 변경이 없다. 2단계 Bearer 요청도 renderer 오리진이 웹 오리진이라 동일하다.
@@ -333,7 +336,7 @@ Electron 공식 Security 문서 20항목(지식 §2.3)을 Knot 값으로 고정�
 
 | # | 항목 | Knot 값 |
 | --- | --- | --- |
-| 1 | HTTPS만 로드 | 4.5 오리진 표. `http://localhost:3000`은 `local` 빌드에서만 |
+| 1 | HTTPS만 로드 | 4.5 오리진 표. `http://localhost:3000`(웹)·`http://localhost:8080`(API)은 `local` 빌드에서만 |
 | 2 | `nodeIntegration: false` | 기본값 유지, 모든 창 |
 | 3 | `contextIsolation: true` | 기본값 유지 |
 | 4 | sandbox | `app.enableSandbox()`로 전체 강제 |
