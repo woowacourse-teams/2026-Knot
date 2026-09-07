@@ -21,12 +21,16 @@ describe("resolveEnvironment", () => {
     ]);
   });
 
-  it("local은 웹과 API가 같은 오리진이라 허용 목록에서 한 번만 나온다", () => {
+  // 2026-09-07 정정. 웹과 API를 같은 오리진으로 두면 실 백엔드 로그인이
+  // `will-navigate`에서 차단되고 `shell.openExternal`도 `http:`라 거부해
+  // 로그인 버튼이 무반응이 된다(기획서 4.5).
+  it("local은 웹과 실 백엔드 오리진을 모두 허용한다", () => {
     const env = resolveEnvironment("local");
 
     expect(env.webOrigin).toBe("http://localhost:3000");
-    expect(env.apiOrigin).toBe("http://localhost:3000");
-    expect(env.navigationAllowlist.filter((origin) => origin === "http://localhost:3000")).toHaveLength(1);
+    expect(env.apiOrigin).toBe("http://localhost:8080");
+    expect(env.navigationAllowlist).toContain("http://localhost:3000");
+    expect(env.navigationAllowlist).toContain("http://localhost:8080");
   });
 
   it("prod는 API 오리진이 주입되지 않으면 빌드를 멈춘다 (Q3)", () => {

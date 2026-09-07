@@ -42,7 +42,7 @@ pnpm make         # 패키징 + zip
 | `KNOT_API_ORIGIN` | API 오리진 | `prod` 빌드에서 **필수**(로드맵 Q3). dev·local은 생략 |
 
 ```bash
-KNOT_DESKTOP_ENV=local pnpm start                                   # frontend pnpm dev와 함께
+KNOT_DESKTOP_ENV=local pnpm start                                   # frontend pnpm dev(:3000) + backend bootRun(:8080)과 함께
 KNOT_DESKTOP_ENV=prod KNOT_API_ORIGIN=https://... pnpm make         # 운영 빌드
 ```
 

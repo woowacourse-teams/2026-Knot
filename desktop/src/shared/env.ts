@@ -48,7 +48,11 @@ const KNOWN_API_ORIGINS: Readonly<Record<KnotEnvName, string | null>> = {
   // 배포된 dev SPA가 실제로 이동하는 오리진이다(지식 §1.1 정정).
   // `api.<env>.knoted.kr` 대칭 가정은 깨졌으므로 prod 값을 추정하지 않는다.
   dev: "https://dev-api.knoted.kr",
-  local: "http://localhost:3000",
+  // 2026-09-07 정정. mock 구동(`API_MOCKING=true`)만 전제해 웹과 같은 오리진이었으나,
+  // 그때는 devServer 302 미들웨어가 로그인을 대신해 백엔드로 나가는 홉이 아예 없다.
+  // 실 백엔드로 로그인을 검증하려면 SPA가 `:8080/oauth2/authorization/github`로
+  // 이동하므로 이 오리진이 허용 목록에 있어야 한다(기획서 4.5).
+  local: "http://localhost:8080",
 };
 
 export function isKnotEnvName(value: string): value is KnotEnvName {
