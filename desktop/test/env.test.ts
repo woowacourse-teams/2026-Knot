@@ -16,9 +16,18 @@ describe("resolveEnvironment", () => {
       "https://dev.knoted.kr",
       "https://dev-api.knoted.kr",
       "https://github.com",
+      "https://accounts.google.com",
       "https://api.notion.com",
       "https://www.notion.so",
     ]);
+  });
+
+  // 2026-09-07 U20 회귀 방지. 이 오리진이 빠지면 Google로 만든 GitHub 계정의
+  // 로그인이 외부 브라우저로 새어 나가 세션이 갈리고 콜백 검증이 실패한다.
+  it("GitHub 소셜 로그인이 지나가는 Google 오리진이 허용 목록에 있다", () => {
+    for (const name of ["dev", "local"] as const) {
+      expect(resolveEnvironment(name).navigationAllowlist).toContain("https://accounts.google.com");
+    }
   });
 
   // 2026-09-07 정정. 웹과 API를 같은 오리진으로 두면 실 백엔드 로그인이

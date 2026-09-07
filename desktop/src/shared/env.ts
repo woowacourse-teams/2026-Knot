@@ -19,8 +19,18 @@ export interface KnotEnvironment {
   readonly navigationAllowlist: readonly string[];
 }
 
-/** 1단계 로그인(패턴 C)이 지나가는 오리진. 기획서 4.3 */
-const GITHUB_LOGIN_ORIGINS = ["https://github.com"] as const;
+/**
+ * 1단계 로그인(패턴 C)이 지나가는 오리진. 기획서 4.3·4.5
+ *
+ * `accounts.google.com`은 GitHub 계정을 Google로 만든 사용자가 `github.com/login`에서
+ * "Sign in with Google"을 누를 때 지나간다(2026-09-07 실측, 로드맵 U20). 이 홉을
+ * 외부 브라우저로 넘기면 Google 인증만 다른 브라우저에서 끝나고, GitHub이 소셜 로그인
+ * `state`를 심어둔 세션 쿠키는 앱 세션에 남아 콜백 검증이 실패한다. 로그인 체인은
+ * 한 브라우저 세션 안에서 끝나야 한다.
+ *
+ * Apple(`appleid.apple.com`)은 같은 이유로 아직 깨져 있다(기획서 4.5 미해소).
+ */
+const GITHUB_LOGIN_ORIGINS = ["https://github.com", "https://accounts.google.com"] as const;
 
 /**
  * Notion OAuth 302 체인이 지나가는 오리진.
