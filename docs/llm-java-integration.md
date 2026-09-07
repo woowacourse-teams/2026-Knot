@@ -28,7 +28,7 @@ Notion Import
 
 ## 실행 설정
 
-기본값은 외부 호출이 없는 `fake` 모드다. LM Studio 또는 NVIDIA NIM을 사용할 때만 `openai-compatible`을 활성화한다.
+기본값은 외부 호출이 없는 `fake` 모드다. LM Studio 또는 NVIDIA NIM을 사용할 때만 `openai-compatible`을, Anthropic Messages API를 사용할 때만 채팅 쪽에 `anthropic`을 활성화한다.
 
 provider는 채팅과 임베딩을 따로 켤 수 있다. `LLM_PROVIDER` 하나만 넣으면 두 쪽이 같은 값을 쓰고,
 `LLM_CHAT_PROVIDER`·`LLM_EMBEDDING_PROVIDER`를 넣으면 그 쪽만 덮어쓴다. 채팅 HTTP 클라이언트
@@ -38,7 +38,7 @@ provider는 채팅과 임베딩을 따로 켤 수 있다. `LLM_PROVIDER` 하나�
 | 환경 변수 | 예시 | 용도 |
 | --- | --- | --- |
 | `LLM_PROVIDER` | `openai-compatible` | 채팅·임베딩 공통 provider. 아래 두 키가 없을 때의 fallback이다 |
-| `LLM_CHAT_PROVIDER` | `openai-compatible` | 채팅만 따로 지정한다(`fake` \| `openai-compatible`). 없으면 `LLM_PROVIDER`를 따른다 |
+| `LLM_CHAT_PROVIDER` | `openai-compatible` | 채팅만 따로 지정한다(`fake` \| `openai-compatible` \| `anthropic`). 없으면 `LLM_PROVIDER`를 따른다 |
 | `LLM_EMBEDDING_PROVIDER` | `openai-compatible` | 임베딩만 따로 지정한다(`fake` \| `openai-compatible`). 없으면 `LLM_PROVIDER`를 따른다 |
 | `LLM_BASE_URI` | `http://<lm-studio-host>:1234/v1` | 채팅·임베딩 endpoint의 공통 base URI |
 | `LLM_API_KEY` | `<secret>` | Authorization header에만 사용 |
@@ -62,6 +62,39 @@ LLM_API_KEY=<NIM secret>
 LLM_MODEL=<NIM chat model>
 LLM_EMBEDDING_MODEL=<NIM embedding model>
 ```
+
+### Anthropic 채팅 어댑터
+
+`LLM_CHAT_PROVIDER=anthropic`이면 채팅만 Anthropic Messages API(`POST {base-uri}/v1/messages`, `stream: true`)로 보낸다.
+임베딩은 이 설정과 무관하게 `LLM_EMBEDDING_PROVIDER`를 따르므로, 채팅은 Claude·임베딩은 Qwen(`openai-compatible`)으로
+섞어 쓸 수 있다. 어댑터는 `chat/infrastructure/anthropic/`에 있고 SDK 없이 JDK `HttpClient`로 직접 호출한다
+(`docs/electron-desktop-app-roadmap.md` Q20). `LLM_CHAT_PROVIDER=anthropic`인데 아래 값이 비어 있거나 잘못되면
+애플리케이션이 기동 시점에 `LLM_CONFIGURATION_INVALID`로 실패한다.
+
+| 환경 변수 | 기본값 | 용도 |
+| --- | --- | --- |
+| `ANTHROPIC_API_KEY` | (없음, 필수) | `x-api-key` header에만 사용. 저장소·프롬프트·로그·SSE에 기록하지 않는다 |
+| `ANTHROPIC_MODEL` | `claude-opus-5` | 채팅 모델 |
+| `ANTHROPIC_EFFORT` | `medium` | `output_config.effort`(`low` \| `medium` \| `high` \| `xhigh` \| `max`). 채팅 QA 측정 후 조정 |
+| `ANTHROPIC_MAX_TOKENS` | `4096` | 채팅 생성 상한 |
+| `ANTHROPIC_REQUEST_TIMEOUT` | `PT30S` | 응답 header 수신까지의 timeout. 채팅 SSE 30초 타임아웃과 맞춘다 |
+| `ANTHROPIC_BASE_URI` | `https://api.anthropic.com` | 테스트·프록시용. 운영에서는 바꾸지 않는다 |
+
+`temperature`는 보내지 않고(Opus 5에서 400), `thinking`은 생략해 모델 기본값을 따른다. 응답 처리와 오류 매핑은 다음과 같다.
+
+| Anthropic 응답 | Knot 처리 |
+| --- | --- |
+| `content_block_delta` `text_delta` | SSE `chunk`로 전달. thinking 델타·`ping`·`content_block_start/stop`은 무시한다 |
+| `message_stop` | 스트림 정상 종료. 이 이벤트 전에 연결이 끊기면 `LLM_STREAM_FAILED` |
+| HTTP 401·403, 스트림 `authentication_error`·`permission_error` | `LLM_CONFIGURATION_INVALID` |
+| HTTP 429·529, 스트림 `rate_limit_error`·`overloaded_error` | `LLM_RATE_LIMITED`(`Retry-After`는 로그로만 남긴다) |
+| 응답 header timeout | `LLM_STREAM_TIMEOUT` |
+| `stop_reason=refusal` | `LLM_REFUSED`(`stop_details.category`를 로그에 남긴다) |
+| 그 외 실패 | `LLM_STREAM_FAILED` |
+
+어댑터가 던진 오류 코드는 `ChatMessageService`가 그대로 SSE `error` 이벤트에 싣는다. `message_start`·`message_delta`의
+`usage` 토큰 수는 INFO 로그로만 남기며 저장하지 않는다. 운영에 `anthropic`을 켜기 전에는 gold set 30문항 재측정과
+TTFT 5초 실측(로드맵 GB 게이트)을 통과해야 한다.
 
 `LLM_SEARCH_EMBEDDING_BATCH_SIZE`는 임베딩 provider의 요청 크기·timeout에 맞춰 조정한다. 모든
 배치가 성공하기 전에는 새 import snapshot을 공개하지 않는다. `LLM_SEARCH_MINIMUM_RELEVANCE_SCORE`
