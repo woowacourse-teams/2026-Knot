@@ -25,8 +25,8 @@ class PublishedDocumentSearchServiceTest {
             1200,
             180,
             50,
-            3,
-            10000,
+            8,
+            12000,
             64,
             0.35
     );
@@ -41,8 +41,8 @@ class PublishedDocumentSearchServiceTest {
     );
 
     @Test
-    @DisplayName("published run 안에서 vector와 keyword 결과를 합쳐 page 기준 최대 3개로 선별한다")
-    void search_success_hybridRanksDistinctSources() {
+    @DisplayName("published run 안에서 vector와 keyword 결과를 합쳐 청크 기준 상위 top-k로 선별하고 같은 페이지의 청크도 남긴다")
+    void search_success_hybridRanksChunksAllowingSamePage() {
         // given
         SearchChunkRepository repository = mock(SearchChunkRepository.class);
         DocumentEmbeddingClient embeddingClient = mock(DocumentEmbeddingClient.class);
@@ -66,11 +66,11 @@ class PublishedDocumentSearchServiceTest {
                 "PostgreSQL",
                 0.6
         );
-        SearchChunk duplicatePage = chunk(
+        SearchChunk samePageOtherChunk = chunk(
                 7L,
                 101L,
                 11L,
-                1,
+                2,
                 "DB 기술 선정 회의록",
                 "다른 청크",
                 0.95
@@ -85,7 +85,7 @@ class PublishedDocumentSearchServiceTest {
         ).thenReturn(
                 List.of(
                         POSTGRES,
-                        duplicatePage,
+                        samePageOtherChunk,
                         second
                 )
         );
@@ -125,11 +125,92 @@ class PublishedDocumentSearchServiceTest {
         assertThat(context.references()).extracting(SearchChunk::title)
                 .containsExactly(
                         "DB 기술 선정 회의록",
+                        "DB 기술 선정 회의록",
                         "백엔드 회의록",
                         "프로젝트 기술 스택"
                 );
+        assertThat(context.references()).extracting(SearchChunk::chunkIndex)
+                .containsExactly(
+                        1,
+                        2,
+                        0,
+                        0
+                );
+        assertThat(context.references()).extracting(SearchChunk::score)
+                .isSortedAccordingTo(java.util.Comparator.reverseOrder());
         assertThat(context.references()).extracting(SearchChunk::importRunId)
                 .containsOnly(11L);
+    }
+
+    @Test
+    @DisplayName("관련 청크가 top-k보다 많으면 점수 상위 8개만 남긴다")
+    void search_success_limitsToTopK() {
+        // given
+        SearchChunkRepository repository = mock(SearchChunkRepository.class);
+        DocumentEmbeddingClient embeddingClient = mock(DocumentEmbeddingClient.class);
+        when(repository.findPublishedImportRunId(7L)).thenReturn(Optional.of(11L));
+        when(embeddingClient.embed(any())).thenReturn(List.of(new double[1024]));
+        List<SearchChunk> candidates = new java.util.ArrayList<>();
+        for (int index = 0; index < 10; index++) {
+            candidates.add(
+                    chunk(
+                            7L,
+                            101L,
+                            11L,
+                            index,
+                            "DB 기술 선정 회의록",
+                            "청크 " + index,
+                            0.95 - index * 0.02
+                    )
+            );
+        }
+        when(
+                repository.findByVector(
+                        eq(7L),
+                        eq(11L),
+                        any(),
+                        eq(50)
+                )
+        ).thenReturn(candidates);
+        when(
+                repository.findByKeywords(
+                        eq(7L),
+                        eq(11L),
+                        any(),
+                        eq(50)
+                )
+        ).thenReturn(List.of());
+        PublishedDocumentSearchService service = new PublishedDocumentSearchService(
+                repository,
+                embeddingClient,
+                new SearchQueryTerms(),
+                new SearchQuestionClassifier(),
+                PROPERTIES,
+                new EmbeddingProperties(
+                        "qwen-embedding",
+                        1024
+                )
+        );
+
+        // when
+        SearchContext context = service.search(
+                7L,
+                "PostgreSQL 결정 이유"
+        );
+
+        // then
+        assertThat(context.references()).hasSize(8);
+        assertThat(context.references()).extracting(SearchChunk::chunkIndex)
+                .containsExactly(
+                        0,
+                        1,
+                        2,
+                        3,
+                        4,
+                        5,
+                        6,
+                        7
+                );
     }
 
     @Test
