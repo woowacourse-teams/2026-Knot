@@ -52,7 +52,7 @@ class NotionPageTreeApiDocumentationAcceptanceTest {
         result.andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith("application/json"))
                 .andExpect(jsonPath(operationPath + ".summary").value("Notion Page Tree 조회"))
-                .andExpect(jsonPath(operationPath + ".security[0].accessTokenCookie").exists())
+                .andExpect(jsonPath(operationPath + ".security[0].bearerAuth").exists())
                 .andExpect(jsonPath(operationPath + ".parameters[?(@.name == 'X-XSRF-TOKEN')]").doesNotExist())
                 .andExpect(jsonPath(operationPath + ".parameters[?(@.name == 'workspaceId')]").exists())
                 .andExpect(

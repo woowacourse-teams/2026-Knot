@@ -1,7 +1,6 @@
 package com.knot.backend.workspace.presentation;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -22,7 +21,6 @@ import com.knot.backend.workspace.domain.WorkspaceMember;
 import com.knot.backend.workspace.domain.WorkspaceMemberRepository;
 import com.knot.backend.workspace.domain.WorkspaceMemberRole;
 import com.knot.backend.workspace.domain.WorkspaceRepository;
-import jakarta.servlet.http.Cookie;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -248,9 +246,9 @@ class WorkspaceInvitationAcceptAcceptanceTest {
         ).isEqualTo("OWNER");
     }
 
-    @DisplayName("유효한 CSRF가 있어도 인증되지 않은 참여 요청은 401을 반환하고 상태를 저장하지 않는다")
+    @DisplayName("인증되지 않은 참여 요청은 401을 반환하고 상태를 저장하지 않는다")
     @Test
-    void accept_failure_unauthenticatedWithValidCsrf() throws Exception {
+    void accept_failure_unauthenticated() throws Exception {
         // given
         InvitationFixture fixture = createInvitationFixture("미인증 참여 팀");
         long membershipCount = countAllMemberships(fixture.workspaceId());
@@ -264,7 +262,6 @@ class WorkspaceInvitationAcceptAcceptanceTest {
                                                 .code()
                                 )
                         )
-                        .with(csrf())
         );
 
         // then
@@ -276,75 +273,6 @@ class WorkspaceInvitationAcceptAcceptanceTest {
                         )
                 );
         assertThat(countAllMemberships(fixture.workspaceId())).isEqualTo(membershipCount);
-    }
-
-    @DisplayName("인증과 CSRF가 모두 없는 참여 요청은 403을 반환한다")
-    @Test
-    void accept_failure_missingAuthenticationAndCsrf() throws Exception {
-        // given
-        String requestBody = requestBody("ABCDEF");
-
-        // when
-        ResultActions result = mockMvc.perform(
-                post("/api/v1/invitations/accept").contentType(MediaType.APPLICATION_JSON)
-                        .content(requestBody)
-        );
-
-        // then
-        result.andExpect(status().isForbidden())
-                .andExpect(
-                        header().string(
-                                HttpHeaders.CACHE_CONTROL,
-                                "no-store"
-                        )
-                );
-    }
-
-    @DisplayName("인증됐지만 CSRF가 없는 참여 요청은 403을 반환한다")
-    @Test
-    void accept_failure_missingCsrf() throws Exception {
-        // given
-        AuthenticatedMember joiningMember = createAuthenticatedMember();
-
-        // when
-        ResultActions result = mockMvc.perform(
-                post("/api/v1/invitations/accept").contentType(MediaType.APPLICATION_JSON)
-                        .content(requestBody("ABCDEF"))
-                        .cookie(authenticatedCookie(joiningMember))
-        );
-
-        // then
-        result.andExpect(status().isForbidden())
-                .andExpect(
-                        header().string(
-                                HttpHeaders.CACHE_CONTROL,
-                                "no-store"
-                        )
-                );
-    }
-
-    @DisplayName("인증됐지만 CSRF가 불일치하는 참여 요청은 403을 반환한다")
-    @Test
-    void accept_failure_invalidCsrf() throws Exception {
-        // given
-        AuthenticatedMember joiningMember = createAuthenticatedMember();
-
-        // when
-        ResultActions result = mockMvc.perform(
-                post("/api/v1/invitations/accept").contentType(MediaType.APPLICATION_JSON)
-                        .content(requestBody("ABCDEF"))
-                        .cookie(authenticatedCookie(joiningMember))
-                        .with(csrf().useInvalidToken())
-        );
-
-        // then
-        result.andExpect(status().isForbidden())
-                .andExpect(
-                        header().string(
-                                HttpHeaders.CACHE_CONTROL,
-                                "no-store"
-                        )
-                );
     }
 
     @DisplayName("JSON 본문이 누락된 참여 요청은 400을 반환한다")
@@ -842,8 +770,10 @@ class WorkspaceInvitationAcceptAcceptanceTest {
         return mockMvc.perform(
                 post("/api/v1/invitations/accept").contentType(MediaType.APPLICATION_JSON)
                         .content(body)
-                        .cookie(authenticatedCookie(member))
-                        .with(csrf())
+                        .header(
+                                HttpHeaders.AUTHORIZATION,
+                                bearerToken(member)
+                        )
                         .with(request -> {
                             request.setRemoteAddr(remoteAddress);
                             return request;
@@ -879,11 +809,9 @@ class WorkspaceInvitationAcceptAcceptanceTest {
         );
     }
 
-    private Cookie authenticatedCookie(AuthenticatedMember member) {
-        return new Cookie(
-                "KNOT_ACCESS_TOKEN",
-                authTokenProvider.issue(member)
-        );
+    /** 인증 자격증명은 `Authorization: Bearer` 하나뿐이다(기획서 5.1) */
+    private String bearerToken(AuthenticatedMember member) {
+        return "Bearer " + authTokenProvider.issue(member);
     }
 
     private void consumePreviewAttempts(

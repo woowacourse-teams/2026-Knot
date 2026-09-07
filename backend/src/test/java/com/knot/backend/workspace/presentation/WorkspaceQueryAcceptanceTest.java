@@ -11,7 +11,6 @@ import com.knot.backend.auth.domain.AuthenticatedMember;
 import com.knot.backend.testsupport.TestApplicationProperties;
 import com.knot.backend.testsupport.TestcontainersConfiguration;
 import com.knot.backend.workspace.domain.WorkspaceMemberRole;
-import jakarta.servlet.http.Cookie;
 import java.time.Instant;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
@@ -20,6 +19,7 @@ import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.http.HttpHeaders;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.test.context.TestConstructor;
@@ -34,7 +34,6 @@ import org.springframework.test.web.servlet.ResultActions;
 @AutoConfigureMockMvc
 @TestConstructor(autowireMode = AutowireMode.ALL)
 class WorkspaceQueryAcceptanceTest {
-    private static final String JWT_COOKIE_NAME = "KNOT_ACCESS_TOKEN";
     private static final Instant CREATED_AT = Instant.parse("2026-08-29T00:00:00Z");
     private static final Instant JOINED_AT = Instant.parse("2026-08-29T00:01:00Z");
     private static final Instant RECENT_JOINED_AT = Instant.parse("2026-08-29T00:02:00Z");
@@ -82,11 +81,9 @@ class WorkspaceQueryAcceptanceTest {
                 get(
                         "/api/v1/workspaces/{workspaceId}",
                         workspaceId
-                ).cookie(
-                        new Cookie(
-                                JWT_COOKIE_NAME,
-                                token
-                        )
+                ).header(
+                        HttpHeaders.AUTHORIZATION,
+                        bearer(token)
                 )
         );
 
@@ -114,11 +111,9 @@ class WorkspaceQueryAcceptanceTest {
                 get(
                         "/api/v1/workspaces/{workspaceId}",
                         0
-                ).cookie(
-                        new Cookie(
-                                JWT_COOKIE_NAME,
-                                token
-                        )
+                ).header(
+                        HttpHeaders.AUTHORIZATION,
+                        bearer(token)
                 )
         );
 
@@ -166,11 +161,9 @@ class WorkspaceQueryAcceptanceTest {
                 get(
                         "/api/v1/workspaces/{workspaceId}",
                         workspaceId
-                ).cookie(
-                        new Cookie(
-                                JWT_COOKIE_NAME,
-                                token
-                        )
+                ).header(
+                        HttpHeaders.AUTHORIZATION,
+                        bearer(token)
                 )
         );
 
@@ -192,11 +185,9 @@ class WorkspaceQueryAcceptanceTest {
                 get(
                         "/api/v1/workspaces/{workspaceId}",
                         Long.MAX_VALUE
-                ).cookie(
-                        new Cookie(
-                                JWT_COOKIE_NAME,
-                                token
-                        )
+                ).header(
+                        HttpHeaders.AUTHORIZATION,
+                        bearer(token)
                 )
         );
 
@@ -250,11 +241,9 @@ class WorkspaceQueryAcceptanceTest {
 
         // when
         ResultActions result = mockMvc.perform(
-                get("/api/v1/workspaces").cookie(
-                        new Cookie(
-                                JWT_COOKIE_NAME,
-                                token
-                        )
+                get("/api/v1/workspaces").header(
+                        HttpHeaders.AUTHORIZATION,
+                        bearer(token)
                 )
         );
 
@@ -285,11 +274,9 @@ class WorkspaceQueryAcceptanceTest {
 
         // when
         ResultActions result = mockMvc.perform(
-                get("/api/v1/workspaces").cookie(
-                        new Cookie(
-                                JWT_COOKIE_NAME,
-                                token
-                        )
+                get("/api/v1/workspaces").header(
+                        HttpHeaders.AUTHORIZATION,
+                        bearer(token)
                 )
         );
 
@@ -475,6 +462,11 @@ class WorkspaceQueryAcceptanceTest {
                         null
                 )
         );
+    }
+
+    /** 인증 자격증명은 `Authorization: Bearer` 하나뿐이다(기획서 5.1) */
+    private String bearer(String token) {
+        return "Bearer " + token;
     }
 
 }

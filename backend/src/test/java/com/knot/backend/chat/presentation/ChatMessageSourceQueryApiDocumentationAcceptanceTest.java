@@ -48,7 +48,7 @@ class ChatMessageSourceQueryApiDocumentationAcceptanceTest {
                 .andExpect(content().contentTypeCompatibleWith("application/json"))
                 .andExpect(jsonPath(operationPath).exists())
                 .andExpect(jsonPath(operationPath + ".summary").value("AI 답변 출처 조회"))
-                .andExpect(jsonPath(operationPath + ".security[0].accessTokenCookie").exists())
+                .andExpect(jsonPath(operationPath + ".security[0].bearerAuth").exists())
                 .andExpect(
                         jsonPath(operationPath + ".responses['200'].content['application/json'].schema['$ref']")
                                 .value(responseRef)

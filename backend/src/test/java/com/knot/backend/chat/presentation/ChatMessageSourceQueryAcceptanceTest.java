@@ -10,7 +10,6 @@ import com.knot.backend.auth.domain.AuthTokenProvider;
 import com.knot.backend.auth.domain.AuthenticatedMember;
 import com.knot.backend.testsupport.TestApplicationProperties;
 import com.knot.backend.testsupport.TestcontainersConfiguration;
-import jakarta.servlet.http.Cookie;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -35,7 +34,6 @@ import org.springframework.test.web.servlet.ResultActions;
 @AutoConfigureMockMvc
 @TestConstructor(autowireMode = TestConstructor.AutowireMode.ALL)
 class ChatMessageSourceQueryAcceptanceTest {
-    private static final String ACCESS_TOKEN_COOKIE_NAME = "KNOT_ACCESS_TOKEN";
     private static final Instant CREATED_AT = Instant.parse("2026-08-30T00:00:00Z");
     private static final OffsetDateTime CREATED_AT_OFFSET = CREATED_AT.atOffset(ZoneOffset.UTC);
 
@@ -76,7 +74,10 @@ class ChatMessageSourceQueryAcceptanceTest {
                 get(
                         "/api/v1/messages/{messageId}/sources",
                         fixture.messageId()
-                ).cookie(accessTokenCookie(fixture.ownerId()))
+                ).header(
+                        HttpHeaders.AUTHORIZATION,
+                        bearerToken(fixture.ownerId())
+                )
         );
 
         // then
@@ -119,7 +120,10 @@ class ChatMessageSourceQueryAcceptanceTest {
                 get(
                         "/api/v1/messages/{messageId}/sources",
                         fixture.messageId()
-                ).cookie(accessTokenCookie(fixture.ownerId()))
+                ).header(
+                        HttpHeaders.AUTHORIZATION,
+                        bearerToken(fixture.ownerId())
+                )
         );
 
         // then
@@ -141,7 +145,10 @@ class ChatMessageSourceQueryAcceptanceTest {
                 get(
                         "/api/v1/messages/{messageId}/sources",
                         fixture.messageId()
-                ).cookie(accessTokenCookie(fixture.otherMemberId()))
+                ).header(
+                        HttpHeaders.AUTHORIZATION,
+                        bearerToken(fixture.otherMemberId())
+                )
         );
 
         // then
@@ -160,7 +167,10 @@ class ChatMessageSourceQueryAcceptanceTest {
                 get(
                         "/api/v1/messages/{messageId}/sources",
                         fixture.messageId() + 1000
-                ).cookie(accessTokenCookie(fixture.ownerId()))
+                ).header(
+                        HttpHeaders.AUTHORIZATION,
+                        bearerToken(fixture.ownerId())
+                )
         );
 
         // then
@@ -179,7 +189,10 @@ class ChatMessageSourceQueryAcceptanceTest {
                 get(
                         "/api/v1/messages/{messageId}/sources",
                         -1L
-                ).cookie(accessTokenCookie(fixture.ownerId()))
+                ).header(
+                        HttpHeaders.AUTHORIZATION,
+                        bearerToken(fixture.ownerId())
+                )
         );
 
         // then
@@ -199,7 +212,10 @@ class ChatMessageSourceQueryAcceptanceTest {
                 get(
                         "/api/v1/messages/{messageId}/sources",
                         fixture.messageId()
-                ).cookie(accessTokenCookie(fixture.ownerId()))
+                ).header(
+                        HttpHeaders.AUTHORIZATION,
+                        bearerToken(fixture.ownerId())
+                )
         );
 
         // then
@@ -234,7 +250,10 @@ class ChatMessageSourceQueryAcceptanceTest {
                 get(
                         "/api/v1/messages/{messageId}/sources",
                         userMessageId
-                ).cookie(accessTokenCookie(fixture.ownerId()))
+                ).header(
+                        HttpHeaders.AUTHORIZATION,
+                        bearerToken(fixture.ownerId())
+                )
         );
 
         // then
@@ -576,15 +595,13 @@ class ChatMessageSourceQueryAcceptanceTest {
                 .update();
     }
 
-    private Cookie accessTokenCookie(long memberId) {
-        return new Cookie(
-                ACCESS_TOKEN_COOKIE_NAME,
-                authTokenProvider.issue(
-                        AuthenticatedMember.of(
-                                memberId,
-                                "source-member",
-                                null
-                        )
+    /** 인증 자격증명은 `Authorization: Bearer` 하나뿐이다(기획서 5.1) */
+    private String bearerToken(long memberId) {
+        return "Bearer " + authTokenProvider.issue(
+                AuthenticatedMember.of(
+                        memberId,
+                        "source-member",
+                        null
                 )
         );
     }

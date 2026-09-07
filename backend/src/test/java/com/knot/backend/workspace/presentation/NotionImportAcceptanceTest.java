@@ -14,7 +14,6 @@ import com.knot.backend.auth.domain.AuthenticatedMember;
 import com.knot.backend.testsupport.TestApplicationProperties;
 import com.knot.backend.testsupport.TestcontainersConfiguration;
 import com.knot.backend.workspace.application.ContentSourceAuthorizationClient;
-import jakarta.servlet.http.Cookie;
 import java.time.Instant;
 import java.util.stream.Stream;
 import org.hamcrest.Matchers;
@@ -47,7 +46,6 @@ import org.springframework.test.web.servlet.ResultActions;
 @AutoConfigureMockMvc
 @TestConstructor(autowireMode = TestConstructor.AutowireMode.ALL)
 class NotionImportAcceptanceTest {
-    private static final String JWT_COOKIE_NAME = "KNOT_ACCESS_TOKEN";
     private static final Instant CREATED_AT = Instant.parse("2026-08-31T00:00:00Z");
 
     private final MockMvc mockMvc;
@@ -114,8 +112,9 @@ class NotionImportAcceptanceTest {
                 get(
                         "/api/v1/imports/{importRunId}",
                         importRunId
-                ).cookie(
-                        accessTokenCookie(
+                ).header(
+                        HttpHeaders.AUTHORIZATION,
+                        bearerToken(
                                 context.memberId(),
                                 "member"
                         )
@@ -188,8 +187,9 @@ class NotionImportAcceptanceTest {
                 get(
                         "/api/v1/imports/{importRunId}",
                         importRunId
-                ).cookie(
-                        accessTokenCookie(
+                ).header(
+                        HttpHeaders.AUTHORIZATION,
+                        bearerToken(
                                 context.memberId(),
                                 role.toLowerCase()
                         )
@@ -233,8 +233,9 @@ class NotionImportAcceptanceTest {
                 get(
                         "/api/v1/imports/{importRunId}",
                         0
-                ).cookie(
-                        accessTokenCookie(
+                ).header(
+                        HttpHeaders.AUTHORIZATION,
+                        bearerToken(
                                 memberId,
                                 "member"
                         )
@@ -268,7 +269,7 @@ class NotionImportAcceptanceTest {
                 "outsider",
                 "OWNER"
         );
-        Cookie outsiderCookie = accessTokenCookie(
+        String outsiderToken = bearerToken(
                 outsiderContext.memberId(),
                 "outsider"
         );
@@ -278,7 +279,10 @@ class NotionImportAcceptanceTest {
                 get(
                         "/api/v1/imports/{importRunId}",
                         importRunId
-                ).cookie(outsiderCookie)
+                ).header(
+                        HttpHeaders.AUTHORIZATION,
+                        outsiderToken
+                )
         )
                 .andExpect(status().isNotFound())
                 .andReturn();
@@ -286,7 +290,10 @@ class NotionImportAcceptanceTest {
                 get(
                         "/api/v1/imports/{importRunId}",
                         Long.MAX_VALUE
-                ).cookie(outsiderCookie)
+                ).header(
+                        HttpHeaders.AUTHORIZATION,
+                        outsiderToken
+                )
         )
                 .andExpect(status().isNotFound())
                 .andReturn();
@@ -607,20 +614,17 @@ class NotionImportAcceptanceTest {
                 .single();
     }
 
-    private Cookie accessTokenCookie(
+    /** 인증 자격증명은 `Authorization: Bearer` 하나뿐이다(기획서 5.1) */
+    private String bearerToken(
             long memberId,
             String nickname
     ) {
-        String token = authTokenProvider.issue(
+        return "Bearer " + authTokenProvider.issue(
                 AuthenticatedMember.of(
                         memberId,
                         nickname,
                         null
                 )
-        );
-        return new Cookie(
-                JWT_COOKIE_NAME,
-                token
         );
     }
 

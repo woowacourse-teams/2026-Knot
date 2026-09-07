@@ -4,13 +4,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.knot.backend.auth.domain.AuthenticatedMember;
 import com.knot.backend.global.config.JwtProperties;
-import jakarta.servlet.http.Cookie;
 import java.time.Clock;
 import java.time.Duration;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpHeaders;
 import org.springframework.mock.web.MockFilterChain;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
@@ -26,15 +26,11 @@ class JwtAuthenticationFilterTest {
         JwtProperties properties = new JwtProperties();
         properties.setSecret("test-jwt-secret-012345678901234567890123456789");
         properties.setExpiration(Duration.ofHours(1));
-        properties.setCookieName("KNOT_ACCESS_TOKEN");
         jwtProvider = new JwtProvider(
                 properties,
                 Clock.systemUTC()
         );
-        filter = new JwtAuthenticationFilter(
-                jwtProvider,
-                properties
-        );
+        filter = new JwtAuthenticationFilter(jwtProvider);
     }
 
     @AfterEach
@@ -43,7 +39,7 @@ class JwtAuthenticationFilterTest {
     }
 
     @Test
-    @DisplayName("JWT 쿠키가 있으면 인증 주체를 SecurityContext에 저장한다")
+    @DisplayName("Authorization 헤더에 Bearer 토큰이 있으면 인증 주체를 SecurityContext에 저장한다")
     void doFilter_success() throws Exception {
         // given
         AuthenticatedMember expected = AuthenticatedMember.of(
@@ -51,14 +47,7 @@ class JwtAuthenticationFilterTest {
                 "octocat",
                 "https://example.com/avatar"
         );
-        String token = jwtProvider.issue(expected);
-        MockHttpServletRequest request = new MockHttpServletRequest();
-        request.setCookies(
-                new Cookie(
-                        "KNOT_ACCESS_TOKEN",
-                        token
-                )
-        );
+        MockHttpServletRequest request = requestWithAuthorization("Bearer " + jwtProvider.issue(expected));
 
         // when
         filter.doFilter(
@@ -79,16 +68,35 @@ class JwtAuthenticationFilterTest {
     }
 
     @Test
-    @DisplayName("잘못된 JWT 쿠키가 있으면 인증하지 않고 요청을 계속 처리한다")
+    @DisplayName("Bearer 스킴은 대소문자를 가리지 않는다")
+    void doFilter_success_caseInsensitiveScheme() throws Exception {
+        // given
+        AuthenticatedMember expected = AuthenticatedMember.of(
+                1L,
+                "octocat",
+                "https://example.com/avatar"
+        );
+        MockHttpServletRequest request = requestWithAuthorization("bearer " + jwtProvider.issue(expected));
+
+        // when
+        filter.doFilter(
+                request,
+                new MockHttpServletResponse(),
+                new MockFilterChain()
+        );
+
+        // then
+        assertThat(
+                SecurityContextHolder.getContext()
+                        .getAuthentication()
+        ).isNotNull();
+    }
+
+    @Test
+    @DisplayName("잘못된 Bearer 토큰이면 인증하지 않고 요청을 계속 처리한다")
     void doFilter_failure_invalidToken() throws Exception {
         // given
-        MockHttpServletRequest request = new MockHttpServletRequest();
-        request.setCookies(
-                new Cookie(
-                        "KNOT_ACCESS_TOKEN",
-                        "invalid-token"
-                )
-        );
+        MockHttpServletRequest request = requestWithAuthorization("Bearer invalid-token");
 
         // when
         filter.doFilter(
@@ -105,7 +113,7 @@ class JwtAuthenticationFilterTest {
     }
 
     @Test
-    @DisplayName("JWT 쿠키가 없으면 기존 세션 인증도 사용하지 않는다")
+    @DisplayName("Authorization 헤더가 없으면 기존 세션 인증도 사용하지 않는다")
     void doFilter_failure_noTokenClearsExistingAuthentication() throws Exception {
         // given
         SecurityContextHolder.getContext()
@@ -132,20 +140,15 @@ class JwtAuthenticationFilterTest {
     }
 
     @Test
-    @DisplayName("동일한 이름의 JWT 쿠키가 두 개면 인증하지 않는다")
-    void doFilter_failure_duplicateTokenClearsAuthentication() throws Exception {
+    @DisplayName("Bearer가 아닌 인증 스킴은 무시한다")
+    void doFilter_failure_otherScheme() throws Exception {
         // given
-        MockHttpServletRequest request = new MockHttpServletRequest();
-        request.setCookies(
-                new Cookie(
-                        "KNOT_ACCESS_TOKEN",
-                        "first-token"
-                ),
-                new Cookie(
-                        "KNOT_ACCESS_TOKEN",
-                        "second-token"
-                )
+        AuthenticatedMember member = AuthenticatedMember.of(
+                1L,
+                "octocat",
+                "https://example.com/avatar"
         );
+        MockHttpServletRequest request = requestWithAuthorization("Basic " + jwtProvider.issue(member));
 
         // when
         filter.doFilter(
@@ -159,5 +162,14 @@ class JwtAuthenticationFilterTest {
                 SecurityContextHolder.getContext()
                         .getAuthentication()
         ).isNull();
+    }
+
+    private MockHttpServletRequest requestWithAuthorization(String headerValue) {
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.addHeader(
+                HttpHeaders.AUTHORIZATION,
+                headerValue
+        );
+        return request;
     }
 }

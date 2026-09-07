@@ -24,7 +24,6 @@ import com.knot.backend.workspace.domain.ContentSourceAuthorizationOwnerType;
 import com.knot.backend.workspace.domain.ContentSourceErrorCode;
 import com.knot.backend.workspace.domain.ContentSourceException;
 import com.knot.backend.workspace.domain.ContentSourceProvider;
-import jakarta.servlet.http.Cookie;
 import java.net.URI;
 import java.time.OffsetDateTime;
 import org.junit.jupiter.api.BeforeEach;
@@ -55,8 +54,6 @@ import tools.jackson.databind.ObjectMapper;
 @AutoConfigureMockMvc
 @TestConstructor(autowireMode = TestConstructor.AutowireMode.ALL)
 class NotionOAuthAcceptanceTest {
-    private static final String JWT_COOKIE_NAME = "KNOT_ACCESS_TOKEN";
-    private static final String CSRF_COOKIE_NAME = "XSRF-TOKEN";
     private static final String REDIRECT_BASE_URI = "https://knoted.kr";
     private static final String FAILURE_FALLBACK_URI = REDIRECT_BASE_URI + "/workspace?result=failed";
     private static final String OAUTH_CODE = "oauth-code";
@@ -96,9 +93,9 @@ class NotionOAuthAcceptanceTest {
         when(notionOAuthClient.provider()).thenReturn(ContentSourceProvider.NOTION);
     }
 
-    @DisplayName("OWNER가 CSRF 토큰으로 Notion OAuth를 시작하면 201과 authorization URL을 반환한다")
+    @DisplayName("OWNER가 Notion OAuth를 시작하면 201과 authorization URL을 반환한다")
     @Test
-    void start_success_ownerWithCsrf() throws Exception {
+    void start_success_owner() throws Exception {
         // given
         long ownerId = saveMember("owner");
         long workspaceId = saveWorkspace(
@@ -106,7 +103,6 @@ class NotionOAuthAcceptanceTest {
                 ownerId,
                 "OWNER"
         );
-        CsrfCredentials csrfCredentials = csrfCredentials();
         stubAuthorizationUri();
 
         // when
@@ -114,17 +110,13 @@ class NotionOAuthAcceptanceTest {
                 post(
                         "/api/v1/workspaces/{workspaceId}/notion-oauth-authorizations",
                         workspaceId
-                ).cookie(
-                        accessTokenCookie(
+                ).header(
+                        HttpHeaders.AUTHORIZATION,
+                        bearerToken(
                                 ownerId,
                                 "owner"
-                        ),
-                        csrfCredentials.cookie()
-                )
-                        .header(
-                                "X-XSRF-TOKEN",
-                                csrfCredentials.token()
                         )
+                )
         );
 
         // then
@@ -146,53 +138,18 @@ class NotionOAuthAcceptanceTest {
     @Test
     void start_failure_unauthenticated() throws Exception {
         // given
-        CsrfCredentials csrfCredentials = csrfCredentials();
 
         // when
         ResultActions result = mockMvc.perform(
                 post(
                         "/api/v1/workspaces/{workspaceId}/notion-oauth-authorizations",
                         1L
-                ).cookie(csrfCredentials.cookie())
-                        .header(
-                                "X-XSRF-TOKEN",
-                                csrfCredentials.token()
-                        )
+                )
         );
 
         // then
         result.andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("UNAUTHENTICATED"));
-    }
-
-    @DisplayName("CSRF 토큰이 없는 Notion OAuth 시작 요청은 403을 반환한다")
-    @Test
-    void start_failure_missingCsrf() throws Exception {
-        // given
-        long ownerId = saveMember("owner");
-        long workspaceId = saveWorkspace(
-                "Knot 팀",
-                ownerId,
-                "OWNER"
-        );
-
-        // when
-        ResultActions result = mockMvc.perform(
-                post(
-                        "/api/v1/workspaces/{workspaceId}/notion-oauth-authorizations",
-                        workspaceId
-                ).cookie(
-                        accessTokenCookie(
-                                ownerId,
-                                "owner"
-                        )
-                )
-        );
-
-        // then
-        result.andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.code").value("FORBIDDEN"));
-        assertThat(countRows("content_source_authorizations")).isZero();
     }
 
     @DisplayName("MEMBER의 Notion OAuth 시작 요청은 403을 반환한다")
@@ -205,24 +162,19 @@ class NotionOAuthAcceptanceTest {
                 memberId,
                 "MEMBER"
         );
-        CsrfCredentials csrfCredentials = csrfCredentials();
 
         // when
         ResultActions result = mockMvc.perform(
                 post(
                         "/api/v1/workspaces/{workspaceId}/notion-oauth-authorizations",
                         workspaceId
-                ).cookie(
-                        accessTokenCookie(
+                ).header(
+                        HttpHeaders.AUTHORIZATION,
+                        bearerToken(
                                 memberId,
                                 "member"
-                        ),
-                        csrfCredentials.cookie()
-                )
-                        .header(
-                                "X-XSRF-TOKEN",
-                                csrfCredentials.token()
                         )
+                )
         );
 
         // then
@@ -559,8 +511,9 @@ class NotionOAuthAcceptanceTest {
                 get(
                         "/api/v1/workspaces/{workspaceId}/notion-connection",
                         workspaceId
-                ).cookie(
-                        accessTokenCookie(
+                ).header(
+                        HttpHeaders.AUTHORIZATION,
+                        bearerToken(
                                 memberId,
                                 "member"
                         )
@@ -588,8 +541,9 @@ class NotionOAuthAcceptanceTest {
                 get(
                         "/api/v1/workspaces/{workspaceId}/notion-connection",
                         workspaceId
-                ).cookie(
-                        accessTokenCookie(
+                ).header(
+                        HttpHeaders.AUTHORIZATION,
+                        bearerToken(
                                 memberId,
                                 "member"
                         )
@@ -622,8 +576,9 @@ class NotionOAuthAcceptanceTest {
                 get(
                         "/api/v1/workspaces/{workspaceId}/notion-connection",
                         workspaceId
-                ).cookie(
-                        accessTokenCookie(
+                ).header(
+                        HttpHeaders.AUTHORIZATION,
+                        bearerToken(
                                 ownerId,
                                 "owner"
                         )
@@ -656,8 +611,9 @@ class NotionOAuthAcceptanceTest {
                 get(
                         "/api/v1/workspaces/{workspaceId}/notion-connection",
                         workspaceId
-                ).cookie(
-                        accessTokenCookie(
+                ).header(
+                        HttpHeaders.AUTHORIZATION,
+                        bearerToken(
                                 authorizingMemberId,
                                 "authorizing-member"
                         )
@@ -691,8 +647,9 @@ class NotionOAuthAcceptanceTest {
                 get(
                         "/api/v1/workspaces/{workspaceId}/notion-connection",
                         workspaceId
-                ).cookie(
-                        accessTokenCookie(
+                ).header(
+                        HttpHeaders.AUTHORIZATION,
+                        bearerToken(
                                 outsiderId,
                                 "outsider"
                         )
@@ -710,23 +667,18 @@ class NotionOAuthAcceptanceTest {
             long ownerId,
             String nickname
     ) throws Exception {
-        CsrfCredentials csrfCredentials = csrfCredentials();
         stubAuthorizationUri();
         MvcResult result = mockMvc.perform(
                 post(
                         "/api/v1/workspaces/{workspaceId}/notion-oauth-authorizations",
                         workspaceId
-                ).cookie(
-                        accessTokenCookie(
+                ).header(
+                        HttpHeaders.AUTHORIZATION,
+                        bearerToken(
                                 ownerId,
                                 nickname
-                        ),
-                        csrfCredentials.cookie()
-                )
-                        .header(
-                                "X-XSRF-TOKEN",
-                                csrfCredentials.token()
                         )
+                )
         )
                 .andExpect(status().isCreated())
                 .andReturn();
@@ -800,38 +752,17 @@ class NotionOAuthAcceptanceTest {
         );
     }
 
-    private Cookie accessTokenCookie(
+    /** 인증 자격증명은 `Authorization: Bearer` 하나뿐이다(기획서 5.1) */
+    private String bearerToken(
             long memberId,
             String nickname
     ) {
-        String token = authTokenProvider.issue(
+        return "Bearer " + authTokenProvider.issue(
                 AuthenticatedMember.of(
                         memberId,
                         nickname,
                         null
                 )
-        );
-        return new Cookie(
-                JWT_COOKIE_NAME,
-                token
-        );
-    }
-
-    private CsrfCredentials csrfCredentials() throws Exception {
-        MvcResult result = mockMvc.perform(get("/api/v1/auth/csrf"))
-                .andExpect(status().isOk())
-                .andReturn();
-        Cookie cookie = result.getResponse()
-                .getCookie(CSRF_COOKIE_NAME);
-        assertThat(cookie).isNotNull();
-        JsonNode responseBody = objectMapper.readTree(
-                result.getResponse()
-                        .getContentAsString()
-        );
-        return new CsrfCredentials(
-                cookie,
-                responseBody.get("token")
-                        .asText()
         );
     }
 
@@ -966,12 +897,6 @@ class NotionOAuthAcceptanceTest {
         return jdbcClient.sql("SELECT COUNT(*) FROM content_source_authorizations WHERE consumed_at IS NOT NULL")
                 .query(Integer.class)
                 .single();
-    }
-
-    private record CsrfCredentials(
-            Cookie cookie,
-            String token
-    ) {
     }
 
     @TestConfiguration(proxyBeanMethods = false)

@@ -1,7 +1,6 @@
 package com.knot.backend.workspace.presentation;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -11,7 +10,6 @@ import com.knot.backend.auth.domain.AuthTokenProvider;
 import com.knot.backend.auth.domain.AuthenticatedMember;
 import com.knot.backend.testsupport.TestApplicationProperties;
 import com.knot.backend.testsupport.TestcontainersConfiguration;
-import jakarta.servlet.http.Cookie;
 import java.time.Instant;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -38,8 +36,6 @@ import tools.jackson.databind.ObjectMapper;
 @AutoConfigureMockMvc
 @TestConstructor(autowireMode = TestConstructor.AutowireMode.ALL)
 class NotionImportRetryAcceptanceTest {
-    private static final String JWT_COOKIE_NAME = "KNOT_ACCESS_TOKEN";
-    private static final String CSRF_COOKIE_NAME = "XSRF-TOKEN";
     private static final Instant CREATED_AT = Instant.parse("2026-09-01T00:00:00Z");
 
     private final MockMvc mockMvc;
@@ -79,16 +75,14 @@ class NotionImportRetryAcceptanceTest {
                 "FAILED"
         );
         String originalSnapshot = importRunSnapshot(originalImportRunId);
-        CsrfCredentials csrfCredentials = csrfCredentials();
 
         // when
         ResultActions result = retry(
                 originalImportRunId,
-                accessTokenCookie(
+                bearerToken(
                         context.memberId(),
                         "owner"
-                ),
-                csrfCredentials
+                )
         );
 
         // then
@@ -129,16 +123,14 @@ class NotionImportRetryAcceptanceTest {
         );
         String originalSnapshot = importRunSnapshot(originalImportRunId);
         String activeSnapshot = importRunSnapshot(activeImportRunId);
-        CsrfCredentials csrfCredentials = csrfCredentials();
 
         // when
         ResultActions result = retry(
                 originalImportRunId,
-                accessTokenCookie(
+                bearerToken(
                         context.memberId(),
                         "owner"
-                ),
-                csrfCredentials
+                )
         );
 
         // then
@@ -166,16 +158,14 @@ class NotionImportRetryAcceptanceTest {
                 statusValue
         );
         String originalSnapshot = importRunSnapshot(originalImportRunId);
-        CsrfCredentials csrfCredentials = csrfCredentials();
 
         // when
         ResultActions result = retry(
                 originalImportRunId,
-                accessTokenCookie(
+                bearerToken(
                         context.memberId(),
                         "owner"
-                ),
-                csrfCredentials
+                )
         );
 
         // then
@@ -217,16 +207,14 @@ class NotionImportRetryAcceptanceTest {
                 "FAILED"
         );
         String originalSnapshot = importRunSnapshot(originalImportRunId);
-        CsrfCredentials csrfCredentials = csrfCredentials();
 
         // when
         ResultActions result = retry(
                 originalImportRunId,
-                accessTokenCookie(
+                bearerToken(
                         memberId,
                         "member"
-                ),
-                csrfCredentials
+                )
         );
 
         // then
@@ -247,8 +235,7 @@ class NotionImportRetryAcceptanceTest {
                 "FAILED"
         );
         String otherSnapshot = importRunSnapshot(otherImportRunId);
-        CsrfCredentials csrfCredentials = csrfCredentials();
-        Cookie accessTokenCookie = accessTokenCookie(
+        String authorization = bearerToken(
                 requesterContext.memberId(),
                 "requester"
         );
@@ -256,13 +243,11 @@ class NotionImportRetryAcceptanceTest {
         // when
         MvcResult missingResult = retry(
                 Long.MAX_VALUE,
-                accessTokenCookie,
-                csrfCredentials
+                authorization
         ).andReturn();
         MvcResult otherWorkspaceResult = retry(
                 otherImportRunId,
-                accessTokenCookie,
-                csrfCredentials
+                authorization
         ).andReturn();
 
         // then
@@ -300,16 +285,14 @@ class NotionImportRetryAcceptanceTest {
     void retry_failure_invalidImportRunId() throws Exception {
         // given
         long memberId = saveMember("owner");
-        CsrfCredentials csrfCredentials = csrfCredentials();
 
         // when
         ResultActions result = retry(
                 0,
-                accessTokenCookie(
+                bearerToken(
                         memberId,
                         "owner"
-                ),
-                csrfCredentials
+                )
         );
 
         // then
@@ -329,54 +312,18 @@ class NotionImportRetryAcceptanceTest {
                 "FAILED"
         );
         String originalSnapshot = importRunSnapshot(originalImportRunId);
-        CsrfCredentials csrfCredentials = csrfCredentials();
 
         // when
         ResultActions result = mockMvc.perform(
                 post(
                         "/api/v1/imports/{importRunId}/retry",
                         originalImportRunId
-                ).cookie(csrfCredentials.cookie())
-                        .header(
-                                "X-XSRF-TOKEN",
-                                csrfCredentials.token()
-                        )
+                )
         );
 
         // then
         result.andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("UNAUTHENTICATED"));
-        assertThat(importRunSnapshot(originalImportRunId)).isEqualTo(originalSnapshot);
-        assertThat(importRunCount()).isOne();
-    }
-
-    @DisplayName("CSRF 토큰이 없는 재시도 요청은 403을 반환하고 원본을 변경하지 않는다")
-    @Test
-    void retry_failure_missingCsrf() throws Exception {
-        // given
-        TestContext context = saveConnectedOwnerContext("owner");
-        long originalImportRunId = saveImportRun(
-                context,
-                "FAILED"
-        );
-        String originalSnapshot = importRunSnapshot(originalImportRunId);
-
-        // when
-        ResultActions result = mockMvc.perform(
-                post(
-                        "/api/v1/imports/{importRunId}/retry",
-                        originalImportRunId
-                ).cookie(
-                        accessTokenCookie(
-                                context.memberId(),
-                                "owner"
-                        )
-                )
-        );
-
-        // then
-        result.andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.code").value("FORBIDDEN"));
         assertThat(importRunSnapshot(originalImportRunId)).isEqualTo(originalSnapshot);
         assertThat(importRunCount()).isOne();
     }
@@ -412,16 +359,14 @@ class NotionImportRetryAcceptanceTest {
                 "FAILED"
         );
         String originalSnapshot = importRunSnapshot(originalImportRunId);
-        CsrfCredentials csrfCredentials = csrfCredentials();
 
         // when
         ResultActions result = retry(
                 originalImportRunId,
-                accessTokenCookie(
+                bearerToken(
                         currentOwnerId,
                         "current-owner"
-                ),
-                csrfCredentials
+                )
         );
 
         // then
@@ -434,21 +379,16 @@ class NotionImportRetryAcceptanceTest {
 
     private ResultActions retry(
             long importRunId,
-            Cookie accessTokenCookie,
-            CsrfCredentials csrfCredentials
+            String authorization
     ) throws Exception {
         return mockMvc.perform(
                 post(
                         "/api/v1/imports/{importRunId}/retry",
                         importRunId
-                ).cookie(
-                        accessTokenCookie,
-                        csrfCredentials.cookie()
+                ).header(
+                        HttpHeaders.AUTHORIZATION,
+                        authorization
                 )
-                        .header(
-                                "X-XSRF-TOKEN",
-                                csrfCredentials.token()
-                        )
         );
     }
 
@@ -721,45 +661,18 @@ class NotionImportRetryAcceptanceTest {
                 .single();
     }
 
-    private Cookie accessTokenCookie(
+    /** 인증 자격증명은 `Authorization: Bearer` 하나뿐이다(기획서 5.1) */
+    private String bearerToken(
             long memberId,
             String nickname
     ) {
-        String token = authTokenProvider.issue(
+        return "Bearer " + authTokenProvider.issue(
                 AuthenticatedMember.of(
                         memberId,
                         nickname,
                         null
                 )
         );
-        return new Cookie(
-                JWT_COOKIE_NAME,
-                token
-        );
-    }
-
-    private CsrfCredentials csrfCredentials() throws Exception {
-        MvcResult result = mockMvc.perform(get("/api/v1/auth/csrf"))
-                .andExpect(status().isOk())
-                .andReturn();
-        Cookie cookie = result.getResponse()
-                .getCookie(CSRF_COOKIE_NAME);
-        assertThat(cookie).isNotNull();
-        JsonNode responseBody = objectMapper.readTree(
-                result.getResponse()
-                        .getContentAsString()
-        );
-        return new CsrfCredentials(
-                cookie,
-                responseBody.get("token")
-                        .asText()
-        );
-    }
-
-    private record CsrfCredentials(
-            Cookie cookie,
-            String token
-    ) {
     }
 
     private record TestContext(

@@ -10,7 +10,6 @@ import com.knot.backend.auth.domain.AuthTokenProvider;
 import com.knot.backend.auth.domain.AuthenticatedMember;
 import com.knot.backend.testsupport.TestApplicationProperties;
 import com.knot.backend.testsupport.TestcontainersConfiguration;
-import jakarta.servlet.http.Cookie;
 import java.time.Instant;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
@@ -20,15 +19,13 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.test.context.TestConstructor;
 import org.springframework.test.context.TestConstructor.AutowireMode;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.ResultActions;
-import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.ObjectMapper;
 
 @Tag("acceptance")
 @Import(TestcontainersConfiguration.class)
@@ -37,25 +34,20 @@ import tools.jackson.databind.ObjectMapper;
 @AutoConfigureMockMvc
 @TestConstructor(autowireMode = AutowireMode.ALL)
 class WorkspaceLastViewedAcceptanceTest {
-    private static final String JWT_COOKIE_NAME = "KNOT_ACCESS_TOKEN";
-    private static final String CSRF_COOKIE_NAME = "XSRF-TOKEN";
     private static final Instant CREATED_AT = Instant.parse("2026-08-31T00:00:00Z");
     private static final Instant JOINED_AT = Instant.parse("2026-08-31T00:01:00Z");
 
     private final MockMvc mockMvc;
     private final AuthTokenProvider authTokenProvider;
-    private final ObjectMapper objectMapper;
     private final JdbcClient jdbcClient;
 
     WorkspaceLastViewedAcceptanceTest(
             MockMvc mockMvc,
             AuthTokenProvider authTokenProvider,
-            ObjectMapper objectMapper,
             JdbcClient jdbcClient
     ) {
         this.mockMvc = mockMvc;
         this.authTokenProvider = authTokenProvider;
-        this.objectMapper = objectMapper;
         this.jdbcClient = jdbcClient;
     }
 
@@ -81,25 +73,27 @@ class WorkspaceLastViewedAcceptanceTest {
                 secondWorkspaceId,
                 memberId
         );
-        Cookie accessTokenCookie = accessTokenCookie(memberId);
-        CsrfCredentials csrfCredentials = csrfCredentials();
+        String authorization = bearerToken(memberId);
         updateLastViewed(
                 firstWorkspaceId,
-                accessTokenCookie,
-                csrfCredentials
+                authorization
         ).andExpect(status().isNoContent());
 
         // when
         ResultActions updateResult = updateLastViewed(
                 secondWorkspaceId,
-                accessTokenCookie,
-                csrfCredentials
+                authorization
         );
 
         // then
         updateResult.andExpect(status().isNoContent());
         assertThat(lastViewedWorkspaceIds(memberId)).containsExactly(secondWorkspaceId);
-        mockMvc.perform(get("/api/v1/workspaces").cookie(accessTokenCookie))
+        mockMvc.perform(
+                get("/api/v1/workspaces").header(
+                        HttpHeaders.AUTHORIZATION,
+                        authorization
+                )
+        )
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.lastViewedWorkspaceId").value(secondWorkspaceId));
     }
@@ -114,19 +108,16 @@ class WorkspaceLastViewedAcceptanceTest {
                 workspaceId,
                 memberId
         );
-        Cookie accessTokenCookie = accessTokenCookie(memberId);
-        CsrfCredentials csrfCredentials = csrfCredentials();
+        String authorization = bearerToken(memberId);
 
         // when
         ResultActions firstResult = updateLastViewed(
                 workspaceId,
-                accessTokenCookie,
-                csrfCredentials
+                authorization
         );
         ResultActions secondResult = updateLastViewed(
                 workspaceId,
-                accessTokenCookie,
-                csrfCredentials
+                authorization
         );
 
         // then
@@ -149,14 +140,12 @@ class WorkspaceLastViewedAcceptanceTest {
                 workspaceId,
                 memberId
         );
-        Cookie accessTokenCookie = accessTokenCookie(memberId);
-        CsrfCredentials csrfCredentials = csrfCredentials();
+        String authorization = bearerToken(memberId);
 
         // when
         ResultActions result = updateLastViewed(
                 Long.MAX_VALUE,
-                accessTokenCookie,
-                csrfCredentials
+                authorization
         );
 
         // then
@@ -176,14 +165,12 @@ class WorkspaceLastViewedAcceptanceTest {
                 workspaceId,
                 otherMemberId
         );
-        Cookie accessTokenCookie = accessTokenCookie(memberId);
-        CsrfCredentials csrfCredentials = csrfCredentials();
+        String authorization = bearerToken(memberId);
 
         // when
         ResultActions result = updateLastViewed(
                 workspaceId,
-                accessTokenCookie,
-                csrfCredentials
+                authorization
         );
 
         // then
@@ -192,20 +179,12 @@ class WorkspaceLastViewedAcceptanceTest {
         assertThat(lastViewedWorkspaceIds(memberId)).isEmpty();
     }
 
-    @DisplayName("인증 없이 유효한 CSRF 토큰만 보내면 401을 반환한다")
+    @DisplayName("Authorization 헤더가 없으면 401을 반환한다")
     @Test
     void update_failure_unauthenticated() throws Exception {
-        // given
-        CsrfCredentials csrfCredentials = csrfCredentials();
-
         // when
         ResultActions result = mockMvc.perform(
-                put("/api/v1/members/me/last-viewed-workspace").cookie(csrfCredentials.cookie())
-                        .header(
-                                "X-XSRF-TOKEN",
-                                csrfCredentials.token()
-                        )
-                        .contentType(MediaType.APPLICATION_JSON)
+                put("/api/v1/members/me/last-viewed-workspace").contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"workspaceId":1}
                                 """)
@@ -216,41 +195,15 @@ class WorkspaceLastViewedAcceptanceTest {
                 .andExpect(jsonPath("$.code").value("UNAUTHENTICATED"));
     }
 
-    @DisplayName("인증은 있지만 CSRF 토큰이 없으면 403을 반환한다")
-    @Test
-    void update_failure_missingCsrfToken() throws Exception {
-        // given
-        long memberId = saveMember("hyunsung");
-        Cookie accessTokenCookie = accessTokenCookie(memberId);
-
-        // when
-        ResultActions result = mockMvc.perform(
-                put("/api/v1/members/me/last-viewed-workspace").cookie(accessTokenCookie)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {"workspaceId":1}
-                                """)
-        );
-
-        // then
-        result.andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.code").value("FORBIDDEN"));
-    }
-
     private ResultActions updateLastViewed(
             long workspaceId,
-            Cookie accessTokenCookie,
-            CsrfCredentials csrfCredentials
+            String authorization
     ) throws Exception {
         return mockMvc.perform(
-                put("/api/v1/members/me/last-viewed-workspace").cookie(
-                        accessTokenCookie,
-                        csrfCredentials.cookie()
+                put("/api/v1/members/me/last-viewed-workspace").header(
+                        HttpHeaders.AUTHORIZATION,
+                        authorization
                 )
-                        .header(
-                                "X-XSRF-TOKEN",
-                                csrfCredentials.token()
-                        )
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"workspaceId":%d}
@@ -258,33 +211,13 @@ class WorkspaceLastViewedAcceptanceTest {
         );
     }
 
-    private CsrfCredentials csrfCredentials() throws Exception {
-        MvcResult result = mockMvc.perform(get("/api/v1/auth/csrf"))
-                .andExpect(status().isOk())
-                .andReturn();
-        Cookie cookie = result.getResponse()
-                .getCookie(CSRF_COOKIE_NAME);
-        assertThat(cookie).isNotNull();
-        JsonNode responseBody = objectMapper.readTree(
-                result.getResponse()
-                        .getContentAsString()
-        );
-        return new CsrfCredentials(
-                cookie,
-                responseBody.get("token")
-                        .asText()
-        );
-    }
-
-    private Cookie accessTokenCookie(long memberId) {
-        return new Cookie(
-                JWT_COOKIE_NAME,
-                authTokenProvider.issue(
-                        AuthenticatedMember.of(
-                                memberId,
-                                "hyunsung",
-                                null
-                        )
+    /** 인증 자격증명은 `Authorization: Bearer` 하나뿐이다(기획서 5.1) */
+    private String bearerToken(long memberId) {
+        return "Bearer " + authTokenProvider.issue(
+                AuthenticatedMember.of(
+                        memberId,
+                        "hyunsung",
+                        null
                 )
         );
     }
@@ -377,11 +310,5 @@ class WorkspaceLastViewedAcceptanceTest {
                 )
                 .query(Long.class)
                 .list();
-    }
-
-    private record CsrfCredentials(
-            Cookie cookie,
-            String token
-    ) {
     }
 }

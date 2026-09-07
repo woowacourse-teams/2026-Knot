@@ -2,7 +2,6 @@ package com.knot.backend.workspace.presentation;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.doThrow;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -31,7 +30,6 @@ import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
-import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -124,7 +122,10 @@ class WorkspaceInvitationAcceptanceTest {
                 get(
                         "/api/v1/workspaces/{workspaceId}/invitation",
                         fixture.workspaceId()
-                ).cookie(authenticatedCookie(fixture.member()))
+                ).header(
+                        HttpHeaders.AUTHORIZATION,
+                        bearerToken(fixture.member())
+                )
         );
 
         // then
@@ -194,8 +195,10 @@ class WorkspaceInvitationAcceptanceTest {
                 post(
                         "/api/v1/workspaces/{workspaceId}/invitations/reissue",
                         fixture.workspaceId()
-                ).cookie(authenticatedCookie(fixture.member()))
-                        .with(csrf())
+                ).header(
+                        HttpHeaders.AUTHORIZATION,
+                        bearerToken(fixture.member())
+                )
         )
                 .andExpect(status().isCreated())
                 .andExpect(
@@ -239,67 +242,12 @@ class WorkspaceInvitationAcceptanceTest {
                 post(
                         "/api/v1/workspaces/{workspaceId}/invitations",
                         1L
-                ).with(csrf())
+                )
         );
 
         // then
         result.andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("UNAUTHENTICATED"));
-    }
-
-    @DisplayName("인증과 CSRF 토큰이 모두 없는 초대 발급 요청은 403을 반환한다")
-    @Test
-    void issue_failure_missingAuthenticationAndCsrf() throws Exception {
-        // given
-
-        // when
-        ResultActions result = mockMvc.perform(
-                post(
-                        "/api/v1/workspaces/{workspaceId}/invitations",
-                        1L
-                )
-        );
-
-        // then
-        result.andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.code").value("FORBIDDEN"));
-    }
-
-    @DisplayName("인증과 CSRF 토큰이 모두 없는 초대 재발급 요청은 403을 반환한다")
-    @Test
-    void reissue_failure_missingAuthenticationAndCsrf() throws Exception {
-        // given
-
-        // when
-        ResultActions result = mockMvc.perform(
-                post(
-                        "/api/v1/workspaces/{workspaceId}/invitations/reissue",
-                        1L
-                )
-        );
-
-        // then
-        result.andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.code").value("FORBIDDEN"));
-    }
-
-    @DisplayName("인증됐지만 CSRF 토큰이 없는 초대 발급 요청은 403을 반환한다")
-    @Test
-    void issue_failure_missingCsrf() throws Exception {
-        // given
-        WorkspaceFixture fixture = createWorkspaceFixture(true);
-
-        // when
-        ResultActions result = mockMvc.perform(
-                post(
-                        "/api/v1/workspaces/{workspaceId}/invitations",
-                        fixture.workspaceId()
-                ).cookie(authenticatedCookie(fixture.member()))
-        );
-
-        // then
-        result.andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.code").value("FORBIDDEN"));
     }
 
     @DisplayName("인증되지 않은 초대 재발급 요청은 401을 반환한다")
@@ -312,31 +260,12 @@ class WorkspaceInvitationAcceptanceTest {
                 post(
                         "/api/v1/workspaces/{workspaceId}/invitations/reissue",
                         1L
-                ).with(csrf())
+                )
         );
 
         // then
         result.andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("UNAUTHENTICATED"));
-    }
-
-    @DisplayName("인증됐지만 CSRF 토큰이 없는 초대 재발급 요청은 403을 반환한다")
-    @Test
-    void reissue_failure_missingCsrf() throws Exception {
-        // given
-        WorkspaceFixture fixture = createWorkspaceFixture(true);
-
-        // when
-        ResultActions result = mockMvc.perform(
-                post(
-                        "/api/v1/workspaces/{workspaceId}/invitations/reissue",
-                        fixture.workspaceId()
-                ).cookie(authenticatedCookie(fixture.member()))
-        );
-
-        // then
-        result.andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.code").value("FORBIDDEN"));
     }
 
     @DisplayName("워크스페이스 멤버가 아닌 사용자의 초대 발급 요청은 403을 반환한다")
@@ -365,8 +294,10 @@ class WorkspaceInvitationAcceptanceTest {
                 post(
                         "/api/v1/workspaces/{workspaceId}/invitations",
                         missingWorkspaceId
-                ).cookie(authenticatedCookie(fixture.member()))
-                        .with(csrf())
+                ).header(
+                        HttpHeaders.AUTHORIZATION,
+                        bearerToken(fixture.member())
+                )
         );
 
         // then
@@ -385,8 +316,10 @@ class WorkspaceInvitationAcceptanceTest {
                 post(
                         "/api/v1/workspaces/{workspaceId}/invitations",
                         0
-                ).cookie(authenticatedCookie(fixture.member()))
-                        .with(csrf())
+                ).header(
+                        HttpHeaders.AUTHORIZATION,
+                        bearerToken(fixture.member())
+                )
         );
 
         // then
@@ -405,7 +338,10 @@ class WorkspaceInvitationAcceptanceTest {
                 get(
                         "/api/v1/workspaces/{workspaceId}/invitation",
                         0
-                ).cookie(authenticatedCookie(fixture.member()))
+                ).header(
+                        HttpHeaders.AUTHORIZATION,
+                        bearerToken(fixture.member())
+                )
         );
 
         // then
@@ -442,7 +378,10 @@ class WorkspaceInvitationAcceptanceTest {
                 get(
                         "/api/v1/workspaces/{workspaceId}/invitation",
                         fixture.workspaceId()
-                ).cookie(authenticatedCookie(fixture.member()))
+                ).header(
+                        HttpHeaders.AUTHORIZATION,
+                        bearerToken(fixture.member())
+                )
         );
 
         // then
@@ -461,7 +400,10 @@ class WorkspaceInvitationAcceptanceTest {
                 get(
                         "/api/v1/workspaces/{workspaceId}/invitation",
                         Long.MAX_VALUE
-                ).cookie(authenticatedCookie(fixture.member()))
+                ).header(
+                        HttpHeaders.AUTHORIZATION,
+                        bearerToken(fixture.member())
+                )
         );
 
         // then
@@ -480,7 +422,10 @@ class WorkspaceInvitationAcceptanceTest {
                 get(
                         "/api/v1/workspaces/{workspaceId}/invitation",
                         fixture.workspaceId()
-                ).cookie(authenticatedCookie(fixture.member()))
+                ).header(
+                        HttpHeaders.AUTHORIZATION,
+                        bearerToken(fixture.member())
+                )
         );
 
         // then
@@ -506,7 +451,10 @@ class WorkspaceInvitationAcceptanceTest {
                 get(
                         "/api/v1/workspaces/{workspaceId}/invitation",
                         fixture.workspaceId()
-                ).cookie(authenticatedCookie(fixture.member()))
+                ).header(
+                        HttpHeaders.AUTHORIZATION,
+                        bearerToken(fixture.member())
+                )
         )
                 .andExpect(status().isInternalServerError())
                 .andExpect(jsonPath("$.code").value("WORKSPACE_INVITATION_SECRET_RECOVERY_FAILED"))
@@ -539,8 +487,10 @@ class WorkspaceInvitationAcceptanceTest {
                 post(
                         "/api/v1/workspaces/{workspaceId}/invitations/reissue",
                         fixture.workspaceId()
-                ).cookie(authenticatedCookie(fixture.member()))
-                        .with(csrf())
+                ).header(
+                        HttpHeaders.AUTHORIZATION,
+                        bearerToken(fixture.member())
+                )
         );
 
         // then
@@ -562,8 +512,10 @@ class WorkspaceInvitationAcceptanceTest {
                 post(
                         "/api/v1/workspaces/{workspaceId}/invitations/reissue",
                         0
-                ).cookie(authenticatedCookie(fixture.member()))
-                        .with(csrf())
+                ).header(
+                        HttpHeaders.AUTHORIZATION,
+                        bearerToken(fixture.member())
+                )
         );
 
         // then
@@ -582,8 +534,10 @@ class WorkspaceInvitationAcceptanceTest {
                 post(
                         "/api/v1/workspaces/{workspaceId}/invitations/reissue",
                         fixture.workspaceId()
-                ).cookie(authenticatedCookie(fixture.member()))
-                        .with(csrf())
+                ).header(
+                        HttpHeaders.AUTHORIZATION,
+                        bearerToken(fixture.member())
+                )
         );
 
         // then
@@ -602,8 +556,10 @@ class WorkspaceInvitationAcceptanceTest {
                 post(
                         "/api/v1/workspaces/{workspaceId}/invitations/reissue",
                         Long.MAX_VALUE
-                ).cookie(authenticatedCookie(fixture.member()))
-                        .with(csrf())
+                ).header(
+                        HttpHeaders.AUTHORIZATION,
+                        bearerToken(fixture.member())
+                )
         );
 
         // then
@@ -625,8 +581,10 @@ class WorkspaceInvitationAcceptanceTest {
                 post(
                         "/api/v1/workspaces/{workspaceId}/invitations/reissue",
                         fixture.workspaceId()
-                ).cookie(authenticatedCookie(fixture.member()))
-                        .with(csrf())
+                ).header(
+                        HttpHeaders.AUTHORIZATION,
+                        bearerToken(fixture.member())
+                )
         );
 
         // then
@@ -904,8 +862,10 @@ class WorkspaceInvitationAcceptanceTest {
                 post(
                         "/api/v1/workspaces/{workspaceId}/invitations/reissue",
                         fixture.workspaceId()
-                ).cookie(authenticatedCookie(fixture.member()))
-                        .with(csrf())
+                ).header(
+                        HttpHeaders.AUTHORIZATION,
+                        bearerToken(fixture.member())
+                )
         )
                 .andExpect(status().isCreated());
 
@@ -1102,8 +1062,10 @@ class WorkspaceInvitationAcceptanceTest {
                 post(
                         "/api/v1/workspaces/{workspaceId}/invitations",
                         fixture.workspaceId()
-                ).cookie(authenticatedCookie(fixture.member()))
-                        .with(csrf())
+                ).header(
+                        HttpHeaders.AUTHORIZATION,
+                        bearerToken(fixture.member())
+                )
         );
     }
 
@@ -1115,11 +1077,9 @@ class WorkspaceInvitationAcceptanceTest {
         );
     }
 
-    private Cookie authenticatedCookie(AuthenticatedMember member) {
-        return new Cookie(
-                "KNOT_ACCESS_TOKEN",
-                authTokenProvider.issue(member)
-        );
+    /** 인증 자격증명은 `Authorization: Bearer` 하나뿐이다(기획서 5.1) */
+    private String bearerToken(AuthenticatedMember member) {
+        return "Bearer " + authTokenProvider.issue(member);
     }
 
     private void consumePreviewAttempts(

@@ -31,7 +31,6 @@ import com.knot.backend.workspace.application.dto.result.CollectedPage;
 import com.knot.backend.workspace.application.dto.result.ContentCollectionResult;
 import com.knot.backend.workspace.domain.ContentSourceConnectionRepository;
 import com.knot.backend.workspace.domain.ContentSourceProvider;
-import jakarta.servlet.http.Cookie;
 import java.time.Instant;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
@@ -61,7 +60,6 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 @AutoConfigureMockMvc
 @TestConstructor(autowireMode = TestConstructor.AutowireMode.ALL)
 class NotionPageTreeAcceptanceTest {
-    private static final String JWT_COOKIE_NAME = "KNOT_ACCESS_TOKEN";
     private static final Instant CREATED_AT = Instant.parse("2026-08-31T00:00:00Z");
 
     private final MockMvc mockMvc;
@@ -175,8 +173,9 @@ class NotionPageTreeAcceptanceTest {
                 get(
                         "/api/v1/workspaces/{workspaceId}/notion-pages/tree",
                         workspaceId
-                ).cookie(
-                        accessTokenCookie(
+                ).header(
+                        HttpHeaders.AUTHORIZATION,
+                        bearerToken(
                                 memberId,
                                 role.toLowerCase()
                         )
@@ -230,8 +229,9 @@ class NotionPageTreeAcceptanceTest {
                 get(
                         "/api/v1/workspaces/{workspaceId}/notion-pages/tree",
                         workspaceId
-                ).cookie(
-                        accessTokenCookie(
+                ).header(
+                        HttpHeaders.AUTHORIZATION,
+                        bearerToken(
                                 memberId,
                                 "member"
                         )
@@ -309,8 +309,9 @@ class NotionPageTreeAcceptanceTest {
                 get(
                         "/api/v1/workspaces/{workspaceId}/notion-pages/tree",
                         workspaceId
-                ).cookie(
-                        accessTokenCookie(
+                ).header(
+                        HttpHeaders.AUTHORIZATION,
+                        bearerToken(
                                 memberId,
                                 "owner"
                         )
@@ -523,8 +524,9 @@ class NotionPageTreeAcceptanceTest {
                 get(
                         "/api/v1/workspaces/{workspaceId}/notion-pages/tree",
                         0
-                ).cookie(
-                        accessTokenCookie(
+                ).header(
+                        HttpHeaders.AUTHORIZATION,
+                        bearerToken(
                                 memberId,
                                 "member"
                         )
@@ -554,8 +556,9 @@ class NotionPageTreeAcceptanceTest {
                 get(
                         "/api/v1/workspaces/{workspaceId}/notion-pages/tree",
                         Long.MAX_VALUE
-                ).cookie(
-                        accessTokenCookie(
+                ).header(
+                        HttpHeaders.AUTHORIZATION,
+                        bearerToken(
                                 memberId,
                                 "member"
                         )
@@ -586,8 +589,9 @@ class NotionPageTreeAcceptanceTest {
                 get(
                         "/api/v1/workspaces/{workspaceId}/notion-pages/tree",
                         workspaceId
-                ).cookie(
-                        accessTokenCookie(
+                ).header(
+                        HttpHeaders.AUTHORIZATION,
+                        bearerToken(
                                 memberId,
                                 "outsider"
                         )
@@ -661,8 +665,9 @@ class NotionPageTreeAcceptanceTest {
                 get(
                         "/api/v1/workspaces/{workspaceId}/notion-pages/tree",
                         workspaceId
-                ).cookie(
-                        accessTokenCookie(
+                ).header(
+                        HttpHeaders.AUTHORIZATION,
+                        bearerToken(
                                 memberId,
                                 "member"
                         )
@@ -762,8 +767,9 @@ class NotionPageTreeAcceptanceTest {
                 get(
                         "/api/v1/workspaces/{workspaceId}/notion-pages/tree",
                         fixture.workspaceId()
-                ).cookie(
-                        accessTokenCookie(
+                ).header(
+                        HttpHeaders.AUTHORIZATION,
+                        bearerToken(
                                 fixture.memberId(),
                                 "worker"
                         )
@@ -1324,20 +1330,17 @@ class NotionPageTreeAcceptanceTest {
                 .single();
     }
 
-    private Cookie accessTokenCookie(
+    /** 인증 자격증명은 `Authorization: Bearer` 하나뿐이다(기획서 5.1) */
+    private String bearerToken(
             long memberId,
             String nickname
     ) {
-        String token = authTokenProvider.issue(
+        return "Bearer " + authTokenProvider.issue(
                 AuthenticatedMember.of(
                         memberId,
                         nickname,
                         null
                 )
-        );
-        return new Cookie(
-                JWT_COOKIE_NAME,
-                token
         );
     }
 

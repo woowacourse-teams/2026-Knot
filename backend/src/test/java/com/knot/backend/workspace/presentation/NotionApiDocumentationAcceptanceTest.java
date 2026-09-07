@@ -1,7 +1,6 @@
 package com.knot.backend.workspace.presentation;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.hamcrest.Matchers.hasItem;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -55,12 +54,8 @@ class NotionApiDocumentationAcceptanceTest {
         result.andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith("application/json"))
                 .andExpect(jsonPath(startPath + ".summary").value("Notion OAuth 연결 시작"))
-                .andExpect(jsonPath(startPath + ".security[0].accessTokenCookie").exists())
-                .andExpect(jsonPath(startPath + ".security[0].csrfTokenHeader").exists())
-                .andExpect(jsonPath(startPath + ".parameters[?(@.name == 'X-XSRF-TOKEN')]").exists())
-                .andExpect(
-                        jsonPath(startPath + ".parameters[?(@.name == 'X-XSRF-TOKEN')].required").value(hasItem(true))
-                )
+                .andExpect(jsonPath(startPath + ".security[0].bearerAuth").exists())
+                .andExpect(jsonPath(startPath + ".parameters[?(@.name == 'X-XSRF-TOKEN')]").doesNotExist())
                 .andExpect(
                         jsonPath(startPath + ".responses['201'].content['application/json'].schema['$ref']")
                                 .value(AUTHORIZATION_RESPONSE_REF)
@@ -127,7 +122,7 @@ class NotionApiDocumentationAcceptanceTest {
         result.andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith("application/json"))
                 .andExpect(jsonPath(statusPath + ".summary").value("Notion 연결 상태 조회"))
-                .andExpect(jsonPath(statusPath + ".security[0].accessTokenCookie").exists())
+                .andExpect(jsonPath(statusPath + ".security[0].bearerAuth").exists())
                 .andExpect(jsonPath(statusPath + ".parameters[?(@.name == 'X-XSRF-TOKEN')]").doesNotExist())
                 .andExpect(
                         jsonPath(statusPath + ".responses['200'].content['application/json'].schema['$ref']")

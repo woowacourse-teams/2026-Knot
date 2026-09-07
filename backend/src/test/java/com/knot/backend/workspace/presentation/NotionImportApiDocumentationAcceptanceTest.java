@@ -53,7 +53,7 @@ class NotionImportApiDocumentationAcceptanceTest {
         result.andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith("application/json"))
                 .andExpect(jsonPath(operationPath + ".summary").value("Notion Import 상태 조회"))
-                .andExpect(jsonPath(operationPath + ".security[0].accessTokenCookie").exists())
+                .andExpect(jsonPath(operationPath + ".security[0].bearerAuth").exists())
                 .andExpect(jsonPath(operationPath + ".parameters[?(@.name == 'X-XSRF-TOKEN')]").doesNotExist())
                 .andExpect(jsonPath(operationPath + ".parameters[?(@.name == 'importRunId')]").exists())
                 .andExpect(
@@ -188,18 +188,14 @@ class NotionImportApiDocumentationAcceptanceTest {
         result.andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith("application/json"))
                 .andExpect(jsonPath(operationPath + ".summary").value("수동 Notion Import 시작"))
-                .andExpect(jsonPath(operationPath + ".security[0].accessTokenCookie").exists())
+                .andExpect(jsonPath(operationPath + ".security[0].bearerAuth").exists())
                 .andExpect(jsonPath(operationPath + ".requestBody").doesNotExist())
                 .andExpect(jsonPath(operationPath + ".parameters[?(@.name == 'workspaceId')]").exists())
                 .andExpect(
                         jsonPath(operationPath + ".parameters[?(@.name == 'workspaceId')].required")
                                 .value(hasItem(true))
                 )
-                .andExpect(jsonPath(operationPath + ".parameters[?(@.name == 'X-XSRF-TOKEN')]").exists())
-                .andExpect(
-                        jsonPath(operationPath + ".parameters[?(@.name == 'X-XSRF-TOKEN')].required")
-                                .value(hasItem(true))
-                )
+                .andExpect(jsonPath(operationPath + ".parameters[?(@.name == 'X-XSRF-TOKEN')]").doesNotExist())
                 .andExpect(
                         jsonPath(operationPath + ".responses['202'].content['application/json'].schema['$ref']")
                                 .value(START_RESPONSE_REF)
@@ -249,18 +245,14 @@ class NotionImportApiDocumentationAcceptanceTest {
         result.andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith("application/json"))
                 .andExpect(jsonPath(operationPath + ".summary").value("실패한 Notion Import 재시도"))
-                .andExpect(jsonPath(operationPath + ".security[0].accessTokenCookie").exists())
+                .andExpect(jsonPath(operationPath + ".security[0].bearerAuth").exists())
                 .andExpect(jsonPath(operationPath + ".requestBody").doesNotExist())
                 .andExpect(jsonPath(operationPath + ".parameters[?(@.name == 'importRunId')]").exists())
                 .andExpect(
                         jsonPath(operationPath + ".parameters[?(@.name == 'importRunId')].required")
                                 .value(hasItem(true))
                 )
-                .andExpect(jsonPath(operationPath + ".parameters[?(@.name == 'X-XSRF-TOKEN')]").exists())
-                .andExpect(
-                        jsonPath(operationPath + ".parameters[?(@.name == 'X-XSRF-TOKEN')].required")
-                                .value(hasItem(true))
-                )
+                .andExpect(jsonPath(operationPath + ".parameters[?(@.name == 'X-XSRF-TOKEN')]").doesNotExist())
                 .andExpect(
                         jsonPath(operationPath + ".responses['202'].content['application/json'].schema['$ref']")
                                 .value(START_RESPONSE_REF)

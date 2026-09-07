@@ -242,28 +242,6 @@ class JwtProviderTest {
     }
 
     @Test
-    @DisplayName("JWT cookie 이름이 비어 있으면 커스텀 설정 예외를 발생시킨다")
-    void create_failure_blankCookieName() {
-        // given
-        JwtProperties properties = properties(Duration.ofHours(1));
-        properties.setCookieName(" ");
-
-        // when
-        Throwable thrown = catchThrowable(
-                () -> new JwtProvider(
-                        properties,
-                        Clock.systemUTC()
-                )
-        );
-
-        // then
-        assertThat(thrown).isInstanceOfSatisfying(
-                AuthException.class,
-                exception -> assertThat(exception.getErrorCode()).isEqualTo(AuthErrorCode.JWT_CONFIGURATION_INVALID)
-        );
-    }
-
-    @Test
     @DisplayName("JWT issuer가 비어 있으면 커스텀 설정 예외를 발생시킨다")
     void create_failure_blankIssuer() {
         // given
@@ -291,28 +269,6 @@ class JwtProviderTest {
         // given
         JwtProperties properties = properties(Duration.ofHours(1));
         properties.setAudience(" ");
-
-        // when
-        Throwable thrown = catchThrowable(
-                () -> new JwtProvider(
-                        properties,
-                        Clock.systemUTC()
-                )
-        );
-
-        // then
-        assertThat(thrown).isInstanceOfSatisfying(
-                AuthException.class,
-                exception -> assertThat(exception.getErrorCode()).isEqualTo(AuthErrorCode.JWT_CONFIGURATION_INVALID)
-        );
-    }
-
-    @Test
-    @DisplayName("Secure가 꺼진 Host 전용 cookie 이름이면 커스텀 설정 예외를 발생시킨다")
-    void create_failure_insecureHostCookie() {
-        // given
-        JwtProperties properties = properties(Duration.ofHours(1));
-        properties.setCookieName("__Host-KNOT_ACCESS_TOKEN");
 
         // when
         Throwable thrown = catchThrowable(
@@ -415,8 +371,6 @@ class JwtProviderTest {
         JwtProperties properties = new JwtProperties();
         properties.setSecret("test-jwt-secret-012345678901234567890123456789");
         properties.setExpiration(expiration);
-        properties.setCookieName("KNOT_ACCESS_TOKEN");
-        properties.setSecure(false);
         return properties;
     }
 

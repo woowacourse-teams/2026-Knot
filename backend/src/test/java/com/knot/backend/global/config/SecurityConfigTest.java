@@ -7,13 +7,12 @@ import com.knot.backend.auth.infrastructure.github.GithubOAuth2UserService;
 import com.knot.backend.auth.infrastructure.jwt.JwtAuthenticationFilter;
 import com.knot.backend.auth.presentation.handler.AuthAccessDeniedHandler;
 import com.knot.backend.auth.presentation.handler.AuthAuthenticationEntryPoint;
-import com.knot.backend.auth.presentation.handler.JwtLogoutHandler;
 import com.knot.backend.auth.presentation.handler.OAuth2AuthenticationFailureHandler;
 import com.knot.backend.auth.presentation.handler.OAuth2AuthenticationSuccessHandler;
-import java.time.Duration;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.web.cors.CorsConfiguration;
@@ -32,8 +31,6 @@ class SecurityConfigTest {
                 mock(OAuth2AuthenticationFailureHandler.class),
                 mock(AuthAuthenticationEntryPoint.class),
                 mock(AuthAccessDeniedHandler.class),
-                mock(JwtLogoutHandler.class),
-                jwtProperties(),
                 corsProperties(),
                 new ApiDocumentationProperties()
         );
@@ -60,14 +57,37 @@ class SecurityConfigTest {
         );
     }
 
-    private JwtProperties jwtProperties() {
-        JwtProperties jwtProperties = new JwtProperties();
-        jwtProperties.setSecret("test-secret-test-secret-test-secret-test-secret");
-        jwtProperties.setCookieName("__Host-KNOT_ACCESS_TOKEN");
-        jwtProperties.setNicknameCookieName("__Host-KNOT_NICKNAME_TOKEN");
-        jwtProperties.setExpiration(Duration.ofHours(1));
-        jwtProperties.setSecure(false);
-        return jwtProperties;
+    @Test
+    @DisplayName("CORS 설정은 Authorization 헤더를 허용하고 자격증명 전송을 열지 않는다")
+    void corsConfigurationSource_success_allowsAuthorizationHeaderWithoutCredentials() {
+        // given
+        SecurityConfig securityConfig = new SecurityConfig(
+                mock(GithubOAuth2UserService.class),
+                mock(JwtAuthenticationFilter.class),
+                mock(OAuth2AuthenticationSuccessHandler.class),
+                mock(OAuth2AuthenticationFailureHandler.class),
+                mock(AuthAuthenticationEntryPoint.class),
+                mock(AuthAccessDeniedHandler.class),
+                corsProperties(),
+                new ApiDocumentationProperties()
+        );
+
+        // when
+        UrlBasedCorsConfigurationSource source = securityConfig.corsConfigurationSource();
+        CorsConfiguration configuration = source.getCorsConfiguration(
+                new MockHttpServletRequest(
+                        HttpMethod.GET.name(),
+                        "/api/v1/auth/me"
+                )
+        );
+
+        // then
+        assertThat(configuration).isNotNull();
+        assertThat(configuration.getAllowedHeaders()).containsExactlyInAnyOrder(
+                HttpHeaders.CONTENT_TYPE,
+                HttpHeaders.AUTHORIZATION
+        );
+        assertThat(configuration.getAllowCredentials()).isFalse();
     }
 
     private CorsProperties corsProperties() {

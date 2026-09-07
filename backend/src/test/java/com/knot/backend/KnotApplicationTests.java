@@ -1,7 +1,7 @@
 package com.knot.backend;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.containsStringIgnoringCase;
 import static org.hamcrest.Matchers.startsWith;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
@@ -18,12 +18,10 @@ import com.knot.backend.auth.infrastructure.jwt.JwtProvider;
 import com.knot.backend.global.config.JwtProperties;
 import com.knot.backend.testsupport.TestApplicationProperties;
 import com.knot.backend.testsupport.TestcontainersConfiguration;
-import jakarta.servlet.http.Cookie;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
-import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
@@ -36,11 +34,8 @@ import org.springframework.http.MediaType;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.TestConstructor;
 import org.springframework.test.context.TestConstructor.AutowireMode;
-import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
-import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.ObjectMapper;
 
 @Tag("acceptance")
 @Import(TestcontainersConfiguration.class)
@@ -52,22 +47,16 @@ class KnotApplicationTests {
     private static final String FRONTEND_ORIGIN = "https://knoted.kr";
     private static final String LOCAL_FRONTEND_ORIGIN = "http://localhost:3000";
     private static final String UNALLOWED_ORIGIN = "https://attacker.example";
-    private static final String JWT_COOKIE_NAME = "KNOT_ACCESS_TOKEN";
-    private static final String NICKNAME_COOKIE_NAME = "KNOT_NICKNAME_TOKEN";
-    private static final String CSRF_COOKIE_NAME = "XSRF-TOKEN";
 
     private final MockMvc mockMvc;
     private final AuthTokenProvider authTokenProvider;
-    private final ObjectMapper objectMapper;
 
     KnotApplicationTests(
             MockMvc mockMvc,
-            AuthTokenProvider authTokenProvider,
-            ObjectMapper objectMapper
+            AuthTokenProvider authTokenProvider
     ) {
         this.mockMvc = mockMvc;
         this.authTokenProvider = authTokenProvider;
-        this.objectMapper = objectMapper;
     }
 
     @Test
@@ -99,7 +88,7 @@ class KnotApplicationTests {
     }
 
     @Test
-    @DisplayName("JWT 쿠키가 있으면 인증된 member 정보를 조회한다")
+    @DisplayName("Bearer 토큰이 있으면 인증된 member 정보를 조회한다")
     void authMe_success() throws Exception {
         // given
         AuthenticatedMember member = AuthenticatedMember.of(
@@ -111,11 +100,9 @@ class KnotApplicationTests {
 
         // when
         ResultActions result = mockMvc.perform(
-                get("/api/v1/auth/me").cookie(
-                        new Cookie(
-                                JWT_COOKIE_NAME,
-                                token
-                        )
+                get("/api/v1/auth/me").header(
+                        HttpHeaders.AUTHORIZATION,
+                        "Bearer " + token
                 )
         );
 
@@ -141,17 +128,15 @@ class KnotApplicationTests {
     }
 
     @Test
-    @DisplayName("잘못된 JWT 쿠키가 있으면 구조화된 401 응답을 반환한다")
+    @DisplayName("잘못된 Bearer 토큰이면 구조화된 401 응답을 반환한다")
     void authMe_failure_invalidToken() throws Exception {
         // given
 
         // when
         ResultActions result = mockMvc.perform(
-                get("/api/v1/auth/me").cookie(
-                        new Cookie(
-                                JWT_COOKIE_NAME,
-                                "invalid-token"
-                        )
+                get("/api/v1/auth/me").header(
+                        HttpHeaders.AUTHORIZATION,
+                        "Bearer invalid-token"
                 )
         );
 
@@ -161,18 +146,16 @@ class KnotApplicationTests {
     }
 
     @Test
-    @DisplayName("만료된 JWT 쿠키가 있으면 인증되지 않은 요청으로 처리한다")
+    @DisplayName("만료된 Bearer 토큰이면 인증되지 않은 요청으로 처리한다")
     void authMe_failure_expiredToken() throws Exception {
         // given
         String expiredToken = expiredAccessToken();
 
         // when
         ResultActions result = mockMvc.perform(
-                get("/api/v1/auth/me").cookie(
-                        new Cookie(
-                                JWT_COOKIE_NAME,
-                                expiredToken
-                        )
+                get("/api/v1/auth/me").header(
+                        HttpHeaders.AUTHORIZATION,
+                        "Bearer " + expiredToken
                 )
         );
 
@@ -182,7 +165,7 @@ class KnotApplicationTests {
     }
 
     @Test
-    @DisplayName("닉네임 설정용 JWT를 일반 인증 쿠키로 보내면 인증되지 않는다")
+    @DisplayName("온보딩 토큰을 Bearer로 보내면 인증되지 않는다")
     void authMe_failure_nicknameToken() throws Exception {
         // given
         String nicknameToken = authTokenProvider.issueNickname(
@@ -195,11 +178,9 @@ class KnotApplicationTests {
 
         // when
         ResultActions result = mockMvc.perform(
-                get("/api/v1/auth/me").cookie(
-                        new Cookie(
-                                JWT_COOKIE_NAME,
-                                nicknameToken
-                        )
+                get("/api/v1/auth/me").header(
+                        HttpHeaders.AUTHORIZATION,
+                        "Bearer " + nicknameToken
                 )
         );
 
@@ -225,7 +206,7 @@ class KnotApplicationTests {
                         )
                         .header(
                                 HttpHeaders.ACCESS_CONTROL_REQUEST_HEADERS,
-                                "content-type,x-xsrf-token"
+                                "content-type,authorization"
                         )
         );
 
@@ -239,10 +220,11 @@ class KnotApplicationTests {
                 )
                 .andExpect(
                         header().string(
-                                HttpHeaders.ACCESS_CONTROL_ALLOW_CREDENTIALS,
-                                "true"
+                                HttpHeaders.ACCESS_CONTROL_ALLOW_HEADERS,
+                                containsStringIgnoringCase(HttpHeaders.AUTHORIZATION)
                         )
-                );
+                )
+                .andExpect(header().doesNotExist(HttpHeaders.ACCESS_CONTROL_ALLOW_CREDENTIALS));
     }
 
     @Test
@@ -262,7 +244,7 @@ class KnotApplicationTests {
                         )
                         .header(
                                 HttpHeaders.ACCESS_CONTROL_REQUEST_HEADERS,
-                                "content-type,x-xsrf-token"
+                                "content-type,authorization"
                         )
         );
 
@@ -280,12 +262,7 @@ class KnotApplicationTests {
                                 containsString(HttpMethod.PUT.name())
                         )
                 )
-                .andExpect(
-                        header().string(
-                                HttpHeaders.ACCESS_CONTROL_ALLOW_CREDENTIALS,
-                                "true"
-                        )
-                );
+                .andExpect(header().doesNotExist(HttpHeaders.ACCESS_CONTROL_ALLOW_CREDENTIALS));
     }
 
     @Test
@@ -310,16 +287,27 @@ class KnotApplicationTests {
     }
 
     @Test
-    @DisplayName("localhost 프론트 Origin에서 CSRF 토큰을 조회한다")
-    void csrf_success_localFrontendOrigin() throws Exception {
+    @DisplayName("localhost 프론트 Origin의 인증 요청에 CORS 허용 헤더를 준다")
+    void authMe_success_localFrontendOrigin() throws Exception {
         // given
+        String token = authTokenProvider.issue(
+                AuthenticatedMember.of(
+                        1L,
+                        "octocat",
+                        null
+                )
+        );
 
         // when
         ResultActions result = mockMvc.perform(
-                get("/api/v1/auth/csrf").header(
+                get("/api/v1/auth/me").header(
                         HttpHeaders.ORIGIN,
                         LOCAL_FRONTEND_ORIGIN
                 )
+                        .header(
+                                HttpHeaders.AUTHORIZATION,
+                                "Bearer " + token
+                        )
         );
 
         // then
@@ -330,176 +318,85 @@ class KnotApplicationTests {
                                 LOCAL_FRONTEND_ORIGIN
                         )
                 )
-                .andExpect(
-                        header().string(
-                                HttpHeaders.ACCESS_CONTROL_ALLOW_CREDENTIALS,
-                                "true"
-                        )
-                );
+                .andExpect(header().doesNotExist(HttpHeaders.ACCESS_CONTROL_ALLOW_CREDENTIALS));
     }
 
     @Test
-    @DisplayName("인증 없이 CSRF 토큰을 조회하고 쿠키와 응답에 동일한 토큰을 반환한다")
-    void csrf_success_unauthenticated() throws Exception {
+    @DisplayName("온보딩 토큰을 Bearer로 보내면 닉네임 설정을 마치고 액세스 토큰을 본문으로 받는다")
+    void completeNicknameSetup_success() throws Exception {
         // given
-
-        // when
-        MvcResult result = mockMvc.perform(get("/api/v1/auth/csrf"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.token").isNotEmpty())
-                .andReturn();
-
-        // then
-        Cookie csrfCookie = result.getResponse()
-                .getCookie(CSRF_COOKIE_NAME);
-        assertThat(csrfCookie).isNotNull();
-        JsonNode responseBody = objectMapper.readTree(
-                result.getResponse()
-                        .getContentAsString()
-        );
-        assertThat(
-                responseBody.get("token")
-                        .asText()
-        ).isEqualTo(csrfCookie.getValue());
-    }
-
-    @Test
-    @DisplayName("CSRF 토큰 조회 API에서 받은 토큰으로 닉네임 설정을 완료한다")
-    void completeNicknameSetup_success_withCsrfTokenEndpoint() throws Exception {
-        // given
-        MvcResult csrfResult = mockMvc.perform(get("/api/v1/auth/csrf"))
-                .andExpect(status().isOk())
-                .andReturn();
-        Cookie csrfCookie = csrfResult.getResponse()
-                .getCookie(CSRF_COOKIE_NAME);
-        assertThat(csrfCookie).isNotNull();
-        String csrfToken = csrfCookie.getValue();
         String nickname = uniqueValue("user-");
-        String nicknameToken = authTokenProvider.issueNickname(
+        String onboardingToken = authTokenProvider.issueNickname(
                 OAuthUser.of(
                         OAuthProvider.GITHUB,
-                        uniqueValue("csrf-user-"),
+                        uniqueValue("onboarding-user-"),
                         null
                 )
         );
 
         // when
         ResultActions result = mockMvc.perform(
-                post("/api/v1/auth/nickname").cookie(
-                        new Cookie(
-                                NICKNAME_COOKIE_NAME,
-                                nicknameToken
-                        ),
-                        new Cookie(
-                                CSRF_COOKIE_NAME,
-                                csrfToken
-                        )
+                post("/api/v1/auth/nickname").header(
+                        HttpHeaders.AUTHORIZATION,
+                        "Bearer " + onboardingToken
                 )
-                        .header(
-                                "X-XSRF-TOKEN",
-                                csrfToken
-                        )
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"nickname\":\"" + nickname + "\"}")
         );
 
         // then
-        result.andExpect(status().isNoContent());
+        result.andExpect(status().isOk())
+                .andExpect(jsonPath("$.accessToken").isNotEmpty())
+                .andExpect(jsonPath("$.tokenType").value("Bearer"))
+                .andExpect(jsonPath("$.expiresIn").value(3600))
+                .andExpect(header().doesNotExist(HttpHeaders.SET_COOKIE));
     }
 
     @Test
-    @DisplayName("닉네임 설정 요청은 CSRF 토큰이 없으면 거부한다")
-    void completeNicknameSetup_failure_missingCsrfToken() throws Exception {
+    @DisplayName("Authorization 헤더가 없는 닉네임 설정 요청은 401로 거부한다")
+    void completeNicknameSetup_failure_missingOnboardingToken() throws Exception {
         // given
-        String nicknameToken = authTokenProvider.issueNickname(
-                OAuthUser.of(
-                        OAuthProvider.GITHUB,
-                        uniqueValue("missing-csrf-user-"),
+
+        // when
+        ResultActions result = mockMvc.perform(
+                post("/api/v1/auth/nickname").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"nickname\":\"" + uniqueValue("user-") + "\"}")
+        );
+
+        // then
+        result.andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("INVALID_JWT"));
+    }
+
+    @Test
+    @DisplayName("로그아웃은 쿠키를 심지 않고 204만 돌려준다")
+    void logout_success() throws Exception {
+        // given
+        String token = authTokenProvider.issue(
+                AuthenticatedMember.of(
+                        1L,
+                        "octocat",
                         null
                 )
         );
 
         // when
         ResultActions result = mockMvc.perform(
-                post("/api/v1/auth/nickname").cookie(
-                        new Cookie(
-                                NICKNAME_COOKIE_NAME,
-                                nicknameToken
-                        )
+                post("/api/v1/auth/logout").header(
+                        HttpHeaders.AUTHORIZATION,
+                        "Bearer " + token
                 )
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"nickname\":\"" + uniqueValue("user-") + "\"}")
         );
 
         // then
-        result.andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.code").value("FORBIDDEN"))
-                .andExpect(jsonPath("$.message").value("요청 권한이 없습니다"));
-    }
-
-    @Test
-    @DisplayName("로그아웃하면 JWT 쿠키를 만료시킨다")
-    void logout_success() throws Exception {
-        // given
-        AuthenticatedMember member = AuthenticatedMember.of(
-                1L,
-                "octocat",
-                null
-        );
-        String token = authTokenProvider.issue(member);
-        MvcResult csrfResult = mockMvc.perform(get("/api/v1/auth/csrf"))
-                .andExpect(status().isOk())
-                .andReturn();
-        Cookie csrfCookie = csrfResult.getResponse()
-                .getCookie(CSRF_COOKIE_NAME);
-        assertThat(csrfCookie).isNotNull();
-        String csrfToken = csrfCookie.getValue();
-
-        // when
-        ResultActions result = mockMvc.perform(
-                post("/api/v1/auth/logout").cookie(
-                        new Cookie(
-                                JWT_COOKIE_NAME,
-                                token
-                        ),
-                        new Cookie(
-                                NICKNAME_COOKIE_NAME,
-                                "nickname-token"
-                        )
-                )
-                        .cookie(csrfCookie)
-                        .header(
-                                "X-XSRF-TOKEN",
-                                csrfToken
-                        )
-        );
-
-        // then
-        result.andExpect(status().isFound())
-                .andExpect(resultActions -> {
-                    List<String> cookies = resultActions.getResponse()
-                            .getHeaders("Set-Cookie");
-                    assertThat(cookies).anySatisfy(
-                            cookie -> assertThat(cookie).contains(
-                                    JWT_COOKIE_NAME + "=",
-                                    "Max-Age=0"
-                            )
-                    );
-                    assertThat(cookies).anySatisfy(
-                            cookie -> assertThat(cookie).contains(
-                                    NICKNAME_COOKIE_NAME + "=",
-                                    "Max-Age=0"
-                            )
-                    );
-                });
+        result.andExpect(status().isNoContent())
+                .andExpect(header().doesNotExist(HttpHeaders.SET_COOKIE));
     }
 
     private String expiredAccessToken() {
         JwtProperties properties = new JwtProperties();
         properties.setSecret("test-jwt-secret-012345678901234567890123456789");
         properties.setExpiration(Duration.ofHours(1));
-        properties.setCookieName(JWT_COOKIE_NAME);
-        properties.setSecure(false);
         JwtProvider provider = new JwtProvider(
                 properties,
                 Clock.fixed(

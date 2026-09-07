@@ -16,10 +16,8 @@ import com.knot.backend.auth.domain.AuthException;
 import com.knot.backend.auth.domain.OAuthProvider;
 import com.knot.backend.auth.domain.OAuthUser;
 import com.knot.backend.auth.infrastructure.github.GithubOAuth2User;
-import com.knot.backend.auth.presentation.AuthCookieManager;
 import com.knot.backend.global.config.JwtProperties;
 import com.knot.backend.global.config.OAuth2LoginProperties;
-import jakarta.servlet.http.Cookie;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
@@ -41,8 +39,8 @@ class OAuth2AuthenticationSuccessHandlerTest {
     }
 
     @Test
-    @DisplayName("OAuth 인증 성공 시 JWT 쿠키를 발급하고 설정된 URI로 redirect한다")
-    void onAuthenticationSuccess_success_issuesCookieAndRedirects() throws Exception {
+    @DisplayName("OAuth 인증 성공 시 액세스 토큰을 프래그먼트에 실어 설정된 URI로 redirect한다")
+    void onAuthenticationSuccess_success_redirectsWithAccessTokenFragment() throws Exception {
         // given
         AuthService authService = mock(AuthService.class);
         JwtProperties jwtProperties = jwtProperties();
@@ -51,7 +49,7 @@ class OAuth2AuthenticationSuccessHandlerTest {
         OAuth2AuthenticationSuccessHandler handler = new OAuth2AuthenticationSuccessHandler(
                 authService,
                 loginProperties,
-                new AuthCookieManager(jwtProperties)
+                jwtProperties
         );
         OAuthUser oauthUser = OAuthUser.of(
                 OAuthProvider.GITHUB,
@@ -88,15 +86,9 @@ class OAuth2AuthenticationSuccessHandlerTest {
         );
 
         // then
-        assertThat(response.getRedirectedUrl()).isEqualTo("/api/v1/auth/me");
-        Cookie cookie = response.getCookie("KNOT_ACCESS_TOKEN");
-        assertThat(cookie).isNotNull();
-        assertThat(cookie.getValue()).isEqualTo("jwt-token");
-        assertThat(cookie.isHttpOnly()).isTrue();
-        assertThat(cookie.getSecure()).isFalse();
-        assertThat(cookie.getPath()).isEqualTo("/");
-        assertThat(cookie.getMaxAge()).isEqualTo(3600);
-        assertThat(response.getHeader("Set-Cookie")).contains("SameSite=Lax");
+        assertThat(response.getRedirectedUrl())
+                .isEqualTo("/api/v1/auth/me#access_token=jwt-token&token_type=Bearer&expires_in=3600");
+        assertThat(response.getHeader("Set-Cookie")).isNull();
         assertThat(request.getSession(false)).isNull();
         assertThat(
                 SecurityContextHolder.getContext()
@@ -105,7 +97,7 @@ class OAuth2AuthenticationSuccessHandlerTest {
     }
 
     @Test
-    @DisplayName("처음 OAuth 인증한 사용자는 닉네임 쿠키를 받고 설정 화면으로 이동한다")
+    @DisplayName("처음 OAuth 인증한 사용자는 온보딩 토큰을 프래그먼트로 받고 설정 화면으로 이동한다")
     void onAuthenticationSuccess_success_nicknameSetupRequired() throws Exception {
         // given
         AuthService authService = mock(AuthService.class);
@@ -115,7 +107,7 @@ class OAuth2AuthenticationSuccessHandlerTest {
         OAuth2AuthenticationSuccessHandler handler = new OAuth2AuthenticationSuccessHandler(
                 authService,
                 loginProperties,
-                new AuthCookieManager(jwtProperties)
+                jwtProperties
         );
         OAuthUser oauthUser = OAuthUser.of(
                 OAuthProvider.GITHUB,
@@ -148,11 +140,8 @@ class OAuth2AuthenticationSuccessHandlerTest {
         );
 
         // then
-        assertThat(response.getRedirectedUrl()).isEqualTo("/nickname");
-        Cookie cookie = response.getCookie("KNOT_NICKNAME_TOKEN");
-        assertThat(cookie).isNotNull();
-        assertThat(cookie.getValue()).isEqualTo("nickname-token");
-        assertThat(response.getCookie("KNOT_ACCESS_TOKEN")).isNull();
+        assertThat(response.getRedirectedUrl()).isEqualTo("/nickname#onboarding_token=nickname-token&expires_in=600");
+        assertThat(response.getHeader("Set-Cookie")).isNull();
     }
 
     @Test
@@ -165,7 +154,7 @@ class OAuth2AuthenticationSuccessHandlerTest {
         OAuth2AuthenticationSuccessHandler handler = new OAuth2AuthenticationSuccessHandler(
                 authService,
                 loginProperties,
-                new AuthCookieManager(jwtProperties)
+                jwtProperties
         );
         Authentication authentication = mock(Authentication.class);
         when(authentication.getPrincipal()).thenReturn("invalid-principal");
@@ -196,7 +185,7 @@ class OAuth2AuthenticationSuccessHandlerTest {
         OAuth2AuthenticationSuccessHandler handler = new OAuth2AuthenticationSuccessHandler(
                 authService,
                 loginProperties,
-                new AuthCookieManager(jwtProperties)
+                jwtProperties
         );
         OAuthUser oauthUser = OAuthUser.of(
                 OAuthProvider.GITHUB,
@@ -246,7 +235,7 @@ class OAuth2AuthenticationSuccessHandlerTest {
                 () -> new OAuth2AuthenticationSuccessHandler(
                         authService,
                         loginProperties,
-                        new AuthCookieManager(jwtProperties)
+                        jwtProperties
                 )
         );
 
@@ -271,7 +260,32 @@ class OAuth2AuthenticationSuccessHandlerTest {
                 () -> new OAuth2AuthenticationSuccessHandler(
                         authService,
                         loginProperties,
-                        new AuthCookieManager(jwtProperties)
+                        jwtProperties
+                )
+        );
+
+        // then
+        assertThat(thrown).isInstanceOfSatisfying(
+                AuthException.class,
+                exception -> assertThat(exception.getErrorCode()).isEqualTo(AuthErrorCode.OAUTH_CONFIGURATION_INVALID)
+        );
+    }
+
+    @Test
+    @DisplayName("redirect 설정에 프래그먼트가 들어 있으면 설정 예외를 발생시킨다")
+    void create_failure_redirectUriWithFragment() {
+        // given
+        AuthService authService = mock(AuthService.class);
+        JwtProperties jwtProperties = jwtProperties();
+        OAuth2LoginProperties loginProperties = new OAuth2LoginProperties();
+        loginProperties.setSuccessRedirectUri("https://knoted.kr/#already");
+
+        // when
+        Throwable thrown = catchThrowable(
+                () -> new OAuth2AuthenticationSuccessHandler(
+                        authService,
+                        loginProperties,
+                        jwtProperties
                 )
         );
 
@@ -284,9 +298,8 @@ class OAuth2AuthenticationSuccessHandlerTest {
 
     private JwtProperties jwtProperties() {
         JwtProperties properties = new JwtProperties();
-        properties.setCookieName("KNOT_ACCESS_TOKEN");
         properties.setExpiration(Duration.ofHours(1));
-        properties.setSecure(false);
+        properties.setNicknameTokenExpiration(Duration.ofMinutes(10));
         return properties;
     }
 }

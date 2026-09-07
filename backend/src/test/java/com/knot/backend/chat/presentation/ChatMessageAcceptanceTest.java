@@ -1,7 +1,6 @@
 package com.knot.backend.chat.presentation;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -10,7 +9,6 @@ import com.knot.backend.auth.domain.AuthTokenProvider;
 import com.knot.backend.auth.domain.AuthenticatedMember;
 import com.knot.backend.testsupport.TestApplicationProperties;
 import com.knot.backend.testsupport.TestcontainersConfiguration;
-import jakarta.servlet.http.Cookie;
 import java.time.OffsetDateTime;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -19,15 +17,13 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.test.context.TestConstructor;
 import org.springframework.test.context.TestConstructor.AutowireMode;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.ResultActions;
-import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.ObjectMapper;
 
 @Tag("acceptance")
 @Import(TestcontainersConfiguration.class)
@@ -36,23 +32,17 @@ import tools.jackson.databind.ObjectMapper;
 @AutoConfigureMockMvc
 @TestConstructor(autowireMode = AutowireMode.ALL)
 class ChatMessageAcceptanceTest {
-    private static final String JWT_COOKIE_NAME = "KNOT_ACCESS_TOKEN";
-    private static final String CSRF_COOKIE_NAME = "XSRF-TOKEN";
-
     private final MockMvc mockMvc;
     private final AuthTokenProvider authTokenProvider;
-    private final ObjectMapper objectMapper;
     private final JdbcClient jdbcClient;
 
     ChatMessageAcceptanceTest(
             MockMvc mockMvc,
             AuthTokenProvider authTokenProvider,
-            ObjectMapper objectMapper,
             JdbcClient jdbcClient
     ) {
         this.mockMvc = mockMvc;
         this.authTokenProvider = authTokenProvider;
-        this.objectMapper = objectMapper;
         this.jdbcClient = jdbcClient;
     }
 
@@ -81,22 +71,16 @@ class ChatMessageAcceptanceTest {
                 memberId
         );
         OffsetDateTime lastMessageAt = singleLastMessageAt(sessionId);
-        Cookie accessTokenCookie = accessTokenCookie(memberId);
-        CsrfCredentials csrfCredentials = csrfCredentials();
 
         // when
         ResultActions result = mockMvc.perform(
                 post(
                         "/api/v1/conversations/{sessionId}/messages",
                         sessionId
-                ).cookie(
-                        accessTokenCookie,
-                        csrfCredentials.cookie()
+                ).header(
+                        HttpHeaders.AUTHORIZATION,
+                        bearerToken(memberId)
                 )
-                        .header(
-                                "X-XSRF-TOKEN",
-                                csrfCredentials.token()
-                        )
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"content":"질문"}
@@ -111,35 +95,14 @@ class ChatMessageAcceptanceTest {
         assertThat(singleLastMessageAt(sessionId)).isEqualTo(lastMessageAt);
     }
 
-    private Cookie accessTokenCookie(long memberId) {
-        String token = authTokenProvider.issue(
+    /** 인증 자격증명은 `Authorization: Bearer` 하나뿐이다(기획서 5.1) */
+    private String bearerToken(long memberId) {
+        return "Bearer " + authTokenProvider.issue(
                 AuthenticatedMember.of(
                         memberId,
                         "octocat",
                         null
                 )
-        );
-        return new Cookie(
-                JWT_COOKIE_NAME,
-                token
-        );
-    }
-
-    private CsrfCredentials csrfCredentials() throws Exception {
-        MvcResult result = mockMvc.perform(get("/api/v1/auth/csrf"))
-                .andExpect(status().isOk())
-                .andReturn();
-        Cookie cookie = result.getResponse()
-                .getCookie(CSRF_COOKIE_NAME);
-        assertThat(cookie).isNotNull();
-        JsonNode responseBody = objectMapper.readTree(
-                result.getResponse()
-                        .getContentAsString()
-        );
-        return new CsrfCredentials(
-                cookie,
-                responseBody.get("token")
-                        .asText()
         );
     }
 
@@ -227,11 +190,5 @@ class ChatMessageAcceptanceTest {
                 )
                 .query(OffsetDateTime.class)
                 .single();
-    }
-
-    private record CsrfCredentials(
-            Cookie cookie,
-            String token
-    ) {
     }
 }
