@@ -30,9 +30,16 @@ Notion Import
 
 기본값은 외부 호출이 없는 `fake` 모드다. LM Studio 또는 NVIDIA NIM을 사용할 때만 `openai-compatible`을 활성화한다.
 
+provider는 채팅과 임베딩을 따로 켤 수 있다. `LLM_PROVIDER` 하나만 넣으면 두 쪽이 같은 값을 쓰고,
+`LLM_CHAT_PROVIDER`·`LLM_EMBEDDING_PROVIDER`를 넣으면 그 쪽만 덮어쓴다. 채팅 HTTP 클라이언트
+(`chatLlmHttpClient`)와 임베딩 HTTP 클라이언트(`embeddingLlmHttpClient`)도 provider별로 따로 만들어져,
+한쪽만 `fake`로 두면 그쪽은 외부 호출을 하지 않는다.
+
 | 환경 변수 | 예시 | 용도 |
 | --- | --- | --- |
-| `LLM_PROVIDER` | `openai-compatible` | 실제 OpenAI 호환 endpoint 사용 |
+| `LLM_PROVIDER` | `openai-compatible` | 채팅·임베딩 공통 provider. 아래 두 키가 없을 때의 fallback이다 |
+| `LLM_CHAT_PROVIDER` | `openai-compatible` | 채팅만 따로 지정한다(`fake` \| `openai-compatible`). 없으면 `LLM_PROVIDER`를 따른다 |
+| `LLM_EMBEDDING_PROVIDER` | `openai-compatible` | 임베딩만 따로 지정한다(`fake` \| `openai-compatible`). 없으면 `LLM_PROVIDER`를 따른다 |
 | `LLM_BASE_URI` | `http://<lm-studio-host>:1234/v1` | 채팅·임베딩 endpoint의 공통 base URI |
 | `LLM_API_KEY` | `<secret>` | Authorization header에만 사용 |
 | `LLM_MODEL` | `qwen/qwen3.6-27b` | 채팅 모델 |
