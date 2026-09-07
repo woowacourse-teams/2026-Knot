@@ -267,6 +267,197 @@ class ChatRepositoryIntegrationTest {
         ).isZero();
     }
 
+    @Test
+    @DisplayName("같은 페이지의 청크 여러 개를 chunk_index와 함께 rank 순서로 저장한다")
+    void saveAssistantWithReferences_success_storesChunkIndexAllowingSamePage() {
+        // given
+        long[] workspaceMember = saveWorkspaceMember(
+                1L,
+                1L
+        );
+        long[] page = savePublishedPage(
+                workspaceMember[0],
+                workspaceMember[1]
+        );
+        ChatSession chatSession = chatSessionRepository.save(
+                ChatSession.create(
+                        workspaceMember[0],
+                        workspaceMember[1],
+                        "근거",
+                        CREATED_AT
+                )
+        );
+
+        // when
+        ChatMessage assistantMessage = chatMessagePersistenceService.saveAssistantWithReferences(
+                chatSession.getId(),
+                "답변",
+                CREATED_AT.plusSeconds(1),
+                List.of(
+                        chunk(
+                                workspaceMember[0],
+                                page,
+                                3,
+                                0.95
+                        ),
+                        chunk(
+                                workspaceMember[0],
+                                page,
+                                0,
+                                0.8
+                        )
+                )
+        );
+
+        // then
+        assertThat(
+                jdbcClient.sql("""
+                        SELECT reference_rank || ':' || chunk_index || ':' || relevance_score
+                        FROM search_references
+                        WHERE message_id = :messageId
+                        ORDER BY reference_rank
+                        """)
+                        .param(
+                                "messageId",
+                                assistantMessage.getId()
+                        )
+                        .query(String.class)
+                        .list()
+        ).containsExactly(
+                "1:3:0.95",
+                "2:0:0.8"
+        );
+        assertThat(
+                jdbcClient.sql("SELECT generated_by FROM chat_messages WHERE id = :messageId")
+                        .param(
+                                "messageId",
+                                assistantMessage.getId()
+                        )
+                        .query(String.class)
+                        .single()
+        ).isEqualTo("SERVER");
+    }
+
+    @Test
+    @DisplayName("근거가 8개를 넘으면 rank 제약에 걸려 assistant 저장을 롤백한다")
+    void saveAssistantWithReferences_failure_moreThanEightReferencesRollsBack() {
+        // given
+        long[] workspaceMember = saveWorkspaceMember(
+                1L,
+                1L
+        );
+        long[] page = savePublishedPage(
+                workspaceMember[0],
+                workspaceMember[1]
+        );
+        ChatSession chatSession = chatSessionRepository.save(
+                ChatSession.create(
+                        workspaceMember[0],
+                        workspaceMember[1],
+                        "근거",
+                        CREATED_AT
+                )
+        );
+        List<SearchChunk> nineReferences = java.util.stream.IntStream.range(
+                0,
+                9
+        )
+                .mapToObj(
+                        index -> chunk(
+                                workspaceMember[0],
+                                page,
+                                index,
+                                0.9 - index * 0.05
+                        )
+                )
+                .toList();
+
+        // when
+        ThrowingCallable action = () -> chatMessagePersistenceService.saveAssistantWithReferences(
+                chatSession.getId(),
+                "답변",
+                CREATED_AT.plusSeconds(1),
+                nineReferences
+        );
+
+        // then
+        assertThatThrownBy(action).isInstanceOf(DataIntegrityViolationException.class);
+        assertThat(chatMessageRepository.findAllBySessionId(chatSession.getId())).isEmpty();
+    }
+
+    @Test
+    @DisplayName("근거 없음 턴은 USER 질문과 서버 안내 답변을 한 트랜잭션에 SERVER 생성으로 저장한다")
+    void saveFallbackTurn_success_persistsUserAndAssistant() {
+        // given
+        long[] workspaceMember = saveWorkspaceMember(
+                1L,
+                1L
+        );
+        ChatSession chatSession = chatSessionRepository.save(
+                ChatSession.create(
+                        workspaceMember[0],
+                        workspaceMember[1],
+                        "안내",
+                        CREATED_AT
+                )
+        );
+
+        // when
+        var turn = chatMessagePersistenceService.saveFallbackTurn(
+                chatSession.getId(),
+                "무관한 질문",
+                "관련된 정보를 찾지 못했습니다.",
+                CREATED_AT.plusSeconds(5)
+        );
+
+        // then
+        List<ChatMessage> messages = chatMessageRepository.findAllBySessionId(chatSession.getId());
+        assertThat(messages).extracting(
+                ChatMessage::getId,
+                ChatMessage::getRole,
+                ChatMessage::getContent,
+                ChatMessage::getGeneratedBy
+        )
+                .containsExactly(
+                        org.assertj.core.groups.Tuple.tuple(
+                                turn.userMessage()
+                                        .getId(),
+                                ChatMessageRole.USER,
+                                "무관한 질문",
+                                com.knot.backend.chat.domain.ChatMessageGeneratedBy.SERVER
+                        ),
+                        org.assertj.core.groups.Tuple.tuple(
+                                turn.assistantMessage()
+                                        .getId(),
+                                ChatMessageRole.ASSISTANT,
+                                "관련된 정보를 찾지 못했습니다.",
+                                com.knot.backend.chat.domain.ChatMessageGeneratedBy.SERVER
+                        )
+                );
+        assertThat(chatSessionRepository.findById(chatSession.getId())).get()
+                .extracting(ChatSession::getLastMessageAt)
+                .isEqualTo(CREATED_AT.plusSeconds(5));
+    }
+
+    private SearchChunk chunk(
+            long workspaceId,
+            long[] page,
+            int chunkIndex,
+            double score
+    ) {
+        return SearchChunk.retrieved(
+                workspaceId,
+                page[0],
+                page[1],
+                chunkIndex,
+                "문서",
+                "https://notion.test/page",
+                CREATED_AT,
+                "청크 " + chunkIndex,
+                score
+        );
+    }
+
     private long[] saveWorkspaceMember(
             long workspaceNumber,
             long memberNumber
