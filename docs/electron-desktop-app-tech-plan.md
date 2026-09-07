@@ -77,7 +77,8 @@
 │ ┌ main (Node) ───────────────────────────────────────────┐ │
 │ │ 창 관리 · 메뉴 · 트레이 · 딥링크 수신 · 업데이트 ·      │ │
 │ │ 네비게이션 허용 목록 · 권한 핸들러 · 로그/크래시 ·      │ │
-│ │ [2단계] 디바이스 토큰 보관(safeStorage) + Bearer 주입    │ │
+│ │ 액세스 토큰 보관(safeStorage, 1단계) ·                   │ │
+│ │ [2단계] 리프레시·갱신 + onBeforeSendHeaders Bearer 주입  │ │
 │ └──────────┬───────────────── contextBridge/IPC ──────────┘ │
 │ ┌ preload ─┴──────────────┐  ┌ renderer (sandbox) ────────┐ │
 │ │ window.knotDesktop 노출 │  │ https://knoted.kr SPA      │ │
@@ -104,16 +105,18 @@
 
 | 프로세스 | 책임 | 하지 않는 것 |
 | --- | --- | --- |
-| main | `BrowserWindow` 생성·복원, 애플리케이션 메뉴, 트레이, 단일 인스턴스 락, 딥링크 파싱, `will-navigate`·`setWindowOpenHandler`·`setPermissionRequestHandler`, 자동 업데이트, 로그·크래시, [2단계] 디바이스 토큰 저장·갱신·`onBeforeSendHeaders` Bearer 주입 | LLM 호출, 검색, 답변 저장, 쿠키 값 읽기(1단계에서도 `cookies.get`을 쓰지 않는다) |
+| main | `BrowserWindow` 생성·복원, 애플리케이션 메뉴, 트레이, 단일 인스턴스 락, 딥링크 파싱, `will-navigate`·`setWindowOpenHandler`·`setPermissionRequestHandler`, 자동 업데이트, 로그·크래시, **액세스 토큰 보관(`safeStorage`, 1단계)**, [2단계] 리프레시·갱신·`onBeforeSendHeaders` Bearer 주입 | LLM 호출, 검색, 답변 저장, 쿠키 값 읽기(`cookies.get`을 쓰지 않는다), 토큰 값 로깅 |
 | preload | `contextBridge.exposeInMainWorld('knotDesktop', …)`로 4.4의 API만 노출. CJS 단일 번들, sandbox 유지 | `ipcRenderer` 원본 노출, Node API 노출 |
-| renderer | 웹 SPA 그대로. `window.knotDesktop` 존재 여부로 데스크톱을 감지해 외부 링크·딥링크·로그아웃 UX만 분기 | Electron 모듈 직접 접근 |
-| 백엔드 | 현행 전부 + [B안] Anthropic 어댑터 + [2단계] 디바이스 토큰 API·Bearer 인증 | 데스크톱 전용 채팅 경로 |
+| renderer | 웹 SPA 그대로. `window.knotDesktop` 존재 여부로 데스크톱을 감지해 외부 링크·딥링크·로그아웃 UX와 **토큰 저장소**만 분기 | Electron 모듈 직접 접근, 토큰을 `localStorage`에 두는 것(데스크톱에서는 preload 경유) |
+| 백엔드 | 현행 전부 + **Bearer 인증(`D11`)** + [B안] Anthropic 어댑터 + [2단계] 디바이스 토큰 API | 데스크톱 전용 채팅 경로, 인증 쿠키 발급 |
 
 ### 4.3 주요 흐름
 
-**채팅(변경 없음)**: renderer의 `streamChatMessageApi`가 `POST /api/v1/conversations/{sessionId}/messages`를 `credentials: "include"` + `X-XSRF-TOKEN`으로 호출 → 백엔드 파이프라인(게이트 → 검색 → `LlmClient` → SSE → 저장) → `complete(messageId)` → `GET /messages/{id}/sources`. Electron renderer는 Chromium이므로 fetch 스트리밍·`TextDecoder`·`parseSseEvents`가 브라우저와 동일하게 동작한다(지식 §2.5).
+**채팅(계약 무변경, 자격증명만 교체)**: renderer의 `streamChatMessageApi`가 `POST /api/v1/conversations/{sessionId}/messages`를 `Authorization: Bearer <JWT>`로 호출(`D11` 이전에는 `credentials: "include"` + `X-XSRF-TOKEN`이었다) → 백엔드 파이프라인(게이트 → 검색 → `LlmClient` → SSE → 저장) → `complete(messageId)` → `GET /messages/{id}/sources`. Electron renderer는 Chromium이므로 fetch 스트리밍·`TextDecoder`·`parseSseEvents`가 브라우저와 동일하게 동작한다(지식 §2.5).
 
-**로그인 1단계(패턴 C)**: SPA의 `GithubLoginButton`이 `window.location.href = {API}/oauth2/authorization/github` → main의 `will-navigate` 허용 목록(`knoted.kr`, `api.*.knoted.kr`, `github.com`)을 통과 → GitHub 로그인 → `api.*`의 콜백이 `__Host-KNOT_ACCESS_TOKEN` 쿠키를 심고 `/api/v1/auth/me`(기본값) 또는 설정된 프론트 URL로 302 → `EntryRedirect`가 분기. 세션 파티션은 `persist:knot`으로 디스크 영속.
+**로그인 1단계(`D11`)**: SPA의 `GithubLoginButton`이 `window.location.href = {API}/oauth2/authorization/github` → main의 `will-navigate`·`will-redirect` 허용 목록(웹 오리진, API 오리진, `github.com`)을 통과 → GitHub 로그인 → `api.*`의 성공 핸들러가 **쿠키를 심지 않고** 설정된 프론트 URL에 토큰을 URL 프래그먼트로 붙여 302(`{success-redirect-uri}#access_token=…&expires_in=3600`, 신규 가입은 `{nickname-redirect-uri}#onboarding_token=…`) → SPA 부팅 코드가 프래그먼트를 읽어 저장소에 넣고 `history.replaceState`로 주소창에서 지운다 → `EntryRedirect`가 분기. 세션 파티션은 `persist:knot`을 유지하지만 이제 인증 쿠키는 담기지 않는다.
+
+프래그먼트를 쓰는 이유: `#` 뒤는 서버로 전송되지 않아 액세스 로그·`Referer`에 남지 않는다. 쿼리스트링(`?access_token=`)은 Cloudflare·백엔드 로그와 `Referer`에 그대로 찍힌다. 남는 노출은 브라우저 히스토리 한 곳뿐이고 SPA가 즉시 지운다(로드맵 Q14).
 
 **로그인 2단계(패턴 A·B)**: 5.2 참조.
 
@@ -136,11 +139,15 @@ export interface KnotDesktopApi {
   openExternal(url: string): Promise<void>; // https:·mailto:만 허용, 그 외 reject
   onDeepLink(handler: (link: KnotDeepLink) => void): () => void; // 구독 해제 함수 반환
   getPendingDeepLink(): Promise<KnotDeepLink | null>;
-  // 2단계
+  // 1단계(D11): SPA가 액세스 토큰을 둘 곳. 웹에서는 이 객체가 없고 localStorage를 쓴다
   auth?: {
-    startLogin(): Promise<void>;            // 시스템 브라우저를 연다
-    logout(): Promise<void>;                // 폐기 API 호출 + 로컬 삭제
-    onSessionChanged(handler: (state: 'signed-in' | 'signed-out') => void): () => void;
+    getToken(): Promise<string | null>;     // 없으면 null
+    setToken(token: string): Promise<void>; // safeStorage로 암호화해 userData에 저장
+    clearToken(): Promise<void>;            // 로그아웃·401
+    // 2단계(A7)에서 추가한다
+    startLogin?(): Promise<void>;           // 시스템 브라우저를 연다
+    logout?(): Promise<void>;               // 폐기 API 호출 + 로컬 삭제
+    onSessionChanged?(handler: (state: 'signed-in' | 'signed-out') => void): () => void;
   };
   notifications?: { show(input: { title: string; body: string; link?: KnotDeepLink }): Promise<void> };
 }
@@ -151,6 +158,8 @@ export interface KnotDesktopApi {
 - preload는 `ipcRenderer.invoke`/`ipcRenderer.on`을 래핑한 함수만 노출한다. `event` 객체를 renderer 콜백에 넘기지 않는다.
 - main의 모든 `ipcMain.handle`은 `event.senderFrame`의 origin이 허용된 웹 오리진일 때만 처리한다(`senderFrame`이 `null`이면 거부).
 - `auth.callback` 같은 로그인 콜백 데이터는 main에서만 소비하고 renderer로 보내지 않는다.
+- `auth.getToken`/`setToken`/`clearToken`은 **저장소만** 노출한다. 값은 renderer가 들고 있다가 `Authorization` 헤더에 직접 넣는다. 2단계에서 main이 `onBeforeSendHeaders`로 주입하게 되면 `getToken`은 `null`을 돌려주도록 바꾸고 SPA는 헤더를 붙이지 않는다(옵셔널 접근이라 하위 호환이 유지된다).
+- 토큰 값은 로그·크래시 리포트에 절대 쓰지 않는다. IPC 인자 로깅도 금지한다.
 - API 추가는 이 인터페이스 파일의 변경으로만 하며, 웹 SPA는 `window.knotDesktop?.xxx` 옵셔널 접근으로 하위 호환을 지킨다(셸 업데이트가 웹 배포보다 느리다).
 
 ### 4.5 오리진·환경 정책
@@ -170,21 +179,44 @@ export interface KnotDesktopApi {
 
 ## 5. 인증 설계
 
-### 5.1 1단계: 웹 쿠키 세션 재사용
+### 5.1 1단계: 웹·데스크톱 공통 Bearer JWT (`D11`, 2026-09-06 개정)
+
+**요지**: 인증 자격증명을 `__Host-KNOT_ACCESS_TOKEN` 쿠키에서 `Authorization: Bearer <JWT>` 헤더로 옮긴다. 웹과 데스크톱이 같은 경로를 쓰고, 인증 쿠키와 CSRF는 폐기한다. 이전 판의 "웹 쿠키 세션을 데스크톱이 그대로 재사용한다"는 설계는 여기서 폐기된다.
+
+**왜 바꾸나**
+
+| 이유 | 내용 |
+| --- | --- |
+| 저장 위치를 클라이언트가 고를 수 있다 | 쿠키는 저장 위치를 브라우저가 정하므로 데스크톱이 `safeStorage`(macOS Keychain·Windows DPAPI)에 넣을 수 없었다. Bearer는 웹이 `localStorage`, 데스크톱이 main의 암호화 파일에 각각 둘 수 있다 |
+| 2단계와 전송 방식이 같아진다 | 2단계 디바이스 토큰도 Bearer다. 1단계를 쿠키로 두면 필터·CSRF 매처·CORS가 두 경로를 동시에 지탱해야 한다. 이제 2단계와의 차이는 **로그인 창 위치와 리프레시**뿐이다 |
+| 로컬 번들(`app://`) 전환이 열린다 | `__Host-`·SameSite=Lax는 `app://` 오리진에서 구조적으로 깨진다(지식 §2.4, §4.7). Bearer는 오리진에 의존하지 않으므로 `A12`의 선행 조건이 사라진다 |
+| CSRF가 통째로 필요 없어진다 | CSRF는 브라우저가 자동으로 붙이는 자격증명(쿠키)을 노린 공격을 막는 장치다. 자동 첨부가 사라지면 토큰·쿠키·403 재시도 경로가 전부 불필요하다 |
+
+**대가**: `HttpOnly`가 주던 XSS 격리를 잃는다. 웹 번들이 토큰을 읽을 수 있으므로 XSS 하나가 곧 토큰 유출이다. 이를 받는 대신 CSP(9.4)·1시간 만료·리프레시 부재를 유지하고, 2단계에서 데스크톱 토큰을 renderer 밖으로 옮긴다. 이 교환은 로드맵 `Q14`에 결정으로 남긴다.
+
+**계약**
 
 | 항목 | 내용 |
 | --- | --- |
-| 동작 | 4.3의 흐름. 백엔드·SPA 변경 없음 |
-| 세션 저장 | `session.fromPartition('persist:knot')`. `__Host-` 쿠키는 API 오리진의 first-party 쿠키로 저장되며 SameSite=Lax 판정도 웹과 동일(지식 §4.7) |
-| Fuse | `EnableCookieEncryption` on(디스크 쿠키 암호화, macOS Keychain 사용 → 서명 필요) |
-| 로그아웃 | 현재 SPA에 로그아웃 호출 코드가 없다(지식 §1.2). 데스크톱은 상시 실행이므로 메뉴에 "로그아웃"을 두고 SPA에 `POST /api/v1/auth/logout` 호출 + `/login` 이동을 추가한다(웹에도 유익) |
-| 만료 | access 1시간, 리프레시 없음 → `AuthGuard`가 401에서 `/login`으로 보낸다. 데스크톱은 이 지점에서 재로그인 버튼을 눌러야 한다(GitHub이 승인 상태를 기억하면 클릭 1~2회) |
-| 알려진 위험 | (1) RFC 8252 §8.12: GitHub 로그인 페이지를 앱 창(embedded user-agent)에 띄운다. GitHub의 차단 정책은 확인되지 않았고 Google은 차단한다(지식 §4.3). (2) 앱 창에서는 브라우저의 GitHub 세션을 공유하지 못해 매번 로그인한다. (3) WebAuthn(패스키) 로그인이 제한될 수 있다 |
-| 수용 조건 | 2단계 착수를 전제로 한 임시 경로. 출시 전 GitHub 로그인이 Electron 창에서 실제로 동작하는지(경고·차단 여부)를 dev 빌드로 확인한다 |
+| 전송 | `Authorization: Bearer <JWT>`. 인증이 필요한 모든 요청(axios·SSE fetch 공통) |
+| 토큰 | 현행 access JWT 그대로. HS256, `token_type=ACCESS`, issuer `https://knoted.kr`, audience `knot-api`, 만료 1시간. **발급 로직·클레임은 바꾸지 않는다** |
+| 로그인 전달 | 성공 핸들러가 쿠키 대신 리다이렉트 URL의 **프래그먼트**에 실어 보낸다. 기존 회원 `{success-redirect-uri}#access_token=<jwt>&token_type=Bearer&expires_in=3600`, 신규 가입 `{nickname-redirect-uri}#onboarding_token=<jwt>&expires_in=600` |
+| 온보딩 | `POST /api/v1/auth/nickname`이 온보딩 토큰을 `Authorization: Bearer`로 받고, 응답 본문 `200 {accessToken, tokenType, expiresIn}`으로 액세스 토큰을 돌려준다(기존 204 + 쿠키에서 변경) |
+| 저장(웹) | 액세스 토큰은 `localStorage`의 `knot.accessToken`. 탭·새로고침·재시작을 넘겨 로그인이 유지되던 기존 쿠키 동작과 같게 맞춘다. 온보딩 토큰은 슬롯을 나눠 `sessionStorage`의 `knot.onboardingToken`에 둔다(로드맵 Q19) |
+| 저장(데스크톱) | preload `window.knotDesktop.auth`(4.4) → main `safeStorage.encryptString` → `userData/auth.bin`. `isEncryptionAvailable()`이 false면 저장하지 않고 메모리로만 들고 있다가 앱 종료 시 잃는다(Linux `basic_text`) |
+| 로그아웃 | 클라이언트가 저장소에서 지우는 것이 실제 로그아웃이다. `POST /api/v1/auth/logout`은 204만 돌려주는 훅으로 남긴다(2단계에서 서버 폐기가 붙을 자리) |
+| 만료 | access 1시간, 리프레시 없음. 401을 받으면 클라이언트가 토큰을 지우고 `AuthGuard`가 `/login`으로 보낸다 |
+| CSRF | 폐기. `CookieCsrfTokenRepository`·`GET /api/v1/auth/csrf`·`X-XSRF-TOKEN`을 제거한다 |
+| CORS | 허용 헤더에 `Authorization` 추가, `X-XSRF-TOKEN` 제거, `allowCredentials=false`(더 이상 쿠키를 싣지 않는다) |
+| Fuse | `EnableCookieEncryption`은 그대로 켠다. 인증 쿠키는 없어졌지만 남는 쿠키(OAuth 세션 등)의 디스크 암호화에 여전히 유효하다 |
+
+**호환 기간을 두지 않는다.** 쿠키 경로와 Bearer 경로를 동시에 지탱하면 필터가 두 자격증명을 받아들이게 되고, 그 상태에서는 CSRF도 켜 둔 채로 남겨야 한다. 프론트·백엔드를 같은 시점에 배포하고, 배포 순간 살아 있던 세션은 만료된다(재로그인 1회). 배포 순서는 백엔드 먼저이며, 그 사이 구버전 SPA는 401을 받아 `/login`으로 간다(로드맵 `Q17`).
+
+**남는 위험(쿠키 시절과 동일)**: (1) RFC 8252 §8.12 — GitHub 로그인 페이지를 앱 창(embedded user-agent)에 띄운다. GitHub의 차단 정책은 미확인이고 Google은 차단한다(지식 §4.3). (2) 앱 창은 브라우저의 GitHub 세션을 공유하지 못해 매번 로그인한다. (3) WebAuthn(패스키) 로그인이 제한될 수 있다. 이 셋은 2단계에서 로그인 창을 시스템 브라우저로 옮겨야 해소된다.
 
 ### 5.2 2단계: 시스템 브라우저 로그인 + 디바이스 토큰
 
-목표: 앱 안에서 GitHub 자격증명을 입력하지 않고, 1시간마다 재로그인하지 않으며, 기기별로 세션을 관리·폐기할 수 있게 한다.
+목표: 앱 안에서 GitHub 자격증명을 입력하지 않고, 1시간마다 재로그인하지 않으며, 기기별로 세션을 관리·폐기할 수 있게 한다. `D11` 이후 1단계도 Bearer이므로 **2단계가 더하는 것은 로그인 창 위치(시스템 브라우저)·리프레시 토큰·기기 세션 폐기 세 가지뿐**이다.
 
 **시퀀스**
 
@@ -197,14 +229,14 @@ export interface KnotDesktopApi {
   │                               │◀──── 302 github.com/login/oauth/authorize ──────────────────▶│
   │                               │      사용자 로그인·승인(브라우저 세션·패스키 사용 가능)         │
   │                               │──── /login/oauth2/code/github?code&state ───▶│               │
-  │                               │      성공 핸들러: client=desktop → 쿠키 미발급,               │
+  │                               │      성공 핸들러: client=desktop → 프래그먼트 전달 대신       │
   │                               │      일회용 device_code 발급(TTL 120s, S256 challenge 바인딩)  │
   │◀──── 302 http://127.0.0.1:P/callback?code=dc&state=s ◀───────│                                │
   │  (fallback: knot://auth/callback?code=dc&state=s)            │                                │
   │ state 검증, 포트 닫기         │  "앱으로 돌아가세요" 페이지    │                                │
   │─ POST /api/v1/auth/device/token {code: dc, code_verifier: v, device: {name, platform}} ──────▶│
   │◀─ {access_token(JWT 1h), refresh_token(opaque), expires_in} ─│                                │
-  │ refresh는 safeStorage 암호화 후 userData 파일, access는 메모리 │                                │
+  │ refresh·access 모두 safeStorage 암호화 후 userData 파일(1단계와 같은 저장소) │                  │
   │ onBeforeSendHeaders: API 오리진 요청에만 Authorization: Bearer 주입 │                          │
 ```
 
@@ -217,21 +249,21 @@ export interface KnotDesktopApi {
 | POST | `/api/v1/auth/device/token` | `{code, code_verifier, device:{name, platform, appVersion}}` | `{accessToken, refreshToken, expiresIn, session:{id, deviceName}}` | 코드 만료·재사용·verifier 불일치 → 400 `DEVICE_CODE_INVALID`, 재사용 감지 시 연관 토큰 폐기 |
 | POST | `/api/v1/auth/device/refresh` | `{refreshToken}` | 새 access + **새 refresh**(rotation), 이전 refresh 즉시 무효 | 재사용 감지 → family 전체 폐기, 401 |
 | POST | `/api/v1/auth/device/revoke` | `{refreshToken}` 또는 Bearer로 현재 세션 | 200(무효 토큰이어도 200, RFC 7009) | — |
-| GET | `/api/v1/auth/sessions` | Bearer 또는 쿠키 | 기기 목록 `{id, deviceName, platform, createdAt, lastUsedAt, current}` | — |
-| DELETE | `/api/v1/auth/sessions/{id}` | 〃 | 204 | CORS 허용 메서드에 DELETE가 없으므로 웹에서 쓰려면 `SecurityConfig` CORS 메서드 추가 필요 |
+| GET | `/api/v1/auth/sessions` | Bearer | 기기 목록 `{id, deviceName, platform, createdAt, lastUsedAt, current}` | — |
+| DELETE | `/api/v1/auth/sessions/{id}` | Bearer | 204 | CORS 허용 메서드에 DELETE가 없으므로 웹에서 쓰려면 `SecurityConfig` CORS 메서드 추가 필요 |
 
 **토큰 규격**
 
 - access: 기존 HS256 키·issuer·audience 재사용, `typ=DEVICE_ACCESS`, `sid=<device_session_id>`, 만료 1시간(`auth.jwt.expiration`). 기존 `JwtProvider`의 타입 열거(`ACCESS`, `ONBOARDING`)에 추가.
 - refresh: 256-bit 난수 opaque. DB에는 해시만(ADR 254의 HMAC·AES-GCM 관행 재사용), 6개월 미사용 시 만료, rotation + family 폐기(RFC 9700 §4.14.2).
-- device_code: 256-bit 난수, TTL 120초, 1회용, `code_challenge`·`state`·`return`과 함께 세션(또는 서명 쿠키)에 보관.
+- device_code: 256-bit 난수, TTL 120초, 1회용, `code_challenge`·`state`·`return`과 함께 서버 세션에 보관(`D11` 이후 인증 쿠키가 없으므로 서명 쿠키 대안은 쓰지 않는다).
 
 **데이터**: Flyway `V14__create_device_sessions.sql` — `device_sessions(id, member_id, device_name, platform, app_version, refresh_token_hash, family_id, created_at, last_used_at, expires_at, revoked_at)` + `device_authorization_codes`(또는 인메모리 TTL 캐시, 단일 인스턴스 전제는 ADR 212·328과 동일).
 
 **Spring Security 변경**(지식 §4.6)
 
-- 기존 `JwtAuthenticationFilter`(쿠키) 유지 + `oauth2ResourceServer(jwt)` 병행. `NimbusJwtDecoder.withSecretKey(key).macAlgorithm(HS256)` + `typ=DEVICE_ACCESS`·`sid` 유효성(폐기 여부) 검증기.
-- CSRF: `requireCsrfProtectionMatcher`를 "기본 매처 AND NOT(`Authorization` 헤더 존재)"로 바꿔 Bearer 요청만 면제. 쿠키 요청은 현행 유지.
+- `D11`의 `JwtAuthenticationFilter`(Bearer)에 `typ=DEVICE_ACCESS`·`sid` 유효성(폐기 여부) 검증을 더한다. 자격증명 위치가 이미 `Authorization` 헤더라 필터를 하나 더 두지 않는다.
+- CSRF: `D11`에서 이미 제거됐다. 2단계에서 되살릴 이유가 없다(U14 `CsrfFilter.DEFAULT_CSRF_MATCHER` 확인 항목도 함께 사라진다).
 - `OAuth2AuthorizationRequestResolver` 커스터마이즈로 `client`·`code_challenge`·`return`을 attributes에 보관, 커스텀 `AuthenticationSuccessHandler`가 `client=desktop` 분기. 이 분기는 ADR 314("백엔드는 고정 리다이렉트 3개")의 재논의 조건("로그인 이후 목적지가 외부에서 지정되는 흐름 추가 시")에 해당하므로 ADR 314를 보완하는 ADR로 기록한다.
 - `state`에는 URL이나 민감 정보를 넣지 않고 서버 저장 키만 쓴다(open redirector 방지). `return`은 `loopback:{port}`·`deeplink` 두 값만 허용한다.
 
@@ -241,7 +273,7 @@ export interface KnotDesktopApi {
 - 토큰 저장: `safeStorage.encryptString` → `userData/auth.bin`. `isEncryptionAvailable()`이 false(Linux `basic_text`)면 저장하지 않고 매 실행 로그인.
 - Bearer 주입: `session.webRequest.onBeforeSendHeaders({urls:[`${API_ORIGIN}/*`]})`에서만. 다른 오리진에는 절대 붙이지 않는다.
 - 만료 5분 전 백그라운드 refresh, 실패 시 `signed-out` 이벤트 → SPA가 `/login`으로.
-- 1단계 쿠키 경로와 2단계 Bearer 경로가 공존하는 동안 SPA는 어느 쪽인지 알 필요가 없다(백엔드 필터가 Bearer 우선).
+- SPA는 1·2단계 중 어느 쪽인지 알 필요가 없다. 두 단계 모두 `Authorization: Bearer`이고, 데스크톱에서 토큰의 출처만 preload 뒤로 숨는다(4.4).
 
 ### 5.3 위협 모델·완화
 
@@ -249,7 +281,9 @@ export interface KnotDesktopApi {
 | --- | --- |
 | 딥링크 스킴 탈취(다른 앱이 `knot://` 등록) | 코드 1회용·TTL 120초, S256 verifier 바인딩(코드만으로 교환 불가), 앱 내 state 매칭, loopback 1차 |
 | loopback 포트 가로채기 | 동일(PKCE), 응답 즉시 포트 닫기, `127.0.0.1` 전용 바인딩 |
-| renderer XSS | sandbox·contextIsolation·최소 preload API·sender 검증. 2단계에서는 토큰이 main에만 있어 유출은 막지만 요청 위조는 쿠키와 동일하게 가능 → 서버 측 검증·CSRF(쿠키)·rate limit 유지 |
+| renderer XSS (`D11`으로 커진 표면) | 1단계에서는 토큰을 renderer가 읽으므로 XSS 하나로 토큰이 유출된다. `HttpOnly` 쿠키가 주던 격리는 없다. 완화: CSP(9.4)·sandbox·contextIsolation·최소 preload API·sender 검증·1시간 만료. 근본 해소는 2단계에서 토큰을 main으로 옮기고 `onBeforeSendHeaders`로 주입하는 것 |
+| CSRF | `D11`으로 **소멸**. 브라우저가 자동으로 붙이는 인증 자격증명이 없으므로 교차 사이트 요청은 인증되지 않는다 |
+| 토큰이 URL 프래그먼트로 지나감 | 프래그먼트는 서버로 전송되지 않아 로그·`Referer`에 남지 않는다. 브라우저 히스토리에는 남으므로 SPA가 읽는 즉시 `history.replaceState`로 지운다. 확장 경로(일회용 코드 교환)는 2단계 `device_code`와 같은 방식으로 열려 있다 |
 | 토큰 파일 탈취 | macOS Keychain·Windows DPAPI(같은 계정의 다른 앱은 복호화 가능 → 위협 모델에 명시), refresh rotation·재사용 감지·기기 목록 폐기 |
 | 피싱(가짜 로그인 창) | 앱 안에서 자격증명을 받지 않음(2단계), 환경 전환 UI 없음, 서명된 배포본 |
 | 백엔드 리다이렉트 오용 | `return` 값 화이트리스트, `state`에 URL 미포함 |
@@ -258,7 +292,7 @@ export interface KnotDesktopApi {
 
 ### 6.1 데스크톱 관점
 
-변경 없음. 세션당 스트림 1개(인메모리 레지스트리)·30초 SSE 타임아웃·`CHAT_DOCUMENTS_NOT_READY` 게이트·`search_references` 저장은 전부 서버가 유지한다. 데스크톱 퀵 질문 창(7절 P2)도 같은 API를 같은 세션 쿠키·토큰으로 호출한다.
+변경 없음. 세션당 스트림 1개(인메모리 레지스트리)·30초 SSE 타임아웃·`CHAT_DOCUMENTS_NOT_READY` 게이트·`search_references` 저장은 전부 서버가 유지한다. 데스크톱 퀵 질문 창(7절 P2)도 같은 API를 같은 Bearer 토큰으로 호출한다.
 
 ### 6.2 백엔드 Anthropic 어댑터(B안, Electron과 독립)
 
@@ -314,10 +348,10 @@ Electron 공식 Security 문서 20항목(지식 §2.3)을 Knot 값으로 고정�
 | 16 | Electron 버전 | 44 시작, 메이저 1개씩 8주 주기 추적, EOL 전 업그레이드(Renovate 등록) |
 | 17 | IPC sender 검증 | 모든 `ipcMain.handle`에서 `senderFrame` origin 검사 |
 | 18 | `file://` 미사용 | 원격 로드. Fuse `GrantFileProtocolExtraPrivileges` off |
-| 19 | Fuses | `RunAsNode` off, `EnableNodeOptionsEnvironmentVariable` off, `EnableNodeCliInspectArguments` off, `EnableCookieEncryption` on, `EnableEmbeddedAsarIntegrityValidation` on, `OnlyLoadAppFromAsar` on, `GrantFileProtocolExtraPrivileges` off |
+| 19 | Fuses | `RunAsNode` off, `EnableNodeOptionsEnvironmentVariable` off, `EnableNodeCliInspectArguments` off, `EnableCookieEncryption` on(`D11` 이후 인증 쿠키는 없지만 OAuth 세션 쿠키가 남는다), `EnableEmbeddedAsarIntegrityValidation` on, `OnlyLoadAppFromAsar` on, `GrantFileProtocolExtraPrivileges` off |
 | 20 | API 비노출 | 4.4 인터페이스 외 노출 금지, `ipcRenderer` 원본 금지 |
 | + | 환경변수·플래그 | `disable-site-isolation-trials`·`--ignore-certificate-errors` 사용 금지 |
-| + | 자격증명 | 1단계: main이 쿠키 값을 읽지 않는다. 2단계: 토큰은 main·safeStorage에만, 로그·크래시 리포트에 포함 금지 |
+| + | 자격증명 | main이 쿠키 값을 읽지 않는다(`cookies.get` 금지). 토큰은 `safeStorage`로 암호화해 `userData`에만 두고, 로그·크래시 리포트·IPC 인자 로깅에 절대 포함하지 않는다. 2단계에서 renderer 노출까지 없앤다(5.1·5.3) |
 | + | 의존성 | `pnpm audit` CI, Electron·Forge·`update-electron-app`만 런타임 의존성. keytar 금지(archived) |
 
 ## 9. 프로젝트 구조·기술 스택
@@ -364,6 +398,8 @@ desktop/
 | 변경 | 단계 | 비고 |
 | --- | --- | --- |
 | `window.knotDesktop` 타입 선언·감지 훅(`useDesktop`) | P1 | `src/shared/hooks/`에 두고 `hook-guide.md` 준수 |
+| **액세스 토큰 저장소(`localStorage` / 데스크톱 preload)와 `Authorization` 헤더 부착** | P1 | `D11`. `httpClient` 인터셉터 + SSE fetch. CSRF 코드 제거 |
+| **로그인 리다이렉트 프래그먼트(`#access_token`·`#onboarding_token`) 수신·삭제** | P1 | `D11`. React 렌더 전에 실행해 첫 요청부터 헤더가 붙게 한다 |
 | 외부 링크(Notion 페이지 링크 등)를 데스크톱에서 `openExternal`로 | P1 | `target=_blank`는 main이 가로채므로 필수는 아님. UX 통일용 |
 | 로그아웃 액션(`POST /api/v1/auth/logout` → `/login`) | P1 | 웹에도 필요한 누락 기능 |
 | 딥링크 수신 → 라우터 이동 | P2 | `RouterProvider` 상위에서 `onDeepLink` 구독 |
@@ -452,16 +488,17 @@ tag desktop-v0.1.0 ─▶ GitHub Actions matrix(macos-latest arm64/x64, windows-
 
 | 변경 | 단계 | 위험 신호 | 비고 |
 | --- | --- | --- | --- |
+| **인증 자격증명을 쿠키 → `Authorization: Bearer`로 전환**(`JwtAuthenticationFilter`, OAuth 성공 핸들러 프래그먼트 전달, `/auth/nickname` 응답 본문 토큰, CSRF·`/auth/csrf`·`AuthCookieManager` 제거, CORS 헤더 교체) | `D11`, P1 | `security`, `cross-boundary`, `core-flow` | 5.1. 프론트와 동시 배포. 인수 테스트 전량이 쿠키 대신 헤더를 쓰도록 바뀐다 |
 | 채팅·임베딩 provider 설정 분리(`llm.chat.provider`, `llm.embedding.provider`) | B안 선행 | `shared` | 기존 `openai-compatible` 동작 불변 |
 | `AnthropicLlmClient`/`AnthropicLlmStream` + 설정 키 + 오류 코드 | B안 | `external`, `shared` | ADR(검토 문서 7절 B vs C) |
 | 사용량 계측 컬럼(입력·출력·캐시 토큰) | B안 | `data` | Flyway |
 | `device_sessions`·인가 코드 저장, 디바이스 토큰 API 5종 | 2단계 | `security`, `data`, `cross-boundary`, `core-flow` | 인터뷰 + Grill + ADR(314 보완) |
-| 리소스 서버 JWT 병행, CSRF 매처, OAuth resolver·성공 핸들러 분기 | 2단계 | `security` | 동일 ADR |
+| `typ=DEVICE_ACCESS`·`sid` 검증 추가, OAuth resolver·성공 핸들러 `client=desktop` 분기 | 2단계 | `security` | 동일 ADR. CSRF 매처 작업은 `D11`에서 사라졌다 |
 | CORS 허용 메서드에 DELETE(기기 세션 삭제를 웹에서 쓸 때) | P3 | `security` | 없어도 POST 대체 가능 |
-| 로그아웃 성공 핸들러(302 대신 204) | P1 | `cross-boundary` | SPA가 XHR로 호출하므로 |
+| 로그아웃 응답 204(302 대신) | P1 | `cross-boundary` | SPA가 XHR로 호출하므로. `D11`에 흡수됐다 |
 | 원격 MCP 서버(Spring AI) | P3 선택 | `external`, `security` | 별도 기획 |
 
-변경하지 않는 것: 채팅 SSE 계약, 검색 서비스, 답변·출처 저장, 문서 준비 게이트, 프롬프트 정책, 세션 모델, Notion 연결.
+변경하지 않는 것: 채팅 SSE 계약(자격증명 헤더만 교체), 검색 서비스, 답변·출처 저장, 문서 준비 게이트, 프롬프트 정책, 세션 모델, Notion 연결, JWT 발급 로직·클레임.
 
 ## 14. Issue 분할 초안 (공통 Issue 계약 기준)
 
@@ -475,6 +512,9 @@ tag desktop-v0.1.0 ─▶ GitHub Actions matrix(macos-latest arm64/x64, windows-
 | I4 | `[FE] 웹 로그아웃 액션과 데스크톱 감지 훅` | fe | P1 | `cross-boundary` | 필요(짧게) | 없음(메모) | — |
 | I5 | `[FE] 웹 CSP 헤더(Cloudflare _headers)` | fe | P1 병행 | `security` | 필요 | nonce vs unsafe-inline | — |
 | I6 | `[BE] 로그아웃 응답 204 및 XHR 호환` | be | P1 | `cross-boundary` | 필요(짧게) | 없음 | I4 |
+| I15 | `[BE] 인증 자격증명 쿠키 → Bearer JWT 전환` | be | P1 | `security`, `cross-boundary`, `core-flow` | 필요 | D11(쿠키 유지 vs Bearer 전환 vs 이중 경로), ADR 314 보완 | — |
+| I16 | `[FE] 액세스 토큰 저장소와 Authorization 헤더` | fe | P1 | `security`, `cross-boundary` | 필요 | I15와 같은 ADR | I15 |
+| I17 | `[FE] 데스크톱 토큰 저장(preload · safeStorage)` | fe | P1 | `security` | 필요(짧게) | I15와 같은 ADR | I16, I2 |
 | I7 | `[BE] 채팅 LLM Anthropic Messages API 어댑터` | be | B안 | `external`, `shared` | 필요 | B안 vs C안(검토 문서 7절), SDK vs HttpClient | provider 분리 |
 | I8 | `[BE] 채팅·임베딩 provider 설정 분리` | be | B안 선행 | `shared` | 필요(짧게) | 없음 | — |
 | I9 | `[BE] 데스크톱 디바이스 토큰 인증 경로(코드 교환·refresh rotation·폐기·기기 목록)` | be | P2 | `security`, `data`, `cross-boundary`, `core-flow` | 필요(인터뷰 6항목 전부) | D4(패턴 A·B vs C vs D), ADR 314 보완 | I2 |
@@ -496,7 +536,9 @@ Issue 생성은 사용자가 명시적으로 허용하고 판정기가 `pass`·`
 | R2 | Notion OAuth 302 체인 도메인이 허용 목록과 다를 수 있음 | 연결 실패 | I1에서 실제 도메인 기록 |
 | R3 | 운영 API 오리진이 저장소에 없음(`API_BASE_URL_PROD`) | prod 빌드 허용 목록 | 팀에 값 확인, `desktop/src/shared/env.ts`에 고정 |
 | R4 | access 1시간·리프레시 없음 | 1단계 UX 저하 | 2단계(I9)로 해소. 그전까지 재로그인 안내 |
-| R5 | macOS 서명·공증 계정 부재 | 알림·safeStorage·쿠키 암호화·자동 업데이트 불가. Sequoia부터 미공증 앱은 시스템 설정에서 수동 승인 필요 | Apple Developer Program(US$99/년) 개설 결정, 소유 주체·인증서 보관 |
+| R14 | `D11`으로 토큰이 JS에서 읽히므로 XSS 하나가 곧 토큰 유출(`HttpOnly` 격리 상실) | 계정 탈취 | CSP(9.4)·1시간 만료·의존성 감사로 완화, 2단계에서 데스크톱 토큰을 main으로 이관. 웹은 리프레시 토큰 도입 시 액세스 토큰을 메모리로 내릴 수 있는지 재검토 |
+| R15 | `D11`은 프론트·백엔드 동시 배포가 필요하고 호환 기간이 없음 | 배포 순간 전 사용자 재로그인, 순서가 어긋나면 401 구간 발생 | 백엔드 먼저 배포하고 프론트를 바로 잇는다. 구버전 SPA는 401 → `/login`으로 떨어지므로 데이터 손상은 없다 |
+| R5 | macOS 서명·공증 계정 부재 | 알림·`safeStorage`(`D11`의 데스크톱 토큰 저장)·쿠키 암호화·자동 업데이트 불가. Sequoia부터 미공증 앱은 시스템 설정에서 수동 승인 필요 | Apple Developer Program(US$99/년) 개설 결정, 소유 주체·인증서 보관 |
 | R6 | Windows 서명: Azure Artifact Signing은 조직 계정만(개인 개발자는 미국·캐나다만, 한국 조직 자격은 문서 불일치), Basic US$9.99/월. EV는 SmartScreen 이점 없음 | 미서명 시 "Windows protected your PC" 경고, 기관 관리 PC·Smart App Control은 차단 가능 | 조직 계정 가능 여부 확인 후 미서명 출시 + 안내 vs Artifact Signing 결정 |
 | R7 | 크래시 수집 서버·개인정보 | 운영 가시성 | Sentry vs 자체 vs 미수집 결정, 고지 문구 |
 | R8 | Cloudflare `_headers` CSP가 Emotion 인라인 스타일과 충돌 | 웹 스타일 깨짐 | I5에서 `style-src` 정책 실험 |
