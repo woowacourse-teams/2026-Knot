@@ -14,7 +14,7 @@ export const NOTION_CONNECTION_RESULT = {
 /**
  * 연결 시작이 실패했을 때 연결·다시 시도 버튼 아래에 띄울 문구.
  *
- * - `forbidden`: 연결 시작이 403. CSRF 실패는 httpClient가 한 번 재시도하므로 남는 403은 OWNER가 아닌 경우예요.
+ * - `forbidden`: 연결 시작이 403. OWNER가 아닌 사람이 연결을 시작한 경우예요.
  * - `unknown`: 그 외(네트워크·5xx·timeout).
  *
  * 인증이 풀린 401은 로그인으로, 없는 워크스페이스 404는 선택 화면으로 보냅니다.

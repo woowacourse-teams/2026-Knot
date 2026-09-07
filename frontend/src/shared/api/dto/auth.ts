@@ -1,27 +1,9 @@
 /**
  * 인증·로그인 회원 DTO
  *
- * - GET  /api/v1/auth/csrf
  * - GET  /api/v1/auth/me
  * - POST /api/v1/auth/nickname
  */
-
-// GET /api/v1/auth/csrf
-
-/** CSRF 토큰 조회의 서버 응답 모양. swagger의 `csrfToken` 쿼리 파라미터는 서버가 주입하므로 클라이언트가 보내지 않음 */
-export interface GetCsrfTokenResponseRaw {
-  token: string;
-}
-
-/** CSRF 토큰 조회 응답 */
-export class GetCsrfTokenResponseDto {
-  /** 변경 요청(POST·PUT)의 `X-XSRF-TOKEN` 헤더에 넣을 토큰 */
-  token: string;
-
-  constructor(raw: GetCsrfTokenResponseRaw) {
-    this.token = raw.token;
-  }
-}
 
 // GET /api/v1/auth/me
 
@@ -55,12 +37,35 @@ export interface PostNicknameRequestInput {
   nickname: string;
 }
 
-/** 첫 로그인 뒤 닉네임을 정해 가입을 마치는 요청 본문. 성공 시 응답 본문 없음 */
+/** 첫 로그인 뒤 닉네임을 정해 가입을 마치는 요청 본문 */
 export class PostNicknameRequestDto {
   /** 회원 닉네임. 최대 20자 */
   nickname: string;
 
   constructor({ nickname }: PostNicknameRequestInput) {
     this.nickname = nickname;
+  }
+}
+
+/** 닉네임 설정 완료의 서버 응답 모양 */
+export interface PostNicknameResponseRaw {
+  accessToken: string;
+  tokenType: string;
+  expiresIn: number;
+}
+
+/** 가입을 마친 회원에게 발급된 액세스 토큰 */
+export class PostNicknameResponseDto {
+  /** 이후 요청의 `Authorization` 헤더에 넣을 JWT */
+  accessToken: string;
+  /** 토큰 종류. 항상 "Bearer" */
+  tokenType: string;
+  /** 토큰이 만료되기까지 남은 초 */
+  expiresIn: number;
+
+  constructor(raw: PostNicknameResponseRaw) {
+    this.accessToken = raw.accessToken;
+    this.tokenType = raw.tokenType;
+    this.expiresIn = raw.expiresIn;
   }
 }

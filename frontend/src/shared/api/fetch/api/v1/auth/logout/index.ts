@@ -3,7 +3,7 @@ import { httpClient } from "@api/httpClient";
 export const AUTH_LOGOUT_API_PATH = "/api/v1/auth/logout";
 
 /**
- * @description 로그인 세션을 끝냅니다. 서버가 접근 토큰·온보딩 토큰 쿠키를 만료시키므로 보낼 값도 받을 값도 없어요. 쿠키는 `httpOnly`라 자바스크립트가 지울 수 없어서, 로그아웃은 이 요청으로만 이뤄집니다. 상태를 바꾸는 요청이라 CSRF 토큰이 필요하지만 그건 `httpClient`가 붙여요
+ * @description 로그인 세션을 끝냈다고 서버에 알립니다. 자격증명이 우리 저장소에만 있어서 실제 로그아웃은 토큰을 지우는 쪽(`useLogout`)이 하고, 이 요청은 204만 받는 훅이에요. 나중에 서버가 기기 세션을 폐기하게 되면 그 자리가 여기입니다
  * @example
  * await logoutApi();
  */
