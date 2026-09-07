@@ -16,14 +16,14 @@
 
 한 줄 결론:
 
-> Knot 데스크톱 앱은 `https://knoted.kr` 웹 앱을 원격 로드하는 Electron 셸이다. 채팅·검색·LLM 호출·답변 저장은 기존 Spring 백엔드 계약을 그대로 쓴다. 데스크톱이 더하는 것은 상시 실행, 딥링크, 알림, 퀵 질문 창, 자동 업데이트다. 인증은 웹·데스크톱 모두 `Authorization: Bearer <JWT>`를 쓰고 쿠키를 쓰지 않는다. 토큰은 웹이 `localStorage`, 데스크톱이 main의 `safeStorage`에 둔다(`D11`, 5.1). 2단계에서 시스템 브라우저 로그인 + 리프레시 토큰(디바이스 세션)을 얹는다. 채팅 모델을 Claude로 바꾸는 일은 Electron과 무관하게 백엔드 `LlmClient`에 Anthropic 어댑터를 추가해 해결한다.
+> Knot 데스크톱 앱은 `https://knoted.kr` 웹 앱을 원격 로드하는 Electron 셸이다. 탐색(채팅)은 서버가 검색·저장을 맡고 데스크톱 main이 사용자 LLM(로컬 모델 또는 본인 API 키)을 호출한다(2026-09-07 개정, 6.4). 데스크톱이 더하는 것은 상시 실행, 딥링크, 알림, 퀵 질문 창, 자동 업데이트, 그리고 이 탐색 경로다. 인증은 웹·데스크톱 모두 `Authorization: Bearer <JWT>`를 쓰고 쿠키를 쓰지 않는다. 토큰은 웹이 `localStorage`, 데스크톱이 main의 `safeStorage`에 둔다(`D11`, 5.1). 2단계에서 시스템 브라우저 로그인 + 리프레시 토큰(디바이스 세션)을 얹는다. 백엔드 `LlmClient`의 Anthropic 어댑터(B안)는 브라우저 단독 실행 경로(로드맵 Q22)에만 쓰인다.
 
 제안 대비 무엇이 달라졌는지:
 
 | 제안(검토 대상) | 본 기획 | 이유 |
 | --- | --- | --- |
-| Electron Main이 Agent SDK로 사용자 구독으로 모델 호출 | 백엔드가 Console API 키로 Anthropic Messages API 호출(검토 문서 7절 B안) | 서드파티 제품의 claude.ai 로그인·구독 한도 제공은 사전 승인 없이 금지(지식 §6.1) |
-| in-process MCP `search_knowledge` 툴 + `POST /v1/search` | 백엔드가 LLM 호출 전 검색 결과를 system prompt에 주입(현행). 재검색은 서버 측 tool use 플래그로 선택 | 검색 REST 노출·클라이언트 저장 API·무결성 정책이 모두 불필요해짐 |
+| Electron Main이 Agent SDK로 사용자 구독으로 모델 호출 | 데스크톱 main이 **사용자 본인 API 키 또는 로컬 모델**로 호출(6.4, 2026-09-07 개정). 구독 OAuth·세션 토큰 중개는 계속 제외 | 서드파티 제품의 claude.ai 로그인·구독 한도 제공은 사전 승인 없이 금지(지식 §6.1). 본인 키·로컬 모델은 허용 경로 |
+| in-process MCP `search_knowledge` 툴 + `POST /v1/search` | 서버가 검색 API로 청크 8개와 규칙 문장을 돌려주고 데스크톱 main이 system prompt에 주입(6.4, 2026-09-07 개정). 툴 루프는 두지 않는다 | 검색 REST·클라이언트 저장 API·무결성 정책이 필요해졌다(로드맵 Q24·Q25). 규칙 문장·선별·게이트·저장 검증은 서버가 소유해 정책 분기를 막는다 |
 | SDK `resume`로 세션 관리 | `chat_sessions`·`chat_messages` DB가 세션 진실 | 다기기·재설치 복원 요구(기능 기획서 12절) |
 | 서비스 JWT Bearer 가정 | 1단계부터 Bearer JWT로 전환(`D11`), 2단계에서 디바이스 세션·리프레시 추가 | 현행 필터가 쿠키만 읽는 것(지식 §1.2)을 `D11`에서 Bearer만 읽도록 바꾼다 |
 | 로컬 번들 또는 원격 URL | 원격 URL 고정 | 로컬 번들은 `__Host-`·SameSite=Lax·CORS에서 구조적으로 깨짐(지식 §2.4, §4.7) |
@@ -35,7 +35,7 @@
 | ID | 목표 | 완료 판정 |
 | --- | --- | --- |
 | G1 | 데스크톱 앱에서 웹과 같은 기능(GitHub 로그인, 워크스페이스, 초대, Notion 연결·동기화, 채팅, 출처)을 쓸 수 있다 | 웹 E2E 시나리오를 Electron에서 통과 |
-| G2 | 백엔드 채팅 계약(SSE `chunk`/`complete`/`error`, 문서 준비 게이트, 답변·출처 저장, 세션당 스트림 1개, 30초 타임아웃)을 바꾸지 않는다 | 백엔드 `chat/` 패키지 diff 0 (LLM 어댑터 제외) |
+| G2 | 탐색 계약(6.4: 검색·저장·출처 API, 문서 준비 게이트, 세션당 진행 중 턴 1개, Workspace JOIN 검증, 규칙 문장)을 서버가 소유하고, 웹이 받는 이벤트 모양(`chunk`/`complete`/`error`)은 전송 경로와 무관하게 같다 | 계약 테스트 통과, 브라우저 단독 SSE 경로 회귀 없음(2026-09-07 개정) |
 | G3 | macOS(arm64·x64)와 Windows(x64)에 서명된 설치본을 배포하고 자동 업데이트한다 | 서명·공증 통과, 업데이트 종단 테스트 |
 | G4 | `knot://` 딥링크로 초대 링크와 로그인 콜백을 앱이 받는다 | 패키징된 앱에서 콜드·웜 스타트 모두 동작 |
 | G5 | Electron 공식 보안 체크리스트 20항목과 권장 Fuses를 모두 충족한다 | 8절 체크리스트 리뷰 통과 |
@@ -45,11 +45,11 @@
 ### 2.2 비목표
 
 - 사용자 개인 Claude 구독으로 모델을 호출하는 것(검토 문서 8절 전제 조건이 모두 충족되기 전까지).
-- 클라이언트(Electron Main)에서 LLM을 호출하거나 답변·출처를 클라이언트가 저장하는 것.
+- renderer(웹 SPA)에서 LLM을 직접 호출하는 것, 서버 검증 없이 답변·출처를 저장하는 것(2026-09-07 개정. main의 사용자 LLM 호출은 6.4의 목표다).
 - 오프라인 사용. 원격 로드 구조의 한계이며 별도 결정으로 분리한다(지식 §5.2).
 - Tauri·PWA로의 전환. 비교는 지식 §5.1에 두고 재검토 조건만 15절에 남긴다.
 - 모바일, Linux 코드 서명·스토어 배포(Linux는 빌드만 제공).
-- 웹에 없는 데스크톱 전용 검색·채팅 기능.
+- 웹 UI에 없는 데스크톱 전용 탐색 화면. 데스크톱은 전송 경로(preload `chat`)만 다르고 화면은 웹과 같다.
 
 ## 3. 핵심 결정 요약
 
@@ -57,14 +57,14 @@
 | --- | --- | --- | --- | --- | --- |
 | D1 | 데스크톱 셸 | **Electron 44** | Tauri 2, PWA | 웹과 동일한 Chromium 렌더링, main·preload·renderer 전부 TypeScript, Playwright 지원, 채택 사례(지식 §5.1). PWA는 트레이·글로벌 단축키·자동 시작이 없음 | 필요 |
 | D2 | 콘텐츠 로드 | **원격 URL `https://knoted.kr`** | 로컬 번들(`app://`) | CORS·라우터·SSE를 웹과 동일하게 유지, 웹 배포로 즉시 반영(Slack 하이브리드 모델). 로컬 번들을 막던 쿠키 제약(`__Host-`·SameSite)은 `D11`로 사라졌으므로 전환 검토(`A12`)는 열려 있다(지식 §2.4, §4.7) | D1과 함께 |
-| D3 | 모델 호출 위치 | **백엔드 유지 + Anthropic 어댑터(B안)** | D안(클라이언트 Agent SDK), C안(Workspace BYO 키) | 정책 허용 경로, 기존 `LlmClient`/`LlmStream` 추상화가 provider 교체 전제. C안은 B안 위에 후속 | 필요(검토 문서 7절) |
+| D3 | 모델 호출 위치 | **데스크톱 main이 사용자 LLM(본인 키·로컬 모델) 호출, 서버는 검색·저장(6.4, 2026-09-07 개정)**. 브라우저 단독 경로는 B안 유지(로드맵 Q22) | B안(백엔드 어댑터, 개정 전 선택), C안(Workspace BYO 키), D안(사용자 구독 Agent SDK) | 사용자 지시(2026-09-07). 구독 OAuth를 빼면 정책 허용 경로다. 검색·게이트·규칙 문장·저장 검증을 서버에 남겨 검토 문서 5.4의 무결성·정책 분기 문제를 좁힌다 | 필요(로드맵 `S1`) |
 | D4 | 인증 | **1단계: 앱 창 GitHub 로그인 + Bearer JWT(`D11`) → 2단계: 시스템 브라우저 + 디바이스 토큰(패턴 A·B), Device flow(D)는 fallback** | 처음부터 2단계, 1단계에서 멈추기 | 1단계는 로그인 창 위치만 앱 안이고 자격증명 전달은 이미 2단계와 같은 Bearer다. RFC 8252 §8.12·1시간 만료·리프레시 부재가 상시 실행 앱에 부적합하므로(지식 §4.4) 2단계는 유지하되, 남은 차이는 **로그인 창 위치와 리프레시**뿐이다 | 필요(ADR 314 재논의) |
 | D11 | 인증 자격증명 전달·저장 | **`Authorization: Bearer <JWT>` + 클라이언트 저장(웹 `localStorage`, 데스크톱 main `safeStorage`). 쿠키·CSRF 폐기** | 현행 `HttpOnly` 쿠키 유지, 쿠키+Bearer 이중 경로, 메모리 전용 저장 | 쿠키는 저장 위치를 브라우저가 정해 데스크톱이 `safeStorage`를 쓸 수 없고, `app://` 로컬 번들에서 깨진다(지식 §2.4·§4.7). 이중 경로는 필터·CSRF 매처·CORS가 두 경로를 동시에 지탱해야 한다. 메모리 전용은 새로고침마다 재로그인이라 리프레시 토큰(2단계) 없이는 못 쓴다. 대가로 `HttpOnly`의 XSS 격리를 잃는다(5.1·5.3) | 필요(ADR 314 보완) |
 | D5 | 빌드·패키징 도구 | **Electron Forge 7.x** | electron-builder 26, electron-vite | Electron 공식 권장, Fuses·ASAR 무결성·서명·공증·publisher 통합, Squirrel + update.electronjs.org 무료 경로. electron-builder는 NSIS·차등 업데이트·스테이지 롤아웃·프라이빗 업데이트가 필요할 때 유리(지식 §3.2). 상세는 10절 | D1과 함께 |
 | D6 | 자동 업데이트 채널 | **GitHub Releases + `update-electron-app`(update.electronjs.org)** | electron-updater + generic 서버, 자체 서버(Hazel 등) | 저장소가 공개(PUBLIC)라 무료 서비스 조건(공개 저장소 + macOS 서명) 충족. 자체 서버는 2년 이상 정체. 상세는 10절 | D5와 함께 |
 | D7 | 저장소 위치 | **루트 `desktop/` 독립 pnpm 패키지, 브랜치 area `fe`** | `frontend/desktop/` 하위 패키지 | `deploy-frontend-*.yml`이 `frontend/**`를 감시하므로 분리해야 웹 배포가 불필요하게 돌지 않음. Governance area는 `be|fe`뿐이라 `fe`를 쓴다(지식 §1.6) | 불필요(메모) |
 | D8 | 세션 진실 | **DB(`chat_sessions`·`chat_messages`)** | SDK 로컬 JSONL | 다기기 복원·서버 계측 요구 | 불필요(현행) |
-| D9 | 프롬프트 정책·게이트·계측 | **서버 고정** | 앱 내 systemPrompt | 앱 버전별 정책 분기 방지, 인수 조건 12절 | 불필요(현행) |
+| D9 | 프롬프트 정책·게이트·계측 | **규칙 문장·게이트·저장 검증은 서버, 프롬프트 조립·TTFT 계측은 main(6.4)** | 앱 내 systemPrompt 전체, 서버 전체 고정(개정 전) | 규칙 문장을 서버가 돌려주므로 앱 버전별 정책 분기는 없다. 계측은 `S5`에서 저장 API로 서버에 전달한다(2026-09-07 개정) | D3과 함께 |
 | D10 | 관측 | **`electron-log` 파일 로그 + Electron `crashReporter`(수집 서버는 미결)** | Sentry Electron SDK | 개인정보·비용 결정이 필요해 15절 미결로 둠 | 필요 시 |
 
 ## 4. 시스템 아키텍처
@@ -78,41 +78,48 @@
 │ │ 창 관리 · 메뉴 · 트레이 · 딥링크 수신 · 업데이트 ·      │ │
 │ │ 네비게이션 허용 목록 · 권한 핸들러 · 로그/크래시 ·      │ │
 │ │ 액세스 토큰 보관(safeStorage, 1단계) ·                   │ │
+│ │ 탐색(6.4): 검색 API 호출 · 프롬프트 조립 ·               │ │
+│ │   사용자 LLM 스트리밍 호출 · chunk 중계 · 저장 API 호출 ·│ │
+│ │   LLM 키 보관(safeStorage) ·                             │ │
 │ │ [2단계] 리프레시·갱신 + onBeforeSendHeaders Bearer 주입  │ │
 │ └──────────┬───────────────── contextBridge/IPC ──────────┘ │
 │ ┌ preload ─┴──────────────┐  ┌ renderer (sandbox) ────────┐ │
 │ │ window.knotDesktop 노출 │  │ https://knoted.kr SPA      │ │
-│ │ (최소 API, sender 검증) │  │ React 19 · axios · fetch SSE│ │
+│ │ (auth · chat · llm,     │  │ React 19 · axios ·         │ │
+│ │  sender 검증)           │  │ 탐색은 preload chat 경유   │ │
 │ └─────────────────────────┘  └──────────────┬─────────────┘ │
-└───────────────────────────────────────────────┼─────────────┘
-                                                │ HTTPS (웹과 동일)
-      ┌──────────────────┐        ┌─────────────▼──────────────┐
-      │ Cloudflare Workers│        │ Spring Boot 4.1 (api.*)     │
-      │ 정적 자산 · SPA   │        │ auth · workspace · chat ·   │
-      │ fallback          │        │ search · notion import      │
-      └──────────────────┘        │ LlmClient ─┬─ fake          │
-                                   │            ├─ openai-compat │
-                                   │            └─ anthropic(B안)│
-                                   └──────┬───────────┬─────────┘
-                                          │           │
-                                   ┌──────▼─────┐ ┌───▼──────────────┐
-                                   │ PostgreSQL │ │ Anthropic API     │
-                                   │ + pgvector │ │ (Console 키, 서버)│
-                                   └────────────┘ └──────────────────┘
+└──────────┬────────────────────────────────────┼─────────────┘
+           │ HTTPS · 사용자 키/엔드포인트          │ HTTPS (웹과 동일, Bearer)
+   ┌───────▼────────┐   ┌──────────────────┐  ┌──▼─────────────────────────┐
+   │ 사용자 LLM      │   │ Cloudflare Workers│  │ Spring Boot 4.1 (api.*)     │
+   │ 로컬 모델 또는  │   │ 정적 자산 · SPA   │  │ auth · workspace · chat ·   │
+   │ 본인 API 키     │   │ fallback          │  │ search · notion import      │
+   └────────────────┘   └──────────────────┘  │ 검색 API(청크 8) · 저장 API │
+                                              │ LlmClient(브라우저 단독만)  │
+                                              └──────┬──────────────────────┘
+                                                     │
+                                              ┌──────▼─────┐
+                                              │ PostgreSQL │
+                                              │ + pgvector │
+                                              └────────────┘
 ```
+
+main도 같은 Bearer 토큰으로 Spring의 검색·저장 API를 부른다(그림에서는 renderer 화살표에 합쳤다). 사용자 LLM 호출은 main에서만 나가며 renderer·서버는 LLM 키를 모른다(6.4, 2026-09-07 개정).
 
 ### 4.2 프로세스별 책임
 
 | 프로세스 | 책임 | 하지 않는 것 |
 | --- | --- | --- |
-| main | `BrowserWindow` 생성·복원, 애플리케이션 메뉴, 트레이, 단일 인스턴스 락, 딥링크 파싱, `will-navigate`·`setWindowOpenHandler`·`setPermissionRequestHandler`, 자동 업데이트, 로그·크래시, **액세스 토큰 보관(`safeStorage`, 1단계)**, [2단계] 리프레시·갱신·`onBeforeSendHeaders` Bearer 주입 | LLM 호출, 검색, 답변 저장, 쿠키 값 읽기(`cookies.get`을 쓰지 않는다), 토큰 값 로깅 |
-| preload | `contextBridge.exposeInMainWorld('knotDesktop', …)`로 4.4의 API만 노출. CJS 단일 번들, sandbox 유지 | `ipcRenderer` 원본 노출, Node API 노출 |
-| renderer | 웹 SPA 그대로. `window.knotDesktop` 존재 여부로 데스크톱을 감지해 외부 링크·딥링크·로그아웃 UX와 **토큰 저장소**만 분기 | Electron 모듈 직접 접근, 토큰을 `localStorage`에 두는 것(데스크톱에서는 preload 경유) |
-| 백엔드 | 현행 전부 + **Bearer 인증(`D11`)** + [B안] Anthropic 어댑터 + [2단계] 디바이스 토큰 API | 데스크톱 전용 채팅 경로, 인증 쿠키 발급 |
+| main | `BrowserWindow` 생성·복원, 애플리케이션 메뉴, 트레이, 단일 인스턴스 락, 딥링크 파싱, `will-navigate`·`setWindowOpenHandler`·`setPermissionRequestHandler`, 자동 업데이트, 로그·크래시, **액세스 토큰 보관(`safeStorage`, 1단계)**, **탐색(6.4): 서버 검색 API 호출·프롬프트 조립·사용자 LLM 스트리밍 호출·`chunk` 중계·서버 저장 API 호출·LLM 키 보관(`safeStorage`)**, [2단계] 리프레시·갱신·`onBeforeSendHeaders` Bearer 주입 | 검색·선별·저장 자체(서버가 한다), 쿠키 값 읽기(`cookies.get`을 쓰지 않는다), 토큰·LLM 키·프롬프트 본문 로깅, renderer에 LLM 키 노출 |
+| preload | `contextBridge.exposeInMainWorld('knotDesktop', …)`로 4.4의 API만 노출(`auth`·`chat`·`llm` 포함). CJS 단일 번들, sandbox 유지 | `ipcRenderer` 원본 노출, Node API 노출 |
+| renderer | 웹 SPA 그대로. `window.knotDesktop` 존재 여부로 데스크톱을 감지해 외부 링크·딥링크·로그아웃 UX와 **토큰 저장소**, **탐색 전송 경로**(`knotDesktop.chat`이 있으면 IPC, 없으면 SSE)만 분기 | Electron 모듈 직접 접근, 토큰을 `localStorage`에 두는 것(데스크톱에서는 preload 경유), LLM 직접 호출·LLM 키 보관 |
+| 백엔드 | 현행 전부 + **Bearer 인증(`D11`)** + **탐색 검색 API·답변 저장 API·출처 8건(6.4)** + [B안] Anthropic 어댑터(브라우저 단독 경로) + [2단계] 디바이스 토큰 API | 데스크톱 경로의 LLM 호출, 인증 쿠키 발급 |
 
 ### 4.3 주요 흐름
 
-**채팅(계약 무변경, 자격증명만 교체)**: renderer의 `streamChatMessageApi`가 `POST /api/v1/conversations/{sessionId}/messages`를 `Authorization: Bearer <JWT>`로 호출(`D11` 이전에는 `credentials: "include"` + `X-XSRF-TOKEN`이었다) → 백엔드 파이프라인(게이트 → 검색 → `LlmClient` → SSE → 저장) → `complete(messageId)` → `GET /messages/{id}/sources`. Electron renderer는 Chromium이므로 fetch 스트리밍·`TextDecoder`·`parseSseEvents`가 브라우저와 동일하게 동작한다(지식 §2.5).
+**탐색(데스크톱, 2026-09-07 개정 — 6.4)**: renderer의 `streamChatMessageApi`가 `window.knotDesktop.chat`이 있으면 `chat.ask({sessionId, content})`로 IPC → main이 `POST /api/v1/conversations/{id}/search`를 `Authorization: Bearer <JWT>`로 호출 → 서버가 검사·USER 저장·하이브리드 검색 후 청크 8개와 규칙 문장을 응답(READY가 아니면 안내 문구를 저장하고 응답) → main이 system(규칙 + 청크 8개)·messages(세션 이력)를 조립해 사용자 LLM에 스트리밍 요청 → delta마다 renderer에 `chunk` 이벤트 → 끝나면 `POST …/messages/assistant`로 답변·근거 저장 → `complete(messageId)` → renderer가 `GET /messages/{id}/sources`(8건, 페이지로 묶어 표시). renderer가 받는 이벤트 모양은 SSE와 같다.
+
+**탐색(브라우저 단독, 로드맵 Q22)**: renderer의 `streamChatMessageApi`가 `POST /api/v1/conversations/{sessionId}/messages`를 `Authorization: Bearer <JWT>`로 호출 → 백엔드 파이프라인(게이트 → 검색(청크 8) → `LlmClient` → SSE → 저장) → `complete(messageId)` → `GET /messages/{id}/sources`. Electron renderer는 Chromium이므로 fetch 스트리밍·`TextDecoder`·`parseSseEvents`가 브라우저와 동일하게 동작한다(지식 §2.5).
 
 **로그인 1단계(`D11`)**: SPA의 `GithubLoginButton`이 `window.location.href = {API}/oauth2/authorization/github` → main의 `will-navigate`·`will-redirect` 허용 목록(웹 오리진, API 오리진, `github.com`)을 통과 → GitHub 로그인 → `api.*`의 성공 핸들러가 **쿠키를 심지 않고** 설정된 프론트 URL에 토큰을 URL 프래그먼트로 붙여 302(`{success-redirect-uri}#access_token=…&expires_in=3600`, 신규 가입은 `{nickname-redirect-uri}#onboarding_token=…`) → SPA 부팅 코드가 프래그먼트를 읽어 저장소에 넣고 `history.replaceState`로 주소창에서 지운다 → `EntryRedirect`가 분기. 세션 파티션은 `persist:knot`을 유지하지만 이제 인증 쿠키는 담기지 않는다.
 
@@ -149,8 +156,33 @@ export interface KnotDesktopApi {
     logout?(): Promise<void>;               // 폐기 API 호출 + 로컬 삭제
     onSessionChanged?(handler: (state: 'signed-in' | 'signed-out') => void): () => void;
   };
+  // 탐색(6.4, 2026-09-07). 이벤트 모양은 웹 SSE의 ChatStreamEvent와 동일
+  chat?: {
+    ask(
+      input: { sessionId: number; content: string },
+      onEvent: (event: ChatStreamEvent) => void,
+    ): Promise<{ cancel(): void }>;
+  };
+  // 사용자 LLM 설정. 키 값은 돌려주지 않는다(hasApiKey만)
+  llm?: {
+    getSettings(): Promise<UserLlmSettings>;
+    setSettings(input: UserLlmSettingsInput): Promise<void>; // apiKey는 safeStorage
+    clearApiKey(): Promise<void>;
+  };
   notifications?: { show(input: { title: string; body: string; link?: KnotDeepLink }): Promise<void> };
 }
+
+export type ChatStreamEvent =
+  | { event: 'chunk'; data: { delta: string } }
+  | { event: 'complete'; data: { messageId: number } }
+  | { event: 'error'; data: { code: string; message: string } };
+export interface UserLlmSettings {
+  provider: 'openai-compatible' | 'anthropic';
+  baseUrl: string;   // 예: http://localhost:1234/v1, https://api.anthropic.com
+  model: string;
+  hasApiKey: boolean;
+}
+export type UserLlmSettingsInput = Omit<UserLlmSettings, 'hasApiKey'> & { apiKey?: string };
 ```
 
 규칙:
@@ -160,6 +192,8 @@ export interface KnotDesktopApi {
 - `auth.callback` 같은 로그인 콜백 데이터는 main에서만 소비하고 renderer로 보내지 않는다.
 - `auth.getToken`/`setToken`/`clearToken`은 **저장소만** 노출한다. 값은 renderer가 들고 있다가 `Authorization` 헤더에 직접 넣는다. 2단계에서 main이 `onBeforeSendHeaders`로 주입하게 되면 `getToken`은 `null`을 돌려주도록 바꾸고 SPA는 헤더를 붙이지 않는다(옵셔널 접근이라 하위 호환이 유지된다).
 - 토큰 값은 로그·크래시 리포트에 절대 쓰지 않는다. IPC 인자 로깅도 금지한다.
+- `chat.ask`는 IPC 채널 `knot:chat-ask`(invoke → requestId)·`knot:chat-cancel`·`knot:chat-event`(main → renderer)로 구현한다. main은 세션당 진행 중 요청을 하나만 두고, 첫 조각까지 30초(로드맵 Q26)를 넘기면 `LLM_STREAM_TIMEOUT`을 보낸다. `event` 객체는 renderer에 넘기지 않는다(2026-09-07, 6.4).
+- `llm.getSettings`는 키 값을 돌려주지 않는다(`hasApiKey`만). `setSettings`의 `apiKey`는 main이 `safeStorage`로 암호화해 `userData/llm-key.bin`에 두고, 나머지 설정은 `userData/llm-settings.json`에 둔다. 키·프롬프트 본문은 로그·IPC 인자 로깅에 쓰지 않는다.
 - API 추가는 이 인터페이스 파일의 변경으로만 하며, 웹 SPA는 `window.knotDesktop?.xxx` 옵셔널 접근으로 하위 호환을 지킨다(셸 업데이트가 웹 배포보다 느리다).
 
 ### 4.5 오리진·환경 정책
@@ -295,9 +329,9 @@ export interface KnotDesktopApi {
 
 ### 6.1 데스크톱 관점
 
-변경 없음. 세션당 스트림 1개(인메모리 레지스트리)·30초 SSE 타임아웃·`CHAT_DOCUMENTS_NOT_READY` 게이트·`search_references` 저장은 전부 서버가 유지한다. 데스크톱 퀵 질문 창(7절 P2)도 같은 API를 같은 Bearer 토큰으로 호출한다.
+2026-09-07 개정. 데스크톱에서는 main이 서버 검색 API로 청크 8개를 받아 사용자 LLM을 호출하고 저장 API로 답변을 돌려보낸다(6.4). `CHAT_DOCUMENTS_NOT_READY` 게이트·세션당 진행 중 턴 1개·`search_references` 저장·규칙 문장은 서버가 유지한다. 브라우저 단독 실행은 기존 SSE 경로를 쓴다(로드맵 Q22). 데스크톱 퀵 질문 창(7절 P2)은 같은 SPA 화면을 로드하므로 자동으로 데스크톱 경로를 탄다.
 
-### 6.2 백엔드 Anthropic 어댑터(B안, Electron과 독립)
+### 6.2 백엔드 Anthropic 어댑터(B안, 브라우저 단독 경로 — 로드맵 Q22)
 
 | 항목 | 설계 |
 | --- | --- |
@@ -316,6 +350,79 @@ export interface KnotDesktopApi {
 ### 6.3 C안(Workspace BYO 키) 후속
 
 B안이 안정되면 `content_source_authorizations`와 같은 암호화 envelope으로 Workspace별 Anthropic 키를 보관하고 `AnthropicLlmClient`가 Workspace 키를 우선 사용한다. 키 등록·폐기 UI가 필요하므로 별도 Issue·ADR.
+
+### 6.4 탐색 데스크톱 경유 계약 (2026-09-07 개정, 로드맵 트랙 S)
+
+사용자 지시: 서버의 융합·선별을 상위 3개 페이지가 아니라 **유사도 상위 청크 8개**로 늘려 응답하고, 요청은 **웹 → 데스크톱 앱 → 서버(검색) → 데스크톱 → 사용자 LLM**으로 흐른다. 색인(청킹·임베딩·게시)은 바뀌지 않는다. 미결 항목의 기본값은 로드맵 Q21~Q29다.
+
+#### 흐름
+
+1. renderer `streamChatMessageApi` → `window.knotDesktop.chat.ask({sessionId, content})` (IPC, sender 오리진 검증).
+2. main → `POST /api/v1/conversations/{sessionId}/search` (Bearer). 서버: 소유자·스냅샷·진행 중 턴 검사 → USER 메시지 저장 → 직전 4개 + 질문으로 검색 질의(4,000자) → 넓은 질문 판정 → 벡터 상위 50 + 키워드 상위 50 → 0.35 미만 제거 → 벡터 0.7 + 키워드 0.3 합산 → **청크 단위 상위 8개(페이지 중복 허용, Q29)** → 응답.
+3. main이 `system` = `groundingRules` + `[근거 문서 n] 제목/문서 ID/문서 링크/내용` × 8(현행 `SearchContext.groundingPrompt`와 같은 형식), `messages` = `GET /api/v1/conversations/{sessionId}` 이력으로 사용자 LLM에 스트리밍 요청.
+4. delta마다 renderer에 `chunk {delta}`. 취소는 `cancel()` → LLM 요청 중단, 저장 없음.
+5. 종료 시 main → `POST /api/v1/conversations/{sessionId}/messages/assistant` → `201 {messageId}` → renderer에 `complete {messageId}`.
+6. renderer → `GET /api/v1/messages/{id}/sources`(최대 8건, `chunkIndex` 포함) → 페이지로 묶어 "찾은 문서".
+
+#### 검색 API
+
+| 항목 | 계약 |
+| --- | --- |
+| 요청 | `POST /api/v1/conversations/{sessionId}/search`, `{ "content": string }`(1~10,000자), `Authorization: Bearer` |
+| 응답 READY | `{ "status": "READY", "userMessageId", "groundingRules": string, "chunks": [ { "importRunId", "importedPageId", "chunkIndex", "title", "sourceUrl", "content", "score" } × ≤8 ] }`. 점수 내림차순. `content`는 `max-context-characters=12000`에 맞춰 서버가 자른다(Q28) |
+| 응답 READY 아님 | `{ "status": "NO_RESULT" 또는 "NEEDS_CLARIFICATION", "userMessageId", "assistantMessageId", "fallbackAnswer" }`. 서버가 안내 문구를 ASSISTANT로 저장한 뒤 응답한다. 데스크톱은 `chunk` 1개 + `complete {assistantMessageId}`로 중계하고 LLM을 부르지 않는다 |
+| 오류 | 403 `CHAT_ACCESS_DENIED`, 409 `CHAT_DOCUMENTS_NOT_READY`, 409 `CHAT_TURN_IN_PROGRESS`(Q23), 400 `VALIDATION_ERROR`. 데스크톱은 코드·문구를 그대로 `error`로 중계한다 |
+| 선별 변경 | `PublishedDocumentSearchService.selectSources`의 페이지 중복 제거를 없애고 `top-k`를 8로. 융합 가중·임계·후보 수는 유지 |
+
+#### 답변 저장 API
+
+| 항목 | 계약 |
+| --- | --- |
+| 요청 | `POST /api/v1/conversations/{sessionId}/messages/assistant`, `{ "userMessageId", "content", "references": [ { "importRunId", "importedPageId", "chunkIndex", "score" } × ≤8 ] }`. 배열 순서가 rank |
+| 검증 | 세션 소유자 · `userMessageId`가 세션의 마지막 메시지이고 답변이 없음(아니면 409 `CHAT_TURN_MISMATCH`) · 근거는 현행 `JdbcSearchReferenceRepository.replace`의 Workspace JOIN `INSERT…SELECT`로만 검증(Q24) · rank 1~8 · 점수 0~1 클램프 |
+| 저장 | ASSISTANT 메시지(`generated_by=CLIENT`, Q25) + `search_references` 같은 트랜잭션. 응답 `201 { "messageId" }` |
+| 미검증 | 서버가 돌려준 8개의 부분집합인지, 모델이 실제로 그 근거를 읽었는지는 검증하지 않는다(검토 문서 5.4, 로드맵 R17) |
+
+#### 스키마 V14
+
+| 대상 | V13 | V14 |
+| --- | --- | --- |
+| `search_references.reference_rank` | `CHECK BETWEEN 1 AND 3` | `CHECK BETWEEN 1 AND 8` |
+| `search_references` 유일 키 | `UNIQUE (message_id, imported_page_id)` | `chunk_index SMALLINT NOT NULL` 추가, `UNIQUE (message_id, imported_page_id, chunk_index)` |
+| `chat_messages` | — | `generated_by VARCHAR(10) NOT NULL DEFAULT 'SERVER'` (`SERVER` 또는 `CLIENT`) |
+| `GET /messages/{id}/sources` | 페이지 단위 ≤3 | 청크 단위 ≤8, `chunkIndex` 추가 |
+
+#### 데스크톱 main
+
+| 항목 | 설계 |
+| --- | --- |
+| 사용자 LLM | (a) 로컬 모델 — LM Studio·Ollama 등 OpenAI 호환 `/chat/completions`, 키 없음. (b) 사용자 본인 API 키 — Anthropic `/v1/messages` 또는 OpenAI 호환 서비스. claude.ai 로그인·구독 OAuth·세션 토큰 중개는 불변 계약 3번·검토 문서 5.1로 제외 |
+| 설정 저장 | `userData/llm-settings.json`(provider·baseUrl·model), 키는 `safeStorage` → `userData/llm-key.bin`. `isEncryptionAvailable()` false면 키를 저장하지 않고 메모리로만 |
+| 엔드포인트 허용 | `https:` 전체 + `http://localhost`·`http://127.0.0.1`(Q27). 네비게이션 허용 목록과 별개 |
+| 동시성·타임아웃 | 세션당 진행 중 요청 1개. 첫 조각까지 30초(Q26) → `LLM_STREAM_TIMEOUT` |
+| 오류 매핑 | 6.2 표와 같은 코드. 401/403 → `LLM_CONFIGURATION_INVALID`, 429·529 → `LLM_RATE_LIMITED`, 거부 → `LLM_REFUSED`, 그 외 → `LLM_STREAM_FAILED`. 설정 없음 → `LLM_CONFIGURATION_INVALID` |
+| 프롬프트 | 규칙 문장은 서버 응답을 그대로 쓴다. 근거 블록 형식은 현행 `SearchContext.groundingPrompt`와 동일. 세션 이력 전체를 `messages`로 |
+| 로깅 금지 | LLM 키·서버 토큰·프롬프트 본문·답변 본문. 사용량(토큰 수)만 INFO |
+
+#### 웹 SPA
+
+| 변경 | 내용 |
+| --- | --- |
+| 요청 함수 분기 | `streamChatMessageApi`가 `window.knotDesktop?.chat` 있으면 IPC 경로를 async generator로 감싸 같은 `ChatStreamEvent`를 yield. `signal` abort → `cancel()`. 상위 훅(`useSendChatMessageMutation`·`useChatStream`) 무변경 |
+| 찾은 문서 | `useSearchReferenceList`의 mock을 `GET /messages/{id}/sources` 조회로. 8건을 페이지로 묶고 페이지 대표 점수는 최고 청크 점수 |
+| LLM 설정 화면 | 데스크톱에서만 노출. `knotDesktop.llm`으로 읽고 쓴다. 키 값은 화면에 되돌아오지 않는다 |
+| 설정 없음 | 데스크톱에서 키가 필요한 provider인데 키가 없거나 설정이 비면 질문 전송 전에 설정 화면으로 안내 |
+| 브라우저 단독 | 기존 SSE 경로 유지(Q22) |
+
+#### 갈림길
+
+| 상황 | 결정 주체 | 웹이 받는 것 |
+| --- | --- | --- |
+| 검사 실패 | 서버(HTTP 403·409) | `error {code, message}` |
+| 넓은 질문·근거 없음 | 서버(안내 문구 저장) | `chunk` 1개 + `complete` |
+| READY → LLM 성공 → 저장 성공 | 데스크톱·서버 | `chunk` × n + `complete {messageId}` |
+| LLM 실패·타임아웃·취소 | 데스크톱 | `error {code}`(취소는 이벤트 없음). ASSISTANT 저장 없음 |
+| 저장 실패 | 서버(HTTP) → 데스크톱 | `error {code}`. 화면의 부분 답변은 남김. 다음 질문 전 재시도(Q23) |
 
 ## 7. 데스크톱 기능 로드맵
 
@@ -410,6 +517,9 @@ desktop/
 | 다운로드 페이지(`/download`, OS 감지) | P1 | 정적 라우트 |
 | `<title>` 수정(`Document` → `Knot`) | P1 | 창 제목에 그대로 보인다 |
 | CSP 헤더(`_headers`) | P1 병행 | 웹 보안 Issue로 분리 |
+| **탐색 요청 함수 데스크톱 분기(`knotDesktop.chat` 있으면 IPC, 없으면 SSE)** | S4 | 6.4. 상위 훅·화면 무변경 |
+| **찾은 문서 서버 연동(`GET /messages/{id}/sources` 8건, 페이지로 묶기)** | S4 | 6.4. `useSearchReferenceList` mock 제거 |
+| LLM 설정 화면(데스크톱 전용, `knotDesktop.llm`) + 설정 없음 안내 | S4 | 6.4. 키 값은 화면에 되돌아오지 않는다 |
 
 ### 9.4 웹 CSP 헤더(`_headers`)
 
@@ -500,8 +610,11 @@ tag desktop-v0.1.0 ─▶ GitHub Actions matrix(macos-latest arm64/x64, windows-
 | CORS 허용 메서드에 DELETE(기기 세션 삭제를 웹에서 쓸 때) | P3 | `security` | 없어도 POST 대체 가능 |
 | 로그아웃 응답 204(302 대신) | P1 | `cross-boundary` | SPA가 XHR로 호출하므로. `D11`에 흡수됐다 |
 | 원격 MCP 서버(Spring AI) | P3 선택 | `external`, `security` | 별도 기획 |
+| **탐색 검색 API `POST /conversations/{sessionId}/search`**(청크 단위 상위 8, 규칙 문장 응답, READY 아니면 안내 문구 저장) + `top-k=8`·`max-context-characters=12000` | S1 | `core-flow`, `data`, `shared` | 6.4. 불변 계약 1·2 개정 ADR |
+| **V14**: `search_references` rank 1~8·`chunk_index`·유일 키, `chat_messages.generated_by` | S1 | `data` | Flyway. 6.4 |
+| **답변 저장 API `POST /conversations/{sessionId}/messages/assistant`** + 출처 조회 8건·`chunkIndex` | S2 | `data`, `security`, `core-flow` | 6.4. Workspace JOIN 검증 재사용 |
 
-변경하지 않는 것: 채팅 SSE 계약(자격증명 헤더만 교체), 검색 서비스, 답변·출처 저장, 문서 준비 게이트, 프롬프트 정책, 세션 모델, Notion 연결, JWT 발급 로직·클레임.
+변경하지 않는 것: 색인(청킹·임베딩·게시), 하이브리드 검색의 융합 가중·임계·후보 수, 문서 준비 게이트, 규칙 문장, 세션 모델, Notion 연결, JWT 발급 로직·클레임. 브라우저 단독용 SSE 경로는 자격증명 헤더 교체와 근거 8청크 외에 바꾸지 않는다(로드맵 Q22).
 
 ## 14. Issue 분할 초안 (공통 Issue 계약 기준)
 
@@ -526,10 +639,15 @@ tag desktop-v0.1.0 ─▶ GitHub Actions matrix(macos-latest arm64/x64, windows-
 | I12 | `[FE] 트레이·글로벌 단축키 퀵 질문 창` | fe | P2 | `core-flow` | 필요(짧게) | 없음 | I2 |
 | I13 | `[FE] Notion 동기화 완료 알림(폴링)` | fe | P2 | 없음 → Lightweight 가능 | 판정기 결과 따름 | 없음 | I2 |
 | I14 | `[FE] 기기 목록·원격 로그아웃 UI` | fe | P3 | `security` | 필요 | 없음 | I9 |
+| I18 | `[BE] 탐색 검색 API(청크 상위 8)와 V14` | be | S1 | `core-flow`, `data`, `shared` | 필요 | D3 개정(서버 LLM vs 데스크톱 사용자 LLM), Q21·Q28·Q29 | I8 |
+| I19 | `[BE] 데스크톱 생성 답변·근거 저장 API` | be | S2 | `data`, `security`, `core-flow` | 필요 | I18과 같은 ADR, Q23·Q24·Q25 | I18 |
+| I20 | `[FE] 데스크톱 탐색 IPC와 사용자 LLM 클라이언트` | fe | S3 | `security`, `external`, `core-flow` | 필요 | I18과 같은 ADR, Q26·Q27 | I1, I17, I18 |
+| I21 | `[FE] 웹 탐색 전송 경로 분기·찾은 문서 연동·LLM 설정 화면` | fe | S4 | `core-flow` | 필요(짧게) | 없음 | I19, I20 |
+| I22 | `[BE][FE] 청크 8개 기준 gold set 재측정과 TTFT 계측 전달` | be, fe | S5 | `core-flow` | 판정기 결과 따름 | 없음 | I21 |
 
 Issue 생성은 사용자가 명시적으로 허용하고 판정기가 `pass`·`publish_ready=true`를 반환한 경우에만 `--publish`로 수행한다. 이 표는 초안일 뿐 snapshot이 아니다.
 
-`I1~I14`는 이 문서의 초안 번호다. 실제 실행 단위·상태·의존은 [로드맵](./electron-desktop-app-roadmap.md) 4절의 `A*`·`W*`·`B*` ID를 쓰며, 대응표는 로드맵 4절에 있다.
+`I1~I22`는 이 문서의 초안 번호다. 실제 실행 단위·상태·의존은 [로드맵](./electron-desktop-app-roadmap.md) 4절의 `A*`·`W*`·`B*` ID를 쓰며, 대응표는 로드맵 4절에 있다.
 
 ## 15. 리스크와 미결 결정
 
@@ -550,6 +668,9 @@ Issue 생성은 사용자가 명시적으로 허용하고 판정기가 `pass`·`
 | R11 | 단일 NCP 인스턴스 전제(인메모리 스트림 레지스트리·인가 코드) | 수평 확장 시 재설계 | 현행과 동일 제약, ADR 212·328 |
 | R12 | Anthropic 모델 교체 시 품질·TTFT 회귀 | 답변 품질 | gold set 30문항·TTFT 실측 통과 전 미전환 |
 | R13 | Tauri·PWA 재검토 조건 | 셸 교체 | 배포 크기 최우선·Rust 인력·WebKit QA·모바일 계획이 동시에 생길 때만(Tauri), 데스크톱 고유 기능 요구가 사라질 때(PWA) |
+| R17 | 데스크톱이 만든 답변을 서버가 검증할 수 없어 피드백·품질 평가 데이터의 신뢰가 떨어짐 | 임의 문장이 ASSISTANT로 저장될 수 있음 | `generated_by=CLIENT` 표시(Q25), Workspace JOIN 검증(Q24). 후보 집합 보관은 후속 |
+| R18 | 브라우저 단독(SSE)·데스크톱(IPC) 두 탐색 경로 유지 비용 | 서버 LLM 어댑터와 데스크톱 LLM 클라이언트를 함께 유지 | 규칙 문장·선별·저장 검증을 서버 한 곳에 두어 중복을 줄인다. 웹 탐색 비활성은 Q22 대안 |
+| R19 | 근거 3페이지 → 청크 8개, 모델이 사용자마다 달라 gold set 결과가 이전과 비교되지 않음 | 품질 판정 불가 | 기준 모델 하나로 재측정(`S5`, GS) |
 
 ## 16. 참고
 
