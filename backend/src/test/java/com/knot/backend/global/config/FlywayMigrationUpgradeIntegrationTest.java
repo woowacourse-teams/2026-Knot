@@ -33,7 +33,7 @@ class FlywayMigrationUpgradeIntegrationTest {
             .withUsername("knot")
             .withPassword("knot");
 
-    @DisplayName("V9 스키마를 V13 검색 스키마로 업그레이드한다")
+    @DisplayName("V9 스키마를 V14 탐색 스키마로 업그레이드하고 V13 근거 행을 청크 단위로 옮긴다")
     @Test
     void migrate_success_v9ToContentImportSchema() throws SQLException {
         // given
@@ -56,6 +56,9 @@ class FlywayMigrationUpgradeIntegrationTest {
                 "migration-pending",
                 "PENDING"
         );
+        Flyway v13Flyway = configureFlyway(MigrationVersion.fromVersion("13"));
+        MigrateResult v13Result = v13Flyway.migrate();
+        insertLegacyReference();
         Flyway latestFlyway = configureFlyway();
 
         // when
@@ -79,7 +82,8 @@ class FlywayMigrationUpgradeIntegrationTest {
         assertThat(result.success).isTrue();
         assertThat(v11Result.success).isTrue();
         assertThat(v11Result.migrationsExecuted).isEqualTo(2);
-        assertThat(result.migrationsExecuted).isEqualTo(2);
+        assertThat(v13Result.migrationsExecuted).isEqualTo(2);
+        assertThat(result.migrationsExecuted).isEqualTo(1);
         assertThat(appliedVersions(latestFlyway)).containsExactly(
                 "1",
                 "2",
@@ -91,7 +95,8 @@ class FlywayMigrationUpgradeIntegrationTest {
                 "10",
                 "11",
                 "12",
-                "13"
+                "13",
+                "14"
         );
         assertThat(schemaObjectNames("""
                 SELECT table_name
@@ -135,12 +140,15 @@ class FlywayMigrationUpgradeIntegrationTest {
                 "chk_search_document_chunks_content",
                 "pk_search_references",
                 "uk_search_references_message_rank",
-                "uk_search_references_message_page",
+                "uk_search_references_message_page_chunk",
                 "fk_search_references_message",
                 "fk_search_references_page",
                 "chk_search_references_rank",
-                "chk_search_references_relevance"
-        );
+                "chk_search_references_chunk_index",
+                "chk_search_references_relevance",
+                "chk_chat_messages_generated_by"
+        )
+                .doesNotContain("uk_search_references_message_page");
         assertThat(schemaObjectNames("""
                 SELECT indexname
                 FROM pg_indexes
@@ -163,6 +171,54 @@ class FlywayMigrationUpgradeIntegrationTest {
                     AND table_name = 'content_import_runs'
                 ORDER BY ordinal_position
                 """)).contains("last_heartbeat_at");
+        assertThat(schemaObjectNames("""
+                SELECT column_name
+                FROM information_schema.columns
+                WHERE table_schema = 'public'
+                    AND table_name = 'search_references'
+                ORDER BY ordinal_position
+                """)).contains("chunk_index");
+        assertThat(schemaObjectNames("""
+                SELECT column_name
+                FROM information_schema.columns
+                WHERE table_schema = 'public'
+                    AND table_name = 'chat_messages'
+                ORDER BY ordinal_position
+                """)).contains("generated_by");
+        // V13 근거 행은 chunk_index 0, 기존 메시지는 SERVER로 옮겨진다(로드맵 Q25·Q32)
+        assertThat(queryBoolean("""
+                SELECT BOOL_AND(chunk_index = 0)
+                FROM search_references
+                """)).isTrue();
+        assertThat(queryBoolean("""
+                SELECT BOOL_AND(generated_by = 'SERVER')
+                FROM chat_messages
+                """)).isTrue();
+        // rank 8과 같은 페이지의 다른 청크는 허용하고 rank 9는 거부한다(기획서 6.4 V14)
+        executeUpdate("""
+                INSERT INTO search_references (
+                    message_id, workspace_id, import_run_id, imported_page_id,
+                    reference_rank, chunk_index, relevance_score
+                )
+                SELECT message_id, workspace_id, import_run_id, imported_page_id, 8, 1, 0.5
+                FROM search_references
+                WHERE reference_rank = 1
+                """);
+        assertThat(queryBoolean("""
+                SELECT COUNT(*) = 2
+                FROM search_references
+                """)).isTrue();
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> executeUpdate("""
+                INSERT INTO search_references (
+                    message_id, workspace_id, import_run_id, imported_page_id,
+                    reference_rank, chunk_index, relevance_score
+                )
+                SELECT message_id, workspace_id, import_run_id, imported_page_id, 9, 2, 0.4
+                FROM search_references
+                WHERE reference_rank = 1
+                """))
+                .isInstanceOf(SQLException.class)
+                .hasMessageContaining("chk_search_references_rank");
         assertThat(queryBoolean("""
                 SELECT last_heartbeat_at > started_at
                 FROM content_import_runs
@@ -341,6 +397,43 @@ class FlywayMigrationUpgradeIntegrationTest {
             );
             statement.executeUpdate();
         }
+    }
+
+    /** V13 시점(chunk_index·generated_by가 없던 스키마)에 저장된 답변 메시지와 페이지 단위 근거 1건 */
+    private void insertLegacyReference() throws SQLException {
+        executeUpdate("""
+                WITH run AS (
+                    SELECT id, workspace_id, requested_by_member_id
+                    FROM content_import_runs
+                    WHERE status = 'PENDING'
+                    ORDER BY id
+                    LIMIT 1
+                ), page AS (
+                    INSERT INTO imported_pages (
+                        workspace_id, import_run_id, external_page_id, title,
+                        markdown_content, position, source_url, created_at, updated_at
+                    )
+                    SELECT workspace_id, id, 'legacy-page', '레거시 문서',
+                        '레거시 본문', 0, 'https://notion.test/legacy', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+                    FROM run
+                    RETURNING id, workspace_id, import_run_id
+                ), session AS (
+                    INSERT INTO chat_sessions (workspace_id, member_id, title, created_at, last_message_at)
+                    SELECT workspace_id, requested_by_member_id, '레거시 대화', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+                    FROM run
+                    RETURNING id
+                ), message AS (
+                    INSERT INTO chat_messages (session_id, role, content, created_at)
+                    SELECT id, 'ASSISTANT', '레거시 답변', CURRENT_TIMESTAMP
+                    FROM session
+                    RETURNING id
+                )
+                INSERT INTO search_references (
+                    message_id, workspace_id, import_run_id, imported_page_id, reference_rank, relevance_score
+                )
+                SELECT message.id, page.workspace_id, page.import_run_id, page.id, 1, 0.9
+                FROM message, page
+                """);
     }
 
     private Flyway configureFlyway(MigrationVersion target) {

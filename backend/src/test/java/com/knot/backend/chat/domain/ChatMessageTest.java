@@ -28,6 +28,7 @@ class ChatMessageTest {
         assertThat(chatMessage.getSessionId()).isEqualTo(1L);
         assertThat(chatMessage.getRole()).isEqualTo(ChatMessageRole.USER);
         assertThat(chatMessage.getContent()).isEqualTo("질문 내용");
+        assertThat(chatMessage.getGeneratedBy()).isEqualTo(ChatMessageGeneratedBy.SERVER);
     }
 
     @Test

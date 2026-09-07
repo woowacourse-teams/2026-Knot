@@ -453,11 +453,11 @@ class ChatMessageSourceQueryAcceptanceTest {
         jdbcClient.sql("""
                 INSERT INTO search_references (
                     message_id, workspace_id, import_run_id, imported_page_id,
-                    reference_rank, relevance_score
+                    reference_rank, chunk_index, relevance_score
                 ) VALUES (
-                    :messageId, :workspaceId, :importRunId, :importedPageId, 1, 0.9472
+                    :messageId, :workspaceId, :importRunId, :importedPageId, 1, 0, 0.9472
                 ), (
-                    :messageId, :workspaceId, :importRunId, :secondImportedPageId, 2, 0.8
+                    :messageId, :workspaceId, :importRunId, :secondImportedPageId, 2, 0, 0.8
                 )
                 """)
                 .param(
@@ -529,9 +529,9 @@ class ChatMessageSourceQueryAcceptanceTest {
                 )
                 INSERT INTO search_references (
                     message_id, workspace_id, import_run_id, imported_page_id,
-                    reference_rank, relevance_score
+                    reference_rank, chunk_index, relevance_score
                 )
-                SELECT :messageId, workspace_id, import_run_id, id, 1, 0.99
+                SELECT :messageId, workspace_id, import_run_id, id, 1, 0, 0.99
                 FROM foreign_page
                 """)
                 .param(
