@@ -17,4 +17,8 @@ public final class ChatException extends ProjectException {
                 cause
         );
     }
+
+    public ChatErrorCode chatErrorCode() {
+        return (ChatErrorCode) getErrorCode();
+    }
 }

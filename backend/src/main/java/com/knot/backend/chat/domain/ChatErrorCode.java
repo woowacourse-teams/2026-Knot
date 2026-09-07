@@ -136,6 +136,18 @@ public enum ChatErrorCode implements ErrorCode {
             ErrorCategory.INTERNAL_SERVER_ERROR,
             "LLM_STREAM_TIMEOUT",
             "답변 생성 시간이 초과되었습니다"
+    ),
+
+    LLM_RATE_LIMITED(
+            ErrorCategory.TOO_MANY_REQUESTS,
+            "LLM_RATE_LIMITED",
+            "답변 생성 요청이 많아 잠시 후 다시 시도해야 합니다"
+    ),
+
+    LLM_REFUSED(
+            ErrorCategory.INVALID_INPUT,
+            "LLM_REFUSED",
+            "이 질문에 대한 답변 생성이 거부되었습니다"
     );
 
     private final ErrorCategory category;

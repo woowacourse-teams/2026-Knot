@@ -183,27 +183,35 @@ public class ChatMessageService {
                 );
                 return;
             }
-            LlmStream stream = llmClient.start(
-                    toLlmRequest(
-                            history,
-                            searchContext
-                    )
-            );
-            streamReference.set(stream);
-            if (handle.isCancelled()) {
-                return;
-            }
-            while (stream.hasNext()) {
-                checkCancellation(handle);
-                String delta = stream.next();
-                if (delta == null || delta.isEmpty()) {
-                    continue;
-                }
-                answer.append(delta);
-                if (!listener.onChunk(delta)) {
-                    handle.cancel();
+            try {
+                LlmStream stream = llmClient.start(
+                        toLlmRequest(
+                                history,
+                                searchContext
+                        )
+                );
+                streamReference.set(stream);
+                if (handle.isCancelled()) {
                     return;
                 }
+                while (stream.hasNext()) {
+                    checkCancellation(handle);
+                    String delta = stream.next();
+                    if (delta == null || delta.isEmpty()) {
+                        continue;
+                    }
+                    answer.append(delta);
+                    if (!listener.onChunk(delta)) {
+                        handle.cancel();
+                        return;
+                    }
+                }
+            } catch (ChatException exception) {
+                // LLM 어댑터가 판정한 오류 코드(설정·한도·거부)는 뭉개지 않고 그대로 전달한다.
+                if (!handle.isCancelled()) {
+                    listener.onError(exception.chatErrorCode());
+                }
+                return;
             }
 
             if (!handle.beginCompletion()) {
