@@ -1,5 +1,6 @@
 package com.knot.backend.chat.application;
 
+import com.knot.backend.chat.application.dto.result.ChatFallbackTurn;
 import com.knot.backend.chat.domain.ChatMessage;
 import com.knot.backend.chat.domain.ChatMessageRepository;
 import com.knot.backend.chat.domain.ChatMessageRole;
@@ -55,6 +56,35 @@ public class ChatMessagePersistenceService {
                 references
         );
         return savedMessage;
+    }
+
+    /**
+     * 검색 API가 READY가 아닐 때 USER 질문과 서버 안내 문구(ASSISTANT)를 같은 트랜잭션에 저장한다(기획서 6.4, 로드맵
+     * Q30). 안내 답변은 서버가 만들었으므로 generated_by는 SERVER이고 근거는 없다.
+     */
+    @Transactional
+    public ChatFallbackTurn saveFallbackTurn(
+            long sessionId,
+            String question,
+            String fallbackAnswer,
+            Instant createdAt
+    ) {
+        ChatMessage userMessage = saveMessageInternal(
+                sessionId,
+                ChatMessageRole.USER,
+                question,
+                createdAt
+        );
+        ChatMessage assistantMessage = saveMessageInternal(
+                sessionId,
+                ChatMessageRole.ASSISTANT,
+                fallbackAnswer,
+                createdAt
+        );
+        return new ChatFallbackTurn(
+                userMessage,
+                assistantMessage
+        );
     }
 
     private ChatMessage saveMessageInternal(

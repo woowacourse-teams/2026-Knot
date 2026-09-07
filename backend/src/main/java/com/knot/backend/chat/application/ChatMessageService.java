@@ -14,7 +14,6 @@ import com.knot.backend.search.domain.SearchErrorCode;
 import com.knot.backend.search.domain.SearchException;
 import com.knot.backend.chat.domain.ChatSession;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.Executor;
@@ -28,9 +27,6 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class ChatMessageService {
-    private static final int MAX_SEARCH_HISTORY_MESSAGES = 4;
-    private static final int MAX_SEARCH_QUERY_CHARACTERS = 4000;
-
     private final ChatSessionAccessPolicy chatSessionAccessPolicy;
     private final ChatMessagePersistenceService chatMessagePersistenceService;
     private final ChatMessageRepository chatMessageRepository;
@@ -304,32 +300,17 @@ public class ChatMessageService {
             String query,
             List<ChatMessage> history
     ) {
-        int currentMessageIndex = history.size() - 1;
-        if (currentMessageIndex <= 0) {
-            return query;
-        }
-        int firstMessageIndex = Math.max(
-                0,
-                currentMessageIndex - MAX_SEARCH_HISTORY_MESSAGES
+        // history의 마지막은 방금 저장한 현재 질문이므로 뺀다.
+        return ChatSearchQueryComposer.compose(
+                query,
+                history.subList(
+                        0,
+                        Math.max(
+                                0,
+                                history.size() - 1
+                        )
+                )
         );
-        List<String> previousMessages = new ArrayList<>();
-        for (int index = firstMessageIndex; index < currentMessageIndex; index++) {
-            ChatMessage message = history.get(index);
-            previousMessages.add(message.getRole() + ": " + message.getContent());
-        }
-        String currentQuestion = "현재 질문: " + query;
-        String previousContext = String.join(
-                "\n",
-                previousMessages
-        );
-        int availableCharacters = MAX_SEARCH_QUERY_CHARACTERS - currentQuestion.length() - 1;
-        if (availableCharacters <= 0) {
-            return query;
-        }
-        if (previousContext.length() > availableCharacters) {
-            previousContext = previousContext.substring(previousContext.length() - availableCharacters);
-        }
-        return previousContext + "\n" + currentQuestion;
     }
 
     private void checkCancellation(ChatStreamHandle handle) {
