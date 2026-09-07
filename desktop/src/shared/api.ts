@@ -29,11 +29,23 @@ export interface KnotDesktopApi {
   onDeepLink(handler: (link: KnotDeepLink) => void): () => void;
   /** 앱이 꺼져 있을 때 들어온 딥링크를 한 번 가져간다. 없으면 null */
   getPendingDeepLink(): Promise<KnotDeepLink | null>;
-  // 2단계 인증(A6·A7)에서 채운다
+  /**
+   * 액세스 토큰 저장소(기획서 5.1). 값은 main이 `safeStorage`로 암호화해 파일에 둔다.
+   *
+   * SPA는 이 저장소만 쓰고 헤더는 스스로 붙인다. 2단계(A7)에서 main이
+   * `onBeforeSendHeaders`로 주입하게 되면 `getToken`이 null을 돌려주도록 바꾼다.
+   */
   auth?: {
-    startLogin(): Promise<void>;
-    logout(): Promise<void>;
-    onSessionChanged(handler: (state: "signed-in" | "signed-out") => void): () => void;
+    /** 저장된 액세스 토큰. 없으면 null */
+    getToken(): Promise<string | null>;
+    /** 액세스 토큰을 암호화해 저장한다 */
+    setToken(token: string): Promise<void>;
+    /** 저장된 액세스 토큰을 지운다(로그아웃·401) */
+    clearToken(): Promise<void>;
+    // 2단계 인증(A6·A7)에서 채운다
+    startLogin?(): Promise<void>;
+    logout?(): Promise<void>;
+    onSessionChanged?(handler: (state: "signed-in" | "signed-out") => void): () => void;
   };
   notifications?: {
     show(input: { title: string; body: string; link?: KnotDeepLink }): Promise<void>;
@@ -55,4 +67,10 @@ export const IPC_CHANNELS = {
   getPendingDeepLink: "knot:get-pending-deep-link",
   /** main → renderer: KnotDeepLink */
   deepLink: "knot:deep-link",
+  /** invoke: () => string | null */
+  authGetToken: "knot:auth-get-token",
+  /** invoke: (token: string) => void */
+  authSetToken: "knot:auth-set-token",
+  /** invoke: () => void */
+  authClearToken: "knot:auth-clear-token",
 } as const;

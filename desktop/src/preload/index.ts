@@ -30,6 +30,12 @@ const api: KnotDesktopApi = {
   },
 
   getPendingDeepLink: () => ipcRenderer.invoke(IPC_CHANNELS.getPendingDeepLink),
+
+  auth: {
+    getToken: () => ipcRenderer.invoke(IPC_CHANNELS.authGetToken),
+    setToken: (token: string) => ipcRenderer.invoke(IPC_CHANNELS.authSetToken, token),
+    clearToken: () => ipcRenderer.invoke(IPC_CHANNELS.authClearToken),
+  },
 };
 
 contextBridge.exposeInMainWorld(KNOT_DESKTOP_GLOBAL, api);
