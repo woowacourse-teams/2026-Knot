@@ -148,8 +148,10 @@ public interface LlmStream extends AutoCloseable { boolean hasNext(); String nex
 > 정정 2026-09-06(`B0` 구현): provider 스위치가 `llm.provider` 하나에서 `llm.chat.provider`/`llm.embedding.provider` 둘로 나뉘었고 `llmHttpClient` 공유 빈이 사라졌다. `llm.provider`는 두 키의 fallback으로 남는다(`application.properties:38-40`).
 >
 > 정정 2026-09-07(`B1` 구현): `LlmClientConfig`의 provider 조건이 클래스 수준에서 메서드 수준으로 내려가 `anthropic` 분기가 붙었다. `ChatErrorCode`에 `LLM_RATE_LIMITED`·`LLM_REFUSED`가 추가됐고, `ChatMessageService`는 `LlmClient`·`LlmStream`이 던진 `ChatException`의 코드를 `LLM_STREAM_FAILED`로 바꾸지 않고 SSE `error`에 그대로 싣는다(`ChatMessageService.java:209`, 로드맵 7절 1번 예외). `usage` 토큰 수는 INFO 로그로만 남는다.
+>
+> 정정 2026-09-07(`S1` 구현): 데스크톱 경유 탐색용 검색 API `POST /api/v1/conversations/{sessionId}/search`(`chat/presentation/ChatSearchController.java`, `chat/application/ChatSearchService.java`)가 추가됐다. 소유자 검증 → `ActiveChatStreamRegistry` 잠금 → 스냅샷 검사 → DB 기준 진행 중 턴 검사(마지막 메시지가 USER이고 `chat.turn-timeout` 안이면 409 `CHAT_TURN_IN_PROGRESS`) → 검색 → USER 저장(READY가 아니면 안내 ASSISTANT도 `saveFallbackTurn`으로 같은 트랜잭션) 순서이며 LLM을 부르지 않는다. `PublishedDocumentSearchService.selectSources`는 페이지 중복 제거 없이 청크 상위 `top-k`(8)를 돌려주고, `SearchContext.contextReferences()`가 `groundingPrompt()`와 같은 예산(12,000자)으로 본문을 잘라 응답 `chunks`에 싣는다. 검색 질의 조립은 `ChatSearchQueryComposer`로 빠져 SSE 경로와 공유한다. `ChatMessage.generatedBy`는 항상 `SERVER`로 저장된다(`CLIENT`는 `S2`).
 
-**설정 키(`llm.*`)**: `provider`(`fake`, 레거시 fallback), `chat.provider`(`${llm.provider}`), `embedding.provider`(`${llm.provider}`), `base-uri`(`http://localhost:1234/v1`), `api-key`(빈값), `model`(`qwen/qwen3.6-27b`), `max-tokens`(1024), `temperature`(0.2), `request-timeout`(PT30S), `embedding.model`(`text-embedding-qwen3-embedding-0.6b:2`), `embedding.dimensions`(1024), `search.chunk-size`(1200), `search.chunk-overlap`(180), `search.candidate-limit`(50), `search.top-k`(3), `search.max-context-characters`(10000), `search.embedding-batch-size`(64), `search.minimum-relevance-score`(0.35), `anthropic.base-uri`(`https://api.anthropic.com`), `anthropic.api-key`(빈값), `anthropic.model`(`claude-opus-5`), `anthropic.effort`(`medium`), `anthropic.max-tokens`(4096), `anthropic.request-timeout`(PT30S) — `application.properties:57-62`. 바인딩: `LlmProperties`, `AnthropicLlmProperties`, `EmbeddingProperties`, `SearchProperties`.
+**설정 키(`llm.*`)**: `provider`(`fake`, 레거시 fallback), `chat.provider`(`${llm.provider}`), `embedding.provider`(`${llm.provider}`), `base-uri`(`http://localhost:1234/v1`), `api-key`(빈값), `model`(`qwen/qwen3.6-27b`), `max-tokens`(1024), `temperature`(0.2), `request-timeout`(PT30S), `embedding.model`(`text-embedding-qwen3-embedding-0.6b:2`), `embedding.dimensions`(1024), `search.chunk-size`(1200), `search.chunk-overlap`(180), `search.candidate-limit`(50), `search.top-k`(8, 정정 2026-09-07 `S1`: 3 → 8), `search.max-context-characters`(12000, 정정 2026-09-07 `S1`: 10000 → 12000), `search.embedding-batch-size`(64), `search.minimum-relevance-score`(0.35), `anthropic.base-uri`(`https://api.anthropic.com`), `anthropic.api-key`(빈값), `anthropic.model`(`claude-opus-5`), `anthropic.effort`(`medium`), `anthropic.max-tokens`(4096), `anthropic.request-timeout`(PT30S) — `application.properties:57-62`. 바인딩: `LlmProperties`, `AnthropicLlmProperties`, `EmbeddingProperties`, `SearchProperties`. 채팅 쪽 키는 `chat.turn-timeout`(PT5M, `ChatProperties`, 추가 2026-09-07 `S1`) 하나다.
 
 **SSE 이벤트 계약** (`chat/presentation/ChatSseStreamListener.java`)
 
@@ -163,7 +165,7 @@ public interface LlmStream extends AutoCloseable { boolean hasNext(); String nex
 
 **LLM 운영 상태** (`docs/llm-java-integration.md`): 기본 `fake`, 실제는 LM Studio(`http://<host>:1234/v1`) 또는 NVIDIA NIM(`https://integrate.api.nvidia.com/v1`)을 `openai-compatible`로. Spring AI 미도입. API 키는 환경변수·secret manager로만 주입, 저장소·프롬프트·로그·SSE에 기록 금지. 기준 커밋에서 "MVP 연동 구현 및 컨테이너 검증 완료, 실제 NIM 운영 전 검증 중".
 
-**DB(Flyway V1~V13, V7·V8 결번)**: `members`, `oauth_identities`, `workspaces`, `workspace_members`, `workspace_invitations`, `chat_sessions`, `chat_messages`, `chat_feedback`, `content_source_authorizations`, `content_source_connections`, `content_import_runs`, `imported_pages`, `imported_page_publications`, `search_document_chunks`(`vector(1024)`, HNSW cosine), `search_references`.
+**DB(Flyway V1~V14, V7·V8 결번)**: `members`, `oauth_identities`, `workspaces`, `workspace_members`, `workspace_invitations`, `chat_sessions`, `chat_messages`(V14: `generated_by` `SERVER`/`CLIENT`), `chat_feedback`, `content_source_authorizations`, `content_source_connections`, `content_import_runs`, `imported_pages`, `imported_page_publications`, `search_document_chunks`(`vector(1024)`, HNSW cosine), `search_references`(V14: `chunk_index`, rank 1~8, 유일 키 `(message_id, imported_page_id, chunk_index)`).
 
 ### 1.5 프론트엔드 구조 (라우트·API 계층·테스트)
 
@@ -901,7 +903,7 @@ Java SDK는 `client.messages().createStreaming(params)`가 `StreamResponse<RawMe
 
 ### 6.7 비용 추정 공식 (설계 판단용)
 
-1회 질문 = 입력(근거 규칙 약 1K + 근거 문서 최대 10,000자≈5~7K 토큰 + 히스토리) + 출력(답변 300~800 토큰).
+1회 질문 = 입력(근거 규칙 약 1K + 근거 문서 최대 12,000자≈6~8K 토큰(정정 2026-09-07 `S1`: 10,000자 → 12,000자) + 히스토리) + 출력(답변 300~800 토큰).
 - Opus 5, 캐시 없음, 입력 8K·출력 600: 8,000×5/1M + 600×25/1M ≈ $0.055/질문.
 - 근거 규칙만 캐시(약 1K)하면 절감은 미미하고, 히스토리 캐시는 세션 단위 prefix가 안정적일 때만 효과가 있다.
 - Sonnet 5로 바꾸면 같은 조건에서 ≈ $0.022/질문. 품질 재검증(gold set 30문항) 없이 모델을 바꾸지 않는다(검토 문서 5.6절).

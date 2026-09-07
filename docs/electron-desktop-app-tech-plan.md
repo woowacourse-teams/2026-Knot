@@ -358,7 +358,7 @@ B안이 안정되면 `content_source_authorizations`와 같은 암호화 envelop
 #### 흐름
 
 1. renderer `streamChatMessageApi` → `window.knotDesktop.chat.ask({sessionId, content})` (IPC, sender 오리진 검증).
-2. main → `POST /api/v1/conversations/{sessionId}/search` (Bearer). 서버: 소유자·스냅샷·진행 중 턴 검사 → USER 메시지 저장 → 직전 4개 + 질문으로 검색 질의(4,000자) → 넓은 질문 판정 → 벡터 상위 50 + 키워드 상위 50 → 0.35 미만 제거 → 벡터 0.7 + 키워드 0.3 합산 → **청크 단위 상위 8개(페이지 중복 허용, Q29)** → 응답.
+2. main → `POST /api/v1/conversations/{sessionId}/search` (Bearer). 서버: 소유자·스냅샷·진행 중 턴 검사(Q23) → 직전 4개 + 질문으로 검색 질의(4,000자) → 넓은 질문 판정 → 벡터 상위 50 + 키워드 상위 50 → 0.35 미만 제거 → 벡터 0.7 + 키워드 0.3 합산 → **청크 단위 상위 8개(페이지 중복 허용, Q29)** → USER 메시지 저장(READY가 아니면 안내 ASSISTANT도 같은 트랜잭션. 정정 2026-09-07, 로드맵 Q30: 검색이 실패하면 아무것도 저장하지 않는다) → 응답.
 3. main이 `system` = `groundingRules` + `[근거 문서 n] 제목/문서 ID/문서 링크/내용` × 8(현행 `SearchContext.groundingPrompt`와 같은 형식), `messages` = `GET /api/v1/conversations/{sessionId}` 이력으로 사용자 LLM에 스트리밍 요청.
 4. delta마다 renderer에 `chunk {delta}`. 취소는 `cancel()` → LLM 요청 중단, 저장 없음.
 5. 종료 시 main → `POST /api/v1/conversations/{sessionId}/messages/assistant` → `201 {messageId}` → renderer에 `complete {messageId}`.
@@ -371,7 +371,7 @@ B안이 안정되면 `content_source_authorizations`와 같은 암호화 envelop
 | 요청 | `POST /api/v1/conversations/{sessionId}/search`, `{ "content": string }`(1~10,000자), `Authorization: Bearer` |
 | 응답 READY | `{ "status": "READY", "userMessageId", "groundingRules": string, "chunks": [ { "importRunId", "importedPageId", "chunkIndex", "title", "sourceUrl", "content", "score" } × ≤8 ] }`. 점수 내림차순. `content`는 `max-context-characters=12000`에 맞춰 서버가 자른다(Q28) |
 | 응답 READY 아님 | `{ "status": "NO_RESULT" 또는 "NEEDS_CLARIFICATION", "userMessageId", "assistantMessageId", "fallbackAnswer" }`. 서버가 안내 문구를 ASSISTANT로 저장한 뒤 응답한다. 데스크톱은 `chunk` 1개 + `complete {assistantMessageId}`로 중계하고 LLM을 부르지 않는다 |
-| 오류 | 403 `CHAT_ACCESS_DENIED`, 409 `CHAT_DOCUMENTS_NOT_READY`, 409 `CHAT_TURN_IN_PROGRESS`(Q23), 400 `VALIDATION_ERROR`. 데스크톱은 코드·문구를 그대로 `error`로 중계한다 |
+| 오류 | 403 `CHAT_ACCESS_DENIED`, 404 `CHAT_SESSION_NOT_FOUND`, 409 `CHAT_DOCUMENTS_NOT_READY`, 409 `CHAT_TURN_IN_PROGRESS`(Q23), 400 `VALIDATION_ERROR`, 500 `SEARCH_PROVIDER_FAILED`·`SEARCH_CONFIGURATION_INVALID`(로드맵 Q31, 추가 2026-09-07). 데스크톱은 코드·문구를 그대로 `error`로 중계한다 |
 | 선별 변경 | `PublishedDocumentSearchService.selectSources`의 페이지 중복 제거를 없애고 `top-k`를 8로. 융합 가중·임계·후보 수는 유지 |
 
 #### 답변 저장 API
@@ -388,8 +388,8 @@ B안이 안정되면 `content_source_authorizations`와 같은 암호화 envelop
 | 대상 | V13 | V14 |
 | --- | --- | --- |
 | `search_references.reference_rank` | `CHECK BETWEEN 1 AND 3` | `CHECK BETWEEN 1 AND 8` |
-| `search_references` 유일 키 | `UNIQUE (message_id, imported_page_id)` | `chunk_index SMALLINT NOT NULL` 추가, `UNIQUE (message_id, imported_page_id, chunk_index)` |
-| `chat_messages` | — | `generated_by VARCHAR(10) NOT NULL DEFAULT 'SERVER'` (`SERVER` 또는 `CLIENT`) |
+| `search_references` 유일 키 | `UNIQUE (message_id, imported_page_id)` | `chunk_index SMALLINT NOT NULL` 추가(기존 행은 0, 로드맵 Q32) + `CHECK (chunk_index >= 0)`, `UNIQUE (message_id, imported_page_id, chunk_index)` |
+| `chat_messages` | — | `generated_by VARCHAR(10) NOT NULL DEFAULT 'SERVER'` + `CHECK (generated_by IN ('SERVER', 'CLIENT'))` |
 | `GET /messages/{id}/sources` | 페이지 단위 ≤3 | 청크 단위 ≤8, `chunkIndex` 추가 |
 
 #### 데스크톱 main

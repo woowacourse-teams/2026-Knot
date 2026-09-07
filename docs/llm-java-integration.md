@@ -19,7 +19,7 @@ Notion Import
 채팅 질문
   → 현재 Workspace의 published import run 조회
   → keyword + pgvector 후보 검색
-  → 출처가 다른 최대 3개 청크 선별
+  → 유사도 상위 8개 청크 선별(같은 페이지의 청크 허용, 2026-09-07 정정)
   → 근거 system prompt + 현재 세션 history를 LLM에 전달
   → assistant 저장 + search_reference 저장 + SSE complete
 ```
@@ -101,9 +101,20 @@ TTFT 5초 실측(로드맵 GB 게이트)을 통과해야 한다.
 미만인 vector·keyword 후보는 답변 근거에서 제외하며, 남은 후보가 없으면 LLM을 호출하지 않고
 문서 없음 응답을 반환한다.
 
+## 데스크톱 경유 탐색 검색 API
+
+`POST /api/v1/conversations/{sessionId}/search`는 서버 LLM을 부르지 않고 검색 단계만 수행한다(데스크톱 기획서 6.4, 로드맵 `S1`). 데스크톱 main이 이 응답의 `groundingRules`와 `chunks`로 사용자 LLM 프롬프트를 조립한다.
+
+- 검사 순서: 세션 소유자 → 같은 세션의 진행 중 스트림·검색 잠금 → 공개 스냅샷(`CHAT_DOCUMENTS_NOT_READY` 409) → 답변 없는 USER 메시지가 `CHAT_TURN_TIMEOUT`(기본 `PT5M`) 안이면 `CHAT_TURN_IN_PROGRESS` 409.
+- READY: USER 메시지를 저장하고 `{status, userMessageId, groundingRules, chunks[≤8]}`를 돌려준다. `chunks[].content`는 `LLM_SEARCH_MAX_CONTEXT_CHARACTERS`(기본 12,000) 예산에 맞춰 잘린다.
+- NO_RESULT·NEEDS_CLARIFICATION: USER와 안내 ASSISTANT를 같은 트랜잭션에 저장하고 `{status, userMessageId, assistantMessageId, fallbackAnswer}`를 돌려준다.
+- 검색 자체가 실패하면(임베딩 provider 오류 등) 아무것도 저장하지 않고 `SEARCH_*` 코드를 500으로 돌려준다.
+
+브라우저 단독 SSE 경로(`POST …/messages`)는 그대로 두고 근거만 청크 8개로 맞췄다(로드맵 Q22).
+
 ## PostgreSQL
 
-V13이 `vector` extension과 `search_document_chunks`, `search_references`를 만든다. 개발·테스트 PostgreSQL은 pgvector 이미지를 사용한다.
+V13이 `vector` extension과 `search_document_chunks`, `search_references`를 만들고, V14가 `search_references`를 청크 단위(`chunk_index`, rank 1~8, 유일 키 `(message_id, imported_page_id, chunk_index)`)로 넓히며 `chat_messages.generated_by`(`SERVER`/`CLIENT`)를 추가한다. V13 시절 근거 행의 `chunk_index`는 0으로 채워진다. 개발·테스트 PostgreSQL은 pgvector 이미지를 사용한다.
 
 ```bash
 docker compose up -d postgres
