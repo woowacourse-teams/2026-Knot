@@ -9,12 +9,12 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration(proxyBeanMethods = false)
-@ConditionalOnProperty(prefix = "llm", name = "provider", havingValue = "openai-compatible")
+@ConditionalOnProperty(prefix = "llm.chat", name = "provider", havingValue = "openai-compatible")
 @EnableConfigurationProperties(LlmProperties.class)
 public class LlmClientConfig {
 
-    @Bean(name = "llmHttpClient")
-    public HttpClient llmHttpClient(LlmProperties properties) {
+    @Bean(name = "chatLlmHttpClient")
+    public HttpClient chatLlmHttpClient(LlmProperties properties) {
         properties.validate();
         return HttpClient.newBuilder()
                 .connectTimeout(properties.requestTimeout())
@@ -24,7 +24,7 @@ public class LlmClientConfig {
 
     @Bean
     public LlmClient openAiCompatibleLlmClient(
-            @Qualifier("llmHttpClient") HttpClient httpClient,
+            @Qualifier("chatLlmHttpClient") HttpClient httpClient,
             tools.jackson.databind.ObjectMapper objectMapper,
             LlmProperties properties
     ) {

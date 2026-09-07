@@ -8,7 +8,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 @Component
-@ConditionalOnProperty(prefix = "llm", name = "provider", havingValue = "fake", matchIfMissing = true)
+@ConditionalOnProperty(prefix = "llm.chat", name = "provider", havingValue = "fake", matchIfMissing = true)
 public class FakeLlmClient implements LlmClient {
 
     @Override
