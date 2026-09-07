@@ -1,3 +1,4 @@
+import { receiveLoginTokens } from "@api/authToken";
 import React from "react";
 import { createRoot } from "react-dom/client";
 import { ThemeProvider } from "@emotion/react";
@@ -30,12 +31,11 @@ const renderApp = () => {
   );
 };
 
+// 로그인 리다이렉트로 받은 토큰을 그리기 전에 저장해야 첫 요청부터 Authorization 헤더가 붙어요
 enableApiMocking()
+  .then(receiveLoginTokens)
   .then(renderApp)
   .catch((error: unknown) => {
-    // 개발 전용 경로라 워커 시작 실패를 삼키지 않고 콘솔로 드러내요
-    console.error(
-      "[MSW] mock 워커를 시작하지 못해 앱을 렌더하지 않았어요.",
-      error,
-    );
+    // 준비 단계 실패를 삼키지 않고 콘솔로 드러내요. 여기서 막히면 화면이 아예 그려지지 않아요
+    console.error("앱을 시작하기 전 준비 단계에서 실패했어요.", error);
   });

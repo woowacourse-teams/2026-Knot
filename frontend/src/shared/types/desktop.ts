@@ -33,11 +33,25 @@ export interface KnotDesktopApi {
   onDeepLink(handler: (link: KnotDeepLink) => void): () => void;
   /** 앱이 꺼져 있을 때 눌린 딥링크. 없으면 null */
   getPendingDeepLink(): Promise<KnotDeepLink | null>;
-  /** 디바이스 토큰 인증(2단계)이 붙은 셸에만 있어요 */
+  /**
+   * 액세스 토큰 저장소. 이 저장소를 가진 셸에서는 `localStorage` 대신 여기에 토큰을 둬요.
+   * 값은 main 프로세스가 OS 키체인 키로 암호화해 파일에 넣습니다.
+   *
+   * 셸 업데이트가 웹 배포보다 느려서 아직 이 객체가 없는 셸도 있어요.
+   */
   auth?: {
-    startLogin(): Promise<void>;
-    logout(): Promise<void>;
-    onSessionChanged(
+    /** 저장해 둔 액세스 토큰. 없으면 null */
+    getToken(): Promise<string | null>;
+    /** 액세스 토큰을 암호화해 저장합니다 */
+    setToken(token: string): Promise<void>;
+    /** 저장한 액세스 토큰을 지웁니다. 로그아웃·401에서 불러요 */
+    clearToken(): Promise<void>;
+    /** 시스템 브라우저 로그인(2단계)이 붙은 셸에만 있어요 */
+    startLogin?(): Promise<void>;
+    /** 서버 세션 폐기까지 하는 로그아웃(2단계) */
+    logout?(): Promise<void>;
+    /** 셸이 토큰을 갱신하거나 잃었을 때 알려줘요(2단계) */
+    onSessionChanged?(
       handler: (state: "signed-in" | "signed-out") => void,
     ): () => void;
   };

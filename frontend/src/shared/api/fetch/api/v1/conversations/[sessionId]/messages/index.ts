@@ -7,7 +7,7 @@ import {
   type PostChatMessageErrorResponseRaw,
   type PostChatMessageRequestDto,
 } from "@api/dto/chatMessage";
-import { getCsrfToken } from "@api/httpClient";
+import { getAccessToken } from "@api/authToken";
 import { parseSseEvents, type SseEvent } from "@api/sse/parseSseEvents";
 
 export const SEND_CHAT_MESSAGE_API_PATH = (sessionId: number) =>
@@ -107,6 +107,10 @@ export async function* streamChatMessageApi({
   body,
   signal,
 }: StreamChatMessageApiParams) {
+  // SSE는 axios(XHR 어댑터)로 읽을 수 없어 fetch로 직접 보내므로 `httpClient`의 인터셉터가 없습니다.
+  // 로그인 상태를 증명할 헤더도 여기서 직접 붙여요
+  const accessToken = await getAccessToken();
+
   const response = await fetch(
     toAbsoluteUrl(SEND_CHAT_MESSAGE_API_PATH(sessionId)),
     {
@@ -114,10 +118,10 @@ export async function* streamChatMessageApi({
       headers: {
         "Content-Type": "application/json",
         Accept: "text/event-stream",
-        "X-XSRF-TOKEN": await getCsrfToken(),
+        ...(accessToken === null
+          ? {}
+          : { Authorization: `Bearer ${accessToken}` }),
       },
-      // 로그인 상태는 쿠키로만 유지되므로 fetch에도 쿠키를 실어 보냅니다
-      credentials: "include",
       body: JSON.stringify(body),
       signal,
     },
