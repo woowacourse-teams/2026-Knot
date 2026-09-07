@@ -6,7 +6,6 @@ import com.knot.backend.auth.infrastructure.github.GithubOAuth2UserService;
 import com.knot.backend.auth.infrastructure.jwt.JwtAuthenticationFilter;
 import com.knot.backend.auth.presentation.handler.AuthAccessDeniedHandler;
 import com.knot.backend.auth.presentation.handler.AuthAuthenticationEntryPoint;
-import com.knot.backend.auth.presentation.handler.JwtLogoutHandler;
 import com.knot.backend.auth.presentation.handler.OAuth2AuthenticationFailureHandler;
 import com.knot.backend.auth.presentation.handler.OAuth2AuthenticationSuccessHandler;
 import lombok.RequiredArgsConstructor;
@@ -19,11 +18,10 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configurers.CsrfConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
-import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
@@ -39,8 +37,6 @@ public class SecurityConfig {
     private final OAuth2AuthenticationFailureHandler failureHandler;
     private final AuthAuthenticationEntryPoint authenticationEntryPoint;
     private final AuthAccessDeniedHandler accessDeniedHandler;
-    private final JwtLogoutHandler jwtLogoutHandler;
-    private final JwtProperties jwtProperties;
     private final CorsProperties corsProperties;
     private final ApiDocumentationProperties apiDocumentationProperties;
 
@@ -65,11 +61,12 @@ public class SecurityConfig {
         configuration.setAllowedHeaders(
                 List.of(
                         HttpHeaders.CONTENT_TYPE,
-                        "X-XSRF-TOKEN"
+                        HttpHeaders.AUTHORIZATION
                 )
         );
         configuration.setExposedHeaders(List.of(HttpHeaders.RETRY_AFTER));
-        configuration.setAllowCredentials(true);
+        // 자격증명은 Authorization 헤더로만 오간다. 쿠키를 싣지 않으므로 credentials를 열지 않는다(기획서 5.1)
+        configuration.setAllowCredentials(false);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration(
@@ -85,14 +82,6 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        CookieCsrfTokenRepository csrfTokenRepository = CookieCsrfTokenRepository.withHttpOnlyFalse();
-        csrfTokenRepository.setCookieCustomizer(
-                cookie -> cookie.httpOnly(false)
-                        .secure(jwtProperties.isSecure())
-                        .sameSite("Lax")
-                        .path("/")
-        );
-
         http.cors(Customizer.withDefaults())
                 .authorizeHttpRequests(auth -> {
                     if (apiDocumentationProperties.isEnabled()) {
@@ -110,7 +99,7 @@ public class SecurityConfig {
                             "/oauth2/**",
                             "/login/**",
                             "/api/v1/auth/nickname",
-                            "/api/v1/auth/csrf",
+                            "/api/v1/auth/logout",
                             "/actuator/health",
                             "/error"
                     )
@@ -128,19 +117,13 @@ public class SecurityConfig {
                         exception -> exception.authenticationEntryPoint(authenticationEntryPoint)
                                 .accessDeniedHandler(accessDeniedHandler)
                 )
-                .csrf(
-                        csrf -> csrf.csrfTokenRepository(csrfTokenRepository)
-                                .csrfTokenRequestHandler(new CsrfTokenRequestAttributeHandler())
-                )
+                // 브라우저가 자동으로 붙이는 자격증명이 없으므로 CSRF 방어 대상 자체가 사라졌다(기획서 5.1, 로드맵 Q18)
+                .csrf(CsrfConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
                 .oauth2Login(
                         oauth2 -> oauth2.userInfoEndpoint(userInfo -> userInfo.userService(githubOAuth2UserService))
                                 .successHandler(successHandler)
                                 .failureHandler(failureHandler)
-                )
-                .logout(
-                        logout -> logout.logoutUrl("/api/v1/auth/logout")
-                                .addLogoutHandler(jwtLogoutHandler)
                 )
                 .addFilterBefore(
                         jwtAuthenticationFilter,

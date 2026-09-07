@@ -200,26 +200,6 @@ public class JwtProvider implements AuthTokenProvider {
                         .isBlank()) {
             throw new AuthException(AuthErrorCode.JWT_CONFIGURATION_INVALID);
         }
-        validateCookieName(
-                properties.getCookieName(),
-                properties.isSecure()
-        );
-        validateCookieName(
-                properties.getNicknameCookieName(),
-                properties.isSecure()
-        );
-    }
-
-    private void validateCookieName(
-            String cookieName,
-            boolean secure
-    ) {
-        if (cookieName == null || cookieName.isBlank()) {
-            throw new AuthException(AuthErrorCode.JWT_CONFIGURATION_INVALID);
-        }
-        if (cookieName.startsWith("__Host-") && !secure) {
-            throw new AuthException(AuthErrorCode.JWT_CONFIGURATION_INVALID);
-        }
     }
 
     private Jwt decodeAndValidate(String token) {
