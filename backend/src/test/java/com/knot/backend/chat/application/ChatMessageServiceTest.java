@@ -596,6 +596,79 @@ class ChatMessageServiceTest {
     }
 
     @Test
+    @DisplayName("LLM 어댑터가 판정한 오류 코드는 LLM_STREAM_FAILED로 바꾸지 않고 그대로 전달한다")
+    void sendMessage_failure_llmClientChatException_passesErrorCodeThrough() {
+        // given
+        ChatSessionRepository chatSessionRepository = mock(ChatSessionRepository.class);
+        WorkspaceMemberRepository workspaceMemberRepository = mock(WorkspaceMemberRepository.class);
+        ChatSessionAccessPolicy accessPolicy = new ChatSessionAccessPolicy(
+                chatSessionRepository,
+                workspaceMemberRepository
+        );
+        ChatMessageRepository chatMessageRepository = mock(ChatMessageRepository.class);
+        ChatMessagePersistenceService persistenceService = mock(ChatMessagePersistenceService.class);
+        LlmClient llmClient = mock(LlmClient.class);
+        ChatStreamListener listener = mock(ChatStreamListener.class);
+        ChatMessage userMessage = mock(ChatMessage.class);
+        ChatSession session = mock(ChatSession.class);
+        when(session.getMemberId()).thenReturn(2L);
+        when(session.getWorkspaceId()).thenReturn(1L);
+        when(userMessage.getRole()).thenReturn(ChatMessageRole.USER);
+        when(userMessage.getContent()).thenReturn("질문");
+        when(chatSessionRepository.findById(10L)).thenReturn(java.util.Optional.of(session));
+        when(
+                workspaceMemberRepository.existsByWorkspaceIdAndMemberId(
+                        1L,
+                        2L
+                )
+        ).thenReturn(true);
+        when(
+                persistenceService.saveMessage(
+                        anyLong(),
+                        any(),
+                        any(),
+                        any()
+                )
+        ).thenReturn(userMessage);
+        when(chatMessageRepository.findAllBySessionId(10L)).thenReturn(List.of(userMessage));
+        when(llmClient.start(any())).thenThrow(new ChatException(ChatErrorCode.LLM_RATE_LIMITED));
+        Executor directExecutor = Runnable::run;
+        ChatMessageService service = new ChatMessageService(
+                accessPolicy,
+                persistenceService,
+                chatMessageRepository,
+                llmClient,
+                documentSearchService,
+                new ActiveChatStreamRegistry(),
+                directExecutor
+        );
+
+        // when
+        service.sendMessage(
+                10L,
+                2L,
+                "질문",
+                listener
+        );
+
+        // then
+        verify(listener).onError(ChatErrorCode.LLM_RATE_LIMITED);
+        verify(
+                listener,
+                never()
+        ).onError(ChatErrorCode.LLM_STREAM_FAILED);
+        verify(
+                persistenceService,
+                never()
+        ).saveAssistantWithReferences(
+                anyLong(),
+                anyString(),
+                any(),
+                any()
+        );
+    }
+
+    @Test
     @DisplayName("chunk을 받은 뒤 스트림이 끊기면 부분 assistant를 저장하지 않는다")
     void sendMessage_failure_streamEndsBeforeDone_doesNotPersistPartialAssistant() {
         // given
