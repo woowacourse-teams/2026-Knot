@@ -32,6 +32,10 @@ public class ChatMessage {
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "generated_by", nullable = false, length = 10)
+    private ChatMessageGeneratedBy generatedBy;
+
     protected ChatMessage() {}
 
     private ChatMessage(
@@ -48,6 +52,7 @@ public class ChatMessage {
         this.role = role;
         this.content = content;
         this.createdAt = createdAt;
+        this.generatedBy = ChatMessageGeneratedBy.SERVER;
     }
 
     public static ChatMessage create(

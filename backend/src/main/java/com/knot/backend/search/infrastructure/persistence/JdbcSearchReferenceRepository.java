@@ -25,6 +25,7 @@ public class JdbcSearchReferenceRepository implements SearchReferenceRepository 
                     reference.id AS reference_id,
                     reference.message_id,
                     reference.reference_rank,
+                    reference.chunk_index,
                     reference.relevance_score,
                     connection.provider AS source,
                     page.external_page_id,
@@ -82,6 +83,7 @@ public class JdbcSearchReferenceRepository implements SearchReferenceRepository 
                         import_run_id,
                         imported_page_id,
                         reference_rank,
+                        chunk_index,
                         relevance_score
                     )
                     SELECT
@@ -90,6 +92,7 @@ public class JdbcSearchReferenceRepository implements SearchReferenceRepository 
                         :importRunId,
                         page.id,
                         :referenceRank,
+                        :chunkIndex,
                         :relevanceScore
                     FROM chat_messages message
                     JOIN chat_sessions session
@@ -117,6 +120,10 @@ public class JdbcSearchReferenceRepository implements SearchReferenceRepository 
                             index + 1
                     )
                     .param(
+                            "chunkIndex",
+                            reference.chunkIndex()
+                    )
+                    .param(
                             "relevanceScore",
                             Math.max(
                                     0,
@@ -141,6 +148,7 @@ public class JdbcSearchReferenceRepository implements SearchReferenceRepository 
                 resultSet.getLong("reference_id"),
                 resultSet.getLong("message_id"),
                 resultSet.getInt("reference_rank"),
+                resultSet.getInt("chunk_index"),
                 resultSet.getDouble("relevance_score"),
                 ContentSourceProvider.valueOf(resultSet.getString("source")),
                 new SearchReference.ContentPageReference(

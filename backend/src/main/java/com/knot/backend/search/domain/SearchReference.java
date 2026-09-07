@@ -7,6 +7,7 @@ public record SearchReference(
         Long id,
         Long messageId,
         int rank,
+        int chunkIndex,
         double relevanceScore,
         ContentSourceProvider source,
         ContentPageReference page
