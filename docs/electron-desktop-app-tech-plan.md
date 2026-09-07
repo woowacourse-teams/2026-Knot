@@ -302,14 +302,14 @@ export interface KnotDesktopApi {
 | 항목 | 설계 |
 | --- | --- |
 | 활성화 | `llm.chat.provider=anthropic` 분기를 `LlmClientConfig`에 추가. 임베딩은 `llm.embedding.provider=openai-compatible`(Qwen) 그대로 둔다. provider 키 분리와 HTTP 클라이언트 빈 분리는 `B0`에서 끝났다(정정 2026-09-06, 지식 §1.4) |
-| 설정 | `llm.anthropic.api-key`(`ANTHROPIC_API_KEY`), `llm.anthropic.model`(기본 `claude-opus-5`), `llm.anthropic.effort`(기본 `medium`, 채팅 QA 측정 후 조정), `llm.anthropic.max-tokens`(기본 4096), `llm.anthropic.request-timeout`(PT30S — SSE 타임아웃과 정합), `llm.anthropic.research-loop.enabled`(기본 false) |
+| 설정 | `llm.anthropic.api-key`(`ANTHROPIC_API_KEY`), `llm.anthropic.model`(기본 `claude-opus-5`), `llm.anthropic.effort`(기본 `medium`, 채팅 QA 측정 후 조정), `llm.anthropic.max-tokens`(기본 4096), `llm.anthropic.request-timeout`(PT30S — SSE 타임아웃과 정합), `llm.anthropic.base-uri`(기본 `https://api.anthropic.com`, 테스트·프록시용 — 추가 2026-09-07). `research-loop.enabled`는 `B1`에서 만들지 않는다(로드맵 `B4`로 분리, 정정 2026-09-07) |
 | 클래스 | `chat/infrastructure/anthropic/AnthropicLlmClient implements LlmClient`, `AnthropicLlmStream implements LlmStream`(pull형: `hasNext`/`next`가 `content_block_delta.text_delta`만 돌려주고 `message_stop`에서 종료), `AnthropicRequestMapper`(`SearchContext.groundingPrompt` → `system`, 히스토리 → `messages`) |
-| HTTP | 옵션 1: `com.anthropic:anthropic-java`(`client.messages().createStreaming`) 도입. 옵션 2: 기존 JDK `HttpClient`로 `POST /v1/messages`(`x-api-key`, `anthropic-version`, `stream:true`) 직접 호출 + SSE 파서 재사용. 구현 Issue에서 결정(검토 문서 7절) |
-| 파라미터 | `thinking` 생략(Opus 5 기본 adaptive) 또는 `{type:"adaptive"}`, `output_config.effort`. `temperature`는 넘기지 않는다(Opus 5에서 400). assistant prefill 금지 |
-| 캐시 | `system`을 `[근거 규칙(cache_control ephemeral)] + [근거 문서]` 두 블록으로 나눠 고정 부분만 캐시 |
-| 오류 매핑 | 401/403 → `LLM_CONFIGURATION_INVALID`, 429·529(overloaded) → `LLM_RATE_LIMITED`(SSE `error` + `Retry-After`), 타임아웃 → 기존 `LLM_STREAM_TIMEOUT`, `stop_reason=refusal` → 기존 "정보 없음" 정책 문구가 아닌 별도 코드 `LLM_REFUSED`로 사용자에게 안내(`stop_details.category` 로그) |
-| 계측 | 기존 단계별 시간 기록에 `usage.input_tokens`·`output_tokens`·`cache_read_input_tokens`를 추가 저장(비용 관측) |
-| 재검색 루프(선택) | `research-loop.enabled=true`면 `search_knowledge` 툴을 정의하고 `stop_reason=tool_use` 시 서버가 `PublishedDocumentSearchService`를 실행, `tool_result`를 한 user 메시지로 반환, 최대 2회. 기본 off — 왕복 2회로 TTFT가 늘어나므로(검토 문서 5.6절) 실측 후 결정 |
+| HTTP | 옵션 1: `com.anthropic:anthropic-java`(`client.messages().createStreaming`) 도입. 옵션 2: 기존 JDK `HttpClient`로 `POST /v1/messages`(`x-api-key`, `anthropic-version`, `stream:true`) 직접 호출 + SSE 파서 재사용. → **옵션 2로 확정**(로드맵 Q20, 2026-09-07). 의존성 추가 없이 `chat/infrastructure/anthropic/` 안에서 끝나고 기존 어댑터와 구조가 같다 |
+| 파라미터 | `thinking` 생략(Opus 5 기본 adaptive. 명시하지 않는 쪽이 모델을 바꿔도 400이 나지 않는다 — 확정 2026-09-07), `output_config.effort`. `temperature`는 넘기지 않는다(Opus 5에서 400). assistant prefill 금지 |
+| 캐시 | **`B1`에서는 미적용(정정 2026-09-07)**. Opus 5의 캐시 최소 프리픽스는 512 토큰이고, 그보다 짧은 프리픽스는 `cache_control`이 있어도 조용히 캐시되지 않는다. 고정 부분(`SearchContext.GROUNDING_INSTRUCTION`, 약 330자)이 이를 넘는지 실측 전(로드맵 U18)이라 `B1`은 `system`을 문자열 하나로 보낸다. 넘는 것이 확인되면 `B2`에서 `[근거 규칙(cache_control ephemeral)] + [근거 문서]` 두 블록으로 나눈다 |
+| 오류 매핑 | 401/403 → `LLM_CONFIGURATION_INVALID`, 429·529(overloaded) → `LLM_RATE_LIMITED`(SSE `error`. `Retry-After`는 로그로만 남긴다 — SSE 응답 헤더는 이미 전송돼 실을 수 없다, 정정 2026-09-07), 타임아웃 → 기존 `LLM_STREAM_TIMEOUT`, `stop_reason=refusal` → 기존 "정보 없음" 정책 문구가 아닌 별도 코드 `LLM_REFUSED`로 사용자에게 안내(`stop_details.category` 로그). 스트림 도중 `event: error`도 같은 표로 매핑한다(`overloaded_error`·`rate_limit_error` → `LLM_RATE_LIMITED`, `authentication_error`·`permission_error` → `LLM_CONFIGURATION_INVALID`, 나머지 → `LLM_STREAM_FAILED`). 새 코드가 SSE `error`에 실리도록 `ChatMessageService`는 어댑터가 던진 `ChatException`의 코드를 그대로 전달한다(로드맵 7절 1번 예외, 2026-09-07) |
+| 계측 | 정정 2026-09-07: 현행 코드에 "단계별 시간 기록"은 없다. `B1`은 `message_start.message.usage`(`input_tokens`·`cache_read_input_tokens`)와 `message_delta.usage`(`output_tokens`)를 INFO 로그로만 남기고, 저장·집계는 `B2`에서 한다 |
+| 재검색 루프(선택) | `research-loop.enabled=true`면 `search_knowledge` 툴을 정의하고 `stop_reason=tool_use` 시 서버가 `PublishedDocumentSearchService`를 실행, `tool_result`를 한 user 메시지로 반환, 최대 2회. 기본 off — 왕복 2회로 TTFT가 늘어나므로(검토 문서 5.6절) 실측 후 결정. → `B1` 범위에서 제외하고 로드맵 `B4`로 분리(2026-09-07) |
 | 품질 재검증 | 모델 교체 전 `docs/llm-search-benchmark-independent-30.json` gold set 30문항 + 사람 검수, TTFT 5초 실측(ADR 271 조건). 통과 전 `llm.chat.provider=anthropic`을 운영에 켜지 않는다 |
 | 비용 가드 | 질문당 입력 상한(근거 문서 10,000자 유지), 세션당 히스토리 상한(현행 4개 메시지·4,000자), 일일 토큰 예산 로그 경고 |
 
@@ -518,7 +518,7 @@ tag desktop-v0.1.0 ─▶ GitHub Actions matrix(macos-latest arm64/x64, windows-
 | I15 | `[BE] 인증 자격증명 쿠키 → Bearer JWT 전환` | be | P1 | `security`, `cross-boundary`, `core-flow` | 필요 | D11(쿠키 유지 vs Bearer 전환 vs 이중 경로), ADR 314 보완 | — |
 | I16 | `[FE] 액세스 토큰 저장소와 Authorization 헤더` | fe | P1 | `security`, `cross-boundary` | 필요 | I15와 같은 ADR | I15 |
 | I17 | `[FE] 데스크톱 토큰 저장(preload · safeStorage)` | fe | P1 | `security` | 필요(짧게) | I15와 같은 ADR | I16, I2 |
-| I7 | `[BE] 채팅 LLM Anthropic Messages API 어댑터` | be | B안 | `external`, `shared` | 필요 | B안 vs C안(검토 문서 7절), SDK vs HttpClient | provider 분리 |
+| I7 | `[BE] 채팅 LLM Anthropic Messages API 어댑터` | be | B안 | `external`, `shared` | 필요 | B안 vs C안(검토 문서 7절), SDK vs HttpClient(→ 로드맵 Q20으로 확정) | provider 분리 |
 | I8 | `[BE] 채팅·임베딩 provider 설정 분리` | be | B안 선행 | `shared` | 필요(짧게) | 없음 | — |
 | I9 | `[BE] 데스크톱 디바이스 토큰 인증 경로(코드 교환·refresh rotation·폐기·기기 목록)` | be | P2 | `security`, `data`, `cross-boundary`, `core-flow` | 필요(인터뷰 6항목 전부) | D4(패턴 A·B vs C vs D), ADR 314 보완 | I2 |
 | I10 | `[FE] 데스크톱 시스템 브라우저 로그인·loopback·딥링크 콜백·토큰 저장` | fe | P2 | `security`, `cross-boundary` | 필요 | I9와 같은 ADR | I9 |
