@@ -17,6 +17,11 @@ public class MemberRepositoryImpl implements MemberRepository {
     }
 
     @Override
+    public boolean existsById(long memberId) {
+        return memberJpaRepository.existsById(memberId);
+    }
+
+    @Override
     public Member save(Member member) {
         return memberJpaRepository.save(member);
     }

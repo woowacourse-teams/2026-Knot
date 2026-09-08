@@ -23,6 +23,16 @@ public class MemberService {
         return memberRepository.findById(memberId);
     }
 
+    /** 액세스 토큰의 subject가 아직 회원인지 요청마다 확인하는 용도라 엔티티를 싣지 않는다(기획서 5.1 회원 확인) */
+    @Transactional(readOnly = true)
+    public boolean existsById(long memberId) {
+        if (memberId <= 0) {
+            throw new MemberException(MemberErrorCode.INVALID_MEMBER_DATA);
+        }
+
+        return memberRepository.existsById(memberId);
+    }
+
     @Transactional
     public Member create(
             String nickname,
