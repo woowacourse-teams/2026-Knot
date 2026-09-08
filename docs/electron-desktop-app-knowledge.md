@@ -47,7 +47,7 @@
 | 루트 README | 0바이트(제품 설명 없음) | `README.md` |
 | 프론트 오리진 | 운영 `https://knoted.kr`, 개발 `https://dev.knoted.kr` (Cloudflare Workers 정적 자산 + SPA fallback) | `frontend/wrangler.jsonc`, `deploy-backend-dev.yml:1204` |
 | 백엔드 API 오리진 | **정정 2026-09-06(`A1` 실측)**: 배포된 dev SPA(`https://dev.knoted.kr`)가 실제로 이동하는 오리진은 `https://dev-api.knoted.kr`이다. `frontend/.env.local:3`의 `https://api.dev.knoted.kr`은 gitignore된 로컬 파일 값이고 배포 빌드는 `vars.API_BASE_URL_DEV`를 쓴다 — 둘이 다르다. 운영은 `vars.API_BASE_URL_PROD`(GitHub 변수)라 저장소에 값이 없음. **프론트와 API는 크로스 오리진**(같은 오리진 프록시 아님) | Electron 셸 네비게이션 로그(`~/Library/Logs/Knot/main.log`, GitHub 로그인 버튼 클릭 시 `https://dev-api.knoted.kr/oauth2/authorization/github`), `frontend/.env.local`, `httpClient/index.ts:67` 주석 |
-| Notion OAuth 302 체인(앱 창 실측) | **2026-09-08(`A1` 실측, 부분)**: `POST …/notion-oauth-authorizations` 응답의 `authorizationUrl`은 `https://api.notion.com/v1/oauth/authorize?client_id=…&response_type=code&owner=user&redirect_uri=<callback>&state=…`이고, 이 URL은 302로 `https://app.notion.com/install-integration?response_type=code&client_id=…&redirect_uri=…&state=…&owner=user`에 보낸다. `www.notion.so`는 관측되지 않았다. 동의 이후 홉은 셸이 2홉을 차단해 앱 창 안에서 미측정 | Electron 셸 네비게이션 로그(`~/Library/Logs/Knot/main.log` 2026-09-07 11:37·2026-09-08 10:33 `will-redirect` 차단 기록), `workspace/infrastructure/notion/oauth/HttpNotionOAuthClient.java` `createAuthorizationUri` |
+| Notion OAuth 302 체인(앱 창 실측) | **2026-09-08(`A1` 실측, 부분)**: `POST …/notion-oauth-authorizations` 응답의 `authorizationUrl`은 `https://api.notion.com/v1/oauth/authorize?client_id=…&response_type=code&owner=user&redirect_uri=<callback>&state=…`이고, 이 URL은 302로 `https://app.notion.com/install-integration?response_type=code&client_id=…&redirect_uri=…&state=…&owner=user`에 보낸다. `www.notion.so`는 관측되지 않았다. 동의 이후 홉은 셸이 2홉을 차단해 앱 창 안에서 미측정 → **2026-09-08 23:21 재측정**: `app.notion.com` 추가 뒤 `install-integration` → `api/v3/sessionSync?returnUrl=…&sessionSyncId=…&csrfNonce=…` → `api/v3/sessionSyncCallback?status=unauthenticated&returnUrl=…` → `install-integration?…&session_sync_attempted=1`(전부 `app.notion.com`)까지 통과. 미로그인이라 로그인 화면이 떴고 IdP 버튼은 `window.open("https://app.notion.com/verifyNoPopupBlockerHtmlAndRedirect?redirectUri=https://app.notion.com/microsoftpopupredirect?callbackType=popup&redirectToAuth=true&popupFlowId=…")`을 연다. 검증 페이지는 `window.opener`가 없으면 `window.close()`한다(본문 curl 확인). `<idp>popupredirect` 302: microsoft → `login.microsoftonline.com/common/oauth2/v2.0/authorize`, google → `accounts.google.com/o/oauth2/v2/auth`, apple → `appleid.apple.com/auth/authorize`(form_post), 복귀는 각각 `app.notion.com/<idp>popupcallback`. **2026-09-08 23:41 종단 통과**: 자식 창 팝업 → `login.microsoftonline.com/common/oauth2/v2.0/authorize` → `…/common/login` → `app.notion.com/microsoftpopupcallback?code=…`, 메인 창 동의 → `localhost:8080/api/v1/notion/oauth/callback?code=…&state=…` → 302 `localhost:3000/workspace/6/notion-connection?result=connected`. 차단 0건, DB 연결 행·동기화 COMPLETED | Electron 셸 네비게이션 로그(`~/Library/Logs/Knot/main.log` 2026-09-07 11:37·2026-09-08 10:33 `will-redirect` 차단 기록, 2026-09-08 23:21 `새 창 요청 거부` 3건, 23:40:35~23:41:09 종단 통과 기록), `app.notion.com/verifyNoPopupBlockerHtmlAndRedirect`·`*popupredirect` curl 실측(2026-09-08), `workspace/infrastructure/notion/oauth/HttpNotionOAuthClient.java` `createAuthorizationUri` |
 | 백엔드 런타임 | Spring Boot 4.1.0, Java 25(temurin), PostgreSQL + pgvector(`pgvector/pgvector:pg18`), Flyway, springdoc 3.1.0 | `backend/build.gradle:3,13`, `backend/compose.yml` |
 | 백엔드 배포 | develop → NCP 단일 서버(SSH/SCP, systemd `knot-backend.service`, 포트 8080), main → AWS CodeDeploy(`buildspec.yml`, `backend/appspec.yml`) | `deploy-backend-dev.yml`, ADR 212·328 |
 | 리버스 프록시·TLS 설정 | 저장소에 없음(서버 밖 관리) | 전체 탐색 |
@@ -151,6 +151,8 @@ public interface LlmStream extends AutoCloseable { boolean hasNext(); String nex
 > 정정 2026-09-07(`B1` 구현): `LlmClientConfig`의 provider 조건이 클래스 수준에서 메서드 수준으로 내려가 `anthropic` 분기가 붙었다. `ChatErrorCode`에 `LLM_RATE_LIMITED`·`LLM_REFUSED`가 추가됐고, `ChatMessageService`는 `LlmClient`·`LlmStream`이 던진 `ChatException`의 코드를 `LLM_STREAM_FAILED`로 바꾸지 않고 SSE `error`에 그대로 싣는다(`ChatMessageService.java:209`, 로드맵 7절 1번 예외). `usage` 토큰 수는 INFO 로그로만 남는다.
 >
 > 정정 2026-09-07(`S1` 구현): 데스크톱 경유 탐색용 검색 API `POST /api/v1/conversations/{sessionId}/search`(`chat/presentation/ChatSearchController.java`, `chat/application/ChatSearchService.java`)가 추가됐다. 소유자 검증 → `ActiveChatStreamRegistry` 잠금 → 스냅샷 검사 → DB 기준 진행 중 턴 검사(마지막 메시지가 USER이고 `chat.turn-timeout` 안이면 409 `CHAT_TURN_IN_PROGRESS`) → 검색 → USER 저장(READY가 아니면 안내 ASSISTANT도 `saveFallbackTurn`으로 같은 트랜잭션) 순서이며 LLM을 부르지 않는다. `PublishedDocumentSearchService.selectSources`는 페이지 중복 제거 없이 청크 상위 `top-k`(8)를 돌려주고, `SearchContext.contextReferences()`가 `groundingPrompt()`와 같은 예산(12,000자)으로 본문을 잘라 응답 `chunks`에 싣는다. 검색 질의 조립은 `ChatSearchQueryComposer`로 빠져 SSE 경로와 공유한다. `ChatMessage.generatedBy`는 항상 `SERVER`로 저장된다(`CLIENT`는 `S2`).
+>
+> 정정 2026-09-09(탐색 경로 MCP 방식 확정): 위 `S1` 엔드포인트의 유일한 소비자였던 데스크톱 `S3`(main의 사용자 LLM 호출)이 폐기돼 현재 소비자가 없다. 데스크톱은 이제 LLM을 호출하지 않고 로컬 MCP 서버(`S8`)의 `search_documents` 도구가 Workspace 기준 검색 API `POST /api/v1/workspaces/{workspaceId}/search`(`S7`, 저장·턴 검사 없음, 미구현)를 부르며, 에이전트 답변 저장은 `POST /api/v1/conversations/{sessionId}/turns`(`S2`, 미구현)로 한다. `S1`의 검색·선별·예산 로직과 V14는 그대로 재사용한다(로드맵 4.5절).
 
 **설정 키(`llm.*`)**: `provider`(`fake`, 레거시 fallback), `chat.provider`(`${llm.provider}`), `embedding.provider`(`${llm.provider}`), `base-uri`(`http://localhost:1234/v1`), `api-key`(빈값), `model`(`qwen/qwen3.6-27b`), `max-tokens`(1024), `temperature`(0.2), `request-timeout`(PT30S), `embedding.model`(`text-embedding-qwen3-embedding-0.6b:2`), `embedding.dimensions`(1024), `search.chunk-size`(1200), `search.chunk-overlap`(180), `search.candidate-limit`(50), `search.top-k`(8, 정정 2026-09-07 `S1`: 3 → 8), `search.max-context-characters`(12000, 정정 2026-09-07 `S1`: 10000 → 12000), `search.embedding-batch-size`(16, 정정 2026-09-08: 64 → 16 — 로드맵 Q37·U25, 64는 Gemini 429 `RESOURCE_EXHAUSTED`), `search.minimum-relevance-score`(0.35), `anthropic.base-uri`(`https://api.anthropic.com`), `anthropic.api-key`(빈값), `anthropic.model`(`claude-opus-5`), `anthropic.effort`(`medium`), `anthropic.max-tokens`(4096), `anthropic.request-timeout`(PT30S), `gemini.base-uri`(`https://generativelanguage.googleapis.com`), `gemini.api-key`(빈값, `GEMINI_API_KEY`), `gemini.embedding-model`(`gemini-embedding-001`), `gemini.request-timeout`(PT30S), `gemini.retry-max-attempts`(6, 추가 2026-09-08 Q42), `gemini.retry-initial-delay`(PT5S, 추가 2026-09-08 Q42) — `application.properties`의 `llm.*` 블록(정정 2026-09-08 `B5`: `gemini.*` 4개 추가, `embedding.model`은 `openai-compatible` 전용). 바인딩: `LlmProperties`, `AnthropicLlmProperties`, `GeminiEmbeddingProperties`, `EmbeddingProperties`, `SearchProperties`. 채팅 쪽 키는 `chat.turn-timeout`(PT5M, `ChatProperties`, 추가 2026-09-07 `S1`) 하나다.
 
@@ -373,7 +375,7 @@ contextBridge.exposeInMainWorld('knotDesktop', {
 | 8~10 | `allowRunningInsecureContent`·`experimentalFeatures`·`enableBlinkFeatures` 사용 금지 | 기본값 유지 |
 | 11~12 | `<webview>`·`allowpopups` 금지, `will-attach-webview` 검증 | `webviewTag` 기본 false 유지 |
 | 13 | 네비게이션 제한 | `will-navigate`에서 허용 오리진 외 `preventDefault` |
-| 14 | 새 창 생성 제한 | `setWindowOpenHandler`에서 `{action:'deny'}` + 검증된 URL만 `shell.openExternal` |
+| 14 | 새 창 생성 제한 | `setWindowOpenHandler`에서 URL 오리진이 허용 목록 안이면 `{action:'allow', overrideBrowserWindowOptions:{webPreferences:{sandbox, contextIsolation, nodeIntegration:false, webviewTag:false}}}`(preload 없음), 밖이면 `{action:'deny'}` + 검증된 URL만 `shell.openExternal`. 공식 항목은 "disable or limit"(정정 2026-09-08, 기획서 4.5·로드맵 Q46 — OAuth 로그인 팝업이 `window.opener`를 요구한다) |
 | 15 | `shell.openExternal` 검증 | `https:`·`mailto:`만, 임의 명령 실행 위험 |
 | 16 | 최신 Electron | 44, 메이저 1개씩 추적 |
 | 17 | IPC sender 검증 | `event.senderFrame` origin 검사 |
@@ -422,7 +424,7 @@ contextBridge.exposeInMainWorld('knotDesktop', {
 - SameSite·`__Host-` 규칙은 Electron 문서에 없고 Chromium 규칙 그대로(MDN: `__Host-`는 Secure·Domain 없음·Path=/; Chrome은 SameSite 미지정을 Lax로 취급).
 - `disable-site-isolation-trials` 스위치는 Electron 문서에 없는 Chromium 스위치이며 SameSite 쿠키 규칙을 우회하지 못하고 Spectre류 방어를 없앤다 → 사용 금지.
 - renderer의 `fetch().body` 스트리밍·`EventSource`는 Chromium과 동일[추론]. [비공식] 이슈 #44458은 `nodeIntegration: true`에서만 발생한 `EventSource` 회귀(수정됨) → 기본 설정 무관.
-- main의 전역 `fetch`(Node undici)는 `response.body`(`ReadableStream<Uint8Array>`)로 SSE를 스트리밍하고 `AbortSignal`로 취소된다 — 2026-09-08 `S3` 구현에서 vitest(Node 22.21)로 실측(§8 U24). 데스크톱 사용자 LLM 호출은 Chromium 세션·쿠키가 섞이지 않도록 `net.fetch`가 아니라 이 전역 `fetch`를 쓴다(`desktop/src/main/llm/*Client.ts`). `AbortSignal.any`·`AbortSignal.timeout`(Node 20.3+)으로 호출자 취소와 30초 제한을 합친다(`desktop/src/main/chat/knotApi.ts`).
+- main의 전역 `fetch`(Node undici)는 `response.body`(`ReadableStream<Uint8Array>`)로 SSE를 스트리밍하고 `AbortSignal`로 취소된다 — 2026-09-08 폐기된 `S3` 구현에서 vitest(Node 22.21)로 실측(§8 U24, 무효). 사실 자체는 유효하지만 데스크톱은 이제 LLM을 호출하지 않는다(로드맵 불변 계약 2번, 2026-09-09). main이 서버 API를 부를 때는 Chromium 세션·쿠키가 섞이지 않도록 `net.fetch`가 아니라 이 전역 `fetch`를 쓰고, `AbortSignal.any`·`AbortSignal.timeout`(Node 20.3+)으로 호출자 취소와 30초 제한을 합친다(`desktop/src/main/chat/knotApi.ts` — `S8`의 MCP 도구 실행이 재사용).
 - 출처: https://www.electronjs.org/docs/latest/api/session , /api/cookies , /api/web-request , /api/net , /api/client-request , /api/command-line-switches , https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Set-Cookie , https://web.dev/articles/samesite-cookies-explained
 
 ### 2.6 커스텀 프로토콜 `app://` [확인]
@@ -790,7 +792,9 @@ GitHub embedded webview 차단 정책 유무, GitHub 콜백에 커스텀 스킴 
 - Emotion 11.14: `createCache({ nonce })`로 CSP nonce 부여 가능. [확인] https://emotion.sh/docs/@emotion/cache
 - webpack 5 `target`: `electron-main`, `electron-preload`, `electron-renderer`(Node·Electron 내장 모듈을 externals 처리). **sandbox renderer에는 `require`가 없으므로 renderer는 `target: 'web'` 유지**, preload는 별도 엔트리(`electron-preload` 또는 Forge `sandboxedPreload`). Forge 문서: `nodeIntegration: false`면 renderer target `web`. [확인] https://webpack.js.org/configuration/target/ , https://www.electronforge.io/config/plugins/webpack
 
-### 5.4 원격 MCP 서버 (개발자용 부가 기능 검토 재료)
+### 5.4 MCP 서버 (스펙·Java 구현·원격 변형 — 데스크톱 로컬 MCP 서버 `S8`의 스펙 근거, 서버 호스팅 변형 `A13`의 검토 재료)
+
+2026-09-09: 데스크톱 앱이 `127.0.0.1`에 띄우는 **로컬** MCP 서버가 탐색의 데스크톱 경로로 채택됐다(로드맵 `S8`, 검토 문서 7절 F안). 아래 스펙·보안 요구는 그 근거이고, Java 구현·원격 등록 항목은 서버 호스팅 변형(`A13`)에만 해당한다. 세 CLI의 등록 명령·스킬 경로는 §6.8.
 
 **스펙(현재 2026-07-28)** [확인] https://modelcontextprotocol.io/specification/versioning
 
@@ -800,6 +804,7 @@ GitHub embedded webview 차단 정책 유무, GitHub 콜백에 커스텀 스킴 
 | 2026-07-28 변경 | `Mcp-Session-Id` 세션 제거, `initialize` 핸드셰이크 제거(매 요청 `_meta`에 protocolVersion), `server/discover` 필수, `subscriptions/listen`, `Mcp-Method`/`Mcp-Name` 헤더 필수, Sampling·Roots·Logging·DCR deprecated |
 | 인증(HTTP, OPTIONAL) | OAuth 2.1. MCP 서버=리소스 서버. **RFC 9728 Protected Resource Metadata MUST**, AS 메타데이터(RFC 8414/OIDC) MUST, Client ID Metadata Documents SHOULD, PKCE, **RFC 8707 `resource` MUST**, `Authorization: Bearer`만. 흐름: 401 + `WWW-Authenticate: Bearer resource_metadata=…` → PRM → AS 메타데이터 → 클라이언트 등록 → 브라우저 인가 → 토큰 |
 | 프리미티브 | Tools(model-controlled), Resources(application-controlled), Prompts(user-controlled) |
+| 로컬 서버 보안 요구(2025-06-18 개정판 transports 원문, 2026-09-09 확인) | "Servers **MUST** validate the `Origin` header on all incoming connections to prevent DNS rebinding attacks", "When running locally, servers **SHOULD** bind only to localhost (127.0.0.1) rather than all network interfaces (0.0.0.0)", "Servers **SHOULD** implement proper authentication for all connections". 단일 MCP 엔드포인트(예 `/mcp`)에 클라이언트가 JSON-RPC를 POST하고 `Accept: application/json, text/event-stream`을 보낸다. 이 개정판은 `Mcp-Session-Id`·`initialize`를 쓰고, `MCP-Protocol-Version` 헤더가 없으면 서버가 `2025-03-26`으로 가정한다 → 로드맵 Q47·Q48의 근거 https://modelcontextprotocol.io/specification/2025-06-18/basic/transports |
 
 **Java 구현** [확인]
 
@@ -813,7 +818,7 @@ GitHub embedded webview 차단 정책 유무, GitHub 콜백에 커스텀 스킴 
 
 **클라이언트 등록** [확인]
 
-- Claude Code: `claude mcp add --transport http knot https://…/mcp` (`--header "Authorization: Bearer …"`, `--scope local|project|user`), `/mcp`에서 브라우저 로그인, `claude mcp login knot`. SSE 전송 deprecated. https://code.claude.com/docs/en/mcp
+- Claude Code: `claude mcp add --transport http knot https://…/mcp` (`--header "Authorization: Bearer …"`, `--scope local|project|user`), `/mcp`에서 브라우저 로그인, `claude mcp login knot`. SSE 전송 deprecated. 로컬 `http://127.0.0.1:<port>/mcp`도 같은 명령이다(§6.8). https://code.claude.com/docs/en/mcp
 - Claude Desktop/claude.ai: Settings > Connectors > Add custom connector(URL, 선택 OAuth Client ID/Secret) → 브라우저 OAuth. `claude_desktop_config.json`은 로컬 stdio 전용. **커넥터는 Anthropic 클라우드에서 서버로 접속**하므로 서버 공개 노출·IP 허용 전제. https://modelcontextprotocol.io/docs/develop/connect-remote-servers
 - Cursor: `.cursor/mcp.json` `{"mcpServers":{"knot":{"url":"https://…/mcp"}}}`, Connect → 브라우저 OAuth. https://cursor.com/docs/mcp
 
@@ -835,10 +840,12 @@ GitHub embedded webview 차단 정책 유무, GitHub 콜백에 커스텀 스킴 
 
 | 항목 | 내용 | 기획 반영 |
 | --- | --- | --- |
-| 서드파티 제품의 claude.ai 로그인·구독 한도 제공 | Agent SDK 공식 문서가 "사전 승인 없이는 금지"로 명시 | 데스크톱 앱은 사용자 구독 크리덴셜(`~/.claude`, Keychain)을 **읽지도 요구하지도 않는다** |
+| 서드파티 제품의 claude.ai 로그인·구독 한도 제공 | Agent SDK 공식 문서가 "사전 승인 없이는 금지"로 명시 | 데스크톱 앱은 사용자 구독 크리덴셜(`~/.claude`, Keychain)을 **읽지도 요구하지도 않고** `claude` 바이너리를 실행하지도 않는다(2026-09-09, 로드맵 불변 계약 3번). 사용자가 자기 Claude Code에 Knot MCP 서버를 등록하는 것은 이 조항의 대상이 아니다(아래 "제3자 MCP 서버·스킬 등록" 행) |
 | `claude setup-token` / `CLAUDE_CODE_OAUTH_TOKEN` | Claude Code CLI 전용, Agent SDK bare mode는 읽지 않음 | 앱 로그인 폴백으로 쓰지 않는다 |
-| Console API 키(서버 보관) | 허용 경로 | 백엔드 `LlmClient`에 Anthropic 어댑터 추가(B안), Workspace BYO 키(C안)는 후속 |
-| 원격 MCP 서버 | 사용자가 자기 Claude 앱/Claude Code에서 서버를 연결하는 구조라 제품이 구독을 제공하는 것이 아님 | 개발자용 부가 기능 후보로만 기록 |
+| 변경 없는 Claude Code 바이너리를 제품이 실행 + 사용자 각자 로그인 | `legal-and-compliance` "Can customers offer Claude Code in their products?"가 조건부 허용(바이너리 미변경·내장 인증 유지·대납/중개 금지·사용자 각자 자격증명)이고 "unmodified Claude Code binary with their own Claude subscription"을 명시(검토 문서 2.1, 2026-09-07 확인) | 2026-09-08 초안(로드맵 `S6`, `claude -p` 자식 프로세스)의 근거였으나 사용자가 거부해 같은 날 폐기. Knot은 CLI 바이너리를 실행하지 않으므로 이 조항은 적용 대상이 아니다. `claude -p` 실측 표는 §6.8에서 제거했다(2026-09-09, git 이력에만 남는다) |
+| Console API 키(서버 보관) | 허용 경로 | 백엔드 `LlmClient`에 Anthropic 어댑터 추가(B안)는 웹 채팅 UI의 서버 경로(로드맵 Q22)에 쓰인다. Workspace BYO 키(C안)는 후속 |
+| 사용자가 공식 CLI에 제3자 MCP 서버·스킬을 등록 | 세 CLI(Claude Code·Codex CLI·Gemini CLI) 모두 문서화된 정식 기능(§6.8, 2026-09-09 확인). `legal-and-compliance`에 MCP 서버 연결을 제한하는 조항 없음(같은 날 재확인) | **탐색의 데스크톱 경로**(2026-09-09, 로드맵 `S8`·불변 계약 2·3번, 검토 문서 7절 F안). 데스크톱 앱이 `127.0.0.1`에 MCP 서버를 띄우고 사용자가 자기 CLI에 등록한다. Knot은 LLM을 호출하지 않고 자격증명·바이너리를 만지지 않는다. 해석 위험은 로드맵 R28 |
+| 원격 MCP 서버(서버 호스팅) | 사용자가 자기 Claude 앱/Claude Code에서 서버를 연결하는 구조라 제품이 구독을 제공하는 것이 아님 | 서버 호스팅 변형은 개발자용 부가 기능 후보(로드맵 `A13`)로만 기록. 로컬 변형이 위 행 |
 
 ### 6.2 현재 모델·가격 (Anthropic 1st-party API 기준, 캐시 2026-06-24)
 
@@ -910,11 +917,37 @@ Java SDK는 `client.messages().createStreaming(params)`가 `StreamResponse<RawMe
 - 근거 규칙만 캐시(약 1K)하면 절감은 미미하고, 히스토리 캐시는 세션 단위 prefix가 안정적일 때만 효과가 있다.
 - Sonnet 5로 바꾸면 같은 조건에서 ≈ $0.022/질문. 품질 재검증(gold set 30문항) 없이 모델을 바꾸지 않는다(검토 문서 5.6절).
 
+### 6.8 CLI 코딩 에이전트의 MCP 서버·스킬 등록 방법 (2026-09-09 공식 문서 확인, 데스크톱 `S8`·`S9` 재료)
+
+2026-09-08의 `claude -p` 실측 표(데스크톱 `S6` 재료)는 사용자가 서브프로세스 방식을 거부해 `S6`이 폐기되면서 지웠다(git 이력에만 남는다). 아래는 세 CLI가 **사용자 설정으로** 제3자 MCP 서버와 스킬을 붙이는 공식 방법이다. 설계 판단은 로드맵 Q47~Q51, 미확인은 §8 U28~U31. 전부 [문서] 확인이며 실측은 아직 없다.
+
+**MCP 서버 등록(Streamable HTTP)** [문서]
+
+| CLI | 등록 명령·설정 | 헤더 | 설정 파일·스코프 | 근거 |
+| --- | --- | --- | --- | --- |
+| Claude Code | `claude mcp add --transport http <name> <url>` (`-t`, stdio는 `claude mcp add [옵션] <name> -- <command> [args]`, `--env KEY=value`) | `--header "Authorization: Bearer <토큰>"` (`-H`) | `--scope local`(기본, `~/.claude.json`) · `project`(`.mcp.json`, 버전 관리 공유) · `user`(`~/.claude.json`, 전 프로젝트). 도구 이름은 `mcp__<server>__<tool>`. 상태는 `claude mcp list`(`✔ Connected`/`✘ Failed to connect`)·`/mcp`. 문서의 HTTP 예시는 전부 원격 URL이고 localhost 예시·금지 문구 둘 다 없다(U28) | https://code.claude.com/docs/en/mcp |
+| Codex CLI | `~/.codex/config.toml`의 `[mcp_servers.<name>]`에 `url = "…"`(Streamable HTTP). 문서 원문 예시: `[mcp_servers.figma]` `url = "https://mcp.figma.com/mcp"` `bearer_token_env_var = "FIGMA_OAUTH_TOKEN"` `http_headers = { "X-Figma-Region" = "us-east-1" }`. CLI 명령은 stdio 형식(`codex mcp add context7 -- npx -y @upstash/context7-mcp`)만 문서에 있고 **HTTP 서버용 `codex mcp add --url` 형식은 문서에 없다**(원문 재확인 2026-09-09, U31) — HTTP 등록은 `config.toml` 편집 또는 ChatGPT·IDE 확장의 GUI | `bearer_token_env_var`(토큰을 담은 **env 변수 이름**), `http_headers = { … }`(고정 헤더), `env_http_headers`(env에서 읽는 헤더). Knot 스니펫은 `http_headers`를 쓴다(로드맵 Q50) | `~/.codex/config.toml`(사용자), `.codex/config.toml`(프로젝트). `startup_timeout_sec`·`tool_timeout_sec`·`enabled`. 목록은 `codex mcp list`, OAuth는 `codex mcp login` | https://learn.chatgpt.com/docs/extend/mcp?surface=cli (developers.openai.com/codex/mcp에서 308) |
+| Gemini CLI | `gemini mcp add [옵션] <name> <commandOrUrl> [args…]`, `-t, --transport stdio\|sse\|http`(기본 stdio) | `-H, --header "Authorization: Bearer <토큰>"` | `-s, --scope user\|project`(기본 project). `~/.gemini/settings.json`·`.gemini/settings.json`의 `mcpServers.<name>` — HTTP는 `"httpUrl": "http://localhost:3000/mcp"` + `"headers": {…}`(문서 예시가 localhost), stdio는 `command`·`args`·`env`·`cwd`, SSE는 `url` | https://geminicli.com/docs/tools/mcp-server/ |
+
+**스킬(Agent Skills 표준)** [문서]
+
+| CLI | 위치(사용자 → 프로젝트) | 프런트매터 | 호출 | 근거 |
+| --- | --- | --- | --- | --- |
+| Claude Code | `~/.claude/skills/<name>/SKILL.md`, `.claude/skills/<name>/SKILL.md`, 플러그인 `<plugin>/skills/`. `~/.agents/skills`는 문서에 없다 | "Claude Code skills follow the Agent Skills open standard". 표준 필드 `name`·`description`·`license`·`compatibility`·`metadata`·`allowed-tools`, 나머지(`disable-model-invocation`·`context`·`hooks` 등)는 Claude Code 확장. 전부 선택이며 `description` 권장 | `description`(+`when_to_use`, 합쳐 1,536자까지)이 항상 컨텍스트에 있어 모델이 자동 호출, `/<name>`으로 수동 호출 | https://code.claude.com/docs/en/skills |
+| Codex CLI | `$CWD/.agents/skills` → 상위 폴더 → `$REPO_ROOT/.agents/skills` → `$HOME/.agents/skills` → `/etc/codex/skills` → 내장 | "build on the open agent skills standard". `name`·`description` 필수, 추가 메타데이터는 `agents/openai.yaml` | `description` 일치 시 자동(`allow_implicit_invocation: false`로 끔), `/skills` 또는 `$<name>` 명시 | https://learn.chatgpt.com/docs/build-skills |
+| Gemini CLI | 사용자 `~/.gemini/skills/` 또는 `~/.agents/skills/` 별칭, 워크스페이스 `.gemini/skills/` 또는 `.agents/skills/`(같은 계층에서는 `.agents/skills/` 우선), 확장·내장 | "Based on the Agent Skills open standard". 읽는 필드 목록은 문서에 없다(`SKILL.md` 본문·폴더 구조가 대화에 주입된다고만 적혀 있다) | 모델이 `activate_skill` 도구를 부르고 사용자 확인 프롬프트 뒤 주입 | https://geminicli.com/docs/cli/skills/ |
+
+Codex CLI·Gemini CLI가 모두 `~/.agents/skills/`를 읽으므로 로드맵 Q50은 두 CLI의 설치 위치를 그 경로 하나로 잡았다. 표준 자체는 https://agentskills.io .
+
+**정책 문구** [문서, 2026-09-09 재확인]: `legal-and-compliance`(https://code.claude.com/docs/en/legal-and-compliance)에 MCP 서버 연결을 제한하는 조항은 없다. 금지는 claude.ai 로그인 제공·구독 자격증명으로 대리 요청·자격증명/세션 토큰 수집·저장·중개·바이너리 변경·대납/재판매뿐이며, F안(검토 문서 7절)은 이 중 어느 것도 하지 않는다.
+
 ## 7. 참고 링크 총목록
 
 **Knot 저장소**: `docs/llm-electron-subscription-architecture-review.md`, `docs/llm-search-feature-spec.md`, `docs/llm-java-integration.md`, `docs/adr/{212,232,254,271,314,328}-*.md`, `docs/adr/README.md`, `docs/harness/issue-planning.md`, `.agents/skills/knot-issue-planning/references/risk-policy.md`, `.github/knot-conventions.yml`, `CONTRIBUTING.md`, `frontend/webpack.config.js`, `frontend/wrangler.jsonc`, `frontend/src/shared/api/httpClient/index.ts`, `backend/src/main/java/com/knot/backend/global/config/SecurityConfig.java`, `backend/src/main/resources/application.properties`
 
-**Anthropic**: https://code.claude.com/docs/en/agent-sdk (정책 조항), https://code.claude.com/docs/en/authentication , https://code.claude.com/docs/en/mcp , https://platform.claude.com/docs/en/about-claude/models/overview.md , https://platform.claude.com/docs/en/pricing.md , https://platform.claude.com/docs/en/build-with-claude/streaming.md , https://platform.claude.com/docs/en/agents-and-tools/tool-use/overview.md , https://platform.claude.com/docs/en/build-with-claude/prompt-caching.md , https://platform.claude.com/docs/en/agents-and-tools/remote-mcp-servers , https://support.claude.com/en/articles/11175166
+**CLI 코딩 에이전트(MCP·스킬, 2026-09-09)**: https://code.claude.com/docs/en/mcp , https://code.claude.com/docs/en/skills , https://learn.chatgpt.com/docs/extend/mcp?surface=cli , https://learn.chatgpt.com/docs/build-skills , https://geminicli.com/docs/tools/mcp-server/ , https://geminicli.com/docs/cli/skills/ , https://agentskills.io , https://modelcontextprotocol.io/specification/2025-06-18/basic/transports
+
+**Anthropic**: https://code.claude.com/docs/en/agent-sdk (정책 조항), https://code.claude.com/docs/en/legal-and-compliance , https://code.claude.com/docs/en/authentication , https://code.claude.com/docs/en/mcp , https://platform.claude.com/docs/en/about-claude/models/overview.md , https://platform.claude.com/docs/en/pricing.md , https://platform.claude.com/docs/en/build-with-claude/streaming.md , https://platform.claude.com/docs/en/agents-and-tools/tool-use/overview.md , https://platform.claude.com/docs/en/build-with-claude/prompt-caching.md , https://platform.claude.com/docs/en/agents-and-tools/remote-mcp-servers , https://support.claude.com/en/articles/11175166
 
 **Electron 공식**: https://releases.electronjs.org/ (+ /schedule), https://www.electronjs.org/docs/latest/tutorial/{security,fuses,asar-integrity,process-model,ipc,sandbox,esm,message-ports,installation,breaking-changes,electron-timelines,launch-app-from-url-in-another-app,notifications,code-signing,updates,performance,automated-testing,devtools-extension,application-debugging,forge-overview,why-electron,custom-title-bar} , https://www.electronjs.org/docs/latest/api/{session,cookies,web-request,net,client-request,protocol,app,shell,safe-storage,notification,tray,menu,global-shortcut,native-theme,power-monitor,clipboard,dialog,crash-reporter,auto-updater,context-bridge,ipc-main,utility-process,command-line-switches,environment-variables} , https://www.electronjs.org/apps
 
@@ -937,7 +970,7 @@ Java SDK는 `client.messages().createStreaming(params)`가 `StreamResponse<RawMe
 | # | 항목 | 영향 받는 결정 | 해소 방법 |
 | --- | --- | --- | --- |
 | U1 | GitHub이 Electron 창(embedded user-agent) 로그인을 경고·차단하는지 | D4 1단계 | P0 스파이크 실측 |
-| U2 | Notion OAuth 302 체인의 실제 도메인 | 네비게이션 허용 목록 | P0 실측 → 2026-09-08 부분 실측: `api.notion.com/v1/oauth/authorize` → 302 `app.notion.com/install-integration`(§1.1). 동의 이후 홉은 미측정 |
+| U2 | Notion OAuth 302 체인의 실제 도메인 | 네비게이션 허용 목록 | P0 실측 → 2026-09-08 부분 실측: `api.notion.com/v1/oauth/authorize` → 302 `app.notion.com/install-integration`(§1.1). 동의 이후 홉은 미측정 → 2026-09-08 23:21 동의 화면 앞 4홉(`app.notion.com` sessionSync 왕복) 통과, 로그인 IdP 팝업은 U27 → 2026-09-08 23:41 종단 통과로 해소 |
 | U3 | 운영 API 오리진(`API_BASE_URL_PROD`) | prod 빌드 설정 | 팀 확인 |
 | U4 | `app://`에서 `https://api.*`로의 credentialed fetch에 Lax 쿠키가 붙는지(표준상 차단) | D2(로컬 번들 재검토 시) | 프로토타입 |
 | U5 | Electron `cookies.get`의 HttpOnly·`sameSite=strict` 쿠키 반환(이슈 #22345) | main 쿠키 접근(사용 안 함) | 필요 시 실측 |
@@ -953,4 +986,9 @@ Java SDK는 `client.messages().createStreaming(params)`가 `StreamResponse<RawMe
 | U15 | Cloudflare Workers 정적 자산의 `_headers` CSP 지원과 Emotion 인라인 스타일 충돌 | 웹 CSP Issue | 실험 |
 | U25 | Gemini `batchEmbedContents` 요청당 최대 건수와 입력 2,048토큰 초과 시 동작 | `B5` 배치 크기(로드맵 Q37) | 부분 해소(2026-09-08): 1,300자 텍스트 32건 이상이면 429 `RESOURCE_EXHAUSTED`, 8·16건은 200 → 배치 16. 토큰 초과 동작은 미확인 |
 | U26 | `gemini-embedding-001`이 REST 최상위 `outputDimensionality`·`taskType`으로 1,024차원 응답을 주는가(레퍼런스 deprecated 표시) | `B5` 차원 계약(로드맵 Q35) | 해소(2026-09-08): 최상위 필드로 1,024차원 응답, norm 0.6165(미정규화) |
-| U24 | Electron main의 전역 `fetch`(undici)가 SSE 응답 본문을 끊김 없이 스트리밍하고 `AbortController`로 취소되는가 | `S3` 사용자 LLM 클라이언트(로드맵 Q26 타임아웃·취소) | 부분 해소(2026-09-08): vitest(Node 22.21)에서 실제 `http.createServer` SSE 서버로 조각 순서·중간 `abort()`·서버 `request.close` 발화를 확인(`desktop/test/openAiCompatibleClient.test.ts`). Electron 44의 Node 24에서는 셸 종단에서 재확인 |
+| U24 | Electron main의 전역 `fetch`(undici)가 SSE 응답 본문을 끊김 없이 스트리밍하고 `AbortController`로 취소되는가 | 무효(2026-09-09 — `S3` 폐기, 데스크톱은 LLM을 호출하지 않는다) | 부분 해소 기록만 남긴다(2026-09-08 vitest Node 22.21 실측, `desktop/test/openAiCompatibleClient.test.ts` — `S8`에서 함께 제거). 서버 API 호출의 취소·30초 제한은 `knotApi.ts`가 같은 API로 처리하며 `S8`이 재사용 |
+| U28 | 세 CLI(Claude Code·Codex CLI·Gemini CLI)가 `http://127.0.0.1:<port>/mcp`의 Streamable HTTP 서버에 실제로 붙는가 — 어느 스펙 개정판(2026-07-28 무세션 vs 2025-06-18 `initialize`·`Mcp-Session-Id`)으로 오는지, `Authorization` 헤더를 그대로 보내는지, `Origin` 헤더를 안 보내는지 | `S8` 전송·인증(로드맵 Q47·Q48) | 미확인. 공식 문서상 셋 다 HTTP 전송·헤더 설정을 지원한다(§6.8). Claude Code 문서의 HTTP 예시는 전부 원격 URL이고 localhost 예시도 금지 문구도 없다. Gemini CLI 문서 예시는 `http://localhost:3000/mcp`다. 이 PC의 Claude Code 2.1.263으로 먼저 실측 |
+| U29 | Electron 44 `utilityProcess`에서 `http.createServer`가 `127.0.0.1`에 바인딩되고 `MessagePort` 왕복이 도구 호출 지연(목표 50ms 미만, 서버 API 시간 제외)을 만족하는가, 앱 종료·크래시 시 포트가 풀리는가 | `S8`(로드맵 Q47) | 미확인 |
+| U30 | MCP 서버 `instructions`(2026-07-28 개정판에서는 `server/discover` 응답의 해당 필드)가 세 CLI에서 모델에 노출되는가 | `S9`(로드맵 Q50) | 미확인. Claude Code MCP 문서에 언급이 없다. 노출되지 않으면 스킬 파일만이 안내 경로다 |
+| U31 | Codex CLI의 HTTP MCP 서버 등록 — `config.toml` `url`·`http_headers` 편집이 문서대로 동작하는가, `codex mcp add`에 HTTP용 옵션(`--url` 등)이 실제로 있는가(문서에는 stdio 형식만 있다) — 와 Gemini CLI `gemini mcp add --transport http`가 문서대로 동작하는가, `~/.agents/skills/knot/`을 두 CLI가 자동 발견하는가 | `S9`(로드맵 Q50) | 미확인(문서 확인만, §6.8). Codex 스니펫은 CLI 명령이 아니라 `config.toml` `http_headers` 편집으로 둔다. 설치본이 없어 미측정 |
+| U27 | Notion 로그인 IdP 팝업이 자식 창에서 끝까지 끝나는가(IdP embedded UA 거부 여부, `*popupcallback` 뒤 opener 통지·창 닫힘) | 네비게이션 허용 목록·새 창 정책(로드맵 Q46) | 부분 실측(2026-09-08): 팝업 URL·검증 페이지 동작·IdP 3종 302 목적지는 §1.1. → 해소(2026-09-08 23:41): Microsoft 경로가 자식 창에서 끝까지 지나갔다(§1.1). Google·Apple은 미실측 |

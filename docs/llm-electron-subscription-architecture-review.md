@@ -2,6 +2,7 @@
 
 - 기준일: 2026-09-04
 - 재확인: 2026-09-07 — Agent SDK overview 조항 문구는 동일하다. 확인 대상에 `legal-and-compliance`와 Agent SDK 구독 크레딧 지원 문서를 추가하고 2.1·5.1·8·9절을 보강했다. 1절 판정은 바뀌지 않았다
+- 재확인·정정: 2026-09-08 — 5.1절의 "승인 없이 열린 좁은 경로"(변경 없는 Claude Code 바이너리를 `claude -p` 자식 프로세스로 실행, 7절 E안)를 탐색의 기본 사용자 LLM으로 채택하는 초안(로드맵 `S6`)을 넣었으나 같은 날 사용자가 거부해 미채택으로 되돌렸다. 2026-09-09 — 데스크톱 경로를 **F안(데스크톱 로컬 MCP 서버 + 사용자의 CLI 코딩 에이전트)**으로 확정했다(로드맵 `S7`~`S10`, 불변 계약 2·3번 개정). 7절에 F안을 추가했고 E안은 미채택으로 남긴다. 1절 정책 판정은 D안(Agent SDK 내장)에 한해 유지된다
 - 기준 커밋: `develop` `b1d4801` (`[BE] 채팅 답변 출처 조회 API 구현 (#351)`)
 - 검토 대상: 「Electron + Claude 구독 OAuth + 백엔드 RAG 아키텍처」 문서(이하 "제안")
 - 검토 범위: `backend/`, `frontend/`, `docs/`, `.github/workflows/`, Anthropic 공식 문서(code.claude.com, docs.claude.com)
@@ -18,9 +19,11 @@
 | 제품 형태 | 대규모 신규 개발 | Knot은 Cloudflare Workers에 배포되는 웹 SPA다. Electron 코드·의존성·서명·배포 파이프라인이 전혀 없다. 제안은 데스크톱 앱을 새로 만드는 일이다. |
 | 백엔드 계약 | 역전 | Knot 백엔드는 검색뿐 아니라 LLM 호출, SSE 스트리밍, 답변·출처 영속화, 문서 준비 게이트, Workspace 격리 검증까지 소유한다. 제안은 이를 클라이언트로 옮기고 백엔드를 검색 전용으로 축소하므로, 이미 구현·검증된 계약이 대부분 무효화된다. |
 
+**정정(2026-09-08·2026-09-09)**: 위 정책 판정은 "Agent SDK를 제품에 묻어 사용자 구독으로 호출"하는 제안 원형(D안)에 대한 것이다. Knot이 2026-09-09 채택한 형태는 **F안** — 데스크톱 앱이 로컬 MCP 서버를 띄워 문서 검색 도구를 제공하고, 사용자가 자기 CLI 코딩 에이전트(Claude Code·Codex CLI·Gemini CLI)에 그 서버를 등록해 답변은 에이전트가 만드는 구조(7절, 기획서 6.4, 로드맵 `S7`~`S10`)다. 이 형태에서 Knot은 LLM을 호출하지 않고, 어떤 LLM 자격증명도 저장·중개·요구하지 않으며, CLI 바이너리를 실행·동봉·변경하지 않는다. `legal-and-compliance`가 금지하는 행위(로그인 제공·자격증명 수집/저장/중개·바이너리 변경·대납/재판매) 어느 것도 없고, 사용자가 공식 CLI에 제3자 MCP 서버를 연결하는 것은 세 CLI 모두 문서화된 정식 기능이다(지식 §6.8). 이 채택은 공개 문서 문구에 기댄 사용자 결정이다(로드맵 R28). 2026-09-08 낮에 잠시 넣었던 E안(변경 없는 Claude Code 바이너리를 `claude -p` 자식 프로세스로 실행)은 사용자가 거부해 미채택으로 남는다.
+
 **이미 충족하는 부분**: 제안의 설계 원칙 중 "벡터는 백엔드 밖으로 나가지 않는다", "모델은 검색된 텍스트 청크만 받는다", "credential은 모델에 넘기지 않는다"는 Knot이 서버 측에서 이미 지키고 있다. 제안이 "MVP용"으로 분류한 "사전 주입" 방식(Main이 먼저 검색해 프롬프트에 삽입, 툴 없음)이 곧 Knot의 현행 구조다. 위치만 Electron Main이 아니라 Spring 백엔드다.
 
-**권고**: 목적이 "채팅 모델을 Claude로 바꾸는 것"이라면 Electron 없이 백엔드의 `LlmClient` 추상화에 Anthropic Messages API 어댑터를 추가하는 것이 가장 작은 변경이다(7절 B안·C안). 데스크톱 앱은 제품 요구가 생길 때 별도 결정으로 분리한다.
+**권고**: 목적이 "채팅 모델을 Claude로 바꾸는 것"이라면 Electron 없이 백엔드의 `LlmClient` 추상화에 Anthropic Messages API 어댑터를 추가하는 것이 가장 작은 변경이다(7절 B안·C안). 데스크톱 앱은 제품 요구가 생길 때 별도 결정으로 분리한다. (2026-09-09 정정: 사용자 목표가 "최종 사용자 본인의 LLM으로 답변"이므로 B안은 웹 채팅 UI의 서버 경로(브라우저·데스크톱 셸 공통, 로드맵 Q22)에만 남고, 데스크톱이 더하는 경로는 F안이다.)
 
 ## 2. 검토 근거
 
@@ -43,6 +46,7 @@
 | Pro·Max 한도의 전제 (2026-09-07 추가) | 개인의 통상 사용 | 같은 문서: "Advertised usage limits for Pro and Max plans assume ordinary, individual usage of Claude Code and the Agent SDK." OAuth는 "intended exclusively for purchasers of Claude Free, Pro, Max, Team, and Enterprise subscription plans" |
 | 서드파티 앱이 사용자 구독으로 인증하는 형태 (2026-09-07 추가) | 과금 카테고리로 존재. 구독 usage limit에서 차감 | 지원 문서 "Use the Claude Agent SDK with your Claude plan"(최종 수정 2026-06-16). 월 크레딧 도입은 2026-06-15 공지로 보류: "Claude Agent SDK, `claude -p`, and third-party app usage still draw from your subscription's usage limits" — https://support.claude.com/en/articles/15036540-use-the-claude-agent-sdk-with-your-claude-plan |
 | 사전 승인 신청 절차 (2026-09-07 추가) | 공개된 폼·심사 기준·SLA 없음. 영업팀 문의가 유일한 문서화 창구 | Legal and compliance 말미: "For questions about permitted authentication methods for your use case, please contact sales" — https://www.anthropic.com/contact-sales |
+| 사용자가 공식 CLI에 제3자 MCP 서버·스킬을 등록 (2026-09-09 추가) | **문서화된 정식 기능**. `legal-and-compliance`에 MCP 서버 연결을 제한하는 조항 없음. Codex CLI·Gemini CLI도 같은 방식을 공식 문서로 안내 | Claude Code MCP: "Claude Code can connect to hundreds of external tools and data sources through the Model Context Protocol (MCP)… MCP servers give Claude Code access to your tools, databases, and APIs." — https://code.claude.com/docs/en/mcp , 스킬 https://code.claude.com/docs/en/skills , Codex https://learn.chatgpt.com/docs/extend/mcp?surface=cli , Gemini CLI https://geminicli.com/docs/tools/mcp-server/ (등록 명령·설정 파일은 지식 §6.8) |
 
 제안 문서 7절이 "정책이 2026년 들어 여러 번 변경됨, 배포 직전 재확인"이라고 적어 둔 항목이 바로 이 조항이다. 현재 문구는 "허용 범위"가 아니라 "사전 승인 없이는 금지"다.
 
@@ -131,7 +135,7 @@ GET  /api/v1/messages/{messageId}/sources           (출처 조회, Workspace �
 - `claude setup-token`은 CI·스크립트용 Claude Code CLI 기능으로 문서화돼 있고, Agent SDK 문서에는 지원 언급이 없다. 제안 7절의 "터미널 로그인 안내 또는 앱 내 xterm.js 로그인"도 결국 같은 구독 크리덴셜을 SDK가 읽게 하는 것이라 정책 문제가 동일하다.
 - Knot 팀은 이미 [`ADR 232`](./adr/232-shared-subscription-token-local-ai-review.md)에서 개인 구독 토큰 공유의 약관 위험을 부정 결과로 기록했다(당시 표현은 "저촉될 가능성"이었고, 2026-09-07 재확인으로 명시 문구가 확인돼 해당 ADR을 정정했다). 제안은 개발 도구가 아니라 최종 사용자 제품에 같은 위험을 옮기는 것이므로 노출 범위가 훨씬 넓다.
 - **(2026-09-07 추가)** [`legal-and-compliance`](https://code.claude.com/docs/en/legal-and-compliance)는 같은 금지를 더 구체적으로 적는다. "Anthropic does not permit third-party developers to offer Claude.ai login into their own applications, or to route requests through Free, Pro, or Max plan credentials on behalf of their users. Moreover, developers may not collect, store, or intermediate Claude.ai credentials or session tokens — sign-in to a Claude account must complete through Anthropic's own flow." 제안 7절의 앱 내 xterm.js 로그인은 앞 절반에, 토큰을 Main이 보관·중개하는 변형은 뒤 절반에 직접 걸린다.
-- **(2026-09-07 추가) 승인 없이 열린 좁은 경로가 하나 있다.** 같은 문서의 "Can customers offer Claude Code in their products?"는 상용 ToS 동의와 두 조건 아래 제품에 Claude Code를 동봉·실행하는 것을 허용한다. ① Claude Code 바이너리를 변경하지 않고 내장 인증 수단을 제거·비활성화하지 않는다. ② 개발사가 대납·재판매·중개하지 않고 최종 사용자가 각자 자격증명으로 인증한다. 이어서 "Nor does it prevent an end user from signing in to the unmodified Claude Code binary with their own Claude subscription, including where a platform hosts Claude Code"로 구독 로그인까지 명시한다. 다만 이 경로는 **제품이 변경 없는 Claude Code를 그대로 실행하고 사용자가 그것을 Claude Code로서 쓰는 형태**다. Agent SDK를 제품 로직에 묻어 Knot 채팅 UI로 감싸는 D안과 형태가 다르므로 D안의 대체가 되지 않는다. Knot이 이 경로를 쓰려면 제품이 "Knot 채팅"이 아니라 "Claude Code를 띄워 주는 셸"이 되어야 한다.
+- **(2026-09-07 추가) 승인 없이 열린 좁은 경로가 하나 있다.** 같은 문서의 "Can customers offer Claude Code in their products?"는 상용 ToS 동의와 두 조건 아래 제품에 Claude Code를 동봉·실행하는 것을 허용한다. ① Claude Code 바이너리를 변경하지 않고 내장 인증 수단을 제거·비활성화하지 않는다. ② 개발사가 대납·재판매·중개하지 않고 최종 사용자가 각자 자격증명으로 인증한다. 이어서 "Nor does it prevent an end user from signing in to the unmodified Claude Code binary with their own Claude subscription, including where a platform hosts Claude Code"로 구독 로그인까지 명시한다. 이 경로는 **제품이 변경 없는 Claude Code를 그대로 실행하고 인증은 바이너리 자체에 맡기는 형태**다. Agent SDK를 제품 로직에 묻는 D안과 형태가 다르다. **정정(2026-09-08·2026-09-09)**: 2026-09-08에 이 경로(7절 E안 — Knot이 `claude -p`를 자식 프로세스로 실행)를 채택하는 문구를 넣었으나 사용자가 거부해 미채택으로 되돌렸다. 채택된 F안에서 Knot은 어떤 CLI 바이너리도 실행하지 않으므로 이 조항(제품이 Claude Code를 동봉·실행할 때의 조건)은 적용 대상이 아니다. F안에서 Knot이 하는 일은 로컬 MCP 서버를 띄우는 것뿐이고, Claude Code를 설치·실행·로그인·구성하는 주체는 사용자 본인이다. 같은 문서에 MCP 서버 연결을 제한하는 조항은 없다(2026-09-09 재확인, 2.1절 마지막 행). 사용량 한도 관련 공지(다음 항목)는 사용자 본인 도구의 통상 사용이라 직접 대상이 아니며, 남는 해석 위험은 로드맵 R28로 추적한다.
 - **(2026-09-07 추가) 공개 문서 사이에 긴장이 있다.** 지원 문서 [`Use the Claude Agent SDK with your Claude plan`](https://support.claude.com/en/articles/15036540-use-the-claude-agent-sdk-with-your-claude-plan)은 "Third-party apps that authenticate with your Claude subscription through the Agent SDK"를 과금 대상 카테고리로 적고, 2026-06-15 공지는 그 사용량이 구독 usage limit에서 차감된다고 한다. 즉 "서드파티 앱이 사용자 구독으로 인증"이 아예 존재하지 않는 형태로 다뤄지지는 않는다. 이것이 Agent SDK overview의 "사전 승인 없이는 금지"와 어떻게 맞물리는지는 공개 문서만으로 확정할 수 없다. **이 미확정 지점이 8절 1번(서면 사전 승인)을 형식 절차가 아니라 실제 필요로 만든다.**
 - **(2026-09-07 추가) 사전 승인 신청 절차는 공개돼 있지 않다.** 신청 폼, 심사 기준, 처리 기간 어느 것도 문서화된 것이 없다. `legal-and-compliance` 말미의 "For questions about permitted authentication methods for your use case, please contact sales"(https://www.anthropic.com/contact-sales)가 유일한 문서화된 창구이며, 같은 문서가 예외를 "Unless we've mutually agreed otherwise"로 표현하므로 개별 상용 계약을 뜻한다. 검색에 걸리는 Development Partner Program은 모델 개선용 데이터 공유 프로그램이라 이 승인과 무관하다.
 - 폴백으로 제시된 `ANTHROPIC_API_KEY` 직접 입력(BYO key)은 정책상 허용된 경로다. 그러나 이 경로를 쓰면 Electron·Agent SDK를 둘 이유가 사라지고, 백엔드가 키를 보관해 호출하는 C안(7절)과 같은 결과가 된다.
@@ -208,7 +212,7 @@ GET  /api/v1/messages/{messageId}/sources           (출처 조회, Workspace �
 - 벡터 경계: `search_document_chunks`의 벡터는 어떤 API 응답에도 실리지 않는다. `search_references`는 문서 메타데이터와 점수만 돌려준다.
 - 사전 주입 방식: 제안 6절 표의 세 번째 행이 Knot 현행이다. 제안이 단점으로 든 "매 턴 강제 검색, 재검색 불가"는 사실이며, 필요하면 서버 측 tool use로 재검색 루프를 넣을 수 있다.
 - 검색 REST 노출: 제안의 `POST /v1/search`는 정책과 무관하게 유용할 수 있다. `PublishedDocumentSearchService`를 컨트롤러로 노출하면 벤치마크 도구(`tools/llm-benchmark`)나 향후 다른 클라이언트가 같은 검색을 재사용할 수 있다. 단 현재 요구는 없으므로 별도 Issue로 다룬다.
-- 원격 MCP 서버(제안 6절 두 번째 행): 백엔드가 MCP transport를 제공하면 팀원의 Claude Code나 Cursor에서 Knot 지식베이스를 쓸 수 있다. 이 경우 모델 호출은 각자의 개발 도구 안에서 일어나므로 Knot 제품이 구독을 제공하는 것이 아니다. 개발자용 부가 기능으로는 검토 여지가 있다.
+- 원격 MCP 서버(제안 6절 두 번째 행): 백엔드가 MCP transport를 제공하면 팀원의 Claude Code나 Cursor에서 Knot 지식베이스를 쓸 수 있다. 이 경우 모델 호출은 각자의 개발 도구 안에서 일어나므로 Knot 제품이 구독을 제공하는 것이 아니다. 개발자용 부가 기능으로는 검토 여지가 있다. **채택(2026-09-09, 로컬 변형 = 7절 F안)**: 이 구조를 서버가 아니라 데스크톱 앱이 띄우는 **로컬** MCP 서버(`http://127.0.0.1:<port>/mcp`)로 옮겼다. 앱이 사용자의 Bearer 토큰으로 서버 검색 API를 대신 부르므로 백엔드에 MCP transport·OAuth를 넣을 필요가 없고, 모델 호출은 사용자의 CLI 코딩 에이전트 안에서 일어난다. 서버 호스팅 변형은 로드맵 `A13`으로 남는다.
 
 ## 7. 대안 비교
 
@@ -218,12 +222,14 @@ GET  /api/v1/messages/{messageId}/sources           (출처 조회, Workspace �
 | B. 백엔드 Anthropic 어댑터 | 백엔드 → Anthropic Messages API | Console API 키 서버 보관, Knot 과금 | 허용 경로 | `AnthropicLlmClient`(+`LlmStream` 구현) 추가, `LlmClientConfig`에 `llm.provider=anthropic` 분기, 설정 키 | 임베딩은 Qwen 그대로. `SearchContext.groundingPrompt`가 `system`, 히스토리가 `messages`로 1:1 대응. 스트리밍은 SSE `text_delta`를 기존 pull형 `LlmStream`으로 감쌈 |
 | C. Workspace BYO API 키 | 백엔드 → Anthropic (Workspace 소유자 키) | 소유자가 Console 키 등록, 백엔드가 Notion 토큰과 같은 방식으로 암호화 보관 | 허용 경로 | B + 키 등록 API·UI, Workspace별 키 선택, 폐기·재등록 | 팀별 과금. 키 유출 시 폐기 UX 필요. `ADR 271`의 "Workspace별 credential 선택" 경계를 재사용 |
 | D. 제안 (Electron + 구독) | 사용자 PC Main → Agent SDK | 사용자 구독 | **사전 승인 없이 금지** | Electron 앱 신규, 검색·저장 API 신설, 인증 경로 추가, FE 스트림 계층 재작성, 웹 경로 별도 유지 | 5절 전부 해당 |
+| E. 변경 없는 Claude Code 바이너리 실행 (2026-09-08 초안 → **미채택**, 사용자 거부) | 사용자 PC Main → `claude -p` 자식 프로세스(사용자가 설치·로그인) | 사용자 본인 구독 또는 사용자가 넣어 둔 키. Knot은 로그인·토큰·키·env 무접촉 | 명시 허용 문구(2.1절 "Claude Code를 제품에 preinstall·실행"·"최종 사용자가 자기 구독으로 로그인" 행)에 기댄 해석 | main의 자식 프로세스 실행·stream-json 파싱 | 사용자가 "서브프로세스 방식"을 반복 거부해 로드맵 `S6` 폐기. 다시 제안하지 않는다(로드맵 불변 계약 3번) |
+| F. 데스크톱 로컬 MCP 서버 + 사용자의 CLI 코딩 에이전트 (**채택 2026-09-09**) | 사용자 터미널의 CLI 에이전트(Claude Code·Codex CLI·Gemini CLI) → 각자의 모델 제공자. Knot은 호출 없음 | 사용자 본인 도구의 로그인·구독·키. Knot은 어떤 LLM 자격증명도 무접촉 | 제3자 MCP 서버 연결·스킬은 세 CLI 모두 문서화된 정식 기능(2.1절 마지막 행, 지식 §6.8). `legal-and-compliance`의 금지 행위 없음. 해석 위험은 로드맵 R28 | 서버 Workspace 검색 API(`S7`)·턴 저장 API(`S2`) + 데스크톱 `utilityProcess` MCP 서버·연결 토큰·도구 `search_documents`·`list_workspaces`(`S8`) + 스킬·안내 화면(`S9`) + 선택 `show_answer`(`S10`). FE 스트림 계층 무변경(웹 채팅 UI는 서버 SSE 그대로) | 8절 전제 조건 중 1번(서면 승인)은 적용되지 않고 3·4·6번은 트랙 S가 흡수했다. 5번(품질 재측정)은 GS 게이트. 대가: 웹 채팅 UI는 서버 LLM, CLI는 사용자 LLM으로 두 경로가 공존(로드맵 R18), 문서 본문이 사용자의 CLI를 거쳐 그 모델 제공자로 간다(R27) |
 
-권고 순서는 B → C다. 두 안 모두 기존 `LlmClient`·`LlmStream` 추상화가 provider 교체를 전제로 설계돼 있어 채팅 파이프라인·SSE 계약·영속화·테스트를 건드리지 않는다. 모델은 현재 문서 기준 `claude-opus-5`를 기본으로 두고 `effort`로 비용을 조정한다. Java에는 공식 SDK(`com.anthropic:anthropic-java`)가 있으나, 현재 백엔드가 JDK `HttpClient`만 쓰고 있으므로 SDK 도입 여부는 구현 Issue에서 정한다.
+권고 순서는 B → C다. 두 안 모두 기존 `LlmClient`·`LlmStream` 추상화가 provider 교체를 전제로 설계돼 있어 채팅 파이프라인·SSE 계약·영속화·테스트를 건드리지 않는다. 모델은 현재 문서 기준 `claude-opus-5`를 기본으로 두고 `effort`로 비용을 조정한다. Java에는 공식 SDK(`com.anthropic:anthropic-java`)가 있으나, 현재 백엔드가 JDK `HttpClient`만 쓰고 있으므로 SDK 도입 여부는 구현 Issue에서 정한다. **정정(2026-09-09)**: 데스크톱이 더하는 경로는 F안이며 B안은 웹 채팅 UI의 서버 경로(브라우저·데스크톱 셸 공통, 로드맵 Q22)에 쓰인다. E안은 미채택이다.
 
-## 8. 그래도 D안을 진행한다면: 전제 조건
+## 8. 그래도 D안(Agent SDK 내장)을 진행한다면: 전제 조건
 
-아래가 모두 충족되기 전에는 착수하지 않는다.
+아래가 모두 충족되기 전에는 착수하지 않는다. **이 절은 D안에만 적용된다**(2026-09-09 정정). 채택된 F안(7절)은 1번 서면 승인의 대상이 아니며, 3·4·6번은 로드맵 트랙 S가 흡수했다.
 
 1. Anthropic으로부터 "claude.ai 로그인·구독 한도를 제품에 제공"하는 것에 대한 서면 사전 승인. 승인 범위(구독 종류, 사용자 수, 재배포 형태)를 명시. 문서화된 창구는 영업팀 문의뿐이다(https://www.anthropic.com/contact-sales). 5.1절의 미확정 지점 때문에 "구독 로그인을 승인해 달라"보다 **"우리 형태가 허용 범위에 드는지"**로 묻는 편이 답을 얻기 쉽다.
 2. 제품 형태 결정: 데스크톱 전용인지, 웹과 병행인지. 병행이면 백엔드 LLM 경로 유지 비용을 수용.
@@ -241,6 +247,11 @@ GET  /api/v1/messages/{messageId}/sources           (출처 조회, Workspace �
 - Agent SDK MCP (SDK MCP 서버, `alwaysLoad`): https://code.claude.com/docs/en/agent-sdk/mcp
 - Claude Code 인증 (`setup-token`, 크리덴셜 저장): https://code.claude.com/docs/en/authentication
 - Legal and compliance (자격증명 사용 조항, Claude Code 동봉 조건, 영업팀 문의): https://code.claude.com/docs/en/legal-and-compliance
+- Claude Code MCP (제3자 MCP 서버 연결, `claude mcp add --transport http … --header`): https://code.claude.com/docs/en/mcp
+- Claude Code 스킬 (Agent Skills 표준, `~/.claude/skills/`): https://code.claude.com/docs/en/skills
+- Codex CLI MCP (`~/.codex/config.toml` `[mcp_servers.<name>]`): https://learn.chatgpt.com/docs/extend/mcp?surface=cli , 스킬 (`~/.agents/skills`): https://learn.chatgpt.com/docs/build-skills
+- Gemini CLI MCP (`gemini mcp add --transport http --header`): https://geminicli.com/docs/tools/mcp-server/ , 스킬 (`~/.agents/skills` 별칭): https://geminicli.com/docs/cli/skills/
+- MCP Streamable HTTP 전송·보안 요구(Origin 검증 MUST, 로컬은 127.0.0.1 바인딩 SHOULD): https://modelcontextprotocol.io/specification/2025-06-18/basic/transports
 - Use the Claude Agent SDK with your Claude plan (서드파티 앱 구독 인증 과금, 2026-06-15 보류 공지): https://support.claude.com/en/articles/15036540-use-the-claude-agent-sdk-with-your-claude-plan
 - Anthropic 영업팀 문의: https://www.anthropic.com/contact-sales
 - Knot: [`adr/271-llm-search-architecture-benchmark.md`](./adr/271-llm-search-architecture-benchmark.md), [`llm-search-feature-spec.md`](./llm-search-feature-spec.md), [`llm-java-integration.md`](./llm-java-integration.md), [`adr/232-shared-subscription-token-local-ai-review.md`](./adr/232-shared-subscription-token-local-ai-review.md)
