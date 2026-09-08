@@ -4,5 +4,8 @@ import java.util.List;
 
 public interface DocumentEmbeddingClient {
 
-    List<double[]> embed(List<String> texts);
+    List<double[]> embed(
+            List<String> texts,
+            EmbeddingTask task
+    );
 }

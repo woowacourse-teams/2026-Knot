@@ -88,7 +88,10 @@ public class PublishedDocumentSearchService {
             String query
     ) {
         try {
-            List<double[]> embeddings = embeddingClient.embed(List.of(query));
+            List<double[]> embeddings = embeddingClient.embed(
+                    List.of(query),
+                    EmbeddingTask.QUERY
+            );
             if (embeddings == null || embeddings.size() != 1 || embeddings.getFirst() == null
                     || embeddings.getFirst().length != embeddingProperties.dimensions()) {
                 throw new SearchException(SearchErrorCode.SEARCH_PROVIDER_FAILED);

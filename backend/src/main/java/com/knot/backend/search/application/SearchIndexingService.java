@@ -51,7 +51,8 @@ public class SearchIndexingService implements ContentImportSearchIndexer {
                 List<double[]> batchEmbeddings = embeddingClient.embed(
                         batchInputs.stream()
                                 .map(SearchChunkInput::embeddingText)
-                                .toList()
+                                .toList(),
+                        EmbeddingTask.DOCUMENT
                 );
                 validateEmbeddings(
                         batchInputs,

@@ -1,6 +1,7 @@
 package com.knot.backend.search.infrastructure;
 
 import com.knot.backend.search.application.DocumentEmbeddingClient;
+import com.knot.backend.search.application.EmbeddingTask;
 import com.knot.backend.search.application.SearchProperties;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -14,7 +15,10 @@ final class FakeDocumentEmbeddingClient implements DocumentEmbeddingClient {
     }
 
     @Override
-    public List<double[]> embed(List<String> texts) {
+    public List<double[]> embed(
+            List<String> texts,
+            EmbeddingTask task
+    ) {
         properties.validate();
         List<double[]> embeddings = new ArrayList<>();
         for (String text : texts) {

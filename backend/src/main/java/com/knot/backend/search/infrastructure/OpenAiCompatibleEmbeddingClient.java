@@ -3,6 +3,7 @@ package com.knot.backend.search.infrastructure;
 import com.knot.backend.chat.infrastructure.LlmProperties;
 import com.knot.backend.search.application.DocumentEmbeddingClient;
 import com.knot.backend.search.application.EmbeddingProperties;
+import com.knot.backend.search.application.EmbeddingTask;
 import com.knot.backend.search.domain.SearchErrorCode;
 import com.knot.backend.search.domain.SearchException;
 import java.io.IOException;
@@ -37,7 +38,10 @@ final class OpenAiCompatibleEmbeddingClient implements DocumentEmbeddingClient {
     }
 
     @Override
-    public List<double[]> embed(List<String> texts) {
+    public List<double[]> embed(
+            List<String> texts,
+            EmbeddingTask task
+    ) {
         if (texts == null || texts.isEmpty()) {
             return List.of();
         }
