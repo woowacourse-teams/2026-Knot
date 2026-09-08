@@ -16,12 +16,20 @@ Notion Import
   → PostgreSQL pgvector 색인
   → 성공 시 publication pointer 교체
 
-채팅 질문
+채팅 질문(웹 채팅 UI — 브라우저·데스크톱 셸 공통, 서버 SSE 경로)
   → 현재 Workspace의 published import run 조회
   → keyword + pgvector 후보 검색
   → 유사도 상위 8개 청크 선별(같은 페이지의 청크 허용, 2026-09-07 정정)
   → 근거 system prompt + 현재 세션 history를 LLM에 전달
   → assistant 저장 + search_reference 저장 + SSE complete
+
+CLI 에이전트 질문(데스크톱 로컬 MCP 서버 경유, 2026-09-09 — 로드맵 S7·S8, 미구현)
+  → 사용자의 CLI 코딩 에이전트가 search_documents 도구 호출 → 데스크톱 앱
+  → POST /api/v1/workspaces/{workspaceId}/search (Workspace 멤버·published import run 검사)
+  → keyword + pgvector 후보 검색 → 상위 8개 청크 + 근거 규칙 문장 응답 (저장 없음, 서버 LLM 호출 없음)
+  → 에이전트가 터미널에서 답변 작성
+  → (선택) show_answer → POST /api/v1/conversations/{sessionId}/turns 로
+    USER + ASSISTANT(generated_by=CLIENT) + search_reference 저장 (로드맵 S2·S10)
 ```
 
 새 Import가 진행 중이거나 색인에 실패하면 기존 성공 publication을 유지한다. 최초 성공 publication이 없으면 채팅은 LLM을 호출하지 않고 `CHAT_DOCUMENTS_NOT_READY` 오류를 반환한다.
@@ -139,16 +147,19 @@ Gemini API 무료 티어가 있고 유료 티어는 입력 1M 토큰당 US$0.15(
 미만인 vector·keyword 후보는 답변 근거에서 제외하며, 남은 후보가 없으면 LLM을 호출하지 않고
 문서 없음 응답을 반환한다.
 
-## 데스크톱 경유 탐색 검색 API
+## CLI 에이전트 경유 탐색 검색 API (2026-09-09 정정)
 
-`POST /api/v1/conversations/{sessionId}/search`는 서버 LLM을 부르지 않고 검색 단계만 수행한다(데스크톱 기획서 6.4, 로드맵 `S1`). 데스크톱 main이 이 응답의 `groundingRules`와 `chunks`로 사용자 LLM 프롬프트를 조립한다.
+데스크톱 탐색 경로는 2026-09-09에 "데스크톱 main이 사용자 LLM 호출"에서 "사용자의 CLI 코딩 에이전트가 데스크톱 로컬 MCP 서버의 도구로 검색 결과를 받아 답변"하는 방식으로 바뀌었다(데스크톱 기획서 6.4, 로드맵 트랙 S). 서버는 어느 경로에서도 사용자를 대신해 LLM을 부르지 않는다.
 
-- 검사 순서: 세션 소유자 → 같은 세션의 진행 중 스트림·검색 잠금 → 공개 스냅샷(`CHAT_DOCUMENTS_NOT_READY` 409) → 답변 없는 USER 메시지가 `CHAT_TURN_TIMEOUT`(기본 `PT5M`) 안이면 `CHAT_TURN_IN_PROGRESS` 409.
-- READY: USER 메시지를 저장하고 `{status, userMessageId, groundingRules, chunks[≤8]}`를 돌려준다. `chunks[].content`는 `LLM_SEARCH_MAX_CONTEXT_CHARACTERS`(기본 12,000) 예산에 맞춰 잘린다.
-- NO_RESULT·NEEDS_CLARIFICATION: USER와 안내 ASSISTANT를 같은 트랜잭션에 저장하고 `{status, userMessageId, assistantMessageId, fallbackAnswer}`를 돌려준다.
-- 검색 자체가 실패하면(임베딩 provider 오류 등) 아무것도 저장하지 않고 `SEARCH_*` 코드를 500으로 돌려준다.
+- 구현됨(`S1`): `POST /api/v1/conversations/{sessionId}/search` — 세션 기준 검색. 서버 LLM을 부르지 않고 검색 단계만 수행한다. 2026-09-09 현재 이 엔드포인트의 소비자(데스크톱 `S3`)는 폐기돼 없으며, 검색·선별·예산 로직과 V14는 `S7`·`S2`가 재사용한다.
+  - 검사 순서: 세션 소유자 → 같은 세션의 진행 중 스트림·검색 잠금 → 공개 스냅샷(`CHAT_DOCUMENTS_NOT_READY` 409) → 답변 없는 USER 메시지가 `CHAT_TURN_TIMEOUT`(기본 `PT5M`) 안이면 `CHAT_TURN_IN_PROGRESS` 409.
+  - READY: USER 메시지를 저장하고 `{status, userMessageId, groundingRules, chunks[≤8]}`를 돌려준다. `chunks[].content`는 `LLM_SEARCH_MAX_CONTEXT_CHARACTERS`(기본 12,000) 예산에 맞춰 잘린다.
+  - NO_RESULT·NEEDS_CLARIFICATION: USER와 안내 ASSISTANT를 같은 트랜잭션에 저장하고 `{status, userMessageId, assistantMessageId, fallbackAnswer}`를 돌려준다.
+  - 검색 자체가 실패하면(임베딩 provider 오류 등) 아무것도 저장하지 않고 `SEARCH_*` 코드를 500으로 돌려준다.
+- 계획(`S7`, 미구현): `POST /api/v1/workspaces/{workspaceId}/search` — Workspace 멤버·공개 스냅샷 검사, `S1`과 같은 하이브리드 검색·청크 상위 8개·규칙 문장·예산. **저장·턴 검사 없음.** READY가 아니면 안내 문구만 돌려준다. 데스크톱 MCP 도구 `search_documents`가 이것을 부른다(로드맵 Q49).
+- 계획(`S2`, 미구현): `POST /api/v1/conversations/{sessionId}/turns` — 에이전트가 만든 질문·답변·근거(≤8)를 USER + ASSISTANT(`generated_by=CLIENT`) + `search_references`로 한 트랜잭션에 저장. 세션 소유자·Workspace JOIN 검증, rank ≤ 8, 진행 중 턴 검사(로드맵 Q23). MCP 도구 `show_answer`(`S10`)가 부른다.
 
-브라우저 단독 SSE 경로(`POST …/messages`)는 그대로 두고 근거만 청크 8개로 맞췄다(로드맵 Q22).
+웹 채팅 UI의 SSE 경로(`POST …/messages`)는 브라우저·데스크톱 셸 모두 그대로 쓰며 근거만 청크 8개로 맞췄다(로드맵 Q22).
 
 ## PostgreSQL
 
