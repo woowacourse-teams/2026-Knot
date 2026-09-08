@@ -47,10 +47,55 @@ export interface KnotDesktopApi {
     logout?(): Promise<void>;
     onSessionChanged?(handler: (state: "signed-in" | "signed-out") => void): () => void;
   };
+  /**
+   * 탐색 데스크톱 경유(기획서 6.4). 이벤트 모양은 웹 SSE의 `ChatStreamEvent`와 같다.
+   *
+   * main이 서버 검색 API → 사용자 LLM → 서버 저장 API를 차례로 부르고, delta마다
+   * `chunk`, 끝나면 `complete {messageId}`, 실패하면 `error {code, message}`를 준다.
+   * `cancel()` 뒤에는 이벤트가 오지 않는다. `complete`·`error` 뒤에도 더 오지 않는다.
+   */
+  chat?: {
+    ask(
+      input: { sessionId: number; content: string },
+      onEvent: (event: ChatStreamEvent) => void,
+    ): Promise<{ cancel(): void }>;
+  };
+  /**
+   * 사용자 LLM 설정(기획서 6.4). 키 값은 돌려주지 않는다(`hasApiKey`만).
+   *
+   * 저장된 설정이 없으면 `getSettings`는 provider `openai-compatible`에 `baseUrl`·`model`이
+   * 빈 문자열인 값을 돌려준다(로드맵 Q44). `setSettings`의 `apiKey`는 값이 있을 때만 바꾸고
+   * 비어 있으면 기존 키를 유지한다. 키를 지우는 것은 `clearApiKey`뿐이다.
+   */
+  llm?: {
+    getSettings(): Promise<UserLlmSettings>;
+    setSettings(input: UserLlmSettingsInput): Promise<void>;
+    clearApiKey(): Promise<void>;
+  };
   notifications?: {
     show(input: { title: string; body: string; link?: KnotDeepLink }): Promise<void>;
   };
 }
+
+/** 탐색 스트림 이벤트. 웹 SSE 계약(`chunk`·`complete`·`error`)과 같은 모양이다 */
+export type ChatStreamEvent =
+  | { event: "chunk"; data: { delta: string } }
+  | { event: "complete"; data: { messageId: number } }
+  | { event: "error"; data: { code: string; message: string } };
+
+/** 사용자 LLM 종류. `openai-compatible`은 LM Studio·Ollama·OpenAI 호환 서비스, `anthropic`은 Messages API */
+export type UserLlmProvider = "openai-compatible" | "anthropic";
+
+export interface UserLlmSettings {
+  provider: UserLlmProvider;
+  /** 예: `http://localhost:1234/v1`, `https://api.anthropic.com`. 허용 범위는 로드맵 Q27 */
+  baseUrl: string;
+  model: string;
+  /** 키가 저장돼 있는가. 값은 절대 renderer로 나가지 않는다 */
+  hasApiKey: boolean;
+}
+
+export type UserLlmSettingsInput = Omit<UserLlmSettings, "hasApiKey"> & { apiKey?: string };
 
 /** renderer에 노출되는 전역 이름 */
 export const KNOT_DESKTOP_GLOBAL = "knotDesktop";
@@ -73,4 +118,16 @@ export const IPC_CHANNELS = {
   authSetToken: "knot:auth-set-token",
   /** invoke: () => void */
   authClearToken: "knot:auth-clear-token",
+  /** invoke: (input: { sessionId: number; content: string }) => requestId */
+  chatAsk: "knot:chat-ask",
+  /** invoke: (requestId: string) => void */
+  chatCancel: "knot:chat-cancel",
+  /** main → renderer: { requestId: string; event: ChatStreamEvent } */
+  chatEvent: "knot:chat-event",
+  /** invoke: () => UserLlmSettings */
+  llmGetSettings: "knot:llm-get-settings",
+  /** invoke: (input: UserLlmSettingsInput) => void */
+  llmSetSettings: "knot:llm-set-settings",
+  /** invoke: () => void */
+  llmClearApiKey: "knot:llm-clear-api-key",
 } as const;
