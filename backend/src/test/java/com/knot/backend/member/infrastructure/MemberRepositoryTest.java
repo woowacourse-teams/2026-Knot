@@ -106,4 +106,25 @@ class MemberRepositoryTest {
         // then
         assertThat(thrown).isInstanceOf(DataIntegrityViolationException.class);
     }
+
+    @Test
+    @DisplayName("저장된 member ID는 존재하고, 지워진 ID는 존재하지 않는다")
+    void existsById_success() {
+        // given
+        Member savedMember = memberRepository.save(
+                Member.create(
+                        "octocat",
+                        null
+                )
+        );
+        long deletedMemberId = savedMember.getId() + 1;
+
+        // when
+        boolean saved = memberRepository.existsById(savedMember.getId());
+        boolean deleted = memberRepository.existsById(deletedMemberId);
+
+        // then
+        assertThat(saved).isTrue();
+        assertThat(deleted).isFalse();
+    }
 }

@@ -55,6 +55,39 @@ class MemberServiceTest {
     }
 
     @Test
+    @DisplayName("member ID로 존재 여부를 확인한다")
+    void existsById_success() {
+        // given
+        MemberRepository repository = mock(MemberRepository.class);
+        MemberService service = new MemberService(repository);
+        when(repository.existsById(1L)).thenReturn(true);
+
+        // when
+        boolean result = service.existsById(1L);
+
+        // then
+        assertThat(result).isTrue();
+        verify(repository).existsById(1L);
+    }
+
+    @Test
+    @DisplayName("존재 여부 확인의 member ID가 유효하지 않으면 커스텀 예외를 발생시킨다")
+    void existsById_failure_invalidMemberId() {
+        // given
+        MemberRepository repository = mock(MemberRepository.class);
+        MemberService service = new MemberService(repository);
+
+        // when
+        Throwable thrown = catchThrowable(() -> service.existsById(0L));
+
+        // then
+        assertThat(thrown).isInstanceOfSatisfying(
+                MemberException.class,
+                exception -> assertThat(exception.getErrorCode()).isEqualTo(MemberErrorCode.INVALID_MEMBER_DATA)
+        );
+    }
+
+    @Test
     @DisplayName("닉네임으로 member를 생성하고 저장한다")
     void create_success() {
         // given

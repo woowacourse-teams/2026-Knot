@@ -29,6 +29,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.HttpHeaders;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.context.annotation.Import;
@@ -50,13 +51,16 @@ class KnotApplicationTests {
 
     private final MockMvc mockMvc;
     private final AuthTokenProvider authTokenProvider;
+    private final JdbcClient jdbcClient;
 
     KnotApplicationTests(
             MockMvc mockMvc,
-            AuthTokenProvider authTokenProvider
+            AuthTokenProvider authTokenProvider,
+            JdbcClient jdbcClient
     ) {
         this.mockMvc = mockMvc;
         this.authTokenProvider = authTokenProvider;
+        this.jdbcClient = jdbcClient;
     }
 
     @Test
@@ -91,8 +95,9 @@ class KnotApplicationTests {
     @DisplayName("Bearer 토큰이 있으면 인증된 member 정보를 조회한다")
     void authMe_success() throws Exception {
         // given
+        long memberId = saveMember();
         AuthenticatedMember member = AuthenticatedMember.of(
-                1L,
+                memberId,
                 "octocat",
                 "https://example.com/avatar"
         );
@@ -108,9 +113,41 @@ class KnotApplicationTests {
 
         // then
         result.andExpect(status().isOk())
-                .andExpect(jsonPath("$.memberId").value(1))
+                .andExpect(jsonPath("$.memberId").value(memberId))
                 .andExpect(jsonPath("$.nickname").value("octocat"))
                 .andExpect(jsonPath("$.profileImageUrl").value("https://example.com/avatar"));
+    }
+
+    @Test
+    @DisplayName("서명이 유효해도 회원이 없는 토큰이면 401을 준다")
+    void authMe_failure_memberNotFound() throws Exception {
+        // given
+        long deletedMemberId = saveMember();
+        jdbcClient.sql("DELETE FROM members WHERE id = :id")
+                .param(
+                        "id",
+                        deletedMemberId
+                )
+                .update();
+        String token = authTokenProvider.issue(
+                AuthenticatedMember.of(
+                        deletedMemberId,
+                        "octocat",
+                        null
+                )
+        );
+
+        // when
+        ResultActions result = mockMvc.perform(
+                get("/api/v1/auth/me").header(
+                        HttpHeaders.AUTHORIZATION,
+                        "Bearer " + token
+                )
+        );
+
+        // then
+        result.andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("UNAUTHENTICATED"));
     }
 
     @Test
@@ -292,7 +329,7 @@ class KnotApplicationTests {
         // given
         String token = authTokenProvider.issue(
                 AuthenticatedMember.of(
-                        1L,
+                        saveMember(),
                         "octocat",
                         null
                 )
@@ -425,5 +462,16 @@ class KnotApplicationTests {
                         0,
                         12
                 );
+    }
+
+    /** 액세스 토큰은 회원이 있어야 인증되므로(기획서 5.1 회원 확인) 토큰의 subject를 실제 행으로 만든다 */
+    private long saveMember() {
+        return jdbcClient.sql("""
+                INSERT INTO members (nickname, profile_image_url)
+                VALUES ('octocat', 'https://example.com/avatar')
+                RETURNING id
+                """)
+                .query(Long.class)
+                .single();
     }
 }

@@ -1,9 +1,12 @@
 package com.knot.backend.auth.infrastructure.jwt;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import com.knot.backend.auth.domain.AuthenticatedMember;
 import com.knot.backend.global.config.JwtProperties;
+import com.knot.backend.member.application.MemberService;
 import java.time.Clock;
 import java.time.Duration;
 import org.junit.jupiter.api.AfterEach;
@@ -19,6 +22,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 
 class JwtAuthenticationFilterTest {
     private JwtProvider jwtProvider;
+    private MemberService memberService;
     private JwtAuthenticationFilter filter;
 
     @BeforeEach
@@ -30,7 +34,12 @@ class JwtAuthenticationFilterTest {
                 properties,
                 Clock.systemUTC()
         );
-        filter = new JwtAuthenticationFilter(jwtProvider);
+        memberService = mock(MemberService.class);
+        when(memberService.existsById(1L)).thenReturn(true);
+        filter = new JwtAuthenticationFilter(
+                jwtProvider,
+                memberService
+        );
     }
 
     @AfterEach
@@ -97,6 +106,32 @@ class JwtAuthenticationFilterTest {
     void doFilter_failure_invalidToken() throws Exception {
         // given
         MockHttpServletRequest request = requestWithAuthorization("Bearer invalid-token");
+
+        // when
+        filter.doFilter(
+                request,
+                new MockHttpServletResponse(),
+                new MockFilterChain()
+        );
+
+        // then
+        assertThat(
+                SecurityContextHolder.getContext()
+                        .getAuthentication()
+        ).isNull();
+    }
+
+    @Test
+    @DisplayName("토큰의 회원이 더 이상 없으면 서명이 유효해도 인증하지 않는다")
+    void doFilter_failure_memberNotFound() throws Exception {
+        // given
+        AuthenticatedMember deleted = AuthenticatedMember.of(
+                2L,
+                "octocat",
+                null
+        );
+        when(memberService.existsById(2L)).thenReturn(false);
+        MockHttpServletRequest request = requestWithAuthorization("Bearer " + jwtProvider.issue(deleted));
 
         // when
         filter.doFilter(
