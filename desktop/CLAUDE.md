@@ -21,7 +21,9 @@ main·preload 프로세스 코드다.
 - preload는 `src/shared/api.ts`의 인터페이스만 노출한다. `ipcRenderer` 원본과
   `ipcRenderer.on`의 `event` 객체는 renderer로 넘기지 않는다.
 - `shell.openExternal`은 `https:`·`mailto:`만 받는다.
-- 클라이언트에서 LLM을 호출하지 않는다. 데스크톱 전용 채팅 경로를 만들지 않는다.
+- LLM 호출은 **main만** 한다(불변 계약 2번, 2026-09-07 개정). renderer는 preload `chat` API만
+  쓰고, 답변·출처 저장은 서버 API만 한다. 사용자 LLM 키·엔드포인트·프롬프트 본문은 main 밖
+  (renderer·서버·로그)으로 내지 않는다. 사용자 개인 Claude 구독 중개는 금지다(3번).
 - Fuse 7종(`forge.config.ts`)을 낮추지 않는다.
 
 ## 구조
@@ -29,6 +31,8 @@ main·preload 프로세스 코드다.
 | 위치 | 책임 |
 | --- | --- |
 | `src/main/` | 창·메뉴·네비게이션 정책·IPC·로그. Node 환경 |
+| `src/main/chat/` | 탐색 경유(기획서 6.4): 서버 검색·이력·저장 호출, 프롬프트 조립, 요청 수명(세션당 1개·첫 조각 30초·취소) |
+| `src/main/llm/` | 사용자 LLM: 설정 저장(`llm-settings.json`·`llm-key.bin`), 엔드포인트 허용 판정(Q27), SSE 파서, openai-compatible·anthropic 스트리밍 클라이언트, 오류 매핑 |
 | `src/preload/` | `contextBridge`로 `window.knotDesktop` 노출. **CJS 단일 번들**(sandbox preload는 ESM 불가) |
 | `src/shared/api.ts` | preload 계약. 웹 SPA가 **복사**해 쓰므로 다른 파일을 import 하지 않는다 |
 | `src/shared/env.ts` | 오리진 표(기획서 4.5). 허용 목록의 근거 |

@@ -192,7 +192,7 @@ export type UserLlmSettingsInput = Omit<UserLlmSettings, 'hasApiKey'> & { apiKey
 - `auth.callback` 같은 로그인 콜백 데이터는 main에서만 소비하고 renderer로 보내지 않는다.
 - `auth.getToken`/`setToken`/`clearToken`은 **저장소만** 노출한다. 값은 renderer가 들고 있다가 `Authorization` 헤더에 직접 넣는다. 2단계에서 main이 `onBeforeSendHeaders`로 주입하게 되면 `getToken`은 `null`을 돌려주도록 바꾸고 SPA는 헤더를 붙이지 않는다(옵셔널 접근이라 하위 호환이 유지된다).
 - 토큰 값은 로그·크래시 리포트에 절대 쓰지 않는다. IPC 인자 로깅도 금지한다.
-- `chat.ask`는 IPC 채널 `knot:chat-ask`(invoke → requestId)·`knot:chat-cancel`·`knot:chat-event`(main → renderer)로 구현한다. main은 세션당 진행 중 요청을 하나만 두고, 첫 조각까지 30초(로드맵 Q26)를 넘기면 `LLM_STREAM_TIMEOUT`을 보낸다. `event` 객체는 renderer에 넘기지 않는다(2026-09-07, 6.4).
+- `chat.ask`는 IPC 채널 `knot:chat-ask`(invoke → requestId)·`knot:chat-cancel`·`knot:chat-event`(main → renderer)로 구현한다. main은 세션당 진행 중 요청을 하나만 두고, 첫 조각까지 30초(로드맵 Q26)를 넘기면 `LLM_STREAM_TIMEOUT`을 보낸다. `event` 객체는 renderer에 넘기지 않는다(2026-09-07, 6.4). `knot:chat-event`의 페이로드는 `{requestId, event}`이며 preload는 invoke 전에 구독을 걸고 requestId를 받기 전에 도착한 이벤트는 버퍼에 뒀다가 대조한다. `complete`·`error` 뒤에는 그 requestId로 이벤트를 더 보내지 않고 preload는 구독을 끊는다. `cancel()` 뒤에는 이벤트가 없다. 진행 중 요청을 낸 `WebContents`가 파괴되면 main이 요청을 중단한다(2026-09-08, `S3`).
 - `llm.getSettings`는 키 값을 돌려주지 않는다(`hasApiKey`만). `setSettings`의 `apiKey`는 main이 `safeStorage`로 암호화해 `userData/llm-key.bin`에 두고, 나머지 설정은 `userData/llm-settings.json`에 둔다. 키·프롬프트 본문은 로그·IPC 인자 로깅에 쓰지 않는다.
 - API 추가는 이 인터페이스 파일의 변경으로만 하며, 웹 SPA는 `window.knotDesktop?.xxx` 옵셔널 접근으로 하위 호환을 지킨다(셸 업데이트가 웹 배포보다 느리다).
 
@@ -399,13 +399,13 @@ B안이 안정되면 `content_source_authorizations`와 같은 암호화 envelop
 
 | 항목 | 설계 |
 | --- | --- |
-| 사용자 LLM | (a) 로컬 모델 — LM Studio·Ollama 등 OpenAI 호환 `/chat/completions`, 키 없음. (b) 사용자 본인 API 키 — Anthropic `/v1/messages` 또는 OpenAI 호환 서비스. claude.ai 로그인·구독 OAuth·세션 토큰 중개는 불변 계약 3번·검토 문서 5.1로 제외 |
-| 설정 저장 | `userData/llm-settings.json`(provider·baseUrl·model), 키는 `safeStorage` → `userData/llm-key.bin`. `isEncryptionAvailable()` false면 키를 저장하지 않고 메모리로만 |
+| 사용자 LLM | (a) 로컬 모델 — LM Studio·Ollama 등 OpenAI 호환 `/chat/completions`, 키 없음. (b) 사용자 본인 API 키 — Anthropic `/v1/messages` 또는 OpenAI 호환 서비스. claude.ai 로그인·구독 OAuth·세션 토큰 중개는 불변 계약 3번·검토 문서 5.1로 제외. 호출은 main의 전역 `fetch`(Node undici) 직접 호출이며 SDK를 넣지 않는다(9.2 금지 목록). 요청 필드·URL 조립은 로드맵 Q43(최소 필드만 — Anthropic `max_tokens: 4096`·`stream`, OpenAI 호환 `stream`만) |
+| 설정 저장 | `userData/llm-settings.json`(provider·baseUrl·model), 키는 `safeStorage` → `userData/llm-key.bin`. `isEncryptionAvailable()` false면 키를 저장하지 않고 메모리로만. 설정이 없을 때의 반환값과 `setSettings` 검증 규칙은 로드맵 Q44 |
 | 엔드포인트 허용 | `https:` 전체 + `http://localhost`·`http://127.0.0.1`(Q27). 네비게이션 허용 목록과 별개 |
-| 동시성·타임아웃 | 세션당 진행 중 요청 1개. 첫 조각까지 30초(Q26) → `LLM_STREAM_TIMEOUT` |
-| 오류 매핑 | 6.2 표와 같은 코드. 401/403 → `LLM_CONFIGURATION_INVALID`, 429·529 → `LLM_RATE_LIMITED`, 거부 → `LLM_REFUSED`, 그 외 → `LLM_STREAM_FAILED`. 설정 없음 → `LLM_CONFIGURATION_INVALID` |
-| 프롬프트 | 규칙 문장은 서버 응답을 그대로 쓴다. 근거 블록 형식은 현행 `SearchContext.groundingPrompt`와 동일. 세션 이력 전체를 `messages`로 |
-| 로깅 금지 | LLM 키·서버 토큰·프롬프트 본문·답변 본문. 사용량(토큰 수)만 INFO |
+| 동시성·타임아웃 | 세션당 진행 중 요청 1개(중복이면 `CHAT_TURN_IN_PROGRESS`). 첫 조각까지 30초(Q26) → `LLM_STREAM_TIMEOUT`. 서버 검색·이력·저장 호출은 각 30초 안에 응답 헤더(Q45) |
+| 오류 매핑 | 6.2 표와 같은 코드. 401/403 → `LLM_CONFIGURATION_INVALID`, 429·529 → `LLM_RATE_LIMITED`, 거부 → `LLM_REFUSED`, 그 외 → `LLM_STREAM_FAILED`. 설정 없음·엔드포인트 허용 밖·`anthropic` 키 없음 → `LLM_CONFIGURATION_INVALID`. 조각 0개로 끝난 스트림 → `LLM_STREAM_FAILED`(저장 없음). 서버 호출 네트워크 오류·타임아웃 → `LLM_STREAM_FAILED`, 저장된 토큰 없음 → `UNAUTHENTICATED`, 서버 HTTP 오류는 본문 `{code, message}` 그대로(본문을 못 읽으면 `UNKNOWN`) — 로드맵 Q45 |
+| 프롬프트 | 규칙 문장은 서버 응답을 그대로 쓴다. 근거 블록 형식은 현행 `SearchContext.groundingPrompt`와 동일(`[근거 문서 n]\n제목: …\n문서 ID: …\n문서 링크: …\n내용:\n…\n\n`, 규칙 문장 바로 뒤에 이어 붙인다). 세션 이력 전체를 `messages`로 — 이력은 검색 API가 USER를 저장한 **뒤** `GET /conversations/{sessionId}`로 읽으므로 마지막 항목이 현재 질문이다. 같은 역할 연속은 한 turn으로 합친다(Q43) |
+| 로깅 금지 | LLM 키·서버 토큰·프롬프트 본문·답변 본문·엔드포인트 URL(불변 계약 2번 — 엔드포인트도 main 밖으로 내지 않는다). 남기는 것: requestId·sessionId·provider·상태 코드·조각 수·첫 조각까지 ms·총 ms·사용량(토큰 수, Anthropic만) INFO |
 
 #### 웹 SPA
 
@@ -679,6 +679,7 @@ Issue 생성은 사용자가 명시적으로 허용하고 판정기가 `pass`·`
 | R18 | 브라우저 단독(SSE)·데스크톱(IPC) 두 탐색 경로 유지 비용 | 서버 LLM 어댑터와 데스크톱 LLM 클라이언트를 함께 유지 | 규칙 문장·선별·저장 검증을 서버 한 곳에 두어 중복을 줄인다. 웹 탐색 비활성은 Q22 대안 |
 | R19 | 근거 3페이지 → 청크 8개, 모델이 사용자마다 달라 gold set 결과가 이전과 비교되지 않음 | 품질 판정 불가 | 기준 모델 하나로 재측정(`S5`, GS) |
 | R21 | 허용 목록 밖 홉을 셸이 외부 브라우저로 빼면, 이동을 시작한 SPA는 이동 대기 상태(`isRedirecting`)에 갇혀 복구 경로가 없음 | 연결 버튼 무한 로딩(2026-09-08 관측) | 목록을 실측대로 유지(U2). 창 포커스 복귀·타임아웃으로 대기 상태를 푸는 FE 후속 |
+| R23 | 어떤 상태에서는 SPA가 데스크톱 `auth.getToken`을 초당 수백 번 호출함(재현 조건 미확인. 새로 띄운 로그아웃 상태는 2회). 웹의 `localStorage` 동기 읽기와 달리 데스크톱에서는 호출마다 IPC·`safeStorage` 복호화·로그 1줄 | `main.log`가 2분에 5MB 차서 회전되고 OAuth 체인 기록이 밀려남, CPU 낭비(2026-09-08 관측) | SPA의 토큰 없음 재요청 루프를 FE에서 끊는다. 셸 쪽 완화는 "없음" 로그를 debug로 내리거나 첫 1회만 남기기(로드맵 R23) |
 
 ## 16. 참고
 

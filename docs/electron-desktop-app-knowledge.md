@@ -422,6 +422,7 @@ contextBridge.exposeInMainWorld('knotDesktop', {
 - SameSite·`__Host-` 규칙은 Electron 문서에 없고 Chromium 규칙 그대로(MDN: `__Host-`는 Secure·Domain 없음·Path=/; Chrome은 SameSite 미지정을 Lax로 취급).
 - `disable-site-isolation-trials` 스위치는 Electron 문서에 없는 Chromium 스위치이며 SameSite 쿠키 규칙을 우회하지 못하고 Spectre류 방어를 없앤다 → 사용 금지.
 - renderer의 `fetch().body` 스트리밍·`EventSource`는 Chromium과 동일[추론]. [비공식] 이슈 #44458은 `nodeIntegration: true`에서만 발생한 `EventSource` 회귀(수정됨) → 기본 설정 무관.
+- main의 전역 `fetch`(Node undici)는 `response.body`(`ReadableStream<Uint8Array>`)로 SSE를 스트리밍하고 `AbortSignal`로 취소된다 — 2026-09-08 `S3` 구현에서 vitest(Node 22.21)로 실측(§8 U24). 데스크톱 사용자 LLM 호출은 Chromium 세션·쿠키가 섞이지 않도록 `net.fetch`가 아니라 이 전역 `fetch`를 쓴다(`desktop/src/main/llm/*Client.ts`). `AbortSignal.any`·`AbortSignal.timeout`(Node 20.3+)으로 호출자 취소와 30초 제한을 합친다(`desktop/src/main/chat/knotApi.ts`).
 - 출처: https://www.electronjs.org/docs/latest/api/session , /api/cookies , /api/web-request , /api/net , /api/client-request , /api/command-line-switches , https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Set-Cookie , https://web.dev/articles/samesite-cookies-explained
 
 ### 2.6 커스텀 프로토콜 `app://` [확인]
@@ -952,3 +953,4 @@ Java SDK는 `client.messages().createStreaming(params)`가 `StreamResponse<RawMe
 | U15 | Cloudflare Workers 정적 자산의 `_headers` CSP 지원과 Emotion 인라인 스타일 충돌 | 웹 CSP Issue | 실험 |
 | U25 | Gemini `batchEmbedContents` 요청당 최대 건수와 입력 2,048토큰 초과 시 동작 | `B5` 배치 크기(로드맵 Q37) | 부분 해소(2026-09-08): 1,300자 텍스트 32건 이상이면 429 `RESOURCE_EXHAUSTED`, 8·16건은 200 → 배치 16. 토큰 초과 동작은 미확인 |
 | U26 | `gemini-embedding-001`이 REST 최상위 `outputDimensionality`·`taskType`으로 1,024차원 응답을 주는가(레퍼런스 deprecated 표시) | `B5` 차원 계약(로드맵 Q35) | 해소(2026-09-08): 최상위 필드로 1,024차원 응답, norm 0.6165(미정규화) |
+| U24 | Electron main의 전역 `fetch`(undici)가 SSE 응답 본문을 끊김 없이 스트리밍하고 `AbortController`로 취소되는가 | `S3` 사용자 LLM 클라이언트(로드맵 Q26 타임아웃·취소) | 부분 해소(2026-09-08): vitest(Node 22.21)에서 실제 `http.createServer` SSE 서버로 조각 순서·중간 `abort()`·서버 `request.close` 발화를 확인(`desktop/test/openAiCompatibleClient.test.ts`). Electron 44의 Node 24에서는 셸 종단에서 재확인 |

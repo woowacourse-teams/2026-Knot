@@ -3,8 +3,8 @@
 - 문서 상태: Active — 이 문서는 데스크톱 앱 작업의 **실행 정본(SSOT)**이다.
 - 기준일: 2026-09-06
 - 기준 커밋: `develop` `b1d4801` (`[BE] 채팅 답변 출처 조회 API 구현 (#351)`)
-- 마지막 갱신: 2026-09-08 (Gemini 임베딩 배치 64 → 16·색인 429 재시도 신설. 홈 Notion 동기화가 `batchEmbedContents` 429로 실패한 실측으로 Q37·Q38 정정, Q42·R22 추가, U25 부분 해소, U26 해소. 유료 티어 전환 뒤 21페이지·611청크 동기화가 106초에 완료)
-- 현재 단계: **M0 `A1` 검증중** (아래 3절 G0 통과). 다음 게이트는 G1. 트랙 B는 `B1` 검증중(커밋·PR 승인 대기), `B5` 검증중(사용자 지시 2026-09-08 `임베딩 모델을 gemini 임베딩 1로 가자`, 구현·테스트 완료, 커밋·PR 승인 대기). 트랙 S는 `S1` 검증중(사용자 지시 2026-09-07 `로드맵 4.5절 s1구현해`, 구현·테스트 완료, 커밋·PR 승인 대기).
+- 마지막 갱신: 2026-09-08 (트랙 S `S3` 착수 — 데스크톱 preload `chat`·`llm` API와 main의 검색 호출·프롬프트 조립·사용자 LLM 스트리밍 클라이언트. Q43~Q45 추가. 같은 날 앞선 갱신: Gemini 임베딩 배치 64 → 16·색인 429 재시도 신설. 홈 Notion 동기화가 `batchEmbedContents` 429로 실패한 실측으로 Q37·Q38 정정, Q42·R22 추가, U25 부분 해소, U26 해소. 유료 티어 전환 뒤 21페이지·611청크 동기화가 106초에 완료)
+- 현재 단계: **M0 `A1` 검증중** (아래 3절 G0 통과). 다음 게이트는 G1. 트랙 B는 `B1` 검증중(커밋·PR 승인 대기), `B5` 검증중(사용자 지시 2026-09-08 `임베딩 모델을 gemini 임베딩 1로 가자`, 구현·테스트 완료, 커밋·PR 승인 대기). 트랙 S는 `S1` 검증중(사용자 지시 2026-09-07 `로드맵 4.5절 s1구현해`, 구현·테스트 완료, 커밋·PR 승인 대기), `S3` 검증중(사용자 지시 2026-09-08 `로드맵 4.5절 S3 구현해. 기획서 6.4 기준으로 데스크톱 main의 사용자 LLM 호출까지`, 구현·vitest 완료, 커밋·PR 승인 대기. 셸 종단은 `S2`·`S4`·로컬 모델이 있어야 한다).
 
 ## 0. 이 문서의 지위
 
@@ -78,7 +78,7 @@
 | B1 Anthropic 어댑터 | B | GB | 1 | 검증중 |
 | B2~B4 어댑터 후속 | B | GB | 3 | 대기 (B1) |
 | B5 임베딩 Gemini 어댑터 | B | GB | 1 | 검증중 |
-| S 탐색 데스크톱 경유 | S | GS | 5 | 검증중 (`S1`), `S2` 대기 (S1) |
+| S 탐색 데스크톱 경유 | S | GS | 5 | 검증중 (`S1`·`S3`), `S2` 대기 (S1) |
 
 ### 2.1 지금 착수 가능한 작업
 
@@ -89,7 +89,7 @@
 2. 없으면 아래 목록에서 순위가 높은 것을 고른다. 이 목록에는 상태가 `준비됨`이고 선행 작업이 풀린 작업만 올린다. 미결 결정은 5절 기본값으로 처리하므로 선택을 막지 않는다.
 3. 목록이 비어 있을 때만 새 작업을 시작하지 않고, 무엇이 막고 있는지(3절 게이트 또는 5절)를 사람에게 보고한다.
 
-**현재 규칙 1에 해당하는 작업이 있다.** `A1`(데스크톱 스파이크)·`W1`·`W3`(웹 선행)·`C1`~`C3`(트랙 C)·`B0`·`B1`·`B5`(트랙 B)·`S1`(트랙 S)이 `검증중`이다. 지정이 없으면 아래 목록보다 이들을 먼저 끝낸다.
+**현재 규칙 1에 해당하는 작업이 있다.** `A1`(데스크톱 스파이크)·`W1`·`W3`(웹 선행)·`C1`~`C3`(트랙 C)·`B0`·`B1`·`B5`(트랙 B)·`S1`·`S3`(트랙 S)이 `검증중`이다. 지정이 없으면 아래 목록보다 이들을 먼저 끝낸다.
 
 | 순위 | ID | 작업 | 왜 지금 가능한가 |
 | --- | --- | --- | --- |
@@ -99,7 +99,7 @@
 
 트랙 A(`A1~A13`)는 2026-09-06 사용자 지시로 G0을 통과했다(3절). `A2` 이후는 각자의 선행 작업이 끝나야 자동 선택 대상이 된다.
 
-트랙 S(`S1~S5`)는 2026-09-07 사용자 지시로 신설했다. 이 지시는 불변 계약 1·2번의 개정 지시이며, 문서를 먼저 개정했다. `S1`은 같은 날 사용자 지시(`로드맵 4.5절 s1구현해`)로 착수해 구현·검증이 끝나 커밋·PR 승인 대기(`검증중`)다. `S2`~`S5`는 선행이 끝나면 자동 선택 대상이 된다.
+트랙 S(`S1~S5`)는 2026-09-07 사용자 지시로 신설했다. 이 지시는 불변 계약 1·2번의 개정 지시이며, 문서를 먼저 개정했다. `S1`은 같은 날 사용자 지시(`로드맵 4.5절 s1구현해`)로 착수해 구현·검증이 끝나 커밋·PR 승인 대기(`검증중`)다. `S3`은 2026-09-08 사용자 지시(`로드맵 4.5절 S3 구현해. 기획서 6.4 기준으로 데스크톱 main의 사용자 LLM 호출까지`)로 착수해 구현·vitest가 끝나 커밋·PR 승인 대기(`검증중`)다 — 선행 `S1`이 병합 전이지만 지시가 우선한다(규칙 0). `S2`·`S4`·`S5`는 선행이 끝나면 자동 선택 대상이 된다.
 
 이 목록은 4절 표에서 파생된다. 둘이 어긋나면 4절이 정본이며 이 목록을 즉시 고친다. 작업 상태를 바꿀 때 이 목록도 같은 PR에서 갱신한다.
 
@@ -258,11 +258,13 @@ G0 미통과 상태에서도 착수할 수 있다.
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | S1 | 서버 검색 API `POST /api/v1/conversations/{sessionId}/search`: 접근·스냅샷·진행 중 턴 검사, USER 저장, 하이브리드 검색을 **청크 단위 상위 8개**로 선별해 규칙 문장과 함께 응답, READY가 아니면 안내 문구를 저장하고 응답. `top-k=8`·`max-context-characters=12000`. V14(`search_references` rank 1~8·`chunk_index`·유일 키, `chat_messages.generated_by`) | be | — | `core-flow`, `data`, `shared` | 6.4, 13 | 검증중 | | 필요(불변 계약 1·2 개정) |
 | S2 | 서버 답변 저장 API `POST /api/v1/conversations/{sessionId}/messages/assistant`(소유자·직전 USER·Workspace JOIN 검증, rank ≤ 8, `generated_by=CLIENT`) + 출처 조회 8건·`chunkIndex` 응답 | be | S1 | `data`, `security`, `core-flow` | 6.4, 13 | 대기 | | S1과 동일 |
-| S3 | 데스크톱 preload `chat`·`llm` API + main: 검색 호출, 프롬프트 조립, 사용자 LLM 스트리밍 클라이언트(openai-compatible·anthropic), 오류 매핑, 첫 조각 30초, 세션당 1요청, 설정 저장(키는 `safeStorage`) | fe | A1, C3, S1 | `security`, `external`, `core-flow` | 4.4, 6.4 | 대기 | | S1과 동일 |
+| S3 | 데스크톱 preload `chat`·`llm` API + main: 검색 호출, 프롬프트 조립, 사용자 LLM 스트리밍 클라이언트(openai-compatible·anthropic), 오류 매핑, 첫 조각 30초, 세션당 1요청, 설정 저장(키는 `safeStorage`) | fe | A1, C3, S1 | `security`, `external`, `core-flow` | 4.4, 6.4 | 검증중 | | S1과 동일 |
 | S4 | 웹: `streamChatMessageApi` 데스크톱 분기, 찾은 문서 `GET /messages/{id}/sources` 연동(페이지로 묶기), LLM 설정 화면(데스크톱 전용), 설정 없음 안내 | fe | S2, S3 | `core-flow` | 6.4, 9.3 | 대기 | | |
 | S5 | 기준 모델로 gold set 30문항 재측정(청크 8) + 데스크톱 TTFT 계측을 저장 API로 전달 | be, fe | S4 | `core-flow` | 6.4 | 대기 | | |
 
 완료 판정: `S1`·`S2` 백엔드 테스트 전량 통과(`S1` 2026-09-07: 단위 521건·통합 120건·수락 177건, 검색 API 수락 9건·OpenAPI 계약 1건·V14 업그레이드 1건 포함) + 검색·저장·출처 API 계약 테스트(다른 Workspace 청크 거부, rank 1~8, 진행 중 턴 409) · `S3` `desktop` vitest(프롬프트 조립·오류 매핑·엔드포인트 허용 판정·설정 저장) + 셸에서 로컬 LM Studio로 질문 → 답변 → 출처 종단 · `S4` vitest·tsc·ESLint 통과와 브라우저 단독(SSE)·데스크톱(IPC) 두 경로 E2E · `S5` 재측정 결과를 `docs/llm-search-ab-test-report.md`에 추가.
+
+`S3` 2026-09-08 실측: `desktop` typecheck(main·preload) 통과, vitest 11파일 89건 통과(엔드포인트 판정 7·SSE 파서 7·프롬프트 5·설정 저장소 10·OpenAI 호환 클라이언트 8·Anthropic 클라이언트 6·서버 API 클라이언트 9·요청 수명 12 등 신규 62건 + 기존 27건), `KNOT_DESKTOP_ENV=local` 빌드 통과. U24는 vitest 안에서 실제 `http.createServer` SSE 서버를 띄워 전역 `fetch`로 조각 순서·`AbortController` 취소·서버 연결 종료를 확인했다(Node 22. Electron main의 Node 24는 셸 종단에서 재확인). 답변 저장 호출(`POST …/messages/assistant`)은 6.4 계약대로 구현했으나 서버 `S2`가 없어 지금은 404가 그대로 `error`로 중계된다 — 셸 종단(질문 → 답변 → 출처)은 `S2`·`S4`·로컬 모델(LM Studio 미설치)이 갖춰진 뒤 측정한다. 웹 SPA의 계약 사본(`frontend/src/shared/types/desktop.ts`) 갱신은 `S4` 범위다. 같은 날 `local` 셸 스모크: 새 번들로 `앱 시작` → `http://localhost:3000` 로드까지 오류 0건, 새 IPC 핸들러 등록에 예외 없음(`~/Library/Logs/Knot/main.log` 17:04:08). `chat.ask`는 SPA 분기(`S4`)가 없어 셸 안에서 호출되지 않았다.
 
 위험 신호: `S1`~`S3`은 데이터 경계(클라이언트 생성 답변)·외부 credential(사용자 LLM 키)·계약 개정을 포함하므로 Issue를 만들 때는 인터뷰·Grill 경로다(7절 계약 7번). 구현 착수는 사용자 지시로 이뤄졌으므로 Issue를 선행 조건으로 삼지 않는다. 불변 계약 개정 ADR은 `S1` Issue 번호가 생기면 `Proposed`로 만든다.
 
@@ -314,6 +316,9 @@ G0 미통과 상태에서도 착수할 수 있다.
 | Q40 | 어느 환경에서 `gemini`를 켜는가 | B5 | `application.properties` 기본값은 `fake` 유지(테스트·CI가 외부 호출 없이 통과). 로컬은 `application-local.properties`(gitignore 대상)에 `llm.embedding.provider=gemini`, dev·prod는 서버 env 파일에 `LLM_EMBEDDING_PROVIDER=gemini`·`GEMINI_API_KEY`를 사람이 넣는다(배포 워크플로우는 초대 키 2개만 주입한다 — `deploy-backend-dev.yml:244-245`) | 기본값 확정(2026-09-08, `B5`) |
 | Q41 | 서명은 유효하지만 회원이 없는 액세스 토큰(탈퇴·DB 초기화)을 어떻게 처리하는가 | C1 | `JwtAuthenticationFilter`가 토큰 검증 뒤 `MemberService.existsById`로 회원 존재를 요청마다 확인하고, 없으면 인증하지 않아 기존 진입점이 401 `UNAUTHENTICATED`를 준다. 발급·클레임은 바꾸지 않는다. 확인 전에는 `/auth/me`가 200을 줘 `AuthGuard`가 통과시키고 이후 요청이 404·500으로 흩어져 로그아웃 진입점(GNB)에도 못 갔다(2026-09-08 로컬 DB 초기화 실측: `/auth/me` 200, `POST /workspaces` 500). `/auth/me`에서만 확인하는 대안은 첫 진입 뒤 요청이 여전히 500이라 택하지 않았다. `A6`가 서버 세션 조회를 붙이면 이 확인이 그 조회로 대체된다 | 기본값 확정(2026-09-08, 사용자 지시 `백엔드도 401 주도록 고쳐`) |
 | Q42 | Gemini 429·503을 재시도하는가, 어떻게 | B5 | 색인(`EmbeddingTask.DOCUMENT`)에서만 HTTP 429·503을 재시도한다. 지연은 `llm.gemini.retry-initial-delay`(PT5S)에서 2배씩(5·10·20·40초, 상한 60초) 늘리며 `llm.gemini.retry-max-attempts`(6)회까지 보낸다 — 5·10·20·40·60초, 누적 135초. 처음 5회(누적 75초)로 두었으나 실측(실행 #4)에서 무료 티어 6주기 중 1주기가 75초 안에 회복하지 못해 import가 실패해 6회로 올렸다. 시도마다 WARN 로그(status·attempt·delay)를 남기고 본문은 `error.status`만 적는다. 질의(`QUERY`)는 재시도하지 않는다(사용자가 최대 75초를 기다리게 되므로 Q31대로 바로 500). 4xx(400·401·403 등)·IO 오류·차원 불일치는 재시도하지 않는다. 무료 티어 21페이지(611청크)는 재시도 포함 10분 안팎이며 heartbeat(30초)·stale(1시간) 안이다. 유료 티어에서는 같은 양이 48초(39회 호출, 429 없음)다. 되돌리려면 `retry-max-attempts=1` | 기본값 확정(2026-09-08, 로컬 실측 — 배치 16에서도 3번째 배치가 429) |
+| Q43 | 데스크톱 사용자 LLM 요청의 파라미터와 URL 조립 | S3 | 사용자 모델이 무엇이든 400이 나지 않도록 **최소 필드만** 보낸다. Anthropic: `POST {baseUrl}/v1/messages`(`baseUrl`이 이미 `/v1`로 끝나면 `/messages`만 붙인다), `x-api-key`·`anthropic-version: 2023-06-01`, 본문 `{model, max_tokens: 4096, stream: true, system, messages}` — `temperature`·`thinking`·`output_config`는 보내지 않는다(서버 어댑터의 `output_config.effort`는 Opus 5 전용이라 사용자 모델에 강제하지 않는다). OpenAI 호환: `POST {baseUrl}/chat/completions`, `Authorization: Bearer`는 키가 있을 때만, 본문 `{model, messages: [{role: system}, …], stream: true}` — `max_tokens`·`temperature`는 보내지 않는다(일부 서비스가 `max_tokens`를 거부한다). `messages`는 세션 이력 전체를 `user`/`assistant`로 옮기고 같은 역할이 연속되면 한 turn으로 합친다(서버 Anthropic 매퍼와 같은 규칙). 마지막이 `user`가 아니면 현재 질문을 덧붙인다 | 기본값 확정(2026-09-08, `S3`) |
+| Q44 | 사용자 LLM 설정이 없을 때 `llm.getSettings`가 무엇을 돌려주고, `setSettings`는 무엇을 검사하는가 | S3, S4 | 저장된 설정이 없으면 `{provider: "openai-compatible", baseUrl: "", model: "", hasApiKey: false}`를 돌려준다(반환형을 nullable로 바꾸지 않는다 — 기획서 4.4 계약 유지). `setSettings`는 provider가 두 값 중 하나, `baseUrl`이 Q27 허용 범위(`https:` 전체 + `http://localhost`·`http://127.0.0.1`), `model`이 1~200자일 때만 저장하고 아니면 reject한다. `apiKey`가 빈 문자열이거나 없으면 기존 키를 유지하고, 값이 있으면 `safeStorage`로 바꿔 쓴다. `clearApiKey`만 키를 지운다. 질문 시점에 `baseUrl`·`model`이 비었거나 `anthropic`인데 키가 없으면 `LLM_CONFIGURATION_INVALID`(문구에 설정 화면 안내). `openai-compatible`은 키 없이 호출한다(로컬 모델) | 기본값 확정(2026-09-08, `S3`) |
+| Q45 | 데스크톱 main의 요청 수명 세부: 같은 세션 중복 요청, 빈 답변, 서버 호출 실패·타임아웃, 저장 실패 뒤 재시도 | S3 | 같은 세션에 진행 중 요청이 있으면 서버와 같은 코드 `CHAT_TURN_IN_PROGRESS`를 `error`로 보낸다(별도 코드를 만들지 않는다). LLM 스트림이 조각 0개로 끝나면 저장하지 않고 `LLM_STREAM_FAILED`. 서버 검색·이력·저장 호출은 각 30초(현행 SSE 타임아웃과 같은 값) 안에 응답 헤더가 와야 하며, 넘기거나 네트워크 오류면 `LLM_STREAM_FAILED`, 저장된 액세스 토큰이 없으면 `UNAUTHENTICATED`, HTTP 오류 본문을 읽지 못하면 웹 SSE 경로와 같은 `UNKNOWN`. 서버 HTTP 오류 본문의 `{code, message}`는 그대로 중계한다. 저장이 실패하면 답변·근거를 세션별로 메모리에 한 건 보관했다가 그 세션의 다음 질문 직전에 한 번 재시도하고(Q23), 재시도 결과와 무관하게 보관을 비운다(턴이 만료됐으면 `S2`가 `CHAT_TURN_MISMATCH`로 거절하고 서버는 다음 질문을 받는다). 취소는 보관하지 않는다(기획서 6.4 "저장 없음") | 기본값 확정(2026-09-08, `S3`) |
 
 **규칙**: 미결이라는 이유로 멈추지 않는다. 기본값으로 구현하고 적용한 기본값을 PR 본문에 적는다. 다음 두 가지만 예외로 사람에게 알린다 — (1) 실제 비용 지출·외부 계정 개설이 그 작업에 **실제로 필요해진 시점**(Q1·Q2·Q6), (2) 개인정보·법적 판단이 필요한 시점. 알린 뒤에도 그 항목 없이 가능한 범위는 계속 구현한다. 표에 없는 결정이 생기면 되돌리기 쉬운 쪽을 기본값으로 잡아 행을 추가하고 진행한다.
 
@@ -335,7 +340,7 @@ G0 미통과 상태에서도 착수할 수 있다.
 | U16 | `will-navigate`가 서버 302 리다이렉트에서 발화하지 않는다는 전제(기획서 4.5 정정)를 실제 OAuth 체인으로 확인 | A1 | 해소(2026-09-06): GitHub OAuth 3홉 중 SPA가 시작한 1홉만 `will-navigate`, 서버 302인 나머지 2홉은 `will-redirect`로 들어왔다. `will-navigate`만 검사했다면 `github.com`으로 넘어가는 두 홉이 허용 목록 검사를 거치지 않았다 |
 | U18 | `SearchContext.GROUNDING_INSTRUCTION`(약 330자)이 Opus 5 캐시 최소 프리픽스 512 토큰을 넘는가 | B1 → B2 | 미확인. 최소 프리픽스보다 짧으면 `cache_control`을 붙여도 조용히 캐시되지 않으므로 `B1`은 `system`을 문자열 하나로 보내고 캐시 표시를 넣지 않는다. `count_tokens`로 실측해 넘으면 `B2`에서 규칙 블록에 `cache_control`을 붙인다 |
 | U23 | 청크 8개(최대 12,000자) + 규칙을 넣은 프롬프트가 LM Studio `qwen/qwen3.6-27b`의 컨텍스트·TTFT 5초에 들어오는가 | S5 | 미확인. 기능 기획서 9절 실측은 근거 3페이지·10,000자 기준이라 그대로 쓸 수 없다 |
-| U24 | Electron main(Node 22 `fetch`/undici)에서 OpenAI 호환·Anthropic SSE 스트리밍을 끊김 없이 읽고 `AbortController`로 취소되는가 | S3 | 미확인. 백엔드 `OpenAiCompatibleLlmStream`·`AnthropicLlmStream`의 파서를 TypeScript로 옮길 때 실측 |
+| U24 | Electron main(Node 22 `fetch`/undici)에서 OpenAI 호환·Anthropic SSE 스트리밍을 끊김 없이 읽고 `AbortController`로 취소되는가 | S3 | 부분 해소(2026-09-08): vitest(Node 22.21, undici 전역 `fetch`)에서 실제 `http.createServer` SSE 서버로 조각 3개를 20ms 간격으로 흘려 순서대로 받았고, 첫 조각 뒤 `abort()`하면 `AbortError`가 나며 서버의 `request.close`가 발화했다(`desktop/test/openAiCompatibleClient.test.ts` "실제 HTTP 서버 스트리밍 (U24)"). 여러 바이트 글자의 조각 경계 분리도 `TextDecoder(stream: true)`로 깨지지 않았다(`sse.test.ts`). Electron 44가 번들한 Node 24에서의 재확인은 셸 종단(`S2`·`S4` 뒤)에서 |
 | U25 | Gemini `batchEmbedContents` 요청당 최대 건수와 입력 2,048토큰 초과 시 동작(조용한 절단 vs 400) | B5 → GB | 부분 해소(2026-09-08): 로컬 키(무료 티어)로 1,300자 텍스트를 8·16건 보내면 200, 32·64건이면 429 `RESOURCE_EXHAUSTED`(본문 `details`에 `QuotaFailure` 없이 `Help`만). 8건×4회 연속 호출은 모두 200이라 분당 누적 한도가 아니라 요청 하나의 크기 상한이다. 로컬 Notion 동기화(21페이지·28만 자)가 배치 64에서 첫 배치부터 429로 실패해 Q37을 16으로 정정했다. 이어서 16건 배치를 연속으로 보내면 3번째(누적 32건·약 4만 자)가 429이고 56초 뒤 200으로 회복돼, 무료 티어는 **분당 약 32청크** 한도다(배치 16으로 내려도 재시도 없이는 3번째 배치에서 실패 — Q42). 재시도 5회(누적 75초)를 넣고 돌린 실행 #4는 6주기 중 1주기가 회복하지 못해 412초 만에 실패했다. 결제 계정을 연결(유료 티어)한 뒤에는 64건 배치도 200이고, 실행 #5가 611청크·39회 호출을 48초에 429 없이 끝냈다. 2,048토큰 초과 시 동작은 아직 미확인 |
 | U26 | `gemini-embedding-001`이 REST 요청 최상위 `outputDimensionality`·`taskType`으로 실제 1,024차원 응답을 주는가(API 레퍼런스가 두 필드에 `EmbedContentConfig`로 옮기라는 deprecated 표시를 달았지만 가이드의 REST 예시는 최상위 필드를 쓴다) | B5 → GB | 해소(2026-09-08): 최상위 `outputDimensionality=1024`·`taskType=RETRIEVAL_DOCUMENT`로 보낸 `batchEmbedContents`가 `values` 1,024개를 돌려줬고, 그 벡터의 L2 norm은 0.6165로 정규화돼 있지 않았다(Q35의 어댑터 측 정규화가 필요함을 확인) |
 | V1 | 착수 시점의 Electron·Forge·Playwright 최신 버전 재조회 | A1 착수 시 | 해소(2026-09-06): `electron@44.2.0`(2026-09-04 배포), `@electron-forge/cli@7.11.2`(latest, 8은 `8.0.0-alpha.10`), `@playwright/test@1.63.0`, `update-electron-app@3.3.0`, `electron-log@5.4.4`, `@electron/fuses@2.1.3`, `@electron/notarize@3.1.1`, `esbuild@0.28.2`. 근거: `npm view <pkg> version` |
@@ -397,6 +402,7 @@ G0 미통과 상태에서도 착수할 수 있다.
 | R20 | 임베딩 공간 교체(Qwen → Gemini)로 기존 색인이 무효화되고, gold set·A/B 보고서가 Qwen 임베딩 기준이라 이전 결과와 비교되지 않음 | B5 (Q39), GB | 미해소. 재색인은 동기화 재실행으로, 품질은 GB에서 재측정 |
 | R21 | 허용 목록 밖 홉이 나오면 셸은 외부 브라우저로 빼지만, 이동을 시작한 SPA는 이동 대기 상태(`useNotionConnect`의 `isRedirecting`)에 갇혀 버튼이 무한 로딩이 되고 복구 경로가 없음 | A1 (U2) 관측, FE 후속 | 미해소(2026-09-08 관측). 목록을 맞추면 지나가지만 새 도메인이 나올 때마다 같은 증상이 재발한다. 창 포커스 복귀·타임아웃으로 대기 상태를 푸는 것은 FE 후속 |
 | R22 | 무료 티어 Gemini 키는 분당 약 32청크(≈4만 자)만 받아 큰 Workspace 동기화가 수 분 걸리고(21페이지 약 9분), 사용자는 그동안 카드 스피너만 본다. 일일 한도(RPD)에 걸리면 재시도로도 못 넘긴다 | B5 (Q42), GB | 부분 해소(2026-09-08): 로컬 키의 프로젝트에 결제 계정을 연결해 611청크가 48초에 색인됐다(실행 #5). 무료 티어에서는 Q42 재시도로도 실패할 수 있다(실행 #4). 운영 키는 유료 티어로 둔다(Java 연동 문서). 진행률·실패 사유 원인별 노출은 ADR 261의 재논의 조건이라 별도 결정 |
+| R23 | 어떤 상태에서는 SPA가 셸 안에서 `auth.getToken`을 초당 수백 번 호출한다. 웹에서는 `localStorage` 동기 읽기라 드러나지 않지만 데스크톱에서는 호출마다 IPC + `safeStorage` 복호화 시도 + 로그 1줄이라 `main.log`가 2분에 5MB(약 6만 줄) 차서 회전되고 OAuth 체인 기록이 밀려난다 | C2 관측, FE 후속 | 미해소·재현 조건 미확인(2026-09-08 `S3` 스모크 중 관측: 이 세션 전부터 떠 있던 `local` 셸 인스턴스의 로그가 16:59~17:00 두 분에 61,680줄 전부 `저장된 토큰 없음`, 무슨 화면이었는지는 기록이 회전돼 알 수 없다). 같은 빌드를 새로 띄운 로그아웃 상태에서는 21초 동안 2회뿐이라 기본 동작은 아니다. 원인 지점은 SPA 쪽(토큰 없음 → 재요청 루프로 추정)이라 FE 후속이며, 셸 쪽 완화는 `tokenStore`의 "없음" 로그를 debug로 내리거나 첫 1회만 남기는 것 |
 
 ## 10. 작업 1건 실행 절차 (매번 반복)
 
@@ -436,3 +442,4 @@ G0 미통과 상태에서도 착수할 수 있다.
 | 2026-09-08 | `C1` 보강: 회원이 없는 액세스 토큰을 401로 처리(Q41 추가, C1 행 문구 보강). 기획서 5.1 계약에 `회원 확인` 행, 13절에 변경 행 추가 | 사용자 지시(`auth.bin 지우고 백엔드도 401 주도록 고쳐`) + 로컬 DB 초기화 후 stale 토큰 실측(`/auth/me` 200, `POST /workspaces` 500, 로그아웃 진입점 도달 불가) |
 | 2026-09-08 | Notion 연결 무한 로딩 진단·정정. U2 부분 해소(동의 화면 `app.notion.com` 실측), R2 부분 해소, R21 추가(차단 시 SPA 복구 부재), G1 두 번째 체크박스에 실측 기록. 기획서 4.5 허용 목록에 `app.notion.com` 추가·Notion 체인 항목 신설·15절 R2 정정·R21 추가, 지식 문서 §1.1 Notion OAuth 체인 행·§8 U2 정정. 코드는 `desktop/src/shared/env.ts` 허용 목록과 `env.test.ts` | 사용자 지시(`고쳐줘, 문서부터 순서대로`) + `~/Library/Logs/Knot/main.log` 09-07·09-08 `will-redirect` 차단 기록, 로컬 DB 연결 행 |
 | 2026-09-08 | 홈 Notion 동기화 실패(`Notion 문서를 가져오지 못했습니다`) 진단·정정. 원인은 Notion이 아니라 Gemini `batchEmbedContents` 429(무료 티어). 배치 64 → 16(Q37 정정), 색인 배치 429·503 지수 백오프 재시도 신설(Q42, `GeminiEmbeddingClient`·`llm.gemini.retry-*`, 기본 6회), Q38 정정, U25 부분 해소·U26 해소, R22 추가. 기획서 6.2·13절, 지식 문서 §1.4·§8, Java 연동 문서 정정. 단위 543건 통과. 무료 티어 실행 #4는 재시도로도 실패(412초), 결제 계정 연결 뒤 실행 #5 완료(106초·611청크·발행). 실패 사유 원인별 노출은 ADR 261 재논의 조건이라 미착수 | 사용자 지시(`1번부터 진행해줘`) + 로컬 DB(`content_import_runs` 21/21 FAILED·`search_document_chunks` 0건)·Gemini 직접 호출 실측 |
+| 2026-09-08 | 트랙 S `S3` 착수 후 구현·검증 완료로 `검증중`(typecheck·vitest 89건·local 빌드 통과, U24 부분 해소, 셸 종단은 `S2`·`S4`·로컬 모델 뒤). 스모크 중 R23(특정 상태의 SPA가 `auth.getToken`을 폭주 호출해 로그 회전) 관측·추가. 데스크톱 preload `chat.ask`·`llm.getSettings/setSettings/clearApiKey`, main의 검색 API 호출·이력 조회·프롬프트 조립·사용자 LLM 스트리밍 클라이언트(openai-compatible·anthropic, `fetch` 직접 호출)·오류 매핑·첫 조각 30초·세션당 1요청·설정 저장(`llm-settings.json`·`llm-key.bin`). Q43(요청 파라미터·URL 조립)·Q44(설정 없음·검증)·Q45(요청 수명 세부) 추가. 기획서 6.4 데스크톱 main 표·4.4 규칙 보강, `desktop/CLAUDE.md`의 개정 전 계약 문구("클라이언트에서 LLM을 호출하지 않는다") 정정 | 사용자 지시(`로드맵 4.5절 S3 구현해. 기획서 6.4 기준으로 데스크톱 main의 사용자 LLM 호출까지`) |

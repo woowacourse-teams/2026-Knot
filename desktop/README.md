@@ -1,8 +1,9 @@
 # Knot 데스크톱 셸
 
-`https://knoted.kr` 웹 앱을 원격 로드하는 Electron 셸이다. 채팅·검색·LLM 호출·답변
-저장은 기존 백엔드 계약을 그대로 쓴다. 셸이 더하는 것은 상시 실행·딥링크·알림·퀵 질문
-창·자동 업데이트다.
+`https://knoted.kr` 웹 앱을 원격 로드하는 Electron 셸이다. 탐색(채팅)은 서버가 검색·저장을,
+이 셸의 main이 **사용자 LLM 호출**을 맡는다(기획서 6.4, 2026-09-07 개정). 셸이 더하는 것은
+상시 실행·딥링크·알림·퀵 질문 창·자동 업데이트, 그리고 사용자 LLM으로 답변을 만드는 탐색
+경로다.
 
 **작업 전에 [실행 정본 로드맵](../docs/electron-desktop-app-roadmap.md)을 먼저 읽는다.**
 설계 근거는 [기술 기획서](../docs/electron-desktop-app-tech-plan.md), 조사 사실은
@@ -11,7 +12,7 @@
 
 ## 현재 범위
 
-로드맵 `A1`(데스크톱 스파이크, 기획서 7절 P0)까지다.
+로드맵 `A1`(데스크톱 스파이크, 기획서 7절 P0) + `C3`(토큰 저장) + `S3`(탐색 IPC·사용자 LLM)까지다.
 
 | 있음 | 없음(담당 작업) |
 | --- | --- |
@@ -19,8 +20,13 @@
 | 네비게이션·리다이렉트 허용 목록, 새 창 거부 | `knot://` 딥링크 (`A8`) |
 | 세션 권한 정책, IPC sender 검증 | 트레이·퀵 질문 창 (`A9`) |
 | 메뉴, 외부 링크, 오프라인 화면, 파일 로그 | 디바이스 토큰 인증 (`A6`·`A7`) |
-| 미서명(ad-hoc) 로컬 빌드 | 서명·공증·DMG·Squirrel·릴리스 (`A3`) |
-| | 창 상태 복원, crashReporter (`A2`) |
+| 액세스 토큰 `safeStorage` 저장(`auth.bin`) | 서명·공증·DMG·Squirrel·릴리스 (`A3`) |
+| 탐색 IPC `chat.ask`: 서버 검색 → 사용자 LLM 스트리밍 → 서버 저장, 세션당 1요청·첫 조각 30초 | 창 상태 복원, crashReporter (`A2`) |
+| 사용자 LLM 설정 `llm.*`(`llm-settings.json` + `safeStorage` `llm-key.bin`), openai-compatible·anthropic 클라이언트 | 웹 SPA 쪽 분기·설정 화면 (`S4`), 서버 저장 API (`S2`) |
+
+사용자 LLM 설정 파일은 `~/Library/Application Support/Knot/llm-settings.json`(provider·baseUrl·model)과
+`llm-key.bin`(암호화된 키)이다. 엔드포인트는 `https:` 전체와 `http://localhost`·`http://127.0.0.1`만
+받는다(로드맵 Q27). 키·엔드포인트·프롬프트·답변 본문은 로그에 남기지 않는다.
 
 ## 개발
 
