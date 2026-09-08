@@ -207,9 +207,10 @@ export type UserLlmSettingsInput = Omit<UserLlmSettings, 'hasApiKey'> & { apiKey
 - 환경은 빌드 시 상수로 고정한다(`KNOT_DESKTOP_ENV`). 런타임 전환 UI는 두지 않는다(피싱 표면).
 - **`local`은 실 백엔드를 본다**(정정 2026-09-07). 처음에는 `API_MOCKING=true`인 mock 프론트 단독 구동을 전제해 웹과 API를 같은 오리진(`:3000`)으로 뒀다. 그 조합으로는 셸 안에서 실제 GitHub OAuth가 한 번도 지나가지 않는다 — devServer의 302 미들웨어가 로그인을 대신하므로 백엔드로 나가는 홉 자체가 없고, 따라서 허용 목록도 검증되지 않는다. 실 로그인은 SPA가 `http://localhost:8080/oauth2/authorization/github`로 이동하면서 시작하므로 이 오리진이 목록에 있어야 한다. 없으면 `will-navigate`에서 차단된 뒤 대체 경로인 `shell.openExternal`마저 `http:`라 거부해 **로그인 버튼이 무반응**이 된다(2026-09-07 실측). mock 구동을 막지는 않는다 — 그때는 `:8080` 홉이 없어 목록에 있어도 지나가지 않는다.
 - **API 오리진을 추정하지 않는다**(정정 2026-09-06). dev의 실제 값이 `dev-api.knoted.kr`로 확인되면서 `api.<env>.knoted.kr` 대칭 가정이 깨졌다. prod 값은 `A3` 배포 시점에 사람이 `KNOT_API_ORIGIN`으로 주입한다.
-- 네비게이션 허용 목록: 웹 오리진, API 오리진, `https://github.com`(1단계 로그인), GitHub 소셜 로그인 IdP(`https://accounts.google.com` — 추가 2026-09-07), Notion OAuth 경유 도메인(`https://api.notion.com`, `https://www.notion.so` — 구현 시 실제 302 체인으로 확정). 목록 밖 URL은 `preventDefault` 후 `shell.openExternal`.
+- 네비게이션 허용 목록: 웹 오리진, API 오리진, `https://github.com`(1단계 로그인), GitHub 소셜 로그인 IdP(`https://accounts.google.com` — 추가 2026-09-07), Notion OAuth 경유 도메인(`https://api.notion.com`, `https://app.notion.com` — 추가 2026-09-08 `A1` 실측, `https://www.notion.so` — 미관측이나 로그인 홉 가능성으로 유지). 목록 밖 URL은 `preventDefault` 후 `shell.openExternal`.
 - **GitHub 로그인 폼이 제공하는 소셜 로그인(Google·Apple) 경유 도메인도 목록에 있어야 한다**(추가 2026-09-07, `A1` 실측). GitHub 계정 자체를 Google로 만든 사용자는 `github.com/login`에서 "Sign in with Google"을 누르고, 체인이 `github.com/sessions/social/google/initiate` → `accounts.google.com/o/oauth2/v2/auth`로 나간다. 이 홉을 외부 브라우저로 넘기면 Google 인증만 다른 브라우저에서 끝나고, GitHub이 소셜 로그인 `state`를 심어둔 세션 쿠키는 앱 세션에 남아 있으므로 콜백에서 대조가 실패한다(관측 문구: "We could not validate the response from your social login provider"). **로그인 체인은 한 브라우저 세션 안에서 끝나야 한다** — 중간 홉만 외부로 빼면 흐름이 깨진다.
 - Apple(`https://appleid.apple.com`)은 같은 이유로 아직 깨진다. 필요해지면 같은 근거로 추가한다(미해소, 2026-09-07).
+- **Notion OAuth의 동의 화면은 `app.notion.com`에 있다**(추가 2026-09-08, `A1` 실측, 로드맵 U2). SPA가 `https://api.notion.com/v1/oauth/authorize?…`로 이동하면 Notion이 302로 `https://app.notion.com/install-integration?…`에 보낸다. 이 오리진이 목록에 없으면 `will-redirect`에서 차단돼 외부 브라우저로 빠지고, 동의를 거기서 마치면 백엔드 연결은 성공하지만 결과 화면(`?result=connected`)도 외부 브라우저로 돌아가며, 앱 창의 SPA는 이동 대기 상태에 갇혀 **연결 버튼이 무한 로딩**이 된다(R21). 동의 이후 홉(Notion 로그인·콜백 복귀)은 아직 앱 창 안에서 실측되지 않았다 — 새 도메인이 나오면 같은 근거로 추가한다.
 - **차단은 `will-navigate`와 `will-redirect` 두 이벤트 모두에 건다**(정정 2026-09-06, `A1`). `will-navigate`는 링크 클릭·`window.location` 변경 같은 네비게이션 *시작*에서 발화하고, 그 네비게이션 도중의 서버 302는 `will-redirect`로 발화한다. OAuth 로그인은 302 체인이므로 `will-navigate`만 막으면 허용 오리진에서 시작한 뒤 목록 밖으로 넘어가는 경로가 통과한다. `did-start-navigation`·`did-redirect-navigation`은 취소할 수 없어 **기록 전용**으로 쓴다(U2 체인 수집).
 - 새 창(`window.open`, `target=_blank`)은 전부 `deny` + 검증된 `https:`만 외부 브라우저.
 - CORS: 원격 로드이므로 백엔드 `AUTH_CORS_ALLOWED_ORIGINS` 변경이 없다. 2단계 Bearer 요청도 renderer 오리진이 웹 오리진이라 동일하다.
@@ -243,6 +244,7 @@ export type UserLlmSettingsInput = Omit<UserLlmSettings, 'hasApiKey'> & { apiKey
 | 저장(데스크톱) | preload `window.knotDesktop.auth`(4.4) → main `safeStorage.encryptString` → `userData/auth.bin`. `isEncryptionAvailable()`이 false면 저장하지 않고 메모리로만 들고 있다가 앱 종료 시 잃는다(Linux `basic_text`) |
 | 로그아웃 | 클라이언트가 저장소에서 지우는 것이 실제 로그아웃이다. `POST /api/v1/auth/logout`은 204만 돌려주는 훅으로 남긴다(2단계에서 서버 폐기가 붙을 자리) |
 | 만료 | access 1시간, 리프레시 없음. 401을 받으면 클라이언트가 토큰을 지우고 `AuthGuard`가 `/login`으로 보낸다 |
+| 회원 확인 | 서명·만료·issuer·audience·`token_type` 검사를 통과한 뒤 subject의 회원이 `members`에 있는지 **요청마다** 확인한다(PK 조회 1회). 없으면(탈퇴·DB 초기화) 인증하지 않아 401 `UNAUTHENTICATED`가 되고, 클라이언트는 만료와 같은 경로로 토큰을 지운다(로드맵 Q41). 발급 로직·클레임은 그대로다 |
 | CSRF | 폐기. `CookieCsrfTokenRepository`·`GET /api/v1/auth/csrf`·`X-XSRF-TOKEN`을 제거한다 |
 | CORS | 허용 헤더에 `Authorization` 추가, `X-XSRF-TOKEN` 제거, `allowCredentials=false`(더 이상 쿠키를 싣지 않는다) |
 | Fuse | `EnableCookieEncryption`은 그대로 켠다. 인증 쿠키는 없어졌지만 남는 쿠키(OAuth 세션 등)의 디스크 암호화에 여전히 유효하다 |
@@ -335,7 +337,8 @@ export type UserLlmSettingsInput = Omit<UserLlmSettings, 'hasApiKey'> & { apiKey
 
 | 항목 | 설계 |
 | --- | --- |
-| 활성화 | `llm.chat.provider=anthropic` 분기를 `LlmClientConfig`에 추가. 임베딩은 `llm.embedding.provider=openai-compatible`(Qwen) 그대로 둔다. provider 키 분리와 HTTP 클라이언트 빈 분리는 `B0`에서 끝났다(정정 2026-09-06, 지식 §1.4) |
+| 활성화 | `llm.chat.provider=anthropic` 분기를 `LlmClientConfig`에 추가. provider 키 분리와 HTTP 클라이언트 빈 분리는 `B0`에서 끝났다(정정 2026-09-06, 지식 §1.4). 임베딩은 정정 2026-09-08(`B5`): `llm.embedding.provider=gemini`가 실제 임베딩의 기본 선택이며 아래 `임베딩(B5)` 행이 설계다. `openai-compatible`(LM Studio Qwen)·`fake`는 되돌리기용으로 남는다 |
+| 임베딩(`B5`) | `search/infrastructure/gemini/GeminiEmbeddingClient implements DocumentEmbeddingClient`가 `POST {llm.gemini.base-uri}/v1beta/models/{llm.gemini.embedding-model}:batchEmbedContents`를 JDK `HttpClient`로 직접 호출한다(헤더 `x-goog-api-key`, 로드맵 Q34). 요청 `requests[]`의 각 항목은 `{model: "models/<모델>", content.parts[].text, taskType, outputDimensionality}`이며 `taskType`은 색인 `RETRIEVAL_DOCUMENT`·질의 `RETRIEVAL_QUERY`(Q36 — `DocumentEmbeddingClient.embed(texts, EmbeddingTask)`로 용도를 넘긴다), `outputDimensionality`는 `llm.embedding.dimensions`(1,024, Q35)다. `gemini-embedding-001`은 3,072 미만을 정규화해 주지 않으므로 어댑터가 응답 `embeddings[].values`를 L2 정규화한 뒤 돌려준다. 설정 키: `llm.gemini.base-uri`(`GEMINI_BASE_URI`, 기본 `https://generativelanguage.googleapis.com`), `llm.gemini.api-key`(`GEMINI_API_KEY`, 필수), `llm.gemini.embedding-model`(`GEMINI_EMBEDDING_MODEL`, 기본 `gemini-embedding-001`), `llm.gemini.request-timeout`(`GEMINI_REQUEST_TIMEOUT`, PT30S). 배치는 `llm.search.embedding-batch-size`(16 — 정정 2026-09-08: 64는 Gemini 429 `RESOURCE_EXHAUSTED`, Q37·U25)다. 오류: 401·403 → `SEARCH_CONFIGURATION_INVALID`, 그 외 비 2xx·건수/차원 불일치·파싱 실패 → `SEARCH_PROVIDER_FAILED`, 키 공백은 기동 실패(Q38). 색인 배치의 429·503은 `llm.gemini.retry-initial-delay`(PT5S)부터 2배씩 `llm.gemini.retry-max-attempts`(6)회 재시도하고 질의는 재시도하지 않는다(Q42, 정정 2026-09-08 — 무료 티어가 분당 약 32청크만 받는 실측). 기존 색인은 자동 변환하지 않고 동기화 재실행으로 재색인한다(Q39). 키·본문은 로그에 남기지 않는다 |
 | 설정 | `llm.anthropic.api-key`(`ANTHROPIC_API_KEY`), `llm.anthropic.model`(기본 `claude-opus-5`), `llm.anthropic.effort`(기본 `medium`, 채팅 QA 측정 후 조정), `llm.anthropic.max-tokens`(기본 4096), `llm.anthropic.request-timeout`(PT30S — SSE 타임아웃과 정합), `llm.anthropic.base-uri`(기본 `https://api.anthropic.com`, 테스트·프록시용 — 추가 2026-09-07). `research-loop.enabled`는 `B1`에서 만들지 않는다(로드맵 `B4`로 분리, 정정 2026-09-07) |
 | 클래스 | `chat/infrastructure/anthropic/AnthropicLlmClient implements LlmClient`, `AnthropicLlmStream implements LlmStream`(pull형: `hasNext`/`next`가 `content_block_delta.text_delta`만 돌려주고 `message_stop`에서 종료), `AnthropicRequestMapper`(`SearchContext.groundingPrompt` → `system`, 히스토리 → `messages`) |
 | HTTP | 옵션 1: `com.anthropic:anthropic-java`(`client.messages().createStreaming`) 도입. 옵션 2: 기존 JDK `HttpClient`로 `POST /v1/messages`(`x-api-key`, `anthropic-version`, `stream:true`) 직접 호출 + SSE 파서 재사용. → **옵션 2로 확정**(로드맵 Q20, 2026-09-07). 의존성 추가 없이 `chat/infrastructure/anthropic/` 안에서 끝나고 기존 어댑터와 구조가 같다 |
@@ -602,8 +605,12 @@ tag desktop-v0.1.0 ─▶ GitHub Actions matrix(macos-latest arm64/x64, windows-
 | 변경 | 단계 | 위험 신호 | 비고 |
 | --- | --- | --- | --- |
 | **인증 자격증명을 쿠키 → `Authorization: Bearer`로 전환**(`JwtAuthenticationFilter`, OAuth 성공 핸들러 프래그먼트 전달, `/auth/nickname` 응답 본문 토큰, CSRF·`/auth/csrf`·`AuthCookieManager` 제거, CORS 헤더 교체) | `D11`, P1 | `security`, `cross-boundary`, `core-flow` | 5.1. 프론트와 동시 배포. 인수 테스트 전량이 쿠키 대신 헤더를 쓰도록 바뀐다 |
+| 액세스 토큰의 회원 존재 확인(`JwtAuthenticationFilter` → `MemberService.existsById`, 없으면 401) | `C1` 보강 | `security` | 5.1 회원 확인 행, 로드맵 Q41. 회원이 없는 토큰을 인수 테스트가 401로 검증한다. `A6`의 서버 세션 조회가 이 자리를 대체한다 |
 | 채팅·임베딩 provider 설정 분리(`llm.chat.provider`, `llm.embedding.provider`) | B안 선행 | `shared` | 기존 `openai-compatible` 동작 불변 |
 | `AnthropicLlmClient`/`AnthropicLlmStream` + 설정 키 + 오류 코드 | B안 | `external`, `shared` | ADR(검토 문서 7절 B vs C) |
+| **임베딩 Gemini 어댑터** `GeminiEmbeddingClient` + `llm.gemini.*` 설정 키 + `DocumentEmbeddingClient.embed(texts, EmbeddingTask)` 시그니처(색인·질의 `taskType` 분리) | B5 | `external`, `shared`, `data` | 6.2 임베딩 행. V13 차원 1,024 유지(`outputDimensionality` + L2 정규화). 기존 색인은 동기화 재실행으로 재색인(로드맵 Q39) |
+| 임베딩 배치 기본값 64 → 16(`llm.search.embedding-batch-size`) | B5 정정 | `external` | 로컬 실측(2026-09-08) 배치 64가 Gemini 429 `RESOURCE_EXHAUSTED`로 Notion 동기화 전체를 실패시킴. 로드맵 Q37·U25 |
+| Gemini 색인 배치 429·503 지수 백오프 재시도(`llm.gemini.retry-max-attempts`·`retry-initial-delay`, 질의는 제외) | B5 정정 | `external` | 배치 16으로도 무료 티어 분당 한도(약 32청크)에 3번째 배치가 걸림. 로드맵 Q42·R22 |
 | 사용량 계측 컬럼(입력·출력·캐시 토큰) | B안 | `data` | Flyway |
 | `device_sessions`·인가 코드 저장, 디바이스 토큰 API 5종 | 2단계 | `security`, `data`, `cross-boundary`, `core-flow` | 인터뷰 + Grill + ADR(314 보완) |
 | `typ=DEVICE_ACCESS`·`sid` 검증 추가, OAuth resolver·성공 핸들러 `client=desktop` 분기 | 2단계 | `security` | 동일 ADR. CSRF 매처 작업은 `D11`에서 사라졌다 |
@@ -654,7 +661,7 @@ Issue 생성은 사용자가 명시적으로 허용하고 판정기가 `pass`·`
 | # | 리스크·미결 | 영향 | 해소 방법·담당 |
 | --- | --- | --- | --- |
 | R1 | GitHub이 Electron 창(embedded UA) 로그인을 경고·차단할 수 있음(정책 미확인) | 1단계 인증 불가 → 2단계 선행 | I1 스파이크에서 실측 |
-| R2 | Notion OAuth 302 체인 도메인이 허용 목록과 다를 수 있음 | 연결 실패 | I1에서 실제 도메인 기록 |
+| R2 | Notion OAuth 302 체인 도메인이 허용 목록과 다를 수 있음 | 연결 실패 | I1에서 실제 도메인 기록. 2026-09-08 실측: 동의 화면이 `app.notion.com`이라 실제로 달랐고 목록에 추가했다(4.5). 동의 이후 홉은 재측정 |
 | R3 | 운영 API 오리진이 저장소에 없음(`API_BASE_URL_PROD`) | prod 빌드 허용 목록 | 팀에 값 확인, `desktop/src/shared/env.ts`에 고정 |
 | R4 | access 1시간·리프레시 없음 | 1단계 UX 저하 | 2단계(I9)로 해소. 그전까지 재로그인 안내 |
 | R14 | `D11`으로 토큰이 JS에서 읽히므로 XSS 하나가 곧 토큰 유출(`HttpOnly` 격리 상실) | 계정 탈취 | CSP(9.4)·1시간 만료·의존성 감사로 완화, 2단계에서 데스크톱 토큰을 main으로 이관. 웹은 리프레시 토큰 도입 시 액세스 토큰을 메모리로 내릴 수 있는지 재검토 |
@@ -671,6 +678,7 @@ Issue 생성은 사용자가 명시적으로 허용하고 판정기가 `pass`·`
 | R17 | 데스크톱이 만든 답변을 서버가 검증할 수 없어 피드백·품질 평가 데이터의 신뢰가 떨어짐 | 임의 문장이 ASSISTANT로 저장될 수 있음 | `generated_by=CLIENT` 표시(Q25), Workspace JOIN 검증(Q24). 후보 집합 보관은 후속 |
 | R18 | 브라우저 단독(SSE)·데스크톱(IPC) 두 탐색 경로 유지 비용 | 서버 LLM 어댑터와 데스크톱 LLM 클라이언트를 함께 유지 | 규칙 문장·선별·저장 검증을 서버 한 곳에 두어 중복을 줄인다. 웹 탐색 비활성은 Q22 대안 |
 | R19 | 근거 3페이지 → 청크 8개, 모델이 사용자마다 달라 gold set 결과가 이전과 비교되지 않음 | 품질 판정 불가 | 기준 모델 하나로 재측정(`S5`, GS) |
+| R21 | 허용 목록 밖 홉을 셸이 외부 브라우저로 빼면, 이동을 시작한 SPA는 이동 대기 상태(`isRedirecting`)에 갇혀 복구 경로가 없음 | 연결 버튼 무한 로딩(2026-09-08 관측) | 목록을 실측대로 유지(U2). 창 포커스 복귀·타임아웃으로 대기 상태를 푸는 FE 후속 |
 
 ## 16. 참고
 

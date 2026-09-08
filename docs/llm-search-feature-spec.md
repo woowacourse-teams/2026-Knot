@@ -137,7 +137,7 @@ PostgreSQL + pgvector 임베딩 인덱스
         ↓
 질의 정규화 + PostgreSQL 키워드/메타데이터 pre-filter
         ↓
-Qwen3-Embedding-0.6B 의미 검색
+Gemini gemini-embedding-001 의미 검색 (1,024차원, 정정 2026-09-08)
         ↓
 상위 청크 8개를 응답 (데스크톱 앱이 받아 사용자 LLM에 전달 · 브라우저 단독은 서버 LlmClient)
         ↓
@@ -157,7 +157,7 @@ MCP는 접근 프로토콜이지 검색 품질 자체가 아니다. MCP가 pgvec
 
 ### 모델과 저장소
 
-- 임베딩 기본 후보: `Qwen3-Embedding-0.6B-GGUF`, 현재 실험 응답 차원 1,024
+- 임베딩: `gemini-embedding-001`(Gemini API, `outputDimensionality` 1,024 + L2 정규화, 색인 `RETRIEVAL_DOCUMENT`·질의 `RETRIEVAL_QUERY`). 정정 2026-09-08(로드맵 `B5`·Q34~Q39). 초기 실험 후보였던 `Qwen3-Embedding-0.6B-GGUF`(응답 차원 1,024)는 `openai-compatible` provider로 남기며, 아래 실측값은 Qwen 기준이다
 - 벡터 저장소: PostgreSQL `pgvector`
 - 채팅 모델: 모델 공급자 교체가 가능한 추상화로 두고, 현재 검증은 LM Studio의 `qwen/qwen3.6-27b`로 수행한다.
 - Hosted NIM은 동일한 입력·프롬프트·생성 옵션으로 교체 검증할 수 있게 한다.

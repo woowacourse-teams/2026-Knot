@@ -3,8 +3,8 @@
 - 문서 상태: Active — 이 문서는 데스크톱 앱 작업의 **실행 정본(SSOT)**이다.
 - 기준일: 2026-09-06
 - 기준 커밋: `develop` `b1d4801` (`[BE] 채팅 답변 출처 조회 API 구현 (#351)`)
-- 마지막 갱신: 2026-09-07 (`S1` 서버 검색 API + V14 구현·검증 완료로 `검증중`. Q23 정정, Q30~Q33 추가)
-- 현재 단계: **M0 `A1` 검증중** (아래 3절 G0 통과). 다음 게이트는 G1. 트랙 B는 `B1` 검증중(커밋·PR 승인 대기). 트랙 S는 `S1` 검증중(사용자 지시 2026-09-07 `로드맵 4.5절 s1구현해`, 구현·테스트 완료, 커밋·PR 승인 대기).
+- 마지막 갱신: 2026-09-08 (Gemini 임베딩 배치 64 → 16·색인 429 재시도 신설. 홈 Notion 동기화가 `batchEmbedContents` 429로 실패한 실측으로 Q37·Q38 정정, Q42·R22 추가, U25 부분 해소, U26 해소. 유료 티어 전환 뒤 21페이지·611청크 동기화가 106초에 완료)
+- 현재 단계: **M0 `A1` 검증중** (아래 3절 G0 통과). 다음 게이트는 G1. 트랙 B는 `B1` 검증중(커밋·PR 승인 대기), `B5` 검증중(사용자 지시 2026-09-08 `임베딩 모델을 gemini 임베딩 1로 가자`, 구현·테스트 완료, 커밋·PR 승인 대기). 트랙 S는 `S1` 검증중(사용자 지시 2026-09-07 `로드맵 4.5절 s1구현해`, 구현·테스트 완료, 커밋·PR 승인 대기).
 
 ## 0. 이 문서의 지위
 
@@ -77,6 +77,7 @@
 | B0 provider 분리 | B | 없음 | 1 | 검증중 |
 | B1 Anthropic 어댑터 | B | GB | 1 | 검증중 |
 | B2~B4 어댑터 후속 | B | GB | 3 | 대기 (B1) |
+| B5 임베딩 Gemini 어댑터 | B | GB | 1 | 검증중 |
 | S 탐색 데스크톱 경유 | S | GS | 5 | 검증중 (`S1`), `S2` 대기 (S1) |
 
 ### 2.1 지금 착수 가능한 작업
@@ -88,13 +89,13 @@
 2. 없으면 아래 목록에서 순위가 높은 것을 고른다. 이 목록에는 상태가 `준비됨`이고 선행 작업이 풀린 작업만 올린다. 미결 결정은 5절 기본값으로 처리하므로 선택을 막지 않는다.
 3. 목록이 비어 있을 때만 새 작업을 시작하지 않고, 무엇이 막고 있는지(3절 게이트 또는 5절)를 사람에게 보고한다.
 
-**현재 규칙 1에 해당하는 작업이 있다.** `A1`(데스크톱 스파이크)·`W1`·`W3`(웹 선행)·`C1`~`C3`(트랙 C)·`B0`·`B1`(트랙 B)·`S1`(트랙 S)이 `검증중`이다. 지정이 없으면 아래 목록보다 이들을 먼저 끝낸다.
+**현재 규칙 1에 해당하는 작업이 있다.** `A1`(데스크톱 스파이크)·`W1`·`W3`(웹 선행)·`C1`~`C3`(트랙 C)·`B0`·`B1`·`B5`(트랙 B)·`S1`(트랙 S)이 `검증중`이다. 지정이 없으면 아래 목록보다 이들을 먼저 끝낸다.
 
 | 순위 | ID | 작업 | 왜 지금 가능한가 |
 | --- | --- | --- | --- |
 | — | — | (비어 있음) `S2`는 `S1` 병합 뒤 자동 선택 대상이 된다 | |
 
-`W1`·`W3`은 2026-09-06 사용자 지시("웹 구현 시작")로 착수해 구현이 끝났고 커밋·PR 승인 대기(`검증중`), `B0`은 같은 날 사용자 지시("BE 개발 시작")로, `C1`~`C3`은 같은 날 사용자 지시("기존의 쿠키 방식을 jwt토큰으로 변경")로 착수해 구현·검증이 끝나 커밋·PR 승인 대기(`검증중`)라 이 목록에서 내려갔다. `B0`은 2026-09-07 커밋이 끝나 `검증중`이고, `B1`은 같은 날 사용자 지시("구현 ㄱㄱ" — `B0` 다음 순서)로 착수해 구현·검증이 끝나 커밋·PR 승인 대기(`검증중`)다.
+`W1`·`W3`은 2026-09-06 사용자 지시("웹 구현 시작")로 착수해 구현이 끝났고 커밋·PR 승인 대기(`검증중`), `B0`은 같은 날 사용자 지시("BE 개발 시작")로, `C1`~`C3`은 같은 날 사용자 지시("기존의 쿠키 방식을 jwt토큰으로 변경")로 착수해 구현·검증이 끝나 커밋·PR 승인 대기(`검증중`)라 이 목록에서 내려갔다. `B0`은 2026-09-07 커밋이 끝나 `검증중`이고, `B1`은 같은 날 사용자 지시("구현 ㄱㄱ" — `B0` 다음 순서)로 착수해 구현·검증이 끝나 커밋·PR 승인 대기(`검증중`)다. `B5`(임베딩 Gemini 어댑터)는 2026-09-08 사용자 지시("임베딩 모델을 gemini 임베딩 1로 가자. 토큰값을 env로 설정할 수 있게 해줘")로 문서를 먼저 고친 뒤 착수해 구현·검증이 끝나 커밋·PR 승인 대기(`검증중`)다.
 
 트랙 A(`A1~A13`)는 2026-09-06 사용자 지시로 G0을 통과했다(3절). `A2` 이후는 각자의 선행 작업이 끝나야 자동 선택 대상이 된다.
 
@@ -122,7 +123,7 @@
 ### G1 — 스파이크 결과 게이트 (M0 → M1, 현재 위치)
 
 - [x] Electron 창에서 GitHub 로그인이 경고·차단 없이 **끝까지** 동작한다 (U1 해소) — 2026-09-07 종단 확인: `github.com/login` → `github.com/session`(비밀번호) → `sessions/two-factor/webauthn` → `sessions/two-factor/mobile`(2FA 승인) → `login/oauth/authorize` → `dev-api.knoted.kr/login/oauth2/code/github?code=…` → `dev.knoted.kr/`. 차단 0건이고 **2FA까지 앱 창 안에서 동작한다**. 단 이 경로는 GitHub 계정 직접 로그인이며 소셜 로그인(Google)은 미검증(U21)
-- [ ] Notion OAuth 302 체인의 실제 도메인을 기록했다 (U2 해소) → `desktop/src/shared/env.ts` 허용 목록에 반영 — 로그인이 선행이라 미측정
+- [ ] Notion OAuth 302 체인의 실제 도메인을 기록했다 (U2 해소) → `desktop/src/shared/env.ts` 허용 목록에 반영 — 2026-09-08 `local` 실측(부분): SPA가 `api.notion.com/v1/oauth/authorize`로 이동(허용) → Notion이 `https://app.notion.com/install-integration?…`로 302 → 목록 밖이라 `will-redirect` 차단 후 외부 브라우저로 빠졌다(09-07 11:37·09-08 10:33 두 번, `~/Library/Logs/Knot/main.log`). `app.notion.com`을 목록에 추가했다. 동의 화면 이후 홉(Notion 로그인·콜백 `:8080` → `:3000/…?result=connected`)은 아직 앱 창 안에서 지나가지 못했으므로 추가 후 재측정해야 체크한다
 - [ ] 채팅 SSE가 Electron renderer에서 웹과 동일하게 스트리밍된다 — 로그인이 선행이라 미측정
 - [ ] 실패 시 결정: 2단계 인증(`A6`·`A7`)을 M1으로 당기고 M1 범위를 재작성했다
 
@@ -145,11 +146,13 @@
 - [ ] 배포 순간 살아 있던 세션이 만료되어 전 사용자가 재로그인한다는 것을 팀이 알고 있다
 - [ ] dev 환경에서 GitHub 로그인 → 온보딩 → 홈 → 채팅 SSE → 로그아웃이 종단으로 동작한다 — 2026-09-06 로컬 mock(dev 서버 302 + msw)으로 기존 회원·신규 가입 두 경로를 Playwright로 확인했다. **실제 dev 백엔드로는 미측정**
 
-### GB — 모델 교체 게이트 (트랙 B, `llm.chat.provider=anthropic`을 운영에 켜기 전)
+### GB — 모델 교체 게이트 (트랙 B, `llm.chat.provider=anthropic` 또는 `llm.embedding.provider=gemini`를 운영에 켜기 전)
 
 - [ ] `docs/llm-search-benchmark-independent-30.json` gold set 30문항 재측정 + 사람 검수 통과
 - [ ] TTFT 5초 실측 (ADR 271 조건)
 - [ ] 비용 상한·일일 예산 경고가 동작한다
+- [ ] (임베딩, `B5`) Gemini 키가 서버 env에만 있고 저장소·로그·응답에 없음을 확인했다. 첫 실호출에서 응답 차원 1,024와 정규화를 실측했다(U26 — 차원 1,024·미정규화는 2026-09-08 로컬 실호출로 해소, 서버 env 확인은 남음)
+- [ ] (임베딩, `B5`) `gemini`를 켠 뒤 모든 Workspace의 Notion 동기화를 다시 실행해 `search_document_chunks`가 Gemini 임베딩으로 재색인됐다(Q39). 재색인 전에는 벡터 점수가 무의미하다
 
 ### GS — 탐색 경로 전환 게이트 (트랙 S, 데스크톱 경로를 운영에 켜기 전)
 
@@ -176,7 +179,7 @@
 | I4 | W1 | I9 | A6 | I14 | A11 |
 | I5 | W3 | I10 | A7 | I15 · I16 · I17 | C1 · C2 · C3 |
 | I18 · I19 · I20 · I21 · I22 | S1 · S2 · S3 · S4 · S5 | | | | |
-| — | A5·A12·A13·B2·B3·B4 (신규) | | | | |
+| — | A5·A12·A13·B2·B3·B4·B5 (신규) | | | | |
 
 ### 4.1 트랙 A — 데스크톱 셸
 
@@ -216,7 +219,7 @@ G0 미통과 상태에서도 착수할 수 있다.
 
 | ID | 작업 | area | 선행 | 위험 신호 | 기획서 § | 상태 | Issue | ADR |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| C1 | 백엔드 Bearer 전환: `JwtAuthenticationFilter`가 `Authorization` 헤더를 읽고, OAuth 성공 핸들러가 토큰을 프래그먼트로 넘기고, `/auth/nickname`이 본문으로 액세스 토큰을 돌려주고, CSRF·`/auth/csrf`·`AuthCookieManager`·쿠키 프로퍼티를 제거하고, 로그아웃이 204를 준다 | be | — | `security`, `cross-boundary`, `core-flow` | 5.1, 13 | 검증중 | | 필요(314 보완) |
+| C1 | 백엔드 Bearer 전환: `JwtAuthenticationFilter`가 `Authorization` 헤더를 읽고, OAuth 성공 핸들러가 토큰을 프래그먼트로 넘기고, `/auth/nickname`이 본문으로 액세스 토큰을 돌려주고, CSRF·`/auth/csrf`·`AuthCookieManager`·쿠키 프로퍼티를 제거하고, 로그아웃이 204를 주고, 회원이 없는 토큰은 401을 준다(Q41) | be | — | `security`, `cross-boundary`, `core-flow` | 5.1, 13 | 검증중 | | 필요(314 보완) |
 | C2 | 프론트 토큰 저장소·`Authorization` 헤더·프래그먼트 수신·CSRF 코드 제거(SSE fetch·mock·E2E 포함) | fe | C1 | `security`, `cross-boundary` | 5.1, 9.3 | 검증중 | | C1과 동일 |
 | C3 | 데스크톱 토큰 저장: preload `auth.getToken/setToken/clearToken` + main `safeStorage` | fe | C2 | `security` | 4.4, 5.1 | 검증중 | | C1과 동일 |
 
@@ -233,11 +236,14 @@ G0 미통과 상태에서도 착수할 수 있다.
 | B2 | 사용량 계측(입력·출력·캐시 토큰) | be | B1 | `data` | 6.2, 13 | 대기 | |
 | B3 | Workspace BYO 키(C안) | be | B1 안정화 | `security`, `data`, `external` | 6.3 | 대기 | |
 | B4 | 재검색 루프(`search_knowledge` 툴 정의, `stop_reason=tool_use` 시 서버가 재검색, 최대 2회) | be | B1, GB 실측 | `external`, `core-flow` | 6.2 | 대기 | |
+| B5 | 임베딩 Gemini Embedding 어댑터(`llm.embedding.provider=gemini`, `gemini-embedding-001`, 키는 `GEMINI_API_KEY`) | be | B0 | `external`, `shared`, `data` | 6.2 | 검증중 | |
 
 두 LLM 클라이언트가 `llmHttpClient` 빈과 `llm.provider` 키 하나를 공유하던 것이 **B0이 B1의 필수 선행**인 이유였다(지식 §1.4). `B0`이 이 공유를 `llm.chat.provider`/`llm.embedding.provider`와 `chatLlmHttpClient`/`embeddingLlmHttpClient`로 끊는다.
 
 완료 판정: `B1` 백엔드 단위 테스트 전량 통과(2026-09-07: 91클래스 500건, 어댑터 테스트 19건 포함) · 기본값 `llm.chat.provider=fake`에서 기존 테스트·컨텍스트 무변경 통과 · 실제 Anthropic API 종단(TTFT·gold set)은 Q6(API 키)에 도달해 사람이 키를 넣은 뒤 GB 게이트에서 측정한다.
 
+> `B5`는 2026-09-08 사용자 지시로 추가했다. 임베딩만 바꾸며 채팅 provider·검색 융합·V13 차원(1,024)은 건드리지 않는다(Q34~Q40). `openai-compatible`(LM Studio Qwen)·`fake` 분기는 남겨 두어 되돌리기는 설정 한 줄이다. 완료 판정: 백엔드 단위 테스트 전량 통과(어댑터·설정 테스트 포함) · 기본값 `llm.embedding.provider=fake`에서 기존 테스트·컨텍스트 무변경 통과 · `gemini`인데 키가 비면 기동 실패 · 실제 Gemini API 종단(1,024차원 응답·재색인·gold set)은 사람이 키를 넣은 뒤 GB 게이트에서 측정한다. 2026-09-08 실측: 단위 536건(어댑터 8·설정 4·빈 등록 3 포함)·통합 120건·수락 177건 통과. 같은 날 로컬 실호출: 배치 64는 첫 요청부터 429, 배치 16도 무료 티어 분당 한도에 걸려 재시도 5회로도 실행 #4가 실패(412초). 결제 계정 연결 뒤 실행 #5가 21페이지·611청크를 106초(수집 57초·색인 48초)에 COMPLETED·발행했고 `search_document_chunks` 611행이 Gemini 임베딩이다(Q37·Q42·U25·U26·R22). 단위 543건 통과. 통합 1건(`ContentImportWorkerPersistenceIntegrationTest`의 heartbeat 만료 판정)이 첫 실행에서 실패했으나 임베딩과 무관한 시간 의존 테스트이며 단독 재실행에서 통과했다.
+>
 > `B4`는 기획서 6.2 "재검색 루프(선택)"를 `B1`에서 떼어낸 것이다(2026-09-07). 왕복 2회로 TTFT가 늘어나므로 GB 실측 뒤에 켤지 정하며, `B1`은 `llm.anthropic.research-loop.enabled` 키를 만들지 않는다.
 >
 > 트랙 S(2026-09-07) 이후 서버 `LlmClient` 경로는 브라우저 단독 실행(Q22 기본값)에만 쓰인다. `B2`~`B4`는 그 경로의 후속이며 우선순위는 트랙 S 뒤다.
@@ -299,6 +305,15 @@ G0 미통과 상태에서도 착수할 수 있다.
 | Q31 | 검색 API가 검색 실패(임베딩·설정 오류)를 어떤 코드로 돌려주는가 | S1 | `SearchException`의 코드를 그대로 500으로 돌려준다(`SEARCH_PROVIDER_FAILED`·`SEARCH_CONFIGURATION_INVALID`). `SEARCH_IMPORT_NOT_READY`만 409 `CHAT_DOCUMENTS_NOT_READY`로 바꾼다. SSE 경로처럼 `LLM_STREAM_FAILED`로 뭉개지 않는 이유는 데스크톱이 코드·문구를 그대로 중계하고, 이 경로에는 LLM이 없기 때문이다 | 기본값 확정(2026-09-07, `S1`) |
 | Q32 | V14 이전 `search_references` 행의 `chunk_index` 값 | S1 | 0으로 채운다. V13은 페이지 단위 저장이라 어느 청크였는지 남아 있지 않고, 유일 키 `(message_id, imported_page_id, chunk_index)`는 기존 행이 페이지당 1개라 충돌하지 않는다 | 기본값 확정(2026-09-07, `S1`) |
 | Q33 | 검색 API 응답 `content`를 자르는 기준(Q28 구체화) | S1 | 현행 `SearchContext.groundingPrompt`와 같은 누적 예산을 쓴다 — 규칙 문장 + `[근거 문서 n]` 헤더 + 본문을 순서대로 더해 `max-context-characters`(12,000)를 넘는 부분을 자르고, 예산이 다한 뒤의 청크는 응답에서 뺀다. 데스크톱이 같은 형식으로 조립하면 프롬프트 길이가 서버 SSE 경로와 같아진다. 저장용 `references()`는 자르지 않는다(현행 유지) | 기본값 확정(2026-09-07, `S1`) |
+| Q34 | 임베딩 provider를 무엇으로 바꾸는가(LM Studio Qwen `openai-compatible` 유지 vs Gemini Embedding vs 서버 내장 모델) | B5 | `llm.embedding.provider=gemini` 분기를 추가하고 `gemini-embedding-001`을 Gemini API `POST {llm.gemini.base-uri}/v1beta/models/{model}:batchEmbedContents`(`x-goog-api-key`)로 호출한다. 키는 `GEMINI_API_KEY` 환경변수로만 주입한다(`llm.gemini.api-key`). 호출은 Q20과 같이 JDK `HttpClient` 직접 호출이며 `search/infrastructure/gemini/` 안에서 끝난다. `openai-compatible`·`fake` 분기는 지우지 않아 되돌리기는 설정 한 줄이다 | 기본값 확정(2026-09-08, 사용자 지시 `임베딩 모델을 gemini 임베딩 1로 가자`) |
+| Q35 | Gemini 응답 차원: 모델 기본 3,072 vs V13 계약 1,024 | B5 | 1,024를 유지한다. 요청에 `outputDimensionality=llm.embedding.dimensions`(1024)를 넣고, `gemini-embedding-001`은 3,072 미만 벡터를 정규화해 주지 않으므로 어댑터가 L2 정규화한 뒤 돌려준다. 3,072는 pgvector `vector` 타입 인덱스 상한(2,000차원)을 넘어 `halfvec` 전환 + 마이그레이션이 필요하고, 차원 변경은 전 Workspace 재색인을 동반해 되돌리기 어렵다 | 기본값 확정(2026-09-08, `B5`) |
+| Q36 | Gemini `taskType`을 쓰는가 | B5 | 쓴다. 색인은 `RETRIEVAL_DOCUMENT`, 질의는 `RETRIEVAL_QUERY`. 이를 위해 `DocumentEmbeddingClient.embed(texts, task)`로 용도(`EmbeddingTask.DOCUMENT`/`QUERY`)를 넘기고 `fake`·`openai-compatible`은 무시한다. Gemini 문서가 RAG에 권장하는 조합이며, 안 쓰는 쪽으로 되돌리려면 어댑터에서 필드 하나만 빼면 된다 | 기본값 확정(2026-09-08, `B5`) |
+| Q37 | Gemini 배치 호출 단위 | B5 | `batchEmbedContents` 한 번에 `llm.search.embedding-batch-size`(**16**)건. 처음 64로 시작했으나 2026-09-08 로컬 실측에서 1,300자 텍스트 32·64건 요청이 429 `RESOURCE_EXHAUSTED`로 거절돼(U25) 16으로 내렸다(8·16건은 200, 8건×4회 연속도 200 — 요청 하나의 크기 상한이지 분당 누적이 아니었다). 21페이지·28만 자는 실제 611청크·39회 호출이다. 다시 429가 나오면 값만 더 내린다. 질의는 1건짜리 배치다 | 기본값 확정(2026-09-08, `B5`) → 정정 2026-09-08(실측, 64 → 16) |
+| Q38 | Gemini 오류를 어떤 검색 코드로 매핑하는가 | B5 | HTTP 401·403 → `SEARCH_CONFIGURATION_INVALID`, 그 외 비 2xx(400·429·5xx)·응답 건수/차원 불일치·본문 파싱 실패 → `SEARCH_PROVIDER_FAILED`. 429·503은 색인 경로에서만 Q42대로 재시도하고, 재시도가 다 실패하면 같은 코드다(색인은 import 실패로 남고 기존 스냅샷 유지). 질의 경로는 재시도 없이 Q31대로 500. `gemini`인데 키가 비면 기동 시점에 `SEARCH_CONFIGURATION_INVALID`로 실패한다(Anthropic 어댑터와 같은 fail-fast). 오류 본문은 `error.status`만 로그에 남긴다 | 기본값 확정(2026-09-08, `B5`) → 정정 2026-09-08(429·503 재시도는 Q42) |
+| Q39 | 기존 Qwen·fake 임베딩으로 색인된 `search_document_chunks`를 어떻게 하는가 | B5 | 자동 변환·마이그레이션을 하지 않는다. 임베딩 공간이 달라 provider를 켠 뒤에는 Workspace 소유자가 Notion 동기화를 다시 실행해 재색인해야 하며, 그 전까지 벡터 검색 점수는 무의미하다(키워드 경로만 유효). 청크별 모델 식별자 컬럼은 되돌리기 어려워 넣지 않는다. 운영 전환 절차는 GB 게이트 체크박스로 둔다 | 기본값 확정(2026-09-08, `B5`) |
+| Q40 | 어느 환경에서 `gemini`를 켜는가 | B5 | `application.properties` 기본값은 `fake` 유지(테스트·CI가 외부 호출 없이 통과). 로컬은 `application-local.properties`(gitignore 대상)에 `llm.embedding.provider=gemini`, dev·prod는 서버 env 파일에 `LLM_EMBEDDING_PROVIDER=gemini`·`GEMINI_API_KEY`를 사람이 넣는다(배포 워크플로우는 초대 키 2개만 주입한다 — `deploy-backend-dev.yml:244-245`) | 기본값 확정(2026-09-08, `B5`) |
+| Q41 | 서명은 유효하지만 회원이 없는 액세스 토큰(탈퇴·DB 초기화)을 어떻게 처리하는가 | C1 | `JwtAuthenticationFilter`가 토큰 검증 뒤 `MemberService.existsById`로 회원 존재를 요청마다 확인하고, 없으면 인증하지 않아 기존 진입점이 401 `UNAUTHENTICATED`를 준다. 발급·클레임은 바꾸지 않는다. 확인 전에는 `/auth/me`가 200을 줘 `AuthGuard`가 통과시키고 이후 요청이 404·500으로 흩어져 로그아웃 진입점(GNB)에도 못 갔다(2026-09-08 로컬 DB 초기화 실측: `/auth/me` 200, `POST /workspaces` 500). `/auth/me`에서만 확인하는 대안은 첫 진입 뒤 요청이 여전히 500이라 택하지 않았다. `A6`가 서버 세션 조회를 붙이면 이 확인이 그 조회로 대체된다 | 기본값 확정(2026-09-08, 사용자 지시 `백엔드도 401 주도록 고쳐`) |
+| Q42 | Gemini 429·503을 재시도하는가, 어떻게 | B5 | 색인(`EmbeddingTask.DOCUMENT`)에서만 HTTP 429·503을 재시도한다. 지연은 `llm.gemini.retry-initial-delay`(PT5S)에서 2배씩(5·10·20·40초, 상한 60초) 늘리며 `llm.gemini.retry-max-attempts`(6)회까지 보낸다 — 5·10·20·40·60초, 누적 135초. 처음 5회(누적 75초)로 두었으나 실측(실행 #4)에서 무료 티어 6주기 중 1주기가 75초 안에 회복하지 못해 import가 실패해 6회로 올렸다. 시도마다 WARN 로그(status·attempt·delay)를 남기고 본문은 `error.status`만 적는다. 질의(`QUERY`)는 재시도하지 않는다(사용자가 최대 75초를 기다리게 되므로 Q31대로 바로 500). 4xx(400·401·403 등)·IO 오류·차원 불일치는 재시도하지 않는다. 무료 티어 21페이지(611청크)는 재시도 포함 10분 안팎이며 heartbeat(30초)·stale(1시간) 안이다. 유료 티어에서는 같은 양이 48초(39회 호출, 429 없음)다. 되돌리려면 `retry-max-attempts=1` | 기본값 확정(2026-09-08, 로컬 실측 — 배치 16에서도 3번째 배치가 429) |
 
 **규칙**: 미결이라는 이유로 멈추지 않는다. 기본값으로 구현하고 적용한 기본값을 PR 본문에 적는다. 다음 두 가지만 예외로 사람에게 알린다 — (1) 실제 비용 지출·외부 계정 개설이 그 작업에 **실제로 필요해진 시점**(Q1·Q2·Q6), (2) 개인정보·법적 판단이 필요한 시점. 알린 뒤에도 그 항목 없이 가능한 범위는 계속 구현한다. 표에 없는 결정이 생기면 되돌리기 쉬운 쪽을 기본값으로 잡아 행을 추가하고 진행한다.
 
@@ -310,7 +325,7 @@ G0 미통과 상태에서도 착수할 수 있다.
 | U20 | GitHub 소셜 로그인(Google) 경유 도메인이 허용 목록 밖이라 로그인이 깨지는가 | A1 | 해소(2026-09-07): `github.com/login`에서 Google 버튼을 누르면 `github.com/sessions/social/google/initiate` → `accounts.google.com/o/oauth2/v2/auth`로 나가고, 후자가 목록 밖이라 외부 브라우저로 빠졌다. Google 인증만 다른 브라우저에서 끝나 GitHub 소셜 `state` 세션이 갈리고 콜백이 "We could not validate the response from your social login provider"로 실패한다. `accounts.google.com`을 목록에 추가 |
 | U21 | `accounts.google.com`이 Electron embedded UA를 `disallowed_useragent`로 거부하는가 | A1 | 미확인(2026-09-07 재측정 시 Google 버튼을 쓰지 않아 이 홉을 지나지 않았다). Google은 임베디드 브라우저 OAuth를 정책으로 막는다. 거부되면 허용 목록 확장으로는 해결되지 않고 `A6`·`A7`(시스템 브라우저 로그인)이 유일한 경로가 된다 |
 | U22 | 로컬 실 백엔드(`:8080`) GitHub OAuth 체인이 셸 안에서 끝까지 지나가는가 | A1 | 해소(2026-09-07): `local` API 오리진을 `:8080`으로 고친 뒤 4홉(`:8080/oauth2/authorization/github` → `github.com/login/oauth/authorize` → `:8080/login/oauth2/code/github?code=` → `:3000/#access_token=`)이 차단 0건으로 지나갔다. 고치기 전에는 1홉에서 `will-navigate` 차단 후 `shell.openExternal`도 `http:`라 거부해 버튼이 무반응이었다 |
-| U2 | Notion OAuth 302 체인의 실제 도메인 | A1 | 미확인(로그인 선행) |
+| U2 | Notion OAuth 302 체인의 실제 도메인 | A1 | 부분 해소(2026-09-08): 1홉 `api.notion.com/v1/oauth/authorize`(SPA `window.location.assign`, `will-navigate` 허용) → 2홉 302 `app.notion.com/install-integration?response_type=code&client_id=…&redirect_uri=…&state=…&owner=user`이 목록 밖이라 `will-redirect`에서 차단됐다. 셸이 `shell.openExternal`로 외부 브라우저에 열어 동의를 거기서 마치면 백엔드 연결은 성공하지만(로컬 DB `content_source_connections` 행 생성 확인) `?result=connected` 복귀도 외부 브라우저로 가고 앱 창의 SPA는 `isRedirecting`이 풀리지 않아 연결 버튼이 무한 로딩이 된다. `app.notion.com`을 목록에 추가. 동의 이후 홉은 재측정 대기 |
 | U9 | Forge `maker-squirrel`을 macOS 호스트에서 빌드할 수 있는가(문서 상충) | A3 (Windows 러너 사용 시 무관) | 미확인 |
 | U10 | `@electron/notarize`가 자동 staple 하는가 | A3 (`xcrun stapler validate`로 검증) | 미확인 |
 | U11 | `update-electron-app`의 draft/prerelease 처리 | A4 | 미확인 |
@@ -321,6 +336,8 @@ G0 미통과 상태에서도 착수할 수 있다.
 | U18 | `SearchContext.GROUNDING_INSTRUCTION`(약 330자)이 Opus 5 캐시 최소 프리픽스 512 토큰을 넘는가 | B1 → B2 | 미확인. 최소 프리픽스보다 짧으면 `cache_control`을 붙여도 조용히 캐시되지 않으므로 `B1`은 `system`을 문자열 하나로 보내고 캐시 표시를 넣지 않는다. `count_tokens`로 실측해 넘으면 `B2`에서 규칙 블록에 `cache_control`을 붙인다 |
 | U23 | 청크 8개(최대 12,000자) + 규칙을 넣은 프롬프트가 LM Studio `qwen/qwen3.6-27b`의 컨텍스트·TTFT 5초에 들어오는가 | S5 | 미확인. 기능 기획서 9절 실측은 근거 3페이지·10,000자 기준이라 그대로 쓸 수 없다 |
 | U24 | Electron main(Node 22 `fetch`/undici)에서 OpenAI 호환·Anthropic SSE 스트리밍을 끊김 없이 읽고 `AbortController`로 취소되는가 | S3 | 미확인. 백엔드 `OpenAiCompatibleLlmStream`·`AnthropicLlmStream`의 파서를 TypeScript로 옮길 때 실측 |
+| U25 | Gemini `batchEmbedContents` 요청당 최대 건수와 입력 2,048토큰 초과 시 동작(조용한 절단 vs 400) | B5 → GB | 부분 해소(2026-09-08): 로컬 키(무료 티어)로 1,300자 텍스트를 8·16건 보내면 200, 32·64건이면 429 `RESOURCE_EXHAUSTED`(본문 `details`에 `QuotaFailure` 없이 `Help`만). 8건×4회 연속 호출은 모두 200이라 분당 누적 한도가 아니라 요청 하나의 크기 상한이다. 로컬 Notion 동기화(21페이지·28만 자)가 배치 64에서 첫 배치부터 429로 실패해 Q37을 16으로 정정했다. 이어서 16건 배치를 연속으로 보내면 3번째(누적 32건·약 4만 자)가 429이고 56초 뒤 200으로 회복돼, 무료 티어는 **분당 약 32청크** 한도다(배치 16으로 내려도 재시도 없이는 3번째 배치에서 실패 — Q42). 재시도 5회(누적 75초)를 넣고 돌린 실행 #4는 6주기 중 1주기가 회복하지 못해 412초 만에 실패했다. 결제 계정을 연결(유료 티어)한 뒤에는 64건 배치도 200이고, 실행 #5가 611청크·39회 호출을 48초에 429 없이 끝냈다. 2,048토큰 초과 시 동작은 아직 미확인 |
+| U26 | `gemini-embedding-001`이 REST 요청 최상위 `outputDimensionality`·`taskType`으로 실제 1,024차원 응답을 주는가(API 레퍼런스가 두 필드에 `EmbedContentConfig`로 옮기라는 deprecated 표시를 달았지만 가이드의 REST 예시는 최상위 필드를 쓴다) | B5 → GB | 해소(2026-09-08): 최상위 `outputDimensionality=1024`·`taskType=RETRIEVAL_DOCUMENT`로 보낸 `batchEmbedContents`가 `values` 1,024개를 돌려줬고, 그 벡터의 L2 norm은 0.6165로 정규화돼 있지 않았다(Q35의 어댑터 측 정규화가 필요함을 확인) |
 | V1 | 착수 시점의 Electron·Forge·Playwright 최신 버전 재조회 | A1 착수 시 | 해소(2026-09-06): `electron@44.2.0`(2026-09-04 배포), `@electron-forge/cli@7.11.2`(latest, 8은 `8.0.0-alpha.10`), `@playwright/test@1.63.0`, `update-electron-app@3.3.0`, `electron-log@5.4.4`, `@electron/fuses@2.1.3`, `@electron/notarize@3.1.1`, `esbuild@0.28.2`. 근거: `npm view <pkg> version` |
 
 전체 목록은 지식 문서 8절과 패키징 부록 끝의 "확인하지 못한 항목"에 있다. 여기에는 **작업을 막는 것만** 옮겨 적었다.
@@ -360,7 +377,7 @@ G0 미통과 상태에서도 착수할 수 있다.
 | --- | --- | --- | --- |
 | R1 | GitHub이 Electron 창 로그인을 차단할 수 있음 | A1 (U1) | 해소(2026-09-07): 비밀번호 + 2FA 종단 성공 |
 | R16 | 3자 IdP(Google·Apple)가 GitHub 로그인 체인에 끼어들어 허용 목록을 계속 넓히게 됨 | A1 (U20·U21), A7 (해소) | 미해소. 2026-09-07 `accounts.google.com` 추가로 Google만 뚫었다. Apple(`appleid.apple.com`)은 그대로 깨져 있고, IdP가 embedded UA를 거부하면 목록 확장 자체가 막힌다. 근본 해소는 시스템 브라우저 로그인(`A7`) |
-| R2 | Notion OAuth 도메인이 허용 목록과 다를 수 있음 | A1 (U2) | 미해소 |
+| R2 | Notion OAuth 도메인이 허용 목록과 다를 수 있음 | A1 (U2) | 부분 해소(2026-09-08): 실제로 달랐다 — 동의 화면이 `app.notion.com`에 있어 차단됐고, 목록에 추가했다. 동의 이후 홉은 재측정 전이라 다른 도메인이 더 나올 수 있다 |
 | R3 | 운영 API 오리진이 저장소에 없음 | Q3 | 미해소. 2026-09-06 dev 값이 `dev-api.knoted.kr`로 확인되면서 `api.<env>.knoted.kr` 대칭 추정이 깨졌다 — 운영 값을 추측하지 않는다 |
 | R4 | access 1시간·리프레시 없음 | A6 | 미해소 |
 | R14 | `D11`으로 토큰이 JS에서 읽혀 XSS 노출면이 커짐(`HttpOnly` 격리 상실) | C2 (완화), A7 (해소) | 미해소. CSP(`W3`)·1시간 만료로 완화 |
@@ -377,6 +394,9 @@ G0 미통과 상태에서도 착수할 수 있다.
 | R17 | 클라이언트가 만든 답변을 서버가 검증할 수 없어 피드백·품질 데이터의 신뢰가 떨어짐 | S2 (Q24·Q25) | 미해소. `generated_by` 표시와 Workspace JOIN으로만 완화 |
 | R18 | 브라우저 단독(SSE)·데스크톱(IPC) 두 탐색 경로를 함께 유지하는 비용 | Q22 | 미해소. 규칙 문장·선별·저장 검증을 서버 한 곳에 두어 중복을 줄인다 |
 | R19 | 근거 3페이지 → 청크 8개, 모델이 사용자마다 달라 gold set 결과가 이전과 비교되지 않음 | S5 (GS) | 미해소. 기준 모델 하나로 재측정 |
+| R20 | 임베딩 공간 교체(Qwen → Gemini)로 기존 색인이 무효화되고, gold set·A/B 보고서가 Qwen 임베딩 기준이라 이전 결과와 비교되지 않음 | B5 (Q39), GB | 미해소. 재색인은 동기화 재실행으로, 품질은 GB에서 재측정 |
+| R21 | 허용 목록 밖 홉이 나오면 셸은 외부 브라우저로 빼지만, 이동을 시작한 SPA는 이동 대기 상태(`useNotionConnect`의 `isRedirecting`)에 갇혀 버튼이 무한 로딩이 되고 복구 경로가 없음 | A1 (U2) 관측, FE 후속 | 미해소(2026-09-08 관측). 목록을 맞추면 지나가지만 새 도메인이 나올 때마다 같은 증상이 재발한다. 창 포커스 복귀·타임아웃으로 대기 상태를 푸는 것은 FE 후속 |
+| R22 | 무료 티어 Gemini 키는 분당 약 32청크(≈4만 자)만 받아 큰 Workspace 동기화가 수 분 걸리고(21페이지 약 9분), 사용자는 그동안 카드 스피너만 본다. 일일 한도(RPD)에 걸리면 재시도로도 못 넘긴다 | B5 (Q42), GB | 부분 해소(2026-09-08): 로컬 키의 프로젝트에 결제 계정을 연결해 611청크가 48초에 색인됐다(실행 #5). 무료 티어에서는 Q42 재시도로도 실패할 수 있다(실행 #4). 운영 키는 유료 티어로 둔다(Java 연동 문서). 진행률·실패 사유 원인별 노출은 ADR 261의 재논의 조건이라 별도 결정 |
 
 ## 10. 작업 1건 실행 절차 (매번 반복)
 
@@ -412,3 +432,7 @@ G0 미통과 상태에서도 착수할 수 있다.
 | 2026-09-07 | `local` API 오리진을 같은 오리진(mock 전제) → `http://localhost:8080`(실 백엔드)으로 정정(기획서 4.5, 8 #1). U22 추가 후 해소, U17 해소 | 사용자 지시(`서버까지 띄워서 검사해야해. 목을 보지 않도록`) + `A1` 셸 실측(정정 전 로그인 버튼 무반응 → 정정 후 OAuth 4홉 종단 통과, `auth.bin` 암호화 확인) |
 | 2026-09-07 | **탐색 경로를 서버 검색 전용 + 데스크톱 사용자 LLM 호출로 개정**. 1절 목표 문장, 불변 계약 1·2번 개정(개정 전 1번: "백엔드 채팅 계약 무변경, `chat/` diff 0", 2번: "클라이언트에서 LLM을 호출하지 않는다. 답변·출처를 클라이언트가 저장하지 않는다. 데스크톱 전용 채팅 경로를 만들지 않는다"), 3번 보강, G2 정정, 트랙 S(`S1`~`S5`)·게이트 GS 신설, Q21~Q29·U23~U24·R17~R19 추가, 2.1절에 `S1` 등재. 설계는 기획서 6.4 신설, 기능 기획서 1·3·6·8·11·12절 정정. 코드는 미착수 | 사용자 지시(`서버에서 탐색 파이프라인을 융합/선별을 상위 3개가 아니라 8개로 늘리고 … 사용자의 llm에게 요청하는 방식으로 동작하게 문서를 전면 수정해줘`) |
 | 2026-09-07 | 트랙 S `S1` 착수 후 구현·검증 완료로 `검증중`(단위 521·통합 120·수락 177건 통과). 검색 API `POST /conversations/{sessionId}/search`, V14(`chunk_index`·rank 1~8·`generated_by`), `top-k=8`·`max-context-characters=12000`, `chat.turn-timeout`, `CHAT_TURN_IN_PROGRESS`. Q23 정정(컬럼 없이 timeout 판정·SSE 잠금 공유·SSE 경로 무변경), Q30(검색 후 저장)·Q31(검색 오류 코드 그대로)·Q32(`chunk_index` 백필 0)·Q33(본문 자르기 예산) 추가. 기획서 6.4 흐름·오류 표·V14 표 정정, 지식 문서 §1.4·Java 연동 문서 정정. ADR은 `S1` Issue 번호가 없어 아직 만들지 않음 | 사용자 지시(`로드맵 4.5절 s1구현해. 기획서 6.4 기준으로 서버 검색 api와 v14까지`) |
+| 2026-09-08 | 트랙 B `B5`(임베딩 Gemini 어댑터) 착수 후 구현·검증 완료로 `검증중`(단위 536·통합 120·수락 177건 통과, 실제 Gemini 종단 미측정). Q34~Q40(provider·차원 1,024 유지·`taskType`·배치·오류 매핑·재색인·환경) 기본값 확정, U25·U26·R20 추가, GB 게이트를 임베딩 교체까지 포함하도록 확장. 기획서 6.2 활성화 행 정정·임베딩 행 신설, 13절 변경 목록 추가. 지식 문서 §1.4·§8, Java 연동 문서, 기능 기획서 모델 절 정정 | 사용자 지시(`임베딩 모델을 gemini 임베딩 1로 가자. 토큰값을 env로 설정할 수 있게 해줘`) |
+| 2026-09-08 | `C1` 보강: 회원이 없는 액세스 토큰을 401로 처리(Q41 추가, C1 행 문구 보강). 기획서 5.1 계약에 `회원 확인` 행, 13절에 변경 행 추가 | 사용자 지시(`auth.bin 지우고 백엔드도 401 주도록 고쳐`) + 로컬 DB 초기화 후 stale 토큰 실측(`/auth/me` 200, `POST /workspaces` 500, 로그아웃 진입점 도달 불가) |
+| 2026-09-08 | Notion 연결 무한 로딩 진단·정정. U2 부분 해소(동의 화면 `app.notion.com` 실측), R2 부분 해소, R21 추가(차단 시 SPA 복구 부재), G1 두 번째 체크박스에 실측 기록. 기획서 4.5 허용 목록에 `app.notion.com` 추가·Notion 체인 항목 신설·15절 R2 정정·R21 추가, 지식 문서 §1.1 Notion OAuth 체인 행·§8 U2 정정. 코드는 `desktop/src/shared/env.ts` 허용 목록과 `env.test.ts` | 사용자 지시(`고쳐줘, 문서부터 순서대로`) + `~/Library/Logs/Knot/main.log` 09-07·09-08 `will-redirect` 차단 기록, 로컬 DB 연결 행 |
+| 2026-09-08 | 홈 Notion 동기화 실패(`Notion 문서를 가져오지 못했습니다`) 진단·정정. 원인은 Notion이 아니라 Gemini `batchEmbedContents` 429(무료 티어). 배치 64 → 16(Q37 정정), 색인 배치 429·503 지수 백오프 재시도 신설(Q42, `GeminiEmbeddingClient`·`llm.gemini.retry-*`, 기본 6회), Q38 정정, U25 부분 해소·U26 해소, R22 추가. 기획서 6.2·13절, 지식 문서 §1.4·§8, Java 연동 문서 정정. 단위 543건 통과. 무료 티어 실행 #4는 재시도로도 실패(412초), 결제 계정 연결 뒤 실행 #5 완료(106초·611청크·발행). 실패 사유 원인별 노출은 ADR 261 재논의 조건이라 미착수 | 사용자 지시(`1번부터 진행해줘`) + 로컬 DB(`content_import_runs` 21/21 FAILED·`search_document_chunks` 0건)·Gemini 직접 호출 실측 |

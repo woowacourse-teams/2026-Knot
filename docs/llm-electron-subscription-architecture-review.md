@@ -1,6 +1,7 @@
 # Electron + Claude 구독 OAuth + 백엔드 RAG 아키텍처의 Knot 적용 가능성 검토
 
 - 기준일: 2026-09-04
+- 재확인: 2026-09-07 — Agent SDK overview 조항 문구는 동일하다. 확인 대상에 `legal-and-compliance`와 Agent SDK 구독 크레딧 지원 문서를 추가하고 2.1·5.1·8·9절을 보강했다. 1절 판정은 바뀌지 않았다
 - 기준 커밋: `develop` `b1d4801` (`[BE] 채팅 답변 출처 조회 API 구현 (#351)`)
 - 검토 대상: 「Electron + Claude 구독 OAuth + 백엔드 RAG 아키텍처」 문서(이하 "제안")
 - 검토 범위: `backend/`, `frontend/`, `docs/`, `.github/workflows/`, Anthropic 공식 문서(code.claude.com, docs.claude.com)
@@ -13,7 +14,7 @@
 
 | 층위 | 판정 | 요지 |
 | --- | --- | --- |
-| 정책 | 차단 | Agent SDK 공식 문서가 "사전 승인 없이 서드파티 제품이 claude.ai 로그인·구독 한도를 제공하는 것"을 명시적으로 금지한다. 제안의 핵심 전제(사용자 본인 구독으로 모델 실행)가 여기에 걸린다. |
+| 정책 | 차단 | Agent SDK 공식 문서가 "사전 승인 없이 서드파티 제품이 claude.ai 로그인·구독 한도를 제공하는 것"을 명시적으로 금지한다. `legal-and-compliance`는 여기에 더해 자격증명·세션 토큰의 수집·저장·중개를 금지하고 로그인이 Anthropic 자체 플로우에서 끝나야 한다고 못박는다. 제안의 핵심 전제(사용자 본인 구독으로 모델 실행)와 앱 내 로그인 안이 모두 여기에 걸린다. 같은 문서에 승인 없이 열린 좁은 경로가 하나 있으나 제안과 형태가 다르다(5.1). |
 | 제품 형태 | 대규모 신규 개발 | Knot은 Cloudflare Workers에 배포되는 웹 SPA다. Electron 코드·의존성·서명·배포 파이프라인이 전혀 없다. 제안은 데스크톱 앱을 새로 만드는 일이다. |
 | 백엔드 계약 | 역전 | Knot 백엔드는 검색뿐 아니라 LLM 호출, SSE 스트리밍, 답변·출처 영속화, 문서 준비 게이트, Workspace 격리 검증까지 소유한다. 제안은 이를 클라이언트로 옮기고 백엔드를 검색 전용으로 축소하므로, 이미 구현·검증된 계약이 대부분 무효화된다. |
 
@@ -23,7 +24,7 @@
 
 ## 2. 검토 근거
 
-### 2.1 Anthropic 공식 문서 확인 결과 (2026-09-04)
+### 2.1 Anthropic 공식 문서 확인 결과 (2026-09-04, 2026-09-07 보강)
 
 | 확인 항목 | 결과 | 근거 |
 | --- | --- | --- |
@@ -36,6 +37,12 @@
 | `createSdkMcpServer`, `tool`, `mcpServers`, `allowedTools`, `resume`, `systemPrompt`, `includePartialMessages`, `alwaysLoad` | 현재 옵션명과 일치 | https://code.claude.com/docs/en/agent-sdk/typescript, https://code.claude.com/docs/en/agent-sdk/mcp |
 | SDK가 `claude` 서브프로세스를 띄우고 stdio로 통신, 세션 JSONL은 로컬 디스크 | 명시 | https://code.claude.com/docs/en/agent-sdk/hosting |
 | 자격증명 저장 위치 | macOS Keychain, Linux `~/.claude/.credentials.json`(0600) | https://code.claude.com/docs/en/authentication |
+| 자격증명·세션 토큰 취급 (2026-09-07 추가) | **금지(명시)** | Legal and compliance: "Anthropic does not permit third-party developers to offer Claude.ai login into their own applications, or to route requests through Free, Pro, or Max plan credentials on behalf of their users. Moreover, developers may not collect, store, or intermediate Claude.ai credentials or session tokens — sign-in to a Claude account must complete through Anthropic's own flow." — https://code.claude.com/docs/en/legal-and-compliance |
+| Claude Code를 제품에 preinstall·실행 (2026-09-07 추가) | 사전 승인과 별개로 **조건부 허용** | 같은 문서 "Can customers offer Claude Code in their products?": 상용 ToS 동의 + ① 바이너리 미변경, 내장 인증 수단 제거·비활성화 금지 ② 개발사가 대납·재판매·중개하지 않고 최종 사용자가 각자 자격증명(API 키, Claude 구독, Bedrock·Vertex·Foundry)으로 인증 |
+| 최종 사용자가 자기 구독으로 로그인 (2026-09-07 추가) | 변경 없는 Claude Code 바이너리에 한해 **허용(명시)** | 같은 문서: "Nor does it prevent an end user from signing in to the unmodified Claude Code binary with their own Claude subscription, including where a platform hosts Claude Code" |
+| Pro·Max 한도의 전제 (2026-09-07 추가) | 개인의 통상 사용 | 같은 문서: "Advertised usage limits for Pro and Max plans assume ordinary, individual usage of Claude Code and the Agent SDK." OAuth는 "intended exclusively for purchasers of Claude Free, Pro, Max, Team, and Enterprise subscription plans" |
+| 서드파티 앱이 사용자 구독으로 인증하는 형태 (2026-09-07 추가) | 과금 카테고리로 존재. 구독 usage limit에서 차감 | 지원 문서 "Use the Claude Agent SDK with your Claude plan"(최종 수정 2026-06-16). 월 크레딧 도입은 2026-06-15 공지로 보류: "Claude Agent SDK, `claude -p`, and third-party app usage still draw from your subscription's usage limits" — https://support.claude.com/en/articles/15036540-use-the-claude-agent-sdk-with-your-claude-plan |
+| 사전 승인 신청 절차 (2026-09-07 추가) | 공개된 폼·심사 기준·SLA 없음. 영업팀 문의가 유일한 문서화 창구 | Legal and compliance 말미: "For questions about permitted authentication methods for your use case, please contact sales" — https://www.anthropic.com/contact-sales |
 
 제안 문서 7절이 "정책이 2026년 들어 여러 번 변경됨, 배포 직전 재확인"이라고 적어 둔 항목이 바로 이 조항이다. 현재 문구는 "허용 범위"가 아니라 "사전 승인 없이는 금지"다.
 
@@ -122,7 +129,11 @@ GET  /api/v1/messages/{messageId}/sources           (출처 조회, Workspace �
 
 - Agent SDK overview의 조항은 "사용자 본인 구독"인지 "공유 토큰"인지를 구분하지 않는다. 서드파티 제품이 claude.ai 로그인이나 구독 rate limit을 제공하는 것 자체를 사전 승인 대상으로 둔다. 제안 1절의 "앱은 토큰을 만지지 않으므로 중개가 아니다"라는 논리는 이 조항을 우회하지 못한다. 조항은 토큰 취급 방식이 아니라 제품이 구독 한도를 쓰게 하는 행위를 겨눈다.
 - `claude setup-token`은 CI·스크립트용 Claude Code CLI 기능으로 문서화돼 있고, Agent SDK 문서에는 지원 언급이 없다. 제안 7절의 "터미널 로그인 안내 또는 앱 내 xterm.js 로그인"도 결국 같은 구독 크리덴셜을 SDK가 읽게 하는 것이라 정책 문제가 동일하다.
-- Knot 팀은 이미 [`ADR 232`](./adr/232-shared-subscription-token-local-ai-review.md)에서 "개인 구독 토큰 공유는 Anthropic 계정 공유 약관에 저촉될 가능성"을 부정 결과로 기록했다. 제안은 개발 도구가 아니라 최종 사용자 제품에 같은 위험을 옮기는 것이므로 노출 범위가 훨씬 넓다.
+- Knot 팀은 이미 [`ADR 232`](./adr/232-shared-subscription-token-local-ai-review.md)에서 개인 구독 토큰 공유의 약관 위험을 부정 결과로 기록했다(당시 표현은 "저촉될 가능성"이었고, 2026-09-07 재확인으로 명시 문구가 확인돼 해당 ADR을 정정했다). 제안은 개발 도구가 아니라 최종 사용자 제품에 같은 위험을 옮기는 것이므로 노출 범위가 훨씬 넓다.
+- **(2026-09-07 추가)** [`legal-and-compliance`](https://code.claude.com/docs/en/legal-and-compliance)는 같은 금지를 더 구체적으로 적는다. "Anthropic does not permit third-party developers to offer Claude.ai login into their own applications, or to route requests through Free, Pro, or Max plan credentials on behalf of their users. Moreover, developers may not collect, store, or intermediate Claude.ai credentials or session tokens — sign-in to a Claude account must complete through Anthropic's own flow." 제안 7절의 앱 내 xterm.js 로그인은 앞 절반에, 토큰을 Main이 보관·중개하는 변형은 뒤 절반에 직접 걸린다.
+- **(2026-09-07 추가) 승인 없이 열린 좁은 경로가 하나 있다.** 같은 문서의 "Can customers offer Claude Code in their products?"는 상용 ToS 동의와 두 조건 아래 제품에 Claude Code를 동봉·실행하는 것을 허용한다. ① Claude Code 바이너리를 변경하지 않고 내장 인증 수단을 제거·비활성화하지 않는다. ② 개발사가 대납·재판매·중개하지 않고 최종 사용자가 각자 자격증명으로 인증한다. 이어서 "Nor does it prevent an end user from signing in to the unmodified Claude Code binary with their own Claude subscription, including where a platform hosts Claude Code"로 구독 로그인까지 명시한다. 다만 이 경로는 **제품이 변경 없는 Claude Code를 그대로 실행하고 사용자가 그것을 Claude Code로서 쓰는 형태**다. Agent SDK를 제품 로직에 묻어 Knot 채팅 UI로 감싸는 D안과 형태가 다르므로 D안의 대체가 되지 않는다. Knot이 이 경로를 쓰려면 제품이 "Knot 채팅"이 아니라 "Claude Code를 띄워 주는 셸"이 되어야 한다.
+- **(2026-09-07 추가) 공개 문서 사이에 긴장이 있다.** 지원 문서 [`Use the Claude Agent SDK with your Claude plan`](https://support.claude.com/en/articles/15036540-use-the-claude-agent-sdk-with-your-claude-plan)은 "Third-party apps that authenticate with your Claude subscription through the Agent SDK"를 과금 대상 카테고리로 적고, 2026-06-15 공지는 그 사용량이 구독 usage limit에서 차감된다고 한다. 즉 "서드파티 앱이 사용자 구독으로 인증"이 아예 존재하지 않는 형태로 다뤄지지는 않는다. 이것이 Agent SDK overview의 "사전 승인 없이는 금지"와 어떻게 맞물리는지는 공개 문서만으로 확정할 수 없다. **이 미확정 지점이 8절 1번(서면 사전 승인)을 형식 절차가 아니라 실제 필요로 만든다.**
+- **(2026-09-07 추가) 사전 승인 신청 절차는 공개돼 있지 않다.** 신청 폼, 심사 기준, 처리 기간 어느 것도 문서화된 것이 없다. `legal-and-compliance` 말미의 "For questions about permitted authentication methods for your use case, please contact sales"(https://www.anthropic.com/contact-sales)가 유일한 문서화된 창구이며, 같은 문서가 예외를 "Unless we've mutually agreed otherwise"로 표현하므로 개별 상용 계약을 뜻한다. 검색에 걸리는 Development Partner Program은 모델 개선용 데이터 공유 프로그램이라 이 승인과 무관하다.
 - 폴백으로 제시된 `ANTHROPIC_API_KEY` 직접 입력(BYO key)은 정책상 허용된 경로다. 그러나 이 경로를 쓰면 Electron·Agent SDK를 둘 이유가 사라지고, 백엔드가 키를 보관해 호출하는 C안(7절)과 같은 결과가 된다.
 
 ### 5.2 제품 형태·배포
@@ -214,7 +225,7 @@ GET  /api/v1/messages/{messageId}/sources           (출처 조회, Workspace �
 
 아래가 모두 충족되기 전에는 착수하지 않는다.
 
-1. Anthropic으로부터 "claude.ai 로그인·구독 한도를 제품에 제공"하는 것에 대한 서면 사전 승인. 승인 범위(구독 종류, 사용자 수, 재배포 형태)를 명시.
+1. Anthropic으로부터 "claude.ai 로그인·구독 한도를 제품에 제공"하는 것에 대한 서면 사전 승인. 승인 범위(구독 종류, 사용자 수, 재배포 형태)를 명시. 문서화된 창구는 영업팀 문의뿐이다(https://www.anthropic.com/contact-sales). 5.1절의 미확정 지점 때문에 "구독 로그인을 승인해 달라"보다 **"우리 형태가 허용 범위에 드는지"**로 묻는 편이 답을 얻기 쉽다.
 2. 제품 형태 결정: 데스크톱 전용인지, 웹과 병행인지. 병행이면 백엔드 LLM 경로 유지 비용을 수용.
 3. 백엔드 신규 API: `POST /api/v1/workspaces/{id}/search`(검색 노출), 클라이언트 생성 assistant 메시지·출처 저장 API(서버 검증 규칙 포함), 디바이스 토큰 발급·Bearer 인증 경로.
 4. 무결성 정책: 클라이언트가 쓴 답변을 서버가 어떻게 표시·검증·감사할지. 피드백 데이터의 신뢰 범위.
@@ -229,4 +240,7 @@ GET  /api/v1/messages/{messageId}/sources           (출처 조회, Workspace �
 - Agent SDK TypeScript 레퍼런스: https://code.claude.com/docs/en/agent-sdk/typescript
 - Agent SDK MCP (SDK MCP 서버, `alwaysLoad`): https://code.claude.com/docs/en/agent-sdk/mcp
 - Claude Code 인증 (`setup-token`, 크리덴셜 저장): https://code.claude.com/docs/en/authentication
+- Legal and compliance (자격증명 사용 조항, Claude Code 동봉 조건, 영업팀 문의): https://code.claude.com/docs/en/legal-and-compliance
+- Use the Claude Agent SDK with your Claude plan (서드파티 앱 구독 인증 과금, 2026-06-15 보류 공지): https://support.claude.com/en/articles/15036540-use-the-claude-agent-sdk-with-your-claude-plan
+- Anthropic 영업팀 문의: https://www.anthropic.com/contact-sales
 - Knot: [`adr/271-llm-search-architecture-benchmark.md`](./adr/271-llm-search-architecture-benchmark.md), [`llm-search-feature-spec.md`](./llm-search-feature-spec.md), [`llm-java-integration.md`](./llm-java-integration.md), [`adr/232-shared-subscription-token-local-ai-review.md`](./adr/232-shared-subscription-token-local-ai-review.md)

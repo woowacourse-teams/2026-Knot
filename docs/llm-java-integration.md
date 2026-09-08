@@ -12,7 +12,7 @@ Java 백엔드는 Notion credential이나 MCP token을 LLM에 넘기지 않는�
 Notion Import
   → imported_pages staging
   → Markdown chunking
-  → Qwen embedding
+  → 임베딩 (Gemini gemini-embedding-001, 1,024차원 — 정정 2026-09-08)
   → PostgreSQL pgvector 색인
   → 성공 시 publication pointer 교체
 
@@ -28,7 +28,7 @@ Notion Import
 
 ## 실행 설정
 
-기본값은 외부 호출이 없는 `fake` 모드다. LM Studio 또는 NVIDIA NIM을 사용할 때만 `openai-compatible`을, Anthropic Messages API를 사용할 때만 채팅 쪽에 `anthropic`을 활성화한다.
+기본값은 외부 호출이 없는 `fake` 모드다. LM Studio 또는 NVIDIA NIM을 사용할 때만 `openai-compatible`을, Anthropic Messages API를 사용할 때만 채팅 쪽에 `anthropic`을, Gemini Embedding을 사용할 때만 임베딩 쪽에 `gemini`를 활성화한다. 2026-09-08부터 실제 임베딩은 `gemini`(`gemini-embedding-001`)가 기본 선택이며(로드맵 `B5`), `openai-compatible` 임베딩은 되돌리기용으로 남는다.
 
 provider는 채팅과 임베딩을 따로 켤 수 있다. `LLM_PROVIDER` 하나만 넣으면 두 쪽이 같은 값을 쓰고,
 `LLM_CHAT_PROVIDER`·`LLM_EMBEDDING_PROVIDER`를 넣으면 그 쪽만 덮어쓴다. 채팅 HTTP 클라이언트
@@ -39,13 +39,13 @@ provider는 채팅과 임베딩을 따로 켤 수 있다. `LLM_PROVIDER` 하나�
 | --- | --- | --- |
 | `LLM_PROVIDER` | `openai-compatible` | 채팅·임베딩 공통 provider. 아래 두 키가 없을 때의 fallback이다 |
 | `LLM_CHAT_PROVIDER` | `openai-compatible` | 채팅만 따로 지정한다(`fake` \| `openai-compatible` \| `anthropic`). 없으면 `LLM_PROVIDER`를 따른다 |
-| `LLM_EMBEDDING_PROVIDER` | `openai-compatible` | 임베딩만 따로 지정한다(`fake` \| `openai-compatible`). 없으면 `LLM_PROVIDER`를 따른다 |
+| `LLM_EMBEDDING_PROVIDER` | `gemini` | 임베딩만 따로 지정한다(`fake` \| `openai-compatible` \| `gemini`). 없으면 `LLM_PROVIDER`를 따른다 |
 | `LLM_BASE_URI` | `http://<lm-studio-host>:1234/v1` | 채팅·임베딩 endpoint의 공통 base URI |
 | `LLM_API_KEY` | `<secret>` | Authorization header에만 사용 |
 | `LLM_MODEL` | `qwen/qwen3.6-27b` | 채팅 모델 |
-| `LLM_EMBEDDING_MODEL` | `text-embedding-qwen3-embedding-0.6b:2` | 임베딩 모델 |
-| `LLM_EMBEDDING_DIMENSIONS` | `1024` | V13 pgvector 차원 계약 |
-| `LLM_SEARCH_EMBEDDING_BATCH_SIZE` | `64` | Import 색인 시 한 번에 임베딩을 요청할 청크 수 |
+| `LLM_EMBEDDING_MODEL` | `text-embedding-qwen3-embedding-0.6b:2` | `openai-compatible` 임베딩 모델. `gemini`는 `GEMINI_EMBEDDING_MODEL`을 쓴다 |
+| `LLM_EMBEDDING_DIMENSIONS` | `1024` | V13 pgvector 차원 계약. 세 provider 모두 응답 차원이 이 값과 다르면 `SEARCH_PROVIDER_FAILED`. `gemini`는 이 값을 `outputDimensionality`로 보낸다 |
+| `LLM_SEARCH_EMBEDDING_BATCH_SIZE` | `16` | Import 색인 시 한 번에 임베딩을 요청할 청크 수(정정 2026-09-08: 64 → 16. Gemini가 1,300자 32건 이상 요청을 429 `RESOURCE_EXHAUSTED`로 거절, 로드맵 Q37·U25) |
 | `LLM_SEARCH_MINIMUM_RELEVANCE_SCORE` | `0.35` | 검색 후보를 근거로 채택하기 위한 최소 정규화 점수 |
 | `LLM_MAX_TOKENS` | `1024` | 채팅 생성 상한 |
 | `LLM_TEMPERATURE` | `0.2` | 채팅 생성 온도 |
@@ -96,6 +96,44 @@ LLM_EMBEDDING_MODEL=<NIM embedding model>
 `usage` 토큰 수는 INFO 로그로만 남기며 저장하지 않는다. 운영에 `anthropic`을 켜기 전에는 gold set 30문항 재측정과
 TTFT 5초 실측(로드맵 GB 게이트)을 통과해야 한다.
 
+### Gemini 임베딩 어댑터
+
+`LLM_EMBEDDING_PROVIDER=gemini`이면 임베딩만 Gemini API(`POST {base-uri}/v1beta/models/{model}:batchEmbedContents`, 헤더 `x-goog-api-key`)로 보낸다.
+채팅은 이 설정과 무관하게 `LLM_CHAT_PROVIDER`를 따르므로, 채팅은 Claude·임베딩은 Gemini로 섞어 쓴다. 어댑터는
+`search/infrastructure/gemini/`에 있고 SDK 없이 JDK `HttpClient`로 직접 호출한다(로드맵 Q34). `LLM_EMBEDDING_PROVIDER=gemini`인데
+아래 값이 비어 있거나 잘못되면 애플리케이션이 기동 시점에 `SEARCH_CONFIGURATION_INVALID`로 실패한다.
+
+| 환경 변수 | 기본값 | 용도 |
+| --- | --- | --- |
+| `GEMINI_API_KEY` | (없음, 필수) | `x-goog-api-key` header에만 사용. 저장소·프롬프트·로그·응답에 기록하지 않는다 |
+| `GEMINI_EMBEDDING_MODEL` | `gemini-embedding-001` | 임베딩 모델. 요청 본문에는 `models/` 접두사를 붙여 보낸다 |
+| `GEMINI_REQUEST_TIMEOUT` | `PT30S` | 배치 한 번의 HTTP timeout |
+| `GEMINI_RETRY_MAX_ATTEMPTS` | `6` | 색인 배치가 429·503이면 이 횟수까지 보낸다(로드맵 Q42). `1`이면 재시도 없음 |
+| `GEMINI_RETRY_INITIAL_DELAY` | `PT5S` | 첫 재시도 전 대기. 이후 2배씩(상한 60초) — 5·10·20·40·60초, 누적 135초. 실측에서 5회(75초)는 한 번 못 넘겼다 |
+| `GEMINI_BASE_URI` | `https://generativelanguage.googleapis.com` | 테스트·프록시용. 운영에서는 바꾸지 않는다 |
+
+요청은 `requests[]` 항목마다 `{model, content.parts[].text, taskType, outputDimensionality}`를 넣는다. `taskType`은 색인이
+`RETRIEVAL_DOCUMENT`, 검색 질의가 `RETRIEVAL_QUERY`다(로드맵 Q36 — `DocumentEmbeddingClient.embed(texts, EmbeddingTask)`가 용도를
+받는다). `outputDimensionality`는 `LLM_EMBEDDING_DIMENSIONS`(1,024)이며, `gemini-embedding-001`은 3,072 미만 벡터를 정규화해 주지
+않으므로 어댑터가 응답 `embeddings[].values`를 L2 정규화한 뒤 저장·검색에 쓴다(로드맵 Q35). 한 배치는
+`LLM_SEARCH_EMBEDDING_BATCH_SIZE`(16)건이다(로드맵 Q37, 정정 2026-09-08: 64는 429 `RESOURCE_EXHAUSTED`).
+
+| Gemini 응답 | Knot 처리 |
+| --- | --- |
+| 2xx, `embeddings.length == 요청 건수`, 각 `values.length == 1024` | 정규화 후 순서대로 반환 |
+| HTTP 401·403 | `SEARCH_CONFIGURATION_INVALID` |
+| HTTP 429·503 (색인 배치) | `GEMINI_RETRY_INITIAL_DELAY`부터 2배씩 대기하며 `GEMINI_RETRY_MAX_ATTEMPTS`회까지 재시도(로드맵 Q42). 다 실패하면 `SEARCH_PROVIDER_FAILED`(색인은 import 실패로 남고 기존 스냅샷 유지) |
+| HTTP 429·503 (검색 질의) | 재시도 없이 `SEARCH_PROVIDER_FAILED`(검색 API는 500) |
+| 그 외 비 2xx(400·5xx), 건수·차원 불일치, 본문 파싱 실패, 영벡터 | `SEARCH_PROVIDER_FAILED`(재시도 없음) |
+
+오류 본문은 `error.status`만 WARN 로그에 남긴다. 임베딩 공간이 Qwen·fake와 다르므로 `gemini`를 켠 뒤에는 **모든 Workspace의
+Notion 동기화를 다시 실행해 재색인**해야 하며, 그 전까지 벡터 검색 점수는 무의미하다(로드맵 Q39·GB 게이트). 요금은
+Gemini API 무료 티어가 있고 유료 티어는 입력 1M 토큰당 US$0.15(2026-09-08 확인, [가격 문서](https://ai.google.dev/gemini-api/docs/pricing));
+무료 티어 응답은 제품 개선에 쓰일 수 있다고 명시돼 있어 운영 키는 유료 티어로 둔다. 참고: [임베딩 가이드](https://ai.google.dev/gemini-api/docs/embeddings),
+[API 레퍼런스](https://ai.google.dev/api/embeddings).
+
+무료 티어 실측(2026-09-08, 로드맵 U25): 1,300자 텍스트 기준 한 요청에 32건 이상이면 즉시 429, 16건 배치는 분당 2번(약 32청크·4만 자)까지만 받고
+56초 뒤 회복한다. 그래서 배치 16 + 429 재시도가 기본값이며, 21페이지(611청크)는 무료 티어에서 10분 안팎이고 재시도로도 실패할 수 있다. 결제 계정을 연결한 유료 티어에서는 같은 양이 48초(39회 호출)에 끝났다.
 `LLM_SEARCH_EMBEDDING_BATCH_SIZE`는 임베딩 provider의 요청 크기·timeout에 맞춰 조정한다. 모든
 배치가 성공하기 전에는 새 import snapshot을 공개하지 않는다. `LLM_SEARCH_MINIMUM_RELEVANCE_SCORE`
 미만인 vector·keyword 후보는 답변 근거에서 제외하며, 남은 후보가 없으면 LLM을 호출하지 않고

@@ -42,14 +42,14 @@ FE 로컬 AI 리뷰는 구독 소유자의 claude setup-token을 팀에 배포�
 - 긍정: 팀원이 `pnpm review` 하나로 같은 기준의 리뷰 md를 개인 비용 없이 받는다
 - 긍정: /review 스킬·체크리스트 단일 기준이 유지된다
 - 부정: 팀 전체 사용량이 소유자 구독 한도에 잡혀 피크 시 소유자 작업까지 막힐 수 있다
-- 부정: 개인 구독 토큰 공유는 Anthropic 계정 공유 약관에 저촉될 가능성이 있다
+- 부정: 개인 구독 토큰 공유는 Anthropic 정책 문구에 정면으로 걸린다. 결정 당시 "가능성"으로 적었으나 2026-09-07 재확인에서 명시 문구를 확인했다. [Legal and compliance](https://code.claude.com/docs/en/legal-and-compliance)는 OAuth 인증을 "intended exclusively for purchasers of Claude Free, Pro, Max, Team, and Enterprise subscription plans"로 한정하고, Pro·Max 한도가 "ordinary, individual usage of Claude Code and the Agent SDK"를 전제한다고 적으며, "Anthropic reserves the right to take measures to enforce these restrictions and may do so without prior notice"로 끝난다. 한 사람의 토큰으로 팀 전체 리뷰를 돌리는 것은 구매자 본인의 통상적 개인 사용이 아니다. 법적 판단이 아니라 공개 문서 문구 확인이다
 - 부정: 토큰 전달·회수가 저장소 밖 수동 절차에 의존한다
 - 부정: 팀원 로컬에 Claude Code CLI 설치가 전제된다
 
 ## 다시 논의해야 할 조건
 
 - 팀 리뷰로 소유자 구독 한도 초과가 반복될 때
-- 토큰 유출 또는 Anthropic 약관·정책 문제가 확인될 때
+- 토큰 유출 또는 Anthropic 약관·정책 문제가 확인될 때 — **2026-09-07 충족.** 위 "결과"의 명시 문구가 확인됐으므로 이 결정은 재논의 대상이다. 대안은 트레이드 오프에 이미 적힌 Console API 키 공유(약관 위험 없음, 사용량 과금)와 각자 실행이다
 - FE CI/CD(#161)가 갖춰져 GitHub Actions 기반 PR 리뷰를 붙일 수 있을 때
 - 팀 구독 플랜이 바뀌어 각자 실행이 가능해질 때
 
@@ -58,4 +58,5 @@ FE 로컬 AI 리뷰는 구독 소유자의 claude setup-token을 팀에 배포�
 - 예정 경로: `docs/adr/232-shared-subscription-token-local-ai-review.md`
 - 결정 주체: Knot FE 팀
 - AI 하네스가 Proposed ADR 파일을 생성했다.
+- 2026-09-07 정책 재확인: 데스크톱 앱 LLM provider 조사 중 `legal-and-compliance` 문구를 확인해 "결과"와 "다시 논의해야 할 조건"을 정정했다. 결정 자체(무엇을 결정했나)는 팀 재논의 전까지 그대로 두었고 상태도 `Proposed`를 유지한다. 상세는 [`llm-electron-subscription-architecture-review.md`](../llm-electron-subscription-architecture-review.md) 2.1·5.1절.
 - 팀이 PR에서 승인한 뒤 Accepted로 바꾼다.
