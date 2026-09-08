@@ -13,6 +13,7 @@ import com.jayway.jsonpath.JsonPath;
 import com.knot.backend.auth.domain.AuthTokenProvider;
 import com.knot.backend.auth.domain.AuthenticatedMember;
 import com.knot.backend.search.application.DocumentEmbeddingClient;
+import com.knot.backend.search.application.EmbeddingTask;
 import com.knot.backend.search.domain.SearchChunkRepository;
 import com.knot.backend.search.domain.SearchIndexedChunk;
 import com.knot.backend.testsupport.TestApplicationProperties;
@@ -408,7 +409,10 @@ class ChatSearchAcceptanceTest {
                 contents.add(baseContent + " 상세 " + pageOffset + "-" + chunkIndex);
             }
         }
-        List<double[]> embeddings = embeddingClient.embed(contents);
+        List<double[]> embeddings = embeddingClient.embed(
+                contents,
+                EmbeddingTask.DOCUMENT
+        );
         int contentIndex = 0;
         for (int pageOffset = 0; pageOffset < chunkCountsPerPage.size(); pageOffset++) {
             for (int chunkIndex = 0; chunkIndex < chunkCountsPerPage.get(pageOffset); chunkIndex++) {

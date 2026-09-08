@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.knot.backend.chat.infrastructure.LlmProperties;
 import com.knot.backend.search.application.DocumentEmbeddingClient;
+import com.knot.backend.search.application.EmbeddingTask;
 import com.knot.backend.search.application.EmbeddingProperties;
 import com.knot.backend.search.domain.SearchErrorCode;
 import com.knot.backend.search.domain.SearchException;
@@ -88,7 +89,8 @@ class OpenAiCompatibleEmbeddingClientTest {
                 List.of(
                         "첫 질문",
                         "두 번째 질문"
-                )
+                ),
+                EmbeddingTask.DOCUMENT
         );
 
         // then
@@ -143,7 +145,10 @@ class OpenAiCompatibleEmbeddingClientTest {
         );
 
         // when
-        ThrowingCallable action = () -> client.embed(List.of("질문"));
+        ThrowingCallable action = () -> client.embed(
+                List.of("질문"),
+                EmbeddingTask.DOCUMENT
+        );
 
         // then
         assertThatThrownBy(action).isInstanceOfSatisfying(

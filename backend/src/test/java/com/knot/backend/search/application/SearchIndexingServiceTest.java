@@ -56,7 +56,12 @@ class SearchIndexingServiceTest {
                         )
                 )
         );
-        when(embeddingClient.embed(any())).thenReturn(List.of(new double[1024]));
+        when(
+                embeddingClient.embed(
+                        any(),
+                        any()
+                )
+        ).thenReturn(List.of(new double[1024]));
         SearchIndexingService service = new SearchIndexingService(
                 pageRepository,
                 chunker,
@@ -109,7 +114,12 @@ class SearchIndexingServiceTest {
                         )
                 )
         );
-        when(embeddingClient.embed(any())).thenReturn(List.of(new double[3]));
+        when(
+                embeddingClient.embed(
+                        any(),
+                        any()
+                )
+        ).thenReturn(List.of(new double[3]));
         SearchIndexingService service = new SearchIndexingService(
                 pageRepository,
                 chunker,
@@ -176,7 +186,8 @@ class SearchIndexingServiceTest {
                         List.of(
                                 "제목: 기술 스택\n첫 청크",
                                 "제목: 기술 스택\n둘째 청크"
-                        )
+                        ),
+                        EmbeddingTask.DOCUMENT
                 )
         ).thenReturn(
                 List.of(
@@ -184,7 +195,12 @@ class SearchIndexingServiceTest {
                         vector(2)
                 )
         );
-        when(embeddingClient.embed(List.of("제목: 기술 스택\n셋째 청크"))).thenReturn(List.of(vector(3)));
+        when(
+                embeddingClient.embed(
+                        List.of("제목: 기술 스택\n셋째 청크"),
+                        EmbeddingTask.DOCUMENT
+                )
+        ).thenReturn(List.of(vector(3)));
         SearchIndexingService service = new SearchIndexingService(
                 pageRepository,
                 chunker,
@@ -219,10 +235,14 @@ class SearchIndexingServiceTest {
                         List.of(
                                 "제목: 기술 스택\n첫 청크",
                                 "제목: 기술 스택\n둘째 청크"
-                        )
+                        ),
+                        EmbeddingTask.DOCUMENT
                 );
         org.mockito.Mockito.verify(embeddingClient)
-                .embed(List.of("제목: 기술 스택\n셋째 청크"));
+                .embed(
+                        List.of("제목: 기술 스택\n셋째 청크"),
+                        EmbeddingTask.DOCUMENT
+                );
         org.mockito.Mockito.verify(persistenceService)
                 .replace(
                         org.mockito.ArgumentMatchers.eq(7L),
@@ -284,7 +304,12 @@ class SearchIndexingServiceTest {
                         )
                 )
         );
-        when(embeddingClient.embed(any())).thenAnswer(invocation -> {
+        when(
+                embeddingClient.embed(
+                        any(),
+                        any()
+                )
+        ).thenAnswer(invocation -> {
             List<String> batch = invocation.getArgument(0);
             if (batch.size() == 2) {
                 return List.of(

@@ -47,7 +47,12 @@ class PublishedDocumentSearchServiceTest {
         SearchChunkRepository repository = mock(SearchChunkRepository.class);
         DocumentEmbeddingClient embeddingClient = mock(DocumentEmbeddingClient.class);
         when(repository.findPublishedImportRunId(7L)).thenReturn(Optional.of(11L));
-        when(embeddingClient.embed(List.of("우리 DB 뭐 쓰기로 했지?"))).thenReturn(List.of(new double[1024]));
+        when(
+                embeddingClient.embed(
+                        List.of("우리 DB 뭐 쓰기로 했지?"),
+                        EmbeddingTask.QUERY
+                )
+        ).thenReturn(List.of(new double[1024]));
         SearchChunk second = chunk(
                 7L,
                 102L,
@@ -149,7 +154,12 @@ class PublishedDocumentSearchServiceTest {
         SearchChunkRepository repository = mock(SearchChunkRepository.class);
         DocumentEmbeddingClient embeddingClient = mock(DocumentEmbeddingClient.class);
         when(repository.findPublishedImportRunId(7L)).thenReturn(Optional.of(11L));
-        when(embeddingClient.embed(any())).thenReturn(List.of(new double[1024]));
+        when(
+                embeddingClient.embed(
+                        any(),
+                        any()
+                )
+        ).thenReturn(List.of(new double[1024]));
         List<SearchChunk> candidates = new java.util.ArrayList<>();
         for (int index = 0; index < 10; index++) {
             candidates.add(
@@ -246,7 +256,10 @@ class PublishedDocumentSearchServiceTest {
         verify(
                 embeddingClient,
                 never()
-        ).embed(any());
+        ).embed(
+                any(),
+                any()
+        );
     }
 
     @Test
@@ -307,7 +320,10 @@ class PublishedDocumentSearchServiceTest {
         verify(
                 embeddingClient,
                 never()
-        ).embed(any());
+        ).embed(
+                any(),
+                any()
+        );
         verify(
                 repository,
                 never()
@@ -326,7 +342,12 @@ class PublishedDocumentSearchServiceTest {
         SearchChunkRepository repository = mock(SearchChunkRepository.class);
         DocumentEmbeddingClient embeddingClient = mock(DocumentEmbeddingClient.class);
         when(repository.findPublishedImportRunId(7L)).thenReturn(Optional.of(11L));
-        when(embeddingClient.embed(any())).thenReturn(List.of(new double[1024]));
+        when(
+                embeddingClient.embed(
+                        any(),
+                        any()
+                )
+        ).thenReturn(List.of(new double[1024]));
         when(
                 repository.findByVector(
                         any(),
@@ -373,7 +394,12 @@ class PublishedDocumentSearchServiceTest {
         SearchChunkRepository repository = mock(SearchChunkRepository.class);
         DocumentEmbeddingClient embeddingClient = mock(DocumentEmbeddingClient.class);
         when(repository.findPublishedImportRunId(7L)).thenReturn(Optional.of(11L));
-        when(embeddingClient.embed(List.of("무관한 질문"))).thenReturn(List.of(new double[1024]));
+        when(
+                embeddingClient.embed(
+                        List.of("무관한 질문"),
+                        EmbeddingTask.QUERY
+                )
+        ).thenReturn(List.of(new double[1024]));
         when(
                 repository.findByVector(
                         eq(7L),
