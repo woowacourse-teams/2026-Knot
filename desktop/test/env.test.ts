@@ -18,6 +18,7 @@ describe("resolveEnvironment", () => {
       "https://github.com",
       "https://accounts.google.com",
       "https://api.notion.com",
+      "https://app.notion.com",
       "https://www.notion.so",
     ]);
   });
@@ -27,6 +28,15 @@ describe("resolveEnvironment", () => {
   it("GitHub 소셜 로그인이 지나가는 Google 오리진이 허용 목록에 있다", () => {
     for (const name of ["dev", "local"] as const) {
       expect(resolveEnvironment(name).navigationAllowlist).toContain("https://accounts.google.com");
+    }
+  });
+
+  // 2026-09-08 U2 회귀 방지. Notion 동의 화면은 `app.notion.com`에 있고, 이 오리진이
+  // 빠지면 `api.notion.com/v1/oauth/authorize`의 302가 `will-redirect`에서 차단돼
+  // 외부 브라우저로 빠지고 앱 창의 연결 버튼이 무한 로딩이 된다(기획서 4.5).
+  it("Notion 동의 화면 오리진이 허용 목록에 있다", () => {
+    for (const name of ["dev", "local"] as const) {
+      expect(resolveEnvironment(name).navigationAllowlist).toContain("https://app.notion.com");
     }
   });
 
