@@ -19,8 +19,11 @@ export interface KnotEnvironment {
   readonly navigationAllowlist: readonly string[];
 }
 
+/** 1단계 로그인(패턴 C)이 시작되는 오리진. 기획서 4.3·4.5 */
+const GITHUB_LOGIN_ORIGINS = ["https://github.com"] as const;
+
 /**
- * 1단계 로그인(패턴 C)이 지나가는 오리진. 기획서 4.3·4.5
+ * GitHub 로그인 폼과 Notion 로그인 화면이 공유하는 3자 IdP 오리진. 기획서 4.5
  *
  * `accounts.google.com`은 GitHub 계정을 Google로 만든 사용자가 `github.com/login`에서
  * "Sign in with Google"을 누를 때 지나간다(2026-09-07 실측, 로드맵 U20). 이 홉을
@@ -28,9 +31,18 @@ export interface KnotEnvironment {
  * `state`를 심어둔 세션 쿠키는 앱 세션에 남아 콜백 검증이 실패한다. 로그인 체인은
  * 한 브라우저 세션 안에서 끝나야 한다.
  *
- * Apple(`appleid.apple.com`)은 같은 이유로 아직 깨져 있다(기획서 4.5 미해소).
+ * `appleid.apple.com`·`login.microsoftonline.com`은 Notion 로그인 화면의 IdP 팝업
+ * (`app.notion.com/<idp>popupredirect`)이 302로 가는 곳이다(2026-09-08 curl 실측,
+ * 로드맵 U27). 팝업은 자식 창이라 이 목록의 네비게이션 정책을 그대로 받으므로 여기
+ * 없으면 `will-redirect`에서 차단돼 로그인이 끊긴다. GitHub 폼의 Apple 경로는
+ * 아직 미검증이다. `login.live.com`은 Microsoft 개인 계정 홉 가능성으로만 둔다(미관측).
  */
-const GITHUB_LOGIN_ORIGINS = ["https://github.com", "https://accounts.google.com"] as const;
+const IDP_ORIGINS = [
+  "https://accounts.google.com",
+  "https://appleid.apple.com",
+  "https://login.microsoftonline.com",
+  "https://login.live.com",
+] as const;
 
 /**
  * Notion OAuth 302 체인이 지나가는 오리진.
@@ -39,8 +51,10 @@ const GITHUB_LOGIN_ORIGINS = ["https://github.com", "https://accounts.google.com
  * `api.notion.com/v1/oauth/authorize`가 302로 `app.notion.com/install-integration`에
  * 보내는데, 이 오리진이 없으면 `will-redirect`에서 차단돼 외부 브라우저로 빠지고
  * 앱 창의 연결 버튼은 이동 대기 상태에 갇혀 무한 로딩이 된다(기획서 4.5, R21).
- * `www.notion.so`는 아직 관측되지 않았지만 로그인 홉 가능성으로 둔다. 동의 이후
- * 홉은 미측정이라 여기 없는 도메인이 나오면 로그(`did-redirect-navigation`)에 남고
+ * `www.notion.so`는 아직 관측되지 않았지만 로그인 홉 가능성으로 둔다. 동의 화면
+ * 앞의 `sessionSync` 왕복은 전부 `app.notion.com`이고(2026-09-08 재측정), 미로그인
+ * 사용자의 IdP 인증은 팝업으로 열려 `IDP_ORIGINS`를 지난다(U27). 로그인 이후 홉은
+ * 미측정이라 여기 없는 도메인이 나오면 로그(`did-redirect-navigation`)에 남고
  * 외부 브라우저로 빠진다.
  */
 const NOTION_OAUTH_ORIGINS = [
@@ -116,6 +130,7 @@ export function resolveEnvironment(
       webOrigin,
       normalizedApiOrigin,
       ...GITHUB_LOGIN_ORIGINS,
+      ...IDP_ORIGINS,
       ...NOTION_OAUTH_ORIGINS,
     ]),
   ];

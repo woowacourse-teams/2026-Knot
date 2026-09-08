@@ -16,7 +16,9 @@ vi.mock("electron-log/main", () => ({
   },
 }));
 
-const { isAllowedNavigation, isSafeExternalUrl } = await import("../src/main/navigation");
+const { isAllowedNavigation, isSafeExternalUrl, resolveWindowOpen } = await import(
+  "../src/main/navigation"
+);
 
 const ALLOWLIST = [
   "https://dev.knoted.kr",
@@ -42,6 +44,44 @@ describe("isAllowedNavigation", () => {
     expect(isAllowedNavigation("about:blank", ALLOWLIST)).toBe(false);
     expect(isAllowedNavigation("javascript:alert(1)", ALLOWLIST)).toBe(false);
     expect(isAllowedNavigation("", ALLOWLIST)).toBe(false);
+  });
+});
+
+// 2026-09-08 Q46. Notion 로그인 화면의 IdP 팝업은 `window.opener`가 없으면 스스로 닫히므로
+// 허용 목록 안 오리진의 새 창은 자식 창으로 열어야 한다. 전부 거부하면 "팝업이 차단됨"이 된다.
+describe("resolveWindowOpen", () => {
+  const NOTION_POPUP =
+    "https://app.notion.com/verifyNoPopupBlockerHtmlAndRedirect?redirectUri=https%3A%2F%2Fapp.notion.com%2Fmicrosoftpopupredirect";
+  const ALLOWLIST_WITH_NOTION = [...ALLOWLIST, "https://app.notion.com"] as const;
+
+  it("허용 목록 안 오리진의 새 창은 자식 창으로 연다", () => {
+    const response = resolveWindowOpen(NOTION_POPUP, ALLOWLIST_WITH_NOTION);
+    expect(response.action).toBe("allow");
+  });
+
+  it("자식 창에도 보안 webPreferences를 다시 명시하고 preload는 주지 않는다", () => {
+    const response = resolveWindowOpen(NOTION_POPUP, ALLOWLIST_WITH_NOTION);
+    expect(response.overrideBrowserWindowOptions?.webPreferences).toEqual({
+      sandbox: true,
+      contextIsolation: true,
+      nodeIntegration: false,
+      webviewTag: false,
+    });
+    expect(response.overrideBrowserWindowOptions?.webPreferences).not.toHaveProperty("preload");
+  });
+
+  it("허용 목록 밖 오리진의 새 창은 거부한다", () => {
+    expect(resolveWindowOpen(NOTION_POPUP, ALLOWLIST)).toEqual({ action: "deny" });
+    expect(resolveWindowOpen("https://evil.example/login", ALLOWLIST_WITH_NOTION)).toEqual({
+      action: "deny",
+    });
+  });
+
+  it("오리진이 없는 스킴은 거부한다", () => {
+    expect(resolveWindowOpen("about:blank", ALLOWLIST_WITH_NOTION)).toEqual({ action: "deny" });
+    expect(resolveWindowOpen("javascript:alert(1)", ALLOWLIST_WITH_NOTION)).toEqual({
+      action: "deny",
+    });
   });
 });
 

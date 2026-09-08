@@ -15,6 +15,7 @@ import type {
   WebContents,
   WebContentsWillNavigateEventParams,
   WebContentsWillRedirectEventParams,
+  WindowOpenHandlerResponse,
 } from "electron";
 import type { KnotEnvironment } from "../shared/env";
 import { toOrigin } from "../shared/env";
@@ -31,6 +32,44 @@ const ALLOWED_PERMISSIONS = new Set([
 export function isAllowedNavigation(rawUrl: string, allowlist: readonly string[]): boolean {
   const origin = toOrigin(rawUrl);
   return origin !== null && allowlist.includes(origin);
+}
+
+/**
+ * 자식 창에 다시 명시하는 보안 webPreferences(기획서 8절 #2~#4·#11, 불변 계약 4).
+ *
+ * Electron은 보안 관련 webPreferences를 부모에서 상속하지만, 창을 추가할 때도 같은
+ * 값을 쓴다는 규칙(`desktop/CLAUDE.md`)을 코드에서 보이게 둔다. preload는 상속되지
+ * 않으므로 자식 창에는 `window.knotDesktop`이 없다.
+ */
+const CHILD_WINDOW_WEB_PREFERENCES = {
+  sandbox: true,
+  contextIsolation: true,
+  nodeIntegration: false,
+  webviewTag: false,
+} as const;
+
+/**
+ * 새 창 요청(`window.open`·`target=_blank`)을 어떻게 처리할지 정한다(기획서 4.5, 로드맵 Q46).
+ *
+ * 허용 목록 안 오리진은 자식 창으로 연다. Notion 로그인 화면의 IdP 팝업
+ * (`app.notion.com/verifyNoPopupBlockerHtmlAndRedirect`)은 `window.opener`가 없으면
+ * 스스로 닫히므로 외부 브라우저로는 통과할 수 없다(2026-09-08 실측, U27). 자식 창은
+ * opener의 세션을 쓰고 `web-contents-created`로 같은 네비게이션 정책을 받는다.
+ * 목록 밖은 거부하고 호출자가 외부 브라우저로 넘긴다.
+ */
+export function resolveWindowOpen(
+  rawUrl: string,
+  allowlist: readonly string[],
+): WindowOpenHandlerResponse {
+  if (!isAllowedNavigation(rawUrl, allowlist)) {
+    return { action: "deny" };
+  }
+  return {
+    action: "allow",
+    overrideBrowserWindowOptions: {
+      webPreferences: { ...CHILD_WINDOW_WEB_PREFERENCES },
+    },
+  };
 }
 
 /** 외부 브라우저로 넘겨도 되는 URL인가(기획서 8절 #15) */
@@ -88,11 +127,16 @@ export function applyNavigationPolicy(contents: WebContents, env: KnotEnvironmen
     guard(details, "will-redirect");
   });
 
-  // 새 창은 전부 거부하고 검증된 URL만 외부 브라우저로 넘긴다(기획서 8절 #14)
+  // 허용 목록 안은 자식 창(OAuth 로그인 팝업), 밖은 거부 + 검증된 URL만 외부 브라우저(기획서 8절 #14)
   contents.setWindowOpenHandler(({ url }) => {
+    const response = resolveWindowOpen(url, env.navigationAllowlist);
+    if (response.action === "allow") {
+      logger.info("[knot] 새 창 허용 → 자식 창", { url });
+      return response;
+    }
     logger.info("[knot] 새 창 요청 거부 → 외부 브라우저", { url });
     openExternalBestEffort(url);
-    return { action: "deny" };
+    return response;
   });
 
   // `webviewTag`는 기본 false지만 attach 시도 자체를 막는다(기획서 8절 #11~12)

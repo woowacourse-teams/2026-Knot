@@ -17,6 +17,9 @@ describe("resolveEnvironment", () => {
       "https://dev-api.knoted.kr",
       "https://github.com",
       "https://accounts.google.com",
+      "https://appleid.apple.com",
+      "https://login.microsoftonline.com",
+      "https://login.live.com",
       "https://api.notion.com",
       "https://app.notion.com",
       "https://www.notion.so",
@@ -37,6 +40,18 @@ describe("resolveEnvironment", () => {
   it("Notion 동의 화면 오리진이 허용 목록에 있다", () => {
     for (const name of ["dev", "local"] as const) {
       expect(resolveEnvironment(name).navigationAllowlist).toContain("https://app.notion.com");
+    }
+  });
+
+  // 2026-09-08 U27 회귀 방지. Notion 로그인 화면의 IdP 팝업은 자식 창으로 열려 같은
+  // 허용 목록을 받으므로, `<idp>popupredirect`의 302 목적지가 빠지면 팝업 안에서
+  // `will-redirect` 차단 → 외부 브라우저로 빠져 로그인이 끊긴다(기획서 4.5).
+  it("Notion 로그인 팝업이 302로 가는 IdP 오리진이 허용 목록에 있다", () => {
+    for (const name of ["dev", "local"] as const) {
+      const allowlist = resolveEnvironment(name).navigationAllowlist;
+      expect(allowlist).toContain("https://login.microsoftonline.com");
+      expect(allowlist).toContain("https://appleid.apple.com");
+      expect(allowlist).toContain("https://accounts.google.com");
     }
   });
 
