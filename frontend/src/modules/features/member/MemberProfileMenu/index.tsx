@@ -8,17 +8,27 @@ import useMemberProfileMenu from "./model/useMemberProfileMenu";
  * 로그인한 회원의 프로필 아바타와 계정 메뉴.
  *
  * GitHub OAuth로 받아 둔 프로필 이미지를 그리고, 아직 응답이 오기 전이거나 이미지가 없으면
- * 닉네임 첫 글자로 대신해요. 누르면 계정 메뉴가 열리고, 지금 들어 있는 항목은 로그아웃 하나예요.
+ * 닉네임 첫 글자로 대신해요. 누르면 계정 메뉴가 열리고, 항목은 로그아웃과
+ * 데스크톱 앱에서만 보이는 `CLI 에이전트 연결`이에요.
  *
  * 로그아웃은 웹의 유일한 진입점입니다. 데스크톱 앱은 앱 메뉴에도 같은 항목을 두지만
  * 실제로 부르는 것은 이 화면과 같은 액션이에요(기획서 5.1).
+ * `CLI 에이전트 연결`은 로컬 MCP 서버 상태와 CLI 등록 스니펫을 보여 주는 데스크톱 전용
+ * 화면(`/agent-connection`)으로 가요(기획서 6.4).
  *
  * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=587-516 Avatar size=32}
  */
 export default function MemberProfileMenu() {
   const { data: me } = useMeQuery();
-  const { isOpen, toggleMenu, containerRef, logout, isLoggingOut } =
-    useMemberProfileMenu();
+  const {
+    isOpen,
+    toggleMenu,
+    containerRef,
+    logout,
+    isLoggingOut,
+    hasAgentConnection,
+    goToAgentConnection,
+  } = useMemberProfileMenu();
 
   return (
     <Container ref={containerRef}>
@@ -39,6 +49,15 @@ export default function MemberProfileMenu() {
 
       {isOpen && (
         <Menu role="menu">
+          {hasAgentConnection && (
+            <MenuItem
+              type="button"
+              role="menuitem"
+              onClick={goToAgentConnection}
+            >
+              CLI 에이전트 연결
+            </MenuItem>
+          )}
           <MenuItem
             type="button"
             role="menuitem"

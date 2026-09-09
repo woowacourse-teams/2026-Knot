@@ -15,11 +15,31 @@ import {
 } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { createMemoryRouter, RouterProvider } from "react-router";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import MemberProfileMenu from ".";
 
 const LOGIN_SCREEN_TEXT = "로그인 화면";
+const AGENT_CONNECTION_SCREEN_TEXT = "CLI 에이전트 연결 화면";
+const AGENT_MENU_ITEM = "CLI 에이전트 연결";
+
+/** 로컬 MCP 서버를 띄우는 데스크톱 셸을 흉내 내요. `agent`가 있어야 연결 항목이 보여요 */
+const stubDesktopWithAgent = () => {
+  window.knotDesktop = {
+    version: "0.1.0",
+    platform: "darwin",
+    env: "local",
+    openExternal: vi.fn(() => Promise.resolve()),
+    onDeepLink: vi.fn(() => () => undefined),
+    getPendingDeepLink: vi.fn(() => Promise.resolve(null)),
+    agent: {
+      getStatus: vi.fn(),
+      copyRegistration: vi.fn(),
+      rotateToken: vi.fn(),
+      setPort: vi.fn(),
+    },
+  };
+};
 
 const expectedMe = new GetMeResponseDto(meResponse);
 
@@ -31,6 +51,10 @@ const renderMenu = () => {
     [
       { path: PATH_ROUTE.HOME, element: <MemberProfileMenu /> },
       { path: PATH_ROUTE.LOGIN, element: <p>{LOGIN_SCREEN_TEXT}</p> },
+      {
+        path: PATH_ROUTE.AGENT_CONNECTION,
+        element: <p>{AGENT_CONNECTION_SCREEN_TEXT}</p>,
+      },
     ],
     { initialEntries: [PATH_ROUTE.HOME] },
   );
@@ -56,6 +80,10 @@ const openMenu = (trigger: HTMLElement) => {
 };
 
 describe("MemberProfileMenu", () => {
+  afterEach(() => {
+    delete window.knotDesktop;
+  });
+
   it("로그인한 회원의 프로필 이미지를 아바타로 보여준다", async () => {
     renderMenu();
 
@@ -83,6 +111,29 @@ describe("MemberProfileMenu", () => {
 
     expect(logoutItem).toBeInTheDocument();
     expect(trigger).toHaveAttribute("aria-expanded", "true");
+  });
+
+  it("브라우저에서는 CLI 에이전트 연결 항목이 없다", () => {
+    const { trigger } = renderMenu();
+
+    openMenu(trigger);
+
+    expect(
+      screen.queryByRole("menuitem", { name: AGENT_MENU_ITEM }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("데스크톱 셸에서는 CLI 에이전트 연결 항목이 보이고, 누르면 연결 화면으로 옮긴다", async () => {
+    stubDesktopWithAgent();
+    const { router, trigger } = renderMenu();
+
+    openMenu(trigger);
+    fireEvent.click(screen.getByRole("menuitem", { name: AGENT_MENU_ITEM }));
+
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe(PATH_ROUTE.AGENT_CONNECTION);
+    });
+    expect(screen.getByText(AGENT_CONNECTION_SCREEN_TEXT)).toBeInTheDocument();
   });
 
   it("메뉴 바깥을 누르면 닫힌다", () => {
