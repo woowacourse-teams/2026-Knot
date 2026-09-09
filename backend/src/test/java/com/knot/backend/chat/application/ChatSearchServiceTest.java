@@ -152,6 +152,7 @@ class ChatSearchServiceTest {
                 anyLong(),
                 anyString(),
                 any(),
+                any(),
                 any()
         );
         assertThat(registry.tryAcquire(SESSION_ID)).isTrue();

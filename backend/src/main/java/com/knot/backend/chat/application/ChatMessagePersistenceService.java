@@ -9,6 +9,7 @@ import com.knot.backend.chat.domain.ChatErrorCode;
 import com.knot.backend.chat.domain.ChatException;
 import com.knot.backend.chat.domain.ChatSession;
 import com.knot.backend.chat.domain.ChatSessionRepository;
+import com.knot.backend.chat.domain.LlmUsage;
 import com.knot.backend.search.application.SearchReferencePersistenceService;
 import com.knot.backend.search.domain.SearchChunk;
 import com.knot.backend.search.domain.SearchReferenceCandidate;
@@ -40,17 +41,29 @@ public class ChatMessagePersistenceService {
         );
     }
 
+    /**
+     * 서버가 만든 답변을 근거·토큰 사용량과 함께 한 트랜잭션에 저장한다(데스크톱 기획서 6.2 계측 행, 로드맵 B2).
+     * 사용량을 알려 주지 않는 어댑터와 안내 문구 폴백은 {@code usage}가 null이며 컬럼이 전부 NULL로 남는다.
+     */
     @Transactional
     public ChatMessage saveAssistantWithReferences(
             long sessionId,
             String content,
             Instant createdAt,
-            List<SearchChunk> references
+            List<SearchChunk> references,
+            LlmUsage usage
     ) {
-        ChatMessage savedMessage = saveMessageInternal(
-                sessionId,
-                ChatMessageRole.ASSISTANT,
-                content,
+        ChatSession chatSession = findSession(sessionId);
+        ChatMessage savedMessage = chatMessageRepository.save(
+                ChatMessage.createServerAnswer(
+                        sessionId,
+                        content,
+                        createdAt,
+                        usage
+                )
+        );
+        touchSession(
+                chatSession,
                 createdAt
         );
         searchReferencePersistenceService.replace(
@@ -147,8 +160,7 @@ public class ChatMessagePersistenceService {
             Instant createdAt,
             ChatMessageGeneratedBy generatedBy
     ) {
-        ChatSession chatSession = chatSessionRepository.findById(sessionId)
-                .orElseThrow(() -> new ChatException(ChatErrorCode.CHAT_SESSION_NOT_FOUND));
+        ChatSession chatSession = findSession(sessionId);
         ChatMessage chatMessage = ChatMessage.create(
                 sessionId,
                 role,
@@ -157,8 +169,23 @@ public class ChatMessagePersistenceService {
                 generatedBy
         );
         ChatMessage savedMessage = chatMessageRepository.save(chatMessage);
+        touchSession(
+                chatSession,
+                createdAt
+        );
+        return savedMessage;
+    }
+
+    private ChatSession findSession(long sessionId) {
+        return chatSessionRepository.findById(sessionId)
+                .orElseThrow(() -> new ChatException(ChatErrorCode.CHAT_SESSION_NOT_FOUND));
+    }
+
+    private void touchSession(
+            ChatSession chatSession,
+            Instant createdAt
+    ) {
         chatSession.updateLastMessageAt(createdAt);
         chatSessionRepository.save(chatSession);
-        return savedMessage;
     }
 }

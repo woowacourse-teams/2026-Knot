@@ -8,6 +8,7 @@ import com.knot.backend.chat.domain.ChatException;
 import com.knot.backend.chat.domain.ChatMessage;
 import com.knot.backend.chat.domain.ChatMessageRepository;
 import com.knot.backend.chat.domain.ChatMessageRole;
+import com.knot.backend.chat.domain.LlmUsage;
 import com.knot.backend.search.application.PublishedDocumentSearchService;
 import com.knot.backend.search.application.SearchContext;
 import com.knot.backend.search.domain.SearchErrorCode;
@@ -161,6 +162,7 @@ public class ChatMessageService {
             AtomicReference<LlmStream> streamReference
     ) {
         StringBuilder answer = new StringBuilder();
+        LlmUsage usage = null;
         try {
             SearchContext searchContext = documentSearchService.search(
                     workspaceId,
@@ -202,6 +204,9 @@ public class ChatMessageService {
                         return;
                     }
                 }
+                // 사용량은 스트림이 끝까지 읽힌 뒤에만 확정된다(B2). 알려 주지 않는 어댑터는 빈 값이다.
+                usage = stream.usage()
+                        .orElse(null);
             } catch (ChatException exception) {
                 // LLM 어댑터가 판정한 오류 코드(설정·한도·거부)는 뭉개지 않고 그대로 전달한다.
                 if (!handle.isCancelled()) {
@@ -217,7 +222,8 @@ public class ChatMessageService {
                     sessionId,
                     answer.toString(),
                     Instant.now(),
-                    searchContext.references()
+                    searchContext.references(),
+                    usage
             );
             listener.onComplete(assistantMessage.getId());
         } catch (CancellationException exception) {
@@ -257,7 +263,8 @@ public class ChatMessageService {
                 sessionId,
                 fallbackAnswer,
                 Instant.now(),
-                List.of()
+                List.of(),
+                null
         );
         listener.onComplete(assistantMessage.getId());
     }

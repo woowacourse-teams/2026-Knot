@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
@@ -21,6 +22,7 @@ import com.knot.backend.chat.domain.ChatMessageRepository;
 import com.knot.backend.chat.domain.ChatMessageRole;
 import com.knot.backend.chat.domain.ChatSession;
 import com.knot.backend.chat.domain.ChatSessionRepository;
+import com.knot.backend.chat.domain.LlmUsage;
 import com.knot.backend.chat.application.dto.command.LlmRequest;
 import com.knot.backend.search.application.PublishedDocumentSearchService;
 import com.knot.backend.search.application.SearchContext;
@@ -102,6 +104,7 @@ class ChatMessageServiceTest {
                         anyLong(),
                         anyString(),
                         any(),
+                        any(),
                         any()
                 )
         ).thenReturn(assistantMessage);
@@ -118,6 +121,14 @@ class ChatMessageServiceTest {
         );
         when(listener.onChunk(any())).thenReturn(true);
         when(assistantMessage.getId()).thenReturn(100L);
+        LlmUsage usage = LlmUsage.of(
+                "claude-opus-5",
+                25L,
+                12L,
+                9L,
+                0L
+        );
+        when(llmStream.usage()).thenReturn(java.util.Optional.of(usage));
         Executor directExecutor = Runnable::run;
         ChatMessageService service = new ChatMessageService(
                 accessPolicy,
@@ -163,7 +174,8 @@ class ChatMessageServiceTest {
                 anyLong(),
                 org.mockito.ArgumentMatchers.eq("첫 응답"),
                 any(),
-                org.mockito.ArgumentMatchers.eq(List.of())
+                org.mockito.ArgumentMatchers.eq(List.of()),
+                org.mockito.ArgumentMatchers.eq(usage)
         );
     }
 
@@ -202,6 +214,7 @@ class ChatMessageServiceTest {
                 persistenceService.saveAssistantWithReferences(
                         anyLong(),
                         anyString(),
+                        any(),
                         any(),
                         any()
                 )
@@ -281,7 +294,9 @@ class ChatMessageServiceTest {
                 org.mockito.ArgumentMatchers.eq(10L),
                 anyString(),
                 any(),
-                org.mockito.ArgumentMatchers.eq(List.of(reference))
+                org.mockito.ArgumentMatchers.eq(List.of(reference)),
+                // 사용량을 알려 주지 않는 어댑터(fake·openai-compatible)의 답변은 사용량 없이 저장된다(B2).
+                isNull()
         );
     }
 
@@ -379,6 +394,7 @@ class ChatMessageServiceTest {
                         anyLong(),
                         anyString(),
                         any(),
+                        any(),
                         any()
                 )
         ).thenReturn(assistantMessage);
@@ -425,7 +441,9 @@ class ChatMessageServiceTest {
                 org.mockito.ArgumentMatchers.eq(10L),
                 org.mockito.ArgumentMatchers.contains("찾지 못했습니다"),
                 any(),
-                org.mockito.ArgumentMatchers.eq(List.of())
+                org.mockito.ArgumentMatchers.eq(List.of()),
+                // 안내 문구는 모델을 부르지 않고 만든 답이라 사용량이 없다(B2).
+                isNull()
         );
     }
 
@@ -470,6 +488,7 @@ class ChatMessageServiceTest {
                 persistenceService.saveAssistantWithReferences(
                         anyLong(),
                         anyString(),
+                        any(),
                         any(),
                         any()
                 )
@@ -591,6 +610,7 @@ class ChatMessageServiceTest {
                 anyLong(),
                 anyString(),
                 any(),
+                any(),
                 any()
         );
     }
@@ -663,6 +683,7 @@ class ChatMessageServiceTest {
         ).saveAssistantWithReferences(
                 anyLong(),
                 anyString(),
+                any(),
                 any(),
                 any()
         );
@@ -912,6 +933,7 @@ class ChatMessageServiceTest {
             ).saveAssistantWithReferences(
                     anyLong(),
                     anyString(),
+                    any(),
                     any(),
                     any()
             );

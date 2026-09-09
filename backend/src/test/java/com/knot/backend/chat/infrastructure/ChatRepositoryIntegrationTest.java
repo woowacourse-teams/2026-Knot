@@ -11,6 +11,7 @@ import com.knot.backend.chat.domain.ChatMessageRepository;
 import com.knot.backend.chat.domain.ChatMessageRole;
 import com.knot.backend.chat.domain.ChatSession;
 import com.knot.backend.chat.domain.ChatSessionRepository;
+import com.knot.backend.chat.domain.LlmUsage;
 import com.knot.backend.chat.application.ChatMessagePersistenceService;
 import com.knot.backend.search.domain.SearchChunk;
 import com.knot.backend.search.domain.SearchErrorCode;
@@ -239,7 +240,8 @@ class ChatRepositoryIntegrationTest {
                 chatSession.getId(),
                 "답변",
                 CREATED_AT.plusSeconds(1),
-                List.of(crossWorkspaceReference)
+                List.of(crossWorkspaceReference),
+                null
         );
 
         // then
@@ -306,7 +308,8 @@ class ChatRepositoryIntegrationTest {
                                 0,
                                 0.8
                         )
-                )
+                ),
+                null
         );
 
         // then
@@ -336,6 +339,115 @@ class ChatRepositoryIntegrationTest {
                         .query(String.class)
                         .single()
         ).isEqualTo("SERVER");
+    }
+
+    @Test
+    @DisplayName("서버가 모델을 불러 만든 답변은 토큰 사용량을 같은 행에 저장한다")
+    void saveAssistantWithReferences_success_storesLlmUsage() {
+        // given
+        long[] workspaceMember = saveWorkspaceMember(
+                1L,
+                1L
+        );
+        ChatSession chatSession = chatSessionRepository.save(
+                ChatSession.create(
+                        workspaceMember[0],
+                        workspaceMember[1],
+                        "사용량",
+                        CREATED_AT
+                )
+        );
+
+        // when
+        ChatMessage assistantMessage = chatMessagePersistenceService.saveAssistantWithReferences(
+                chatSession.getId(),
+                "답변",
+                CREATED_AT.plusSeconds(1),
+                List.of(),
+                LlmUsage.of(
+                        "claude-opus-5",
+                        25L,
+                        12L,
+                        9L,
+                        3L
+                )
+        );
+
+        // then
+        assertThat(
+                jdbcClient.sql("""
+                        SELECT llm_model || ':' || input_tokens || ':' || output_tokens || ':'
+                               || cache_read_input_tokens || ':' || cache_creation_input_tokens
+                        FROM chat_messages
+                        WHERE id = :messageId
+                        """)
+                        .param(
+                                "messageId",
+                                assistantMessage.getId()
+                        )
+                        .query(String.class)
+                        .single()
+        ).isEqualTo("claude-opus-5:25:12:9:3");
+        entityManager.clear();
+        assertThat(
+                chatMessageRepository.findById(assistantMessage.getId())
+                        .orElseThrow()
+                        .getUsage()
+                        .getOutputTokens()
+        ).isEqualTo(12L);
+    }
+
+    @Test
+    @DisplayName("사용량 없이 저장한 답변은 사용량 컬럼이 전부 비어 있다")
+    void saveAssistantWithReferences_success_withoutUsageLeavesColumnsNull() {
+        // given
+        long[] workspaceMember = saveWorkspaceMember(
+                1L,
+                1L
+        );
+        ChatSession chatSession = chatSessionRepository.save(
+                ChatSession.create(
+                        workspaceMember[0],
+                        workspaceMember[1],
+                        "사용량 없음",
+                        CREATED_AT
+                )
+        );
+
+        // when
+        ChatMessage assistantMessage = chatMessagePersistenceService.saveAssistantWithReferences(
+                chatSession.getId(),
+                "안내 문구",
+                CREATED_AT.plusSeconds(1),
+                List.of(),
+                null
+        );
+
+        // then
+        assertThat(
+                jdbcClient.sql("""
+                        SELECT count(*)
+                        FROM chat_messages
+                        WHERE id = :messageId
+                          AND llm_model IS NULL
+                          AND input_tokens IS NULL
+                          AND output_tokens IS NULL
+                          AND cache_read_input_tokens IS NULL
+                          AND cache_creation_input_tokens IS NULL
+                        """)
+                        .param(
+                                "messageId",
+                                assistantMessage.getId()
+                        )
+                        .query(Long.class)
+                        .single()
+        ).isEqualTo(1L);
+        entityManager.clear();
+        assertThat(
+                chatMessageRepository.findById(assistantMessage.getId())
+                        .orElseThrow()
+                        .getUsage()
+        ).isNull();
     }
 
     @Test
@@ -377,7 +489,8 @@ class ChatRepositoryIntegrationTest {
                 chatSession.getId(),
                 "답변",
                 CREATED_AT.plusSeconds(1),
-                nineReferences
+                nineReferences,
+                null
         );
 
         // then
