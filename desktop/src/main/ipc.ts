@@ -15,9 +15,23 @@ import { toOrigin } from "../shared/env";
 import type { AgentBridge } from "./agent/bridge";
 import { isValidAgentPort } from "./agent/bridgeConfig";
 import { isAgentRegistrationTarget } from "./agent/registration";
+import type { AuthController } from "./auth/loginFlow";
+import type { DeepLinkRouter } from "./deepLink";
 import { logger } from "./logging";
 import { openExternalUrl } from "./navigation";
+import { isNotificationInput } from "./notifications";
+import type { DesktopNotificationInput } from "./notifications";
 import { clearToken, readToken, writeToken } from "./tokenStore";
+
+export interface IpcDependencies {
+  bridge: AgentBridge;
+  /** A8: 콜드 스타트 보류 링크를 SPA가 가져간다 */
+  deepLinks: DeepLinkRouter;
+  /** A7: 시스템 브라우저 로그인·로그아웃 */
+  auth: AuthController;
+  /** A10: renderer가 요청한 OS 알림. 표시 실패는 조용히 무시한다 */
+  showNotification: (input: DesktopNotificationInput) => void;
+}
 
 function assertTrustedSender(event: IpcMainInvokeEvent, env: KnotEnvironment, channel: string): void {
   const frame = event.senderFrame;
@@ -31,7 +45,9 @@ function assertTrustedSender(event: IpcMainInvokeEvent, env: KnotEnvironment, ch
   }
 }
 
-export function registerIpcHandlers(env: KnotEnvironment, bridge: AgentBridge): void {
+export function registerIpcHandlers(env: KnotEnvironment, deps: IpcDependencies): void {
+  const { bridge, deepLinks, auth, showNotification } = deps;
+
   ipcMain.handle(IPC_CHANNELS.openExternal, async (event, rawUrl: unknown) => {
     assertTrustedSender(event, env, IPC_CHANNELS.openExternal);
     if (typeof rawUrl !== "string") {
@@ -40,11 +56,10 @@ export function registerIpcHandlers(env: KnotEnvironment, bridge: AgentBridge): 
     await openExternalUrl(rawUrl);
   });
 
-  // 딥링크 수신은 A8에서 붙인다. 계약(기획서 4.4)을 먼저 고정해 두고
-  // 지금은 항상 null을 돌려준다.
+  // A8: 앱이 꺼져 있을 때(또는 창 로드 중에) 들어온 딥링크를 SPA 부팅 시 한 번 넘긴다
   ipcMain.handle(IPC_CHANNELS.getPendingDeepLink, (event): KnotDeepLink | null => {
     assertTrustedSender(event, env, IPC_CHANNELS.getPendingDeepLink);
-    return null;
+    return deepLinks.takePending();
   });
 
   // 토큰 세 채널은 저장소만 연다. 인자·반환값을 로그에 남기지 않는다(기획서 4.4).
@@ -64,6 +79,26 @@ export function registerIpcHandlers(env: KnotEnvironment, bridge: AgentBridge): 
   ipcMain.handle(IPC_CHANNELS.authClearToken, (event) => {
     assertTrustedSender(event, env, IPC_CHANNELS.authClearToken);
     clearToken();
+  });
+
+  // A7: 시스템 브라우저 로그인. 실패·취소·타임아웃은 reject로 renderer에 전달된다(코드·state 값은 넘기지 않는다)
+  ipcMain.handle(IPC_CHANNELS.authStartLogin, async (event) => {
+    assertTrustedSender(event, env, IPC_CHANNELS.authStartLogin);
+    await auth.startLogin();
+  });
+
+  ipcMain.handle(IPC_CHANNELS.authLogout, async (event) => {
+    assertTrustedSender(event, env, IPC_CHANNELS.authLogout);
+    await auth.logout();
+  });
+
+  // A10: renderer가 준 값은 믿지 않는다. 문구 길이·링크 모양을 다시 검사한다
+  ipcMain.handle(IPC_CHANNELS.notificationsShow, (event, rawInput: unknown) => {
+    assertTrustedSender(event, env, IPC_CHANNELS.notificationsShow);
+    if (!isNotificationInput(rawInput)) {
+      throw new Error("알림은 title(1~200자)·body(≤200자)·link(딥링크)만 받는다.");
+    }
+    showNotification({ title: rawInput.title, body: rawInput.body, link: rawInput.link ?? null });
   });
 
   // CLI 에이전트 연결(기획서 4.4 `agent.*`). 연결 토큰 값은 어떤 응답에도 싣지 않는다.

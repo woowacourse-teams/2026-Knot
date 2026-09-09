@@ -2,7 +2,8 @@
  * 애플리케이션 메뉴.
  *
  * 편집 메뉴는 macOS에서 복사·붙여넣기 단축키를 살리기 위해 반드시 필요하다.
- * 로그아웃 메뉴는 SPA 쪽 로그아웃 액션(W1)이 생긴 뒤에 붙인다.
+ * `파일` 메뉴의 로그인·로그아웃은 `A7` 시스템 브라우저 로그인 경로다(로드맵 Q60) — SPA의 로그아웃
+ * 액션(GNB)과 같은 결과를 내며 진입점만 하나 더 있는 것이다(기획서 5.1).
  *
  * `CLI 에이전트 연결` 메뉴는 `S9` 연결 안내 화면(웹 SPA)이 생기기 전까지의 임시 진입점이다
  * (로드맵 4.5절 `S8` 착수 가정 1). 등록 스니펫은 main이 클립보드에 쓰고, 대화상자에는
@@ -14,15 +15,23 @@ import type { BrowserWindow, MenuItemConstructorOptions } from "electron";
 import type { AgentRegistrationTarget } from "../shared/api";
 import type { KnotEnvironment } from "../shared/env";
 import type { AgentBridge } from "./agent/bridge";
+import type { AuthController } from "./auth/loginFlow";
 import { logFilePath, logger } from "./logging";
 import { openExternalUrl } from "./navigation";
 import { reloadWebOrigin } from "./windows";
 
-export function buildApplicationMenu(
-  env: KnotEnvironment,
-  getWindow: () => BrowserWindow | null,
-  bridge: AgentBridge,
-): void {
+export interface ApplicationMenuOptions {
+  env: KnotEnvironment;
+  getWindow: () => BrowserWindow | null;
+  bridge: AgentBridge;
+  /** A7 시스템 브라우저 로그인·로그아웃 */
+  auth: AuthController;
+  /** A4 "업데이트 확인". 켜져 있지 않은 빌드는 호출자가 안내한다 */
+  checkForUpdates: () => void;
+}
+
+export function buildApplicationMenu(options: ApplicationMenuOptions): void {
+  const { env, getWindow, bridge, auth, checkForUpdates } = options;
   const isMac = process.platform === "darwin";
 
   const copyItem = (label: string, target: AgentRegistrationTarget): MenuItemConstructorOptions => ({
@@ -70,6 +79,26 @@ export function buildApplicationMenu(
           click: () => {
             const window = getWindow();
             if (window !== null) reloadWebOrigin(window, env);
+          },
+        },
+        { type: "separator" },
+        {
+          // A7: 앱 안에서 자격증명을 받지 않고 시스템 브라우저에서 로그인한다(기획서 5.2)
+          label: "브라우저로 로그인",
+          click: () => {
+            auth.startLogin().catch((error: unknown) => {
+              const message = error instanceof Error ? error.message : "로그인하지 못했어요.";
+              logger.warn("[knot] 브라우저 로그인 실패", { reason: error instanceof Error ? error.name : "Unknown" });
+              void dialog.showMessageBox({ type: "warning", title: "Knot", message });
+            });
+          },
+        },
+        {
+          label: "로그아웃",
+          click: () => {
+            auth.logout().catch((error: unknown) => {
+              logger.warn("[knot] 로그아웃 실패", { reason: error instanceof Error ? error.name : "Unknown" });
+            });
           },
         },
         { type: "separator" },
@@ -177,6 +206,12 @@ export function buildApplicationMenu(
           click: () => {
             void shell.showItemInFolder(logFilePath());
           },
+        },
+        { type: "separator" },
+        {
+          // A4: 정책(Q59)상 꺼진 빌드에서는 호출자가 이유를 안내한다
+          label: "업데이트 확인",
+          click: checkForUpdates,
         },
       ],
     },
