@@ -4,6 +4,7 @@ import { authNicknameHandlers } from "./api/v1/auth/nickname";
 import { chatMessagesHandlers } from "./api/v1/conversations/[sessionId]";
 import { sendChatMessageHandlers } from "./api/v1/conversations/[sessionId]/messages";
 import { notionImportStatusHandlers } from "./api/v1/imports/[importRunId]";
+import { chatMessageSourcesHandlers } from "./api/v1/messages/[messageId]/sources";
 import { invitationPreviewHandlers } from "./api/v1/invitations/[tokenOrCode]";
 import { invitationAcceptHandlers } from "./api/v1/invitations/accept";
 import { lastViewedWorkspaceHandlers } from "./api/v1/members/me/lastViewedWorkspace";
@@ -39,4 +40,5 @@ export const handlers = [
   ...invitationPreviewHandlers,
   ...chatMessagesHandlers,
   ...sendChatMessageHandlers,
+  ...chatMessageSourcesHandlers,
 ];

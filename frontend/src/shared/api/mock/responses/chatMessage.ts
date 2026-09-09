@@ -1,6 +1,8 @@
 import type {
   ChatMessage,
+  ChatMessageSourcesResponse,
   ChatMessageStream,
+  SearchReferencePage,
 } from "@api/mock/types/chatMessage";
 
 const SECOND = 1000;
@@ -74,3 +76,102 @@ export const chatMessageStreamResponse = {
   ],
   messageId: 102,
 } satisfies ChatMessageStream;
+
+/** 출처 목록이 공유하는 원본 페이지. 같은 페이지의 청크가 여러 건 오는 모습을 재현하려고 셋만 둬요 */
+const decisionMeetingPage = {
+  id: "14f2a8c1-7e3b-4d6a-9f21-8c5b0a12d934",
+  title: "DB 기술 선정 회의록",
+  notionUrl: "https://www.notion.so/db-decision-meeting",
+  createdAt: "2026-08-30T00:00:00Z",
+  updatedAt: "2026-09-01T04:12:35Z",
+} satisfies SearchReferencePage;
+
+const erdPage = {
+  id: "2b7c9d10-5a44-4e0f-8b2d-1f3e6a7c8d90",
+  title: "초기 스키마 ERD",
+  notionUrl: "https://www.notion.so/initial-schema-erd",
+  createdAt: "2026-08-31T00:00:00Z",
+  updatedAt: "2026-09-02T09:30:00Z",
+} satisfies SearchReferencePage;
+
+const roadmapPage = {
+  id: "9e1f0a23-6b7c-4d8e-9f01-2a3b4c5d6e7f",
+  title: "2026 H2 제품 로드맵",
+  notionUrl: "https://www.notion.so/2026-h2-roadmap",
+  createdAt: "2026-08-20T00:00:00Z",
+  updatedAt: "2026-08-28T12:00:00Z",
+} satisfies SearchReferencePage;
+
+/**
+ * 답변 출처 조회 응답. 청크 단위 8건이 관련도 순위(rank) 순으로 오고, 같은 페이지가 여러 번 섞여 있어요.
+ *
+ * 화면은 이 8건을 페이지로 묶어 페이지의 대표 점수(가장 높은 청크 점수) 순으로 보여 줍니다.
+ */
+export const chatMessageSourcesResponse = {
+  searchReferences: [
+    {
+      id: 1,
+      messageId: 1002,
+      rank: 1,
+      relevanceScore: 0.95,
+      source: "NOTION",
+      notionPage: decisionMeetingPage,
+    },
+    {
+      id: 2,
+      messageId: 1002,
+      rank: 2,
+      relevanceScore: 0.91,
+      source: "NOTION",
+      notionPage: erdPage,
+    },
+    {
+      id: 3,
+      messageId: 1002,
+      rank: 3,
+      relevanceScore: 0.88,
+      source: "NOTION",
+      notionPage: decisionMeetingPage,
+    },
+    {
+      id: 4,
+      messageId: 1002,
+      rank: 4,
+      relevanceScore: 0.8,
+      source: "NOTION",
+      notionPage: roadmapPage,
+    },
+    {
+      id: 5,
+      messageId: 1002,
+      rank: 5,
+      relevanceScore: 0.74,
+      source: "NOTION",
+      notionPage: erdPage,
+    },
+    {
+      id: 6,
+      messageId: 1002,
+      rank: 6,
+      relevanceScore: 0.66,
+      source: "NOTION",
+      notionPage: decisionMeetingPage,
+    },
+    {
+      id: 7,
+      messageId: 1002,
+      rank: 7,
+      relevanceScore: 0.55,
+      source: "NOTION",
+      notionPage: roadmapPage,
+    },
+    {
+      id: 8,
+      messageId: 1002,
+      rank: 8,
+      relevanceScore: 0.41,
+      source: "NOTION",
+      notionPage: erdPage,
+    },
+  ],
+} satisfies ChatMessageSourcesResponse;
