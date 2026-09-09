@@ -173,6 +173,83 @@ class AnthropicLlmStreamTest {
         );
     }
 
+    @Test
+    @DisplayName("message_start의 입력·캐시 토큰과 message_delta의 출력 토큰을 사용량으로 올린다")
+    void usage_success_collectsInputAndOutputTokens() {
+        // given
+        AnthropicLlmStream stream = stream(
+                """
+                        data: {"type":"message_start","message":{"id":"msg_1","model":"claude-opus-5","usage":{"input_tokens":25,"cache_creation_input_tokens":7,"cache_read_input_tokens":9,"output_tokens":1}}}
+
+                        data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"응답"}}
+
+                        data: {"type":"message_delta","delta":{"stop_reason":"end_turn"},"usage":{"output_tokens":12}}
+
+                        data: {"type":"message_stop"}
+
+                        """
+        );
+
+        // when
+        stream.next();
+        boolean hasNext = stream.hasNext();
+
+        // then
+        assertThat(hasNext).isFalse();
+        assertThat(stream.usage()).hasValueSatisfying(usage -> {
+            assertThat(usage.getModel()).isEqualTo("claude-opus-5");
+            assertThat(usage.getInputTokens()).isEqualTo(25L);
+            assertThat(usage.getCacheCreationInputTokens()).isEqualTo(7L);
+            assertThat(usage.getCacheReadInputTokens()).isEqualTo(9L);
+            assertThat(usage.getOutputTokens()).isEqualTo(12L);
+        });
+    }
+
+    @Test
+    @DisplayName("message_start를 받기 전에 끝난 스트림에는 사용량이 없다")
+    void usage_success_emptyWithoutMessageStart() {
+        // given
+        AnthropicLlmStream stream = stream(
+                """
+                        data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"응답"}}
+
+                        data: {"type":"message_stop"}
+
+                        """
+        );
+
+        // when
+        stream.next();
+
+        // then
+        assertThat(stream.usage()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("message_delta가 오기 전이면 출력 토큰이 0인 사용량을 돌려준다")
+    void usage_success_zeroOutputTokensBeforeMessageDelta() {
+        // given
+        AnthropicLlmStream stream = stream(
+                """
+                        data: {"type":"message_start","message":{"id":"msg_1","model":"claude-opus-5","usage":{"input_tokens":25}}}
+
+                        data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"응답"}}
+
+                        data: {"type":"message_stop"}
+
+                        """
+        );
+
+        // when
+        stream.next();
+
+        // then
+        assertThat(stream.usage()).hasValueSatisfying(usage -> {
+            assertThat(usage.getInputTokens()).isEqualTo(25L);
+            assertThat(usage.getOutputTokens()).isZero();
+        });
+    }
+
     private AnthropicLlmStream stream(String body) {
         return new AnthropicLlmStream(
                 new ByteArrayInputStream(body.getBytes(StandardCharsets.UTF_8)),

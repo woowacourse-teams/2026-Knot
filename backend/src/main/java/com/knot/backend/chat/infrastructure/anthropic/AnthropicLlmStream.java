@@ -3,12 +3,14 @@ package com.knot.backend.chat.infrastructure.anthropic;
 import com.knot.backend.chat.application.LlmStream;
 import com.knot.backend.chat.domain.ChatErrorCode;
 import com.knot.backend.chat.domain.ChatException;
+import com.knot.backend.chat.domain.LlmUsage;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.NoSuchElementException;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,6 +31,8 @@ final class AnthropicLlmStream implements LlmStream {
     private long inputTokens;
     private long cacheReadInputTokens;
     private long cacheCreationInputTokens;
+    private long outputTokens;
+    private boolean usageRecorded;
 
     AnthropicLlmStream(
             InputStream inputStream,
@@ -103,6 +107,23 @@ final class AnthropicLlmStream implements LlmStream {
         }
     }
 
+    /** {@code message_start}를 못 받고 끝난 스트림(오류·즉시 종료)에는 사용량이 없다. */
+    @Override
+    public Optional<LlmUsage> usage() {
+        if (!usageRecorded) {
+            return Optional.empty();
+        }
+        return Optional.of(
+                LlmUsage.of(
+                        model,
+                        inputTokens,
+                        outputTokens,
+                        cacheReadInputTokens,
+                        cacheCreationInputTokens
+                )
+        );
+    }
+
     @Override
     public String next() {
         if (!hasNext()) {
@@ -140,12 +161,13 @@ final class AnthropicLlmStream implements LlmStream {
                 .asLong(0);
         cacheCreationInputTokens = usage.path("cache_creation_input_tokens")
                 .asLong(0);
+        usageRecorded = true;
     }
 
-    // 사용량은 저장하지 않고 로그로만 남긴다(저장·집계는 B2).
+    // 사용량은 로그로 남기고 usage()로도 올린다. 저장은 ChatMessageService가 답변과 같은 트랜잭션에 한다(B2).
     private void completeMessage(JsonNode event) {
         JsonNode delta = event.path("delta");
-        long outputTokens = event.path("usage")
+        outputTokens = event.path("usage")
                 .path("output_tokens")
                 .asLong(0);
         log.info(
