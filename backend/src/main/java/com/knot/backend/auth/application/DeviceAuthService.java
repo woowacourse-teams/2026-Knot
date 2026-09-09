@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -53,6 +54,8 @@ public class DeviceAuthService {
     private final Clock clock;
     private final SecureRandom secureRandom;
 
+    /** 생성자가 둘(테스트용 `SecureRandom` 주입)이라 Spring이 고를 것을 명시한다 */
+    @Autowired
     public DeviceAuthService(
             DeviceAuthorizationCodeRepository codeRepository,
             DeviceSessionRepository sessionRepository,

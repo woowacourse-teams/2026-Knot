@@ -7,6 +7,7 @@ import org.springframework.security.oauth2.client.web.DefaultOAuth2Authorization
 import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestResolver;
 import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestRedirectFilter;
 import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequest;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 /**
@@ -22,6 +23,8 @@ public class DesktopOAuth2AuthorizationRequestResolver implements OAuth2Authoriz
 
     private final OAuth2AuthorizationRequestResolver delegate;
 
+    /** 생성자가 둘(테스트용 delegate 주입)이라 Spring이 고를 것을 명시한다 */
+    @Autowired
     public DesktopOAuth2AuthorizationRequestResolver(ClientRegistrationRepository clientRegistrationRepository) {
         this(
                 new DefaultOAuth2AuthorizationRequestResolver(
