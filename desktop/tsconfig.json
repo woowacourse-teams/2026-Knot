@@ -1,5 +1,5 @@
 {
-  "include": ["src/main/**/*.ts", "src/shared/**/*.ts", "test/**/*.ts", "forge.config.ts", "vitest.config.ts"],
+  "include": ["src/main/**/*.ts", "src/mcp/**/*.ts", "src/shared/**/*.ts", "test/**/*.ts", "forge.config.ts", "vitest.config.ts"],
   "exclude": ["node_modules", "out"],
   "compilerOptions": {
     "target": "es2023",

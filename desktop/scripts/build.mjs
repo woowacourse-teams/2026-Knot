@@ -1,5 +1,5 @@
 /**
- * main·preload 번들 빌드.
+ * main·preload·mcp 번들 빌드.
  *
  * renderer 빌드는 없다(원격 로드). Forge `plugin-webpack`/`plugin-vite`는
  * renderer 엔트리를 전제하므로 쓰지 않고 esbuild를 hooks에서 직접 돌린다
@@ -54,6 +54,7 @@ const shared = {
 
 rmSync(path.join(OUT_DIR, "main"), { recursive: true, force: true });
 rmSync(path.join(OUT_DIR, "preload"), { recursive: true, force: true });
+rmSync(path.join(OUT_DIR, "mcp"), { recursive: true, force: true });
 
 await Promise.all([
   build({
@@ -65,6 +66,13 @@ await Promise.all([
     ...shared,
     entryPoints: [path.join(ROOT, "src/preload/index.ts")],
     outfile: path.join(OUT_DIR, "preload/index.cjs"),
+  }),
+  // utilityProcess 엔트리(로드맵 Q47). @modelcontextprotocol/sdk까지 한 파일로 묶어
+  // asar 안에서 모듈 해석에 기대지 않는다
+  build({
+    ...shared,
+    entryPoints: [path.join(ROOT, "src/mcp/index.ts")],
+    outfile: path.join(OUT_DIR, "mcp/index.cjs"),
   }),
 ]);
 
