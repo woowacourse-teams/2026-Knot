@@ -16,6 +16,10 @@ import { useQueryClient } from "@tanstack/react-query";
  * 로그인 상태를 확인해 다시 안으로 들여보내요.
  *
  * 뒤로 가기로 방금 나온 화면에 돌아가지 못하도록 히스토리를 대체(`replace`)해요.
+ *
+ * 데스크톱 앱에서는 셸의 `auth.logout`도 불러요. 셸이 따로 들고 있는 기기 세션(리프레시 토큰)을
+ * 폐기하지 않으면 다음 실행 때 셸이 다시 로그인해 버립니다(기획서 5.2). 셸이 창을 로그인 화면으로
+ * 옮기므로 그 뒤의 이동은 겹쳐도 무해해요.
  */
 const useLogout = () => {
   const queryClient = useQueryClient();
@@ -26,6 +30,7 @@ const useLogout = () => {
     mutate(undefined, {
       onSettled: async () => {
         await clearAccessToken();
+        await window.knotDesktop?.auth?.logout?.();
         // 다음 사람이 로그인했을 때 앞사람의 응답이 잠깐 보이지 않도록 통째로 비워요
         queryClient.clear();
         navigateToLogin({ replace: true });

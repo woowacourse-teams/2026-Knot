@@ -1,3 +1,4 @@
+import useDesktop from "@hooks/common/useDesktop";
 import Button from "@primitives/ui/Button";
 
 import GithubIcon from "@/assets/icons/github.svg";
@@ -24,9 +25,23 @@ const GITHUB_OAUTH_URL = `${process.env.API_BASE_URL}/oauth2/authorization/githu
  *
  * 서버가 허용한 출처에서만 동작하므로 `localhost`에서는 확인할 수 없어요.
  * 배포된 주소에서 확인해야 합니다.
+ *
+ * 데스크톱 앱이 시스템 브라우저 로그인(`auth.startLogin`)을 열어 주면 그쪽을 써요. 앱 창 안에서
+ * GitHub 자격증명을 입력하지 않고, 로그인이 끝나면 셸이 창을 홈으로 옮깁니다(기획서 5.2).
+ * 실패·취소는 셸이 로그에 남기고 이 버튼은 다시 누를 수 있게 그대로 둬요.
  */
 export default function GithubLoginButton() {
+  const { desktopApi } = useDesktop();
+  const startDesktopLogin = desktopApi?.auth?.startLogin;
+
   const handleClick = () => {
+    if (startDesktopLogin !== undefined) {
+      startDesktopLogin().catch((error: unknown) => {
+        console.error("데스크톱 브라우저 로그인을 마치지 못했어요.", error);
+      });
+      return;
+    }
+
     window.location.href = GITHUB_OAUTH_URL;
   };
 
