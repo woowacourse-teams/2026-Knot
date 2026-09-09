@@ -83,7 +83,8 @@ class FlywayMigrationUpgradeIntegrationTest {
         assertThat(v11Result.success).isTrue();
         assertThat(v11Result.migrationsExecuted).isEqualTo(2);
         assertThat(v13Result.migrationsExecuted).isEqualTo(2);
-        assertThat(result.migrationsExecuted).isEqualTo(1);
+        // V14(탐색 스키마) + V16(기기 세션, 기획서 5.2 `A6`)
+        assertThat(result.migrationsExecuted).isEqualTo(2);
         assertThat(appliedVersions(latestFlyway)).containsExactly(
                 "1",
                 "2",
@@ -96,7 +97,8 @@ class FlywayMigrationUpgradeIntegrationTest {
                 "11",
                 "12",
                 "13",
-                "14"
+                "14",
+                "16"
         );
         assertThat(schemaObjectNames("""
                 SELECT table_name

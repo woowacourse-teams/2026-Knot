@@ -1,10 +1,14 @@
 package com.knot.backend.auth.presentation;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import com.knot.backend.auth.application.AuthService;
+import com.knot.backend.auth.application.DeviceAuthService;
 import com.knot.backend.auth.application.dto.command.CompleteNicknameCommand;
 import com.knot.backend.auth.domain.AuthenticatedMember;
 import com.knot.backend.auth.presentation.dto.request.CompleteNicknameRequest;
@@ -24,6 +28,7 @@ class AuthControllerTest {
         // given
         AuthController controller = new AuthController(
                 mock(AuthService.class),
+                mock(DeviceAuthService.class),
                 new JwtProperties()
         );
         AuthenticatedMember member = AuthenticatedMember.of(
@@ -49,6 +54,7 @@ class AuthControllerTest {
         jwtProperties.setExpiration(Duration.ofHours(1));
         AuthController controller = new AuthController(
                 authService,
+                mock(DeviceAuthService.class),
                 jwtProperties
         );
         when(
@@ -81,6 +87,7 @@ class AuthControllerTest {
         jwtProperties.setExpiration(Duration.ofHours(1));
         AuthController controller = new AuthController(
                 authService,
+                mock(DeviceAuthService.class),
                 jwtProperties
         );
         when(
@@ -106,13 +113,21 @@ class AuthControllerTest {
     @DisplayName("로그아웃은 본문 없이 204를 돌려준다")
     void logout_success() {
         // given
+        DeviceAuthService deviceAuthService = mock(DeviceAuthService.class);
         AuthController controller = new AuthController(
                 mock(AuthService.class),
+                deviceAuthService,
                 new JwtProperties()
         );
 
         // when
-        ResponseEntity<Void> result = controller.logout();
+        ResponseEntity<Void> result = controller.logout(
+                AuthenticatedMember.of(
+                        1L,
+                        "octocat",
+                        null
+                )
+        );
 
         // then
         assertThat(
@@ -120,5 +135,64 @@ class AuthControllerTest {
                         .value()
         ).isEqualTo(204);
         assertThat(result.getBody()).isNull();
+        verify(
+                deviceAuthService,
+                never()
+        ).revokeSession(
+                anyLong(),
+                anyLong()
+        );
+    }
+
+    @Test
+    @DisplayName("인증 주체가 없어도 로그아웃은 204를 돌려준다")
+    void logout_success_withoutPrincipal() {
+        // given
+        AuthController controller = new AuthController(
+                mock(AuthService.class),
+                mock(DeviceAuthService.class),
+                new JwtProperties()
+        );
+
+        // when
+        ResponseEntity<Void> result = controller.logout(null);
+
+        // then
+        assertThat(
+                result.getStatusCode()
+                        .value()
+        ).isEqualTo(204);
+    }
+
+    @Test
+    @DisplayName("데스크톱 디바이스 토큰으로 로그아웃하면 그 기기 세션을 폐기한다")
+    void logout_success_revokesDeviceSession() {
+        // given
+        DeviceAuthService deviceAuthService = mock(DeviceAuthService.class);
+        AuthController controller = new AuthController(
+                mock(AuthService.class),
+                deviceAuthService,
+                new JwtProperties()
+        );
+
+        // when
+        ResponseEntity<Void> result = controller.logout(
+                AuthenticatedMember.ofDeviceSession(
+                        1L,
+                        "octocat",
+                        null,
+                        77L
+                )
+        );
+
+        // then
+        assertThat(
+                result.getStatusCode()
+                        .value()
+        ).isEqualTo(204);
+        verify(deviceAuthService).revokeSession(
+                77L,
+                1L
+        );
     }
 }

@@ -1,9 +1,13 @@
 package com.knot.backend.auth.infrastructure.jwt;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.knot.backend.auth.application.DeviceAuthService;
 import com.knot.backend.auth.domain.AuthenticatedMember;
 import com.knot.backend.global.config.JwtProperties;
 import com.knot.backend.member.application.MemberService;
@@ -23,6 +27,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 class JwtAuthenticationFilterTest {
     private JwtProvider jwtProvider;
     private MemberService memberService;
+    private DeviceAuthService deviceAuthService;
     private JwtAuthenticationFilter filter;
 
     @BeforeEach
@@ -36,9 +41,11 @@ class JwtAuthenticationFilterTest {
         );
         memberService = mock(MemberService.class);
         when(memberService.existsById(1L)).thenReturn(true);
+        deviceAuthService = mock(DeviceAuthService.class);
         filter = new JwtAuthenticationFilter(
                 jwtProvider,
-                memberService
+                memberService,
+                deviceAuthService
         );
     }
 
@@ -184,6 +191,86 @@ class JwtAuthenticationFilterTest {
                 "https://example.com/avatar"
         );
         MockHttpServletRequest request = requestWithAuthorization("Basic " + jwtProvider.issue(member));
+
+        // when
+        filter.doFilter(
+                request,
+                new MockHttpServletResponse(),
+                new MockFilterChain()
+        );
+
+        // then
+        assertThat(
+                SecurityContextHolder.getContext()
+                        .getAuthentication()
+        ).isNull();
+    }
+
+    @Test
+    @DisplayName("디바이스 액세스 토큰은 기기 세션이 살아 있을 때만 인증하고 회원 존재는 따로 묻지 않는다")
+    void doFilter_success_deviceSessionActive() throws Exception {
+        // given
+        AuthenticatedMember member = AuthenticatedMember.of(
+                1L,
+                "octocat",
+                null
+        );
+        when(
+                deviceAuthService.isSessionActive(
+                        77L,
+                        1L
+                )
+        ).thenReturn(true);
+        MockHttpServletRequest request = requestWithAuthorization(
+                "Bearer " + jwtProvider.issueDevice(
+                        member,
+                        77L
+                )
+        );
+
+        // when
+        filter.doFilter(
+                request,
+                new MockHttpServletResponse(),
+                new MockFilterChain()
+        );
+
+        // then
+        assertThat(
+                SecurityContextHolder.getContext()
+                        .getAuthentication()
+        ).satisfies(authentication -> {
+            AuthenticatedMember principal = (AuthenticatedMember) authentication.getPrincipal();
+            assertThat(principal.isDeviceSession()).isTrue();
+            assertThat(principal.getDeviceSessionId()).isEqualTo(77L);
+        });
+        verify(
+                memberService,
+                never()
+        ).existsById(anyLong());
+    }
+
+    @Test
+    @DisplayName("폐기된 기기 세션의 디바이스 액세스 토큰은 만료 전이라도 인증하지 않는다")
+    void doFilter_failure_deviceSessionRevoked() throws Exception {
+        // given
+        AuthenticatedMember member = AuthenticatedMember.of(
+                1L,
+                "octocat",
+                null
+        );
+        when(
+                deviceAuthService.isSessionActive(
+                        77L,
+                        1L
+                )
+        ).thenReturn(false);
+        MockHttpServletRequest request = requestWithAuthorization(
+                "Bearer " + jwtProvider.issueDevice(
+                        member,
+                        77L
+                )
+        );
 
         // when
         filter.doFilter(

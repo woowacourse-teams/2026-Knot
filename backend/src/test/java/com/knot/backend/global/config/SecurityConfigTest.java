@@ -5,6 +5,8 @@ import static org.mockito.Mockito.mock;
 
 import com.knot.backend.auth.infrastructure.github.GithubOAuth2UserService;
 import com.knot.backend.auth.infrastructure.jwt.JwtAuthenticationFilter;
+import com.knot.backend.auth.infrastructure.oauth.DesktopOAuth2AuthorizationRequestResolver;
+import com.knot.backend.auth.infrastructure.oauth.StashingAuthorizationRequestRepository;
 import com.knot.backend.auth.presentation.handler.AuthAccessDeniedHandler;
 import com.knot.backend.auth.presentation.handler.AuthAuthenticationEntryPoint;
 import com.knot.backend.auth.presentation.handler.OAuth2AuthenticationFailureHandler;
@@ -21,14 +23,16 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 class SecurityConfigTest {
 
     @Test
-    @DisplayName("CORS 설정은 개발 Origin과 마지막으로 본 워크스페이스 갱신에 필요한 PUT을 허용한다")
-    void corsConfigurationSource_success_allowsDevelopmentOriginsAndPutMethod() {
+    @DisplayName("CORS 설정은 개발 Origin과 PUT(마지막 워크스페이스 갱신)·DELETE(기기 세션 삭제)를 허용한다")
+    void corsConfigurationSource_success_allowsDevelopmentOriginsAndPutDeleteMethods() {
         // given
         SecurityConfig securityConfig = new SecurityConfig(
                 mock(GithubOAuth2UserService.class),
                 mock(JwtAuthenticationFilter.class),
                 mock(OAuth2AuthenticationSuccessHandler.class),
                 mock(OAuth2AuthenticationFailureHandler.class),
+                mock(DesktopOAuth2AuthorizationRequestResolver.class),
+                mock(StashingAuthorizationRequestRepository.class),
                 mock(AuthAuthenticationEntryPoint.class),
                 mock(AuthAccessDeniedHandler.class),
                 corsProperties(),
@@ -49,6 +53,7 @@ class SecurityConfigTest {
                 HttpMethod.GET.name(),
                 HttpMethod.POST.name(),
                 HttpMethod.PUT.name(),
+                HttpMethod.DELETE.name(),
                 HttpMethod.OPTIONS.name()
         );
         assertThat(configuration.getAllowedOrigins()).containsExactly(
@@ -66,6 +71,8 @@ class SecurityConfigTest {
                 mock(JwtAuthenticationFilter.class),
                 mock(OAuth2AuthenticationSuccessHandler.class),
                 mock(OAuth2AuthenticationFailureHandler.class),
+                mock(DesktopOAuth2AuthorizationRequestResolver.class),
+                mock(StashingAuthorizationRequestRepository.class),
                 mock(AuthAuthenticationEntryPoint.class),
                 mock(AuthAccessDeniedHandler.class),
                 corsProperties(),
