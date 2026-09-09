@@ -66,6 +66,18 @@ public enum ChatErrorCode implements ErrorCode {
             "채팅 메시지 생성 시각이 올바르지 않습니다"
     ),
 
+    INVALID_CHAT_MESSAGE_GENERATED_BY(
+            ErrorCategory.INVALID_INPUT,
+            "INVALID_CHAT_MESSAGE_GENERATED_BY",
+            "채팅 메시지 생성 주체가 올바르지 않습니다"
+    ),
+
+    CHAT_TURN_REFERENCE_INVALID(
+            ErrorCategory.INVALID_INPUT,
+            "CHAT_TURN_REFERENCE_INVALID",
+            "근거 문서가 이 워크스페이스의 문서가 아니거나 중복됩니다"
+    ),
+
     INVALID_CHAT_FEEDBACK_MESSAGE_ID(
             ErrorCategory.INVALID_INPUT,
             "INVALID_CHAT_FEEDBACK_MESSAGE_ID",

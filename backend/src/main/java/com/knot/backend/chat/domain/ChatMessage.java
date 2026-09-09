@@ -42,17 +42,19 @@ public class ChatMessage {
             Long sessionId,
             ChatMessageRole role,
             String content,
-            Instant createdAt
+            Instant createdAt,
+            ChatMessageGeneratedBy generatedBy
     ) {
         validateSessionId(sessionId);
         validateRole(role);
         validateContent(content);
         validateCreatedAt(createdAt);
+        validateGeneratedBy(generatedBy);
         this.sessionId = sessionId;
         this.role = role;
         this.content = content;
         this.createdAt = createdAt;
-        this.generatedBy = ChatMessageGeneratedBy.SERVER;
+        this.generatedBy = generatedBy;
     }
 
     public static ChatMessage create(
@@ -61,11 +63,29 @@ public class ChatMessage {
             String content,
             Instant createdAt
     ) {
+        return create(
+                sessionId,
+                role,
+                content,
+                createdAt,
+                ChatMessageGeneratedBy.SERVER
+        );
+    }
+
+    /** 서버가 아닌 클라이언트(CLI 에이전트)가 만든 답변은 {@code generatedBy=CLIENT}로 구분한다(데스크톱 로드맵 Q25). */
+    public static ChatMessage create(
+            Long sessionId,
+            ChatMessageRole role,
+            String content,
+            Instant createdAt,
+            ChatMessageGeneratedBy generatedBy
+    ) {
         return new ChatMessage(
                 sessionId,
                 role,
                 content,
-                createdAt
+                createdAt,
+                generatedBy
         );
     }
 
@@ -90,6 +110,12 @@ public class ChatMessage {
     private static void validateCreatedAt(Instant createdAt) {
         if (createdAt == null) {
             throw new ChatException(ChatErrorCode.INVALID_CHAT_MESSAGE_CREATED_AT);
+        }
+    }
+
+    private static void validateGeneratedBy(ChatMessageGeneratedBy generatedBy) {
+        if (generatedBy == null) {
+            throw new ChatException(ChatErrorCode.INVALID_CHAT_MESSAGE_GENERATED_BY);
         }
     }
 }

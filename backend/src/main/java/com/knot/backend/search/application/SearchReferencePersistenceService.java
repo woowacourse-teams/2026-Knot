@@ -1,6 +1,7 @@
 package com.knot.backend.search.application;
 
 import com.knot.backend.search.domain.SearchChunk;
+import com.knot.backend.search.domain.SearchReferenceCandidate;
 import com.knot.backend.search.domain.SearchReferenceRepository;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -18,6 +19,17 @@ public class SearchReferencePersistenceService {
             List<SearchChunk> references
     ) {
         searchReferenceRepository.replace(
+                messageId,
+                references
+        );
+    }
+
+    @Transactional
+    public void replaceCandidates(
+            Long messageId,
+            List<SearchReferenceCandidate> references
+    ) {
+        searchReferenceRepository.replaceCandidates(
                 messageId,
                 references
         );

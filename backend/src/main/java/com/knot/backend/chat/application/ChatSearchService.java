@@ -1,6 +1,6 @@
 package com.knot.backend.chat.application;
 
-import com.knot.backend.chat.application.dto.result.ChatFallbackTurn;
+import com.knot.backend.chat.application.dto.result.ChatTurn;
 import com.knot.backend.chat.application.dto.result.ChatSearchResult;
 import com.knot.backend.chat.domain.ChatErrorCode;
 import com.knot.backend.chat.domain.ChatException;
@@ -52,9 +52,10 @@ public class ChatSearchService {
             requirePublishedSnapshot(session.getWorkspaceId());
             List<ChatMessage> history = chatMessageRepository.findAllBySessionId(sessionId);
             Instant now = Instant.now(clock);
-            requireNoTurnInProgress(
+            ChatTurnGuard.requireNoTurnInProgress(
                     history,
-                    now
+                    now,
+                    chatProperties.turnTimeout()
             );
             // 검색이 실패하면 아무것도 저장하지 않는다(로드맵 Q30).
             SearchContext searchContext = search(
@@ -79,7 +80,7 @@ public class ChatSearchService {
                 );
             }
             String fallbackAnswer = searchContext.fallbackAnswer();
-            ChatFallbackTurn turn = chatMessagePersistenceService.saveFallbackTurn(
+            ChatTurn turn = chatMessagePersistenceService.saveFallbackTurn(
                     sessionId,
                     content,
                     fallbackAnswer,
@@ -95,24 +96,6 @@ public class ChatSearchService {
             );
         } finally {
             activeChatStreamRegistry.release(sessionId);
-        }
-    }
-
-    private void requireNoTurnInProgress(
-            List<ChatMessage> history,
-            Instant now
-    ) {
-        if (history.isEmpty()) {
-            return;
-        }
-        ChatMessage lastMessage = history.getLast();
-        if (lastMessage.getRole() != ChatMessageRole.USER) {
-            return;
-        }
-        Instant expiresAt = lastMessage.getCreatedAt()
-                .plus(chatProperties.turnTimeout());
-        if (now.isBefore(expiresAt)) {
-            throw new ChatException(ChatErrorCode.CHAT_TURN_IN_PROGRESS);
         }
     }
 

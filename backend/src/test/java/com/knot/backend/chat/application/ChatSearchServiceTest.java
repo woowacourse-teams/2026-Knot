@@ -13,7 +13,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
-import com.knot.backend.chat.application.dto.result.ChatFallbackTurn;
+import com.knot.backend.chat.application.dto.result.ChatTurn;
 import com.knot.backend.chat.application.dto.result.ChatSearchResult;
 import com.knot.backend.chat.domain.ChatErrorCode;
 import com.knot.backend.chat.domain.ChatException;
@@ -237,7 +237,7 @@ class ChatSearchServiceTest {
                         eq(NOW)
                 )
         ).thenReturn(
-                new ChatFallbackTurn(
+                new ChatTurn(
                         userMessage,
                         assistantMessage
                 )
@@ -291,7 +291,7 @@ class ChatSearchServiceTest {
                         any()
                 )
         ).thenReturn(
-                new ChatFallbackTurn(
+                new ChatTurn(
                         userMessage,
                         assistantMessage
                 )

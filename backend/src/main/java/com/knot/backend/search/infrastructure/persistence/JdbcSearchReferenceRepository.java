@@ -1,9 +1,9 @@
 package com.knot.backend.search.infrastructure.persistence;
 
-import com.knot.backend.search.domain.SearchChunk;
 import com.knot.backend.search.domain.SearchErrorCode;
 import com.knot.backend.search.domain.SearchException;
 import com.knot.backend.search.domain.SearchReference;
+import com.knot.backend.search.domain.SearchReferenceCandidate;
 import com.knot.backend.search.domain.SearchReferenceRepository;
 import com.knot.backend.workspace.domain.ContentSourceProvider;
 import java.sql.ResultSet;
@@ -61,9 +61,9 @@ public class JdbcSearchReferenceRepository implements SearchReferenceRepository 
     }
 
     @Override
-    public void replace(
+    public void replaceCandidates(
             Long messageId,
-            List<SearchChunk> references
+            List<SearchReferenceCandidate> references
     ) {
         jdbcClient.sql("""
                 DELETE FROM search_references
@@ -75,7 +75,7 @@ public class JdbcSearchReferenceRepository implements SearchReferenceRepository 
                 )
                 .update();
         for (int index = 0; index < references.size(); index++) {
-            SearchChunk reference = references.get(index);
+            SearchReferenceCandidate reference = references.get(index);
             int inserted = jdbcClient.sql("""
                     INSERT INTO search_references (
                         message_id,
