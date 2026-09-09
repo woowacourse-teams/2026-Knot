@@ -8,6 +8,9 @@
  * `CLI 에이전트 연결` 메뉴는 `S9` 연결 안내 화면(웹 SPA)이 생기기 전까지의 임시 진입점이다
  * (로드맵 4.5절 `S8` 착수 가정 1). 등록 스니펫은 main이 클립보드에 쓰고, 대화상자에는
  * 토큰을 가린 미리보기만 보인다.
+ *
+ * `Claude 구독` 메뉴는 `L3` 설정 화면(웹 SPA `/claude-subscription`)으로 가는 진입점 하나다(로드맵 Q64·Q67).
+ * 로그인·로그아웃·모델 설정은 그 화면이 preload `llm` API로 한다.
  */
 
 import { Menu, app, dialog, shell } from "electron";
@@ -16,6 +19,7 @@ import type { AgentRegistrationTarget } from "../shared/api";
 import type { KnotEnvironment } from "../shared/env";
 import type { AgentBridge } from "./agent/bridge";
 import type { AuthController } from "./auth/loginFlow";
+import type { SubscriptionController } from "./llm/subscriptionFlow";
 import { logFilePath, logger } from "./logging";
 import { openExternalUrl } from "./navigation";
 import { reloadWebOrigin } from "./windows";
@@ -26,12 +30,14 @@ export interface ApplicationMenuOptions {
   bridge: AgentBridge;
   /** A7 시스템 브라우저 로그인·로그아웃 */
   auth: AuthController;
+  /** L1 사용자 Claude 구독 로그인·로그아웃·상태 */
+  llm: SubscriptionController;
   /** A4 "업데이트 확인". 켜져 있지 않은 빌드는 호출자가 안내한다 */
   checkForUpdates: () => void;
 }
 
 export function buildApplicationMenu(options: ApplicationMenuOptions): void {
-  const { env, getWindow, bridge, auth, checkForUpdates } = options;
+  const { env, getWindow, bridge, auth, llm, checkForUpdates } = options;
   const isMac = process.platform === "darwin";
 
   const copyItem = (label: string, target: AgentRegistrationTarget): MenuItemConstructorOptions => ({
@@ -184,6 +190,21 @@ export function buildApplicationMenu(options: ApplicationMenuOptions): void {
               .then(({ response }) => {
                 if (response === 0) bridge.rotateToken();
               });
+          },
+        },
+      ],
+    },
+    {
+      // L1~L3: 사용자 본인의 Claude 구독으로 앱 안 탐색에 답한다(기획서 6.5). 설정 화면은 웹 SPA(데스크톱 전용 라우트)
+      label: "Claude 구독",
+      submenu: [
+        {
+          label: "구독 설정 열기",
+          click: () => {
+            const window = getWindow();
+            if (window === null) return;
+            logger.info("[knot] 구독 설정 화면 이동", { signedIn: llm.getStatus().signedIn });
+            void window.loadURL(`${env.webOrigin}/claude-subscription`);
           },
         },
       ],

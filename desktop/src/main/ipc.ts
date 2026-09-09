@@ -9,7 +9,7 @@
 import { ipcMain } from "electron";
 import type { IpcMainInvokeEvent } from "electron";
 import { IPC_CHANNELS } from "../shared/api";
-import type { AgentBridgeStatus, KnotDeepLink } from "../shared/api";
+import type { AgentBridgeStatus, KnotDeepLink, LlmSettingsView, LlmSubscriptionStatus } from "../shared/api";
 import type { KnotEnvironment } from "../shared/env";
 import { toOrigin } from "../shared/env";
 import type { AgentBridge } from "./agent/bridge";
@@ -17,6 +17,8 @@ import { isValidAgentPort } from "./agent/bridgeConfig";
 import { isAgentRegistrationTarget } from "./agent/registration";
 import type { AuthController } from "./auth/loginFlow";
 import type { DeepLinkRouter } from "./deepLink";
+import { parseAnswerStreamInput } from "./llm/answerFlow";
+import type { DesktopLlm } from "./llm/desktopLlm";
 import { logger } from "./logging";
 import { openExternalUrl } from "./navigation";
 import { isNotificationInput } from "./notifications";
@@ -31,6 +33,8 @@ export interface IpcDependencies {
   auth: AuthController;
   /** A10: renderer가 요청한 OS 알림. 표시 실패는 조용히 무시한다 */
   showNotification: (input: DesktopNotificationInput) => void;
+  /** L1·L2: 사용자 Claude 구독 로그인·로그아웃·상태·답변 스트림. 토큰 값은 어떤 응답에도 싣지 않는다 */
+  llm: DesktopLlm;
 }
 
 function assertTrustedSender(event: IpcMainInvokeEvent, env: KnotEnvironment, channel: string): void {
@@ -46,7 +50,7 @@ function assertTrustedSender(event: IpcMainInvokeEvent, env: KnotEnvironment, ch
 }
 
 export function registerIpcHandlers(env: KnotEnvironment, deps: IpcDependencies): void {
-  const { bridge, deepLinks, auth, showNotification } = deps;
+  const { bridge, deepLinks, auth, showNotification, llm } = deps;
 
   ipcMain.handle(IPC_CHANNELS.openExternal, async (event, rawUrl: unknown) => {
     assertTrustedSender(event, env, IPC_CHANNELS.openExternal);
@@ -126,5 +130,52 @@ export function registerIpcHandlers(env: KnotEnvironment, deps: IpcDependencies)
       throw new Error("포트는 1024~65535 사이의 정수여야 한다.");
     }
     bridge.setPort(rawPort);
+  });
+
+  // L1: 사용자 Claude 구독(기획서 4.4 `llm.*`). 상태 객체에 토큰이 없고, 로그인 실패는 reject 메시지로만 전달된다
+  ipcMain.handle(IPC_CHANNELS.llmStatus, (event): LlmSubscriptionStatus => {
+    assertTrustedSender(event, env, IPC_CHANNELS.llmStatus);
+    return llm.getStatus();
+  });
+
+  ipcMain.handle(IPC_CHANNELS.llmSignIn, async (event) => {
+    assertTrustedSender(event, env, IPC_CHANNELS.llmSignIn);
+    await llm.signIn();
+  });
+
+  ipcMain.handle(IPC_CHANNELS.llmSignOut, (event) => {
+    assertTrustedSender(event, env, IPC_CHANNELS.llmSignOut);
+    llm.signOut();
+  });
+
+  // L2: 앱 안 채팅 스트림. 입력은 main이 다시 검사하고, 이벤트는 요청한 renderer(sender)에만 보낸다
+  ipcMain.handle(IPC_CHANNELS.llmStream, (event, rawInput: unknown) => {
+    assertTrustedSender(event, env, IPC_CHANNELS.llmStream);
+    const input = parseAnswerStreamInput(rawInput);
+    const { sender } = event;
+    llm.startStream(input, (payload) => {
+      if (sender.isDestroyed()) return;
+      sender.send(IPC_CHANNELS.llmStreamEvent, payload);
+    });
+  });
+
+  ipcMain.handle(IPC_CHANNELS.llmStreamCancel, (event, rawInput: unknown) => {
+    assertTrustedSender(event, env, IPC_CHANNELS.llmStreamCancel);
+    const requestId = typeof rawInput === "object" && rawInput !== null ? (rawInput as { requestId?: unknown }).requestId : undefined;
+    if (typeof requestId !== "string") {
+      throw new Error("취소 요청에는 requestId 문자열이 있어야 한다.");
+    }
+    llm.cancelStream(requestId);
+  });
+
+  // L3: 설정. 값은 main이 허용 목록으로 다시 검사한다(목록 밖이면 reject)
+  ipcMain.handle(IPC_CHANNELS.llmSettings, (event): LlmSettingsView => {
+    assertTrustedSender(event, env, IPC_CHANNELS.llmSettings);
+    return llm.getSettings();
+  });
+
+  ipcMain.handle(IPC_CHANNELS.llmUpdateSettings, (event, rawInput: unknown): LlmSettingsView => {
+    assertTrustedSender(event, env, IPC_CHANNELS.llmUpdateSettings);
+    return llm.updateSettings(rawInput);
   });
 }

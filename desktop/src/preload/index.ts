@@ -10,7 +10,15 @@
 
 import { contextBridge, ipcRenderer } from "electron";
 import { IPC_CHANNELS, KNOT_DESKTOP_GLOBAL } from "../shared/api";
-import type { AgentRegistrationTarget, KnotDeepLink, KnotDesktopApi } from "../shared/api";
+import type {
+  AgentRegistrationTarget,
+  KnotDeepLink,
+  KnotDesktopApi,
+  LlmStreamEventPayload,
+  LlmStreamHandlers,
+  LlmStreamInput,
+  LlmSubscriptionStatus,
+} from "../shared/api";
 
 type SessionState = "signed-in" | "signed-out";
 
@@ -22,6 +30,55 @@ function subscribe<T>(channel: string, handler: (payload: T) => void): () => voi
   ipcRenderer.on(channel, listener);
   return () => {
     ipcRenderer.removeListener(channel, listener);
+  };
+}
+
+/**
+ * L2: 질문 하나를 main의 스트림으로 보내고 자기 `requestId`의 이벤트만 콜백에 넘긴다.
+ * 끝(complete·error)이나 취소 뒤에는 어떤 콜백도 부르지 않는다. 구독 토큰은 여기로 오지 않는다.
+ */
+function streamAnswer(input: LlmStreamInput, on: LlmStreamHandlers): () => void {
+  const requestId = crypto.randomUUID();
+  let finished = false;
+
+  const unsubscribe = subscribe<LlmStreamEventPayload>(IPC_CHANNELS.llmStreamEvent, (payload) => {
+    if (finished || payload.requestId !== requestId) return;
+    switch (payload.event) {
+      case "chunk":
+        on.chunk(payload.delta);
+        return;
+      case "complete":
+        finished = true;
+        unsubscribe();
+        on.complete({ messageId: payload.messageId });
+        return;
+      case "error":
+        finished = true;
+        unsubscribe();
+        on.error({ code: payload.code, message: payload.message, fallback: payload.fallback });
+        return;
+      default:
+        return;
+    }
+  });
+
+  ipcRenderer.invoke(IPC_CHANNELS.llmStream, { requestId, ...input }).catch((error: unknown) => {
+    // main이 입력을 거부했거나 스트림을 시작하지 못했다. 서버 SSE로 다시 보내면 답은 받을 수 있다
+    if (finished) return;
+    finished = true;
+    unsubscribe();
+    on.error({
+      code: "LLM_STREAM_FAILED",
+      message: error instanceof Error ? error.message : "답변을 시작하지 못했어요",
+      fallback: true,
+    });
+  });
+
+  return () => {
+    if (finished) return;
+    finished = true;
+    unsubscribe();
+    ipcRenderer.invoke(IPC_CHANNELS.llmStreamCancel, { requestId }).catch(() => undefined);
   };
 }
 
@@ -54,6 +111,20 @@ const api: KnotDesktopApi = {
       ipcRenderer.invoke(IPC_CHANNELS.agentCopyRegistration, target),
     rotateToken: () => ipcRenderer.invoke(IPC_CHANNELS.agentRotateToken),
     setPort: (port: number) => ipcRenderer.invoke(IPC_CHANNELS.agentSetPort, port),
+  },
+
+  // L1: 사용자 Claude 구독 로그인. 토큰은 main에만 있고 여기로는 상태만 온다(기획서 6.5)
+  llm: {
+    getStatus: () => ipcRenderer.invoke(IPC_CHANNELS.llmStatus),
+    signIn: () => ipcRenderer.invoke(IPC_CHANNELS.llmSignIn),
+    signOut: () => ipcRenderer.invoke(IPC_CHANNELS.llmSignOut),
+    onStatusChanged: (handler: (status: LlmSubscriptionStatus) => void) =>
+      subscribe<LlmSubscriptionStatus>(IPC_CHANNELS.llmStatusChanged, handler),
+    streamAnswer,
+    // L3: 설정. 허용 목록은 main이 주고, 변경 값도 main이 다시 검사한다
+    getSettings: () => ipcRenderer.invoke(IPC_CHANNELS.llmSettings),
+    updateSettings: (input: { model: string; effort: string }) =>
+      ipcRenderer.invoke(IPC_CHANNELS.llmUpdateSettings, input),
   },
 
   // A10: OS 알림. 입력은 main이 다시 검사한다

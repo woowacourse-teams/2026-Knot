@@ -5,6 +5,7 @@
  * - `S8`·`S10` 로컬 MCP 서버(CLI 에이전트 연결)와 `show_answer`
  * - `A2` 창 상태 복원, `A4` 자동 업데이트(Q59 정책), `A7` 시스템 브라우저 로그인·토큰 갱신·Bearer 주입(Q55),
  *   `A8` `knot://` 딥링크, `A9` 트레이·글로벌 단축키·퀵 질문 창, `A10` Notion 동기화 알림·Dock 배지
+ * - `L1` 사용자 Claude 구독 로그인·토큰 갱신(기획서 6.5)
  * 순수 로직은 각 모듈에 있고 여기서는 Electron 생명주기에 잇기만 한다(로드맵 4.1절 착수 가정).
  */
 
@@ -28,6 +29,8 @@ import {
 } from "./deepLink";
 import type { DeepLinkRouter } from "./deepLink";
 import { registerIpcHandlers } from "./ipc";
+import { createDesktopLlm } from "./llm/desktopLlm";
+import type { DesktopLlm } from "./llm/desktopLlm";
 import { initLogging, logger } from "./logging";
 import { buildApplicationMenu } from "./menu";
 import { applyNavigationPolicy, applySessionPolicy } from "./navigation";
@@ -61,6 +64,7 @@ app.enableSandbox();
 let mainWindow: BrowserWindow | null = null;
 let bridge: AgentBridge | null = null;
 let auth: AuthController | null = null;
+let llm: DesktopLlm | null = null;
 let syncWatcher: SyncWatcher | null = null;
 let quickAsk: QuickAskWindow | null = null;
 
@@ -119,8 +123,11 @@ function presentAnswer(link: Extract<KnotDeepLink, { type: "chat" }>): void {
   logger.info("[knot] 답변 표시 딥링크", { workspaceId: link.workspaceId, sessionId: link.sessionId });
 }
 
+/** Bearer 서버 API 클라이언트. `S8` 브리지(도구 실행)와 `L2` 앱 안 답변이 함께 쓴다 */
+const knotApi = createKnotApiClient({ apiOrigin: env.apiOrigin, readToken });
+
 function createBridge(): AgentBridge {
-  const api = createKnotApiClient({ apiOrigin: env.apiOrigin, readToken });
+  const api = knotApi;
   return createAgentBridge({
     userDataDir: app.getPath("userData"),
     version: app.getVersion(),
@@ -202,13 +209,18 @@ function start(): void {
     });
   });
 
+  // L1·L2: 사용자 Claude 구독 로그인·앱 안 답변. 토큰은 main의 safeStorage(`subscription-auth.bin`)에만 둔다
+  const desktopLlm = createDesktopLlm({ userDataDir: app.getPath("userData"), api: knotApi });
+  llm = desktopLlm;
+
   bridge = createBridge();
-  registerIpcHandlers(env, { bridge, deepLinks, auth: desktopAuth, showNotification });
+  registerIpcHandlers(env, { bridge, deepLinks, auth: desktopAuth, showNotification, llm: desktopLlm });
   buildApplicationMenu({
     env,
     getWindow: getMainWindow,
     bridge,
     auth: desktopAuth,
+    llm: desktopLlm,
     checkForUpdates: checkForUpdatesFromMenu,
   });
   setupTrayAndShortcut();
@@ -219,6 +231,7 @@ function start(): void {
 
   bridge.start();
   desktopAuth.restore();
+  desktopLlm.restore();
   initAutoUpdate(env.name);
 
   app.on("activate", () => {
@@ -243,6 +256,7 @@ if (!app.requestSingleInstanceLock()) {
     unregisterAllShortcuts();
     syncWatcher?.stop();
     auth?.dispose();
+    llm?.dispose();
     bridge?.stop();
   });
 
