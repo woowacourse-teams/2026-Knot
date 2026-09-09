@@ -3,6 +3,7 @@
  *
  * - GET  /api/v1/conversations/{sessionId}
  * - POST /api/v1/conversations/{sessionId}/messages (SSE)
+ * - GET  /api/v1/messages/{messageId}/sources
  */
 
 /** 메시지 작성 주체. USER는 사용자, ASSISTANT는 AI */
@@ -145,3 +146,88 @@ export type ChatStreamEvent =
   | { event: "chunk"; data: ChatStreamChunkDto }
   | { event: "complete"; data: ChatStreamCompleteDto }
   | { event: "error"; data: ChatStreamErrorDto };
+
+// GET /api/v1/messages/{messageId}/sources
+
+/** 검색 출처가 가리키는 원본 페이지의 서버 응답 모양(`NotionPageReferenceResponse`) */
+export interface SearchReferencePageRaw {
+  id: string;
+  title: string;
+  notionUrl: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** 검색 출처가 가리키는 원본 페이지. 출처 목록 항목이 공유 */
+export class SearchReferencePageDto {
+  /** 원본 Notion 페이지 ID(UUID 문자열). Knot 페이지 ID가 아니라 같은 페이지의 출처끼리 묶는 키로 써요 */
+  id: string;
+  /** 페이지 제목 */
+  title: string;
+  /** 원본 Notion 페이지 URL(절대 URL) */
+  notionUrl: string;
+  /** 페이지 생성 시각(ISO 8601) */
+  createdAt: string;
+  /** 페이지 수정 시각(ISO 8601) */
+  updatedAt: string;
+
+  constructor(raw: SearchReferencePageRaw) {
+    this.id = raw.id;
+    this.title = raw.title;
+    this.notionUrl = raw.notionUrl;
+    this.createdAt = raw.createdAt;
+    this.updatedAt = raw.updatedAt;
+  }
+}
+
+/** 검색 출처 한 건의 서버 응답 모양(`SearchReferenceResponse`) */
+export interface SearchReferenceRaw {
+  id: number;
+  messageId: number;
+  rank: number;
+  relevanceScore: number;
+  source: "NOTION";
+  notionPage: SearchReferencePageRaw;
+}
+
+/** AI 답변의 검색 출처 한 건. 청크 단위라 같은 페이지가 여러 건으로 올 수 있어요 */
+export class SearchReferenceDto {
+  /** 검색 출처 ID */
+  id: number;
+  /** 출처가 달린 답변 메시지 ID */
+  messageId: number;
+  /** 메시지 안의 관련도 순위. 1부터, 최대 8 */
+  rank: number;
+  /** 융합 관련도 점수(0~1) */
+  relevanceScore: number;
+  /** 출처 제공자. 지금은 NOTION뿐 */
+  source: "NOTION";
+  /** 원본 페이지 */
+  notionPage: SearchReferencePageDto;
+
+  constructor(raw: SearchReferenceRaw) {
+    this.id = raw.id;
+    this.messageId = raw.messageId;
+    this.rank = raw.rank;
+    this.relevanceScore = raw.relevanceScore;
+    this.source = raw.source;
+    this.notionPage = new SearchReferencePageDto(raw.notionPage);
+  }
+}
+
+/** 답변 출처 조회의 서버 응답 모양 */
+export interface GetChatMessageSourcesResponseRaw {
+  searchReferences: SearchReferenceRaw[];
+}
+
+/** 답변 메시지의 검색 출처 목록 조회 응답. 403·404는 본문 모양이 다른 오류 응답이에요 */
+export class GetChatMessageSourcesResponseDto {
+  /** 관련도 순위(rank) 오름차순 출처 목록. 청크 단위라 최대 8건이고 같은 페이지가 여러 번 올 수 있어요. 없으면 빈 배열 */
+  searchReferences: SearchReferenceDto[];
+
+  constructor(raw: GetChatMessageSourcesResponseRaw) {
+    this.searchReferences = raw.searchReferences.map(
+      (reference) => new SearchReferenceDto(reference),
+    );
+  }
+}

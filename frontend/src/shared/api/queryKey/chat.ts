@@ -3,6 +3,7 @@
  *
  * - `sessions` 워크스페이스의 대화 세션 목록
  * - `messages` 한 세션의 메시지 이력
+ * - `sources` 한 답변 메시지의 검색 출처 목록
  */
 export const chatKeys = {
   all: ["chat"] as const,
@@ -12,4 +13,7 @@ export const chatKeys = {
 
   messages: (sessionId: number | null) =>
     [...chatKeys.all, "messages", sessionId] as const,
+
+  sources: (messageId: number | null) =>
+    [...chatKeys.all, "sources", messageId] as const,
 };
