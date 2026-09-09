@@ -14,19 +14,24 @@
 
 ## 현재 범위
 
-로드맵 `A1`(데스크톱 스파이크, 기획서 7절 P0) + `C3`(토큰 저장) + `S8`(로컬 MCP 서버, 2026-09-09) + `S10`(`show_answer` 도구, 2026-09-09)까지다.
+로드맵 `A1`(데스크톱 스파이크, 기획서 7절 P0) + `C3`(토큰 저장) + `S8`(로컬 MCP 서버, 2026-09-09) + `S10`(`show_answer` 도구, 2026-09-09)
++ 트랙 A 배선(`A2`·`A4`·`A7`~`A10`, 2026-09-09 — 모듈은 다른 세션이 만들고 배선·테스트 정정은 사용자 지시 `남은 구현 다 해`)까지다.
 `S3`(탐색 IPC·사용자 LLM 클라이언트)은 구현됐다가 2026-09-08 폐기됐고 `S8`에서 코드를 지웠다. 그 위에
 새 기능을 얹지 않는다.
 
 | 있음 | 없음(담당 작업) |
 | --- | --- |
-| 원격 오리진 로드, 보안 기본값, Fuses | 자동 업데이트 (`A4`) |
-| 네비게이션·리다이렉트 허용 목록, 새 창은 목록 안만 자식 창(밖은 거부·외부 브라우저) | `knot://` 딥링크 (`A8`) |
-| 세션 권한 정책, IPC sender 검증 | 트레이·퀵 질문 창 (`A9`) |
-| 메뉴, 외부 링크, 오프라인 화면, 파일 로그 | 디바이스 토큰 인증 (`A6`·`A7`) |
-| 액세스 토큰 `safeStorage` 저장(`auth.bin`) | 서명·공증·DMG·Squirrel·릴리스 (`A3`) |
-| 로컬 MCP 서버(`utilityProcess`, `127.0.0.1:47871/mcp`)·연결 토큰(`agent-bridge.json`)·`search_documents`·`list_workspaces` 도구·preload `agent` API (`S8`) | 창 상태 복원, crashReporter (`A2`) |
-| `show_answer` 도구(`S10`) — 에이전트 답변·근거를 세션에 저장하고 창을 앞으로 가져와 `knot:deep-link`로 그 대화를 연다 | 턴 저장 API (`S2`, backend)·SPA의 딥링크 구독(로드맵 U32) |
+| 원격 오리진 로드, 보안 기본값, Fuses | 서명·공증·DMG·Squirrel·릴리스 (`A3`) |
+| 네비게이션·리다이렉트 허용 목록, 새 창은 목록 안만 자식 창(밖은 거부·외부 브라우저) | 자동 업데이트의 **실효**(`A4` — 정책·접착은 있으나 미서명·미패키징 빌드에서는 꺼진다, 로드맵 Q59) |
+| 세션 권한 정책, IPC sender 검증 | 기기 목록·원격 로그아웃 UI (`A11`) |
+| 메뉴(로그인·로그아웃·업데이트 확인·CLI 에이전트 연결), 외부 링크, 오프라인 화면, 파일 로그 | crashReporter (`A2` 잔여, 로드맵 Q5 미수집) |
+| 액세스 토큰 `safeStorage` 저장(`auth.bin`) + 창 상태 복원(`window-state.json`, `A2`) | 실제 dev 백엔드로의 2단계 로그인 종단(사용자 로그인 필요) |
+| **시스템 브라우저 로그인·loopback·`knot://auth/callback`·리프레시 갱신·Bearer 주입**(`A7`, `auth-session.bin`) | |
+| **`knot://` 딥링크**(초대·채팅, 웜·콜드 스타트, `A8`) — SPA 쪽 구독은 `frontend/src/shared/routes/DeepLinkListener` | 패키징 앱에서의 스킴 등록 실측(로드맵 G4) |
+| **트레이·글로벌 단축키(`⌘⇧K`)·퀵 질문 창**(`A9`) | |
+| **Notion 동기화 완료 알림·Dock 배지**(`A10`) + preload `notifications.show` | |
+| 로컬 MCP 서버(`utilityProcess`, `127.0.0.1:47871/mcp`)·연결 토큰(`agent-bridge.json`)·`search_documents`·`list_workspaces` 도구·preload `agent` API (`S8`) | |
+| `show_answer` 도구(`S10`) — 에이전트 답변·근거를 세션에 저장하고 창을 앞으로 가져와 `knot:deep-link`로 그 대화를 연다 | 실제 `show_answer` 저장 종단(로컬 백엔드 로그인 뒤 실측) |
 | 서버 API 클라이언트(`src/main/chat/knotApi.ts`, Bearer — 워크스페이스 목록·Workspace 검색·세션 생성·턴 저장) | |
 | Knot 스킬(`resources/skills/knot/SKILL.md`), 세 CLI 등록 스니펫 복사(메뉴 `CLI 에이전트 연결`) | 연결 안내 화면은 웹 SPA `/agent-connection`(`S9`, frontend) |
 
@@ -45,7 +50,7 @@
 3. `claude mcp list`에 `knot … ✔ Connected`가 보이면 터미널에서 팀 문서 질문을 한다. 앱에 로그인돼 있지 않으면
    도구가 `UNAUTHENTICATED: Knot 앱에 로그인하세요`를 돌려준다.
 4. 답을 앱에서 보고 싶으면 "Knot 앱에서 보여줘"라고 말한다. 에이전트가 `show_answer`로 질문·답변·근거를 저장하면
-   앱 창이 앞으로 오고 그 대화가 열린다(웹 SPA의 딥링크 구독이 붙기 전까지는 창만 앞으로 온다 — 로드맵 U32).
+   앱 창이 앞으로 오고 그 대화가 열린다(웹 SPA는 `DeepLinkListener`가 `knot:deep-link`를 받아 그 세션으로 이동한다 — 2026-09-09, 로드맵 U32).
 
 **연결 토큰 재발급**을 하면 기존 등록은 무효가 되므로 1번을 다시 한다. 2026-09-09 이 PC의 Claude Code 2.1.263으로
 등록·도구 호출 왕복까지 실측했다(로드맵 4.5절 `S8` 실측).

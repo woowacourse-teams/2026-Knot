@@ -155,7 +155,7 @@ export interface KnotDesktopApi {
     getToken(): Promise<string | null>;     // 없으면 null
     setToken(token: string): Promise<void>; // safeStorage로 암호화해 userData에 저장
     clearToken(): Promise<void>;            // 로그아웃·401
-    // 2단계(A7)에서 추가한다
+    // 2단계(A7). 2026-09-09 구현: 셸이 셋 다 노출하며 SPA는 로드맵 Q60대로 쓴다
     startLogin?(): Promise<void>;           // 시스템 브라우저를 연다
     logout?(): Promise<void>;               // 폐기 API 호출 + 로컬 삭제
     onSessionChanged?(handler: (state: 'signed-in' | 'signed-out') => void): () => void;
@@ -191,6 +191,7 @@ export interface AgentBridgeStatus {
 - `auth.callback` 같은 로그인 콜백 데이터는 main에서만 소비하고 renderer로 보내지 않는다.
 - `auth.getToken`/`setToken`/`clearToken`은 **저장소만** 노출한다. 값은 renderer가 들고 있다가 `Authorization` 헤더에 직접 넣는다. 2단계에서 main이 `onBeforeSendHeaders`로 주입하게 되면 `getToken`은 `null`을 돌려주도록 바꾸고 SPA는 헤더를 붙이지 않는다(옵셔널 접근이라 하위 호환이 유지된다).
 - 토큰 값은 로그·크래시 리포트에 절대 쓰지 않는다. IPC 인자 로깅도 금지한다.
+- `auth.startLogin`·`logout`·`onSessionChanged`는 IPC 채널 `knot:auth-start-login`·`knot:auth-logout`·`knot:auth-session-changed`, `notifications.show`는 `knot:notifications-show`로 구현한다(2026-09-09, `A7`·`A10`). 로그인 콜백의 `code`·`state`는 main에서만 소비하고 renderer에는 성공(resolve)·실패(reject 메시지)만 전달한다. 알림 입력은 main이 `isNotificationInput`으로 다시 검사한다(제목 1~200자, 본문 ≤200자, 링크는 `KnotDeepLink` 모양).
 - `agent.*`는 IPC 채널 `knot:agent-status`·`knot:agent-copy-registration`·`knot:agent-rotate-token`·`knot:agent-set-port`로 구현한다. 연결 토큰 값은 어떤 IPC 응답에도 싣지 않는다(main이 `clipboard.writeText`로 쓴다). MCP 서버 프로세스와 main 사이의 `MessagePort` 메시지는 `{requestId, tool, input}` / `{requestId, result}` 또는 `{requestId, error: {code, message}}`이며 액세스 토큰·연결 토큰을 담지 않는다(2026-09-09, `S8`).
 - 도구 호출 로깅은 requestId·도구 이름·workspaceId·상태·지연 ms만. 질문·문서 본문·답변·토큰은 남기지 않는다.
 - 개정 전 `chat`·`llm` API(2026-09-07·08판)는 폐기됐다(로드맵 `S3`·`S6`). 남아 있던 코드는 2026-09-09 `S8`에서 제거했고(`desktop/test/s3Residue.test.ts`가 잔재 0건을 지킨다), 웹 사본(`frontend/src/shared/types/desktop.ts`)에는 처음부터 넣지 않았다.
@@ -559,7 +560,8 @@ desktop/
 | **로그인 리다이렉트 프래그먼트(`#access_token`·`#onboarding_token`) 수신·삭제** | P1 | `D11`. React 렌더 전에 실행해 첫 요청부터 헤더가 붙게 한다 |
 | 외부 링크(Notion 페이지 링크 등)를 데스크톱에서 `openExternal`로 | P1 | `target=_blank`는 main이 가로채므로 필수는 아님. UX 통일용 |
 | 로그아웃 액션(`POST /api/v1/auth/logout` → `/login`) | P1 | 웹에도 필요한 누락 기능 |
-| 딥링크 수신 → 라우터 이동 | P2 | `RouterProvider` 상위에서 `onDeepLink` 구독 |
+| 딥링크 수신 → 라우터 이동 | P2 | 구현됨(2026-09-09, `A8`·U32): 경로 없는 최상위 레이아웃 `shared/routes/DeepLinkListener`가 라우터 안에서 `onDeepLink`를 구독하고 마운트 시 `getPendingDeepLink`를 한 번 소비한다. `resolveDeepLinkPath`가 `invite` → `/invite/:token`, `chat` → `/workspace/:id/chat[/:sessionId]`로 바꾸며 `replace` 이동. `RouterProvider` 상위가 아니라 안쪽에 둔 이유는 `useNavigate`를 쓰기 위해서다 |
+| 로그인 버튼·로그아웃의 데스크톱 2단계 분기 | P2 | 구현됨(2026-09-09, `A7`, 로드맵 Q60): `GithubLoginButton`은 `knotDesktop.auth.startLogin`이 있으면 시스템 브라우저 로그인, `useLogout`은 토큰 삭제 뒤 `auth.logout?.()`로 기기 세션 폐기 |
 | 초대 페이지에 "앱에서 열기"(`knot://invite/<token>`) | P2 | 앱 미설치 시 안내 |
 | 다운로드 페이지(`/download`, OS 감지) | P1 | 정적 라우트 |
 | `<title>` 수정(`Document` → `Knot`) | P1 | 창 제목에 그대로 보인다 |
