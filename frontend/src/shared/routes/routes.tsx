@@ -17,6 +17,7 @@ import WorkspaceCreatePage from "@pages/workspace/create";
 import { createBrowserRouter } from "react-router";
 
 import AuthGuard from "./AuthGuard";
+import DeepLinkListener from "./DeepLinkListener";
 import EntryRedirect from "./EntryRedirect";
 import GuestGuard from "./GuestGuard";
 import { PATH_ROUTE } from "./PATH_ROUTE";
@@ -39,92 +40,100 @@ import { PATH_ROUTE } from "./PATH_ROUTE";
  *
  * 가드는 레이아웃 안쪽에 둬요. 판정 중 로딩과 실패 안내가 로고가 있는 자리에서 보여야
  * 화면이 비어 보이지 않기 때문이에요.
+ *
+ * 맨 위의 `DeepLinkListener`는 화면이 없는 레이아웃으로, 데스크톱 셸이 보내는 딥링크(초대·채팅)를
+ * 받아 라우터를 옮겨요. 브라우저에서는 아무 일도 하지 않아요.
  */
 export const router = createBrowserRouter([
-  // 화면 가운데 정렬 — 워크스페이스 진입 전 플로우
   {
-    element: <CenteredLayout />,
+    element: <DeepLinkListener />,
     children: [
+      // 화면 가운데 정렬 — 워크스페이스 진입 전 플로우
       {
-        path: PATH_ROUTE.HOME,
-        element: <EntryRedirect />,
-      },
-      {
-        element: <GuestGuard />,
+        element: <CenteredLayout />,
         children: [
           {
-            path: PATH_ROUTE.LOGIN,
-            element: <LoginPage />,
+            path: PATH_ROUTE.HOME,
+            element: <EntryRedirect />,
+          },
+          {
+            element: <GuestGuard />,
+            children: [
+              {
+                path: PATH_ROUTE.LOGIN,
+                element: <LoginPage />,
+              },
+            ],
+          },
+          {
+            path: PATH_ROUTE.ONBOARDING,
+            element: <OnboardingPage />,
+          },
+          {
+            path: PATH_ROUTE.ONBOARDING_COMPLETE,
+            element: <OnboardingCompletePage />,
+          },
+          {
+            path: PATH_ROUTE.INVITE,
+            element: <InvitePage />,
+          },
+          {
+            path: PATH_ROUTE.WORKSPACE_JOIN,
+            element: <WorkspaceJoinPage />,
+          },
+          {
+            path: PATH_ROUTE.JOIN_ERROR,
+            element: <JoinErrorPage />,
+          },
+          {
+            element: <AuthGuard />,
+            children: [
+              {
+                path: PATH_ROUTE.WORKSPACE,
+                element: <WorkspacePage />,
+              },
+              {
+                path: PATH_ROUTE.WORKSPACE_CREATE,
+                element: <WorkspaceCreatePage />,
+              },
+              {
+                path: PATH_ROUTE.WORKSPACE_INVITE,
+                element: <WorkspaceInvitePage />,
+              },
+              {
+                path: PATH_ROUTE.WORKSPACE_NOTION_CONNECTION,
+                element: <WorkspaceNotionConnectionPage />,
+              },
+              {
+                path: PATH_ROUTE.WORKSPACE_CODE,
+                element: <WorkspaceCodePage />,
+              },
+              {
+                path: PATH_ROUTE.AGENT_CONNECTION,
+                element: <AgentConnectionPage />,
+              },
+            ],
           },
         ],
       },
-      {
-        path: PATH_ROUTE.ONBOARDING,
-        element: <OnboardingPage />,
-      },
-      {
-        path: PATH_ROUTE.ONBOARDING_COMPLETE,
-        element: <OnboardingCompletePage />,
-      },
-      {
-        path: PATH_ROUTE.INVITE,
-        element: <InvitePage />,
-      },
-      {
-        path: PATH_ROUTE.WORKSPACE_JOIN,
-        element: <WorkspaceJoinPage />,
-      },
-      {
-        path: PATH_ROUTE.JOIN_ERROR,
-        element: <JoinErrorPage />,
-      },
-      {
-        element: <AuthGuard />,
-        children: [
-          {
-            path: PATH_ROUTE.WORKSPACE,
-            element: <WorkspacePage />,
-          },
-          {
-            path: PATH_ROUTE.WORKSPACE_CREATE,
-            element: <WorkspaceCreatePage />,
-          },
-          {
-            path: PATH_ROUTE.WORKSPACE_INVITE,
-            element: <WorkspaceInvitePage />,
-          },
-          {
-            path: PATH_ROUTE.WORKSPACE_NOTION_CONNECTION,
-            element: <WorkspaceNotionConnectionPage />,
-          },
-          {
-            path: PATH_ROUTE.WORKSPACE_CODE,
-            element: <WorkspaceCodePage />,
-          },
-          {
-            path: PATH_ROUTE.AGENT_CONNECTION,
-            element: <AgentConnectionPage />,
-          },
-        ],
-      },
-    ],
-  },
 
-  // GNB — 워크스페이스 입장 후
-  {
-    element: <WorkspaceLayout />,
-    children: [
+      // GNB — 워크스페이스 입장 후
       {
-        path: PATH_ROUTE.WORKSPACE_HOME,
-        element: <WorkspaceHomePage />,
-      },
-      {
-        path: PATH_ROUTE.CHAT,
-        element: <ChatPage />,
-      },
-      {
-        path: PATH_ROUTE.CHAT_SESSION,
-        element: <ChatPage />,
+        element: <WorkspaceLayout />,
+        children: [
+          {
+            path: PATH_ROUTE.WORKSPACE_HOME,
+            element: <WorkspaceHomePage />,
+          },
+          {
+            path: PATH_ROUTE.CHAT,
+            element: <ChatPage />,
+          },
+          {
+            path: PATH_ROUTE.CHAT_SESSION,
+            element: <ChatPage />,
+          },
+        ],
       },
     ],
   },
