@@ -26,17 +26,18 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 원격 MCP 서버의 HTTP 표면(기획서 6.5, 로드맵 A13). {@code POST /mcp} 하나이며 인증은 기존
+ * 원격 MCP 서버의 HTTP 표면(기획서 6.6, 로드맵 A13). {@code POST /mcp} 하나이며 인증은 기존
  * {@code Authorization: Bearer} 액세스 토큰(JwtAuthenticationFilter)으로 끝난다. 데스크톱 로컬 MCP 서버의 guard와 같은
  * 규칙으로 {@code Origin} 헤더가 있는 요청을 403으로 거부하고(로드맵 Q48·Q54), 지원하지 않는 {@code MCP-Protocol-Version}은
  * 400으로 거부한다. GET(서버 발신 SSE)·DELETE(세션 종료)는 무상태 서버라 405다.
  *
- * {@code mcp.remote.enabled=false}로 끄면 엔드포인트가 사라진다(인증된 요청도 404).
+ * 기본값은 꺼짐이다(기획서 6.6) — 액세스 토큰 수명이 1시간이라 CLI 설정에 붙여 두기 어렵고, 일반 사용자용 경로는 데스크톱
+ * 로컬 MCP 서버(기획서 6.4)다. {@code mcp.remote.enabled=true}로 켜야 엔드포인트가 생기고, 꺼진 빌드에서는 인증된 요청도 404다.
  */
 @RestController
 @RequestMapping("/mcp")
 @RequiredArgsConstructor
-@ConditionalOnProperty(prefix = "mcp.remote", name = "enabled", havingValue = "true", matchIfMissing = true)
+@ConditionalOnProperty(prefix = "mcp.remote", name = "enabled", havingValue = "true")
 public class McpController implements McpApi {
     static final String PROTOCOL_VERSION_HEADER = "MCP-Protocol-Version";
     static final String METHOD_NOT_ALLOWED_CODE = "MCP_METHOD_NOT_ALLOWED";

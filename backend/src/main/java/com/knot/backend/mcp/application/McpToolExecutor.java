@@ -14,7 +14,7 @@ import org.springframework.stereotype.Component;
 import tools.jackson.databind.JsonNode;
 
 /**
- * 원격 MCP 서버의 도구 실행(기획서 6.5, 로드맵 A13). 데스크톱 로컬 MCP 서버의 main 쪽 도구 실행
+ * 원격 MCP 서버의 도구 실행(기획서 6.6, 로드맵 A13). 데스크톱 로컬 MCP 서버의 main 쪽 도구 실행
  * ({@code desktop/src/main/agent/toolExecutor.ts})과 같은 규칙으로 결과를 조립한다 — 다른 점은 HTTP를 거치지 않고
  * 같은 서비스를 직접 부른다는 것뿐이다.
  *

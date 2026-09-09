@@ -5,7 +5,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 원격 MCP 서버가 공개하는 도구 정의(기획서 6.5, 로드맵 A13). 이름·설명·입력 스키마·annotations는 데스크톱 로컬 MCP
+ * 원격 MCP 서버가 공개하는 도구 정의(기획서 6.6, 로드맵 A13). 이름·설명·입력 스키마·annotations는 데스크톱 로컬 MCP
  * 서버({@code desktop/src/mcp/server.ts})와 같은 문구를 써서 스킬({@code SKILL.md})이 두 서버에 그대로 통한다.
  */
 public final class McpToolCatalog {

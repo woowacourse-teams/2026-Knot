@@ -9,7 +9,7 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
 /**
- * 원격 MCP 서버의 JSON-RPC 처리(기획서 6.5, 로드맵 A13·Q53). Streamable HTTP의 단일 엔드포인트에 POST된 메시지 하나를
+ * 원격 MCP 서버의 JSON-RPC 처리(기획서 6.6, 로드맵 A13·Q53). Streamable HTTP의 단일 엔드포인트에 POST된 메시지 하나를
  * 받아 {@code initialize}·{@code ping}·{@code tools/list}·{@code tools/call}을 처리한다. 세션({@code Mcp-Session-Id})을
  * 만들지 않는 무상태 서버이며, 알림과 클라이언트 응답은 202로 받기만 한다. 서버 발신 알림·SSE 스트림은 없다.
  *
