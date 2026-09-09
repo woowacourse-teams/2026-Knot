@@ -62,9 +62,12 @@ export interface KnotDesktopApi {
     setToken(token: string): Promise<void>;
     /** 저장된 액세스 토큰을 지운다(로그아웃·401) */
     clearToken(): Promise<void>;
-    // 2단계 인증(A6·A7)에서 채운다
+    // 2단계 인증(A6·A7). 이 셸부터 채워져 있다(로드맵 Q60)
+    /** 시스템 브라우저를 열어 로그인한다. 끝나면 resolve, 실패·취소·타임아웃은 reject */
     startLogin?(): Promise<void>;
+    /** 기기 세션 폐기 API 호출(실패해도 계속) + 로컬 토큰 삭제 */
     logout?(): Promise<void>;
+    /** 셸이 세션을 얻거나 잃었을 때. 구독 해제 함수를 돌려준다 */
     onSessionChanged?(handler: (state: "signed-in" | "signed-out") => void): () => void;
   };
   /**
@@ -107,6 +110,14 @@ export const IPC_CHANNELS = {
   authSetToken: "knot:auth-set-token",
   /** invoke: () => void */
   authClearToken: "knot:auth-clear-token",
+  /** invoke: () => void — 시스템 브라우저 로그인이 끝나면 resolve, 실패·취소는 reject(A7) */
+  authStartLogin: "knot:auth-start-login",
+  /** invoke: () => void — 기기 세션 폐기 + 로컬 토큰 삭제(A7) */
+  authLogout: "knot:auth-logout",
+  /** main → renderer: "signed-in" | "signed-out" (A7) */
+  authSessionChanged: "knot:auth-session-changed",
+  /** invoke: ({title, body, link?}) => void (A10) */
+  notificationsShow: "knot:notifications-show",
   /** invoke: () => AgentBridgeStatus */
   agentStatus: "knot:agent-status",
   /** invoke: (target: AgentRegistrationTarget) => { preview: string } */
