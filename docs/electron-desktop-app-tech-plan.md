@@ -12,17 +12,17 @@
 
 ## 1. 배경과 결론
 
-검토 문서는 "Electron + 사용자 Claude 구독 OAuth + 백엔드 검색 전용" 제안을 세 층위(정책 차단, 대규모 신규 개발, 백엔드 계약 역전)에서 적용 불가로 판정했다. 본 기획은 그 판정을 전제로 받아들이고, **정책과 기존 계약을 지키면서 Electron 데스크톱 앱을 만드는 방법**을 정의한다. 2026-09-09 개정: 탐색의 답변 생성은 **사용자가 터미널에서 쓰는 CLI 코딩 에이전트(Claude Code·Codex CLI·Gemini CLI)**가 하고, 데스크톱 앱은 그 에이전트가 붙는 **로컬 MCP 서버**로 문서 검색 도구를 제공한다(6.4, 로드맵 불변 계약 2·3번 개정). Knot은 LLM을 호출하지 않고, LLM 자격증명을 저장·중개하지 않으며, CLI 바이너리를 실행·변경하지 않는다. 검토 문서의 정책 차단 판정은 Agent SDK를 제품에 묻는 형태(D안)에 그대로 남고, "변경 없는 Claude Code 바이너리를 자식 프로세스로 실행"하는 형태(검토 문서 E안)는 사용자가 거부해 채택하지 않았다.
+검토 문서는 "Electron + 사용자 Claude 구독 OAuth + 백엔드 검색 전용" 제안을 세 층위(정책 차단, 대규모 신규 개발, 백엔드 계약 역전)에서 적용 불가로 판정했었다. **2026-09-10 개정**: 사용자가 그 정책 차단 판정을 넘어서기로 결정하고(로드맵 불변 계약 3번 삭제·2번 개정), 탐색의 답변 생성을 **데스크톱 앱이 사용자 본인의 Claude 구독으로 앱 안에서** 하도록 지시했다. 방식은 Aside가 실제로 출시·운영 중인 것과 같은 **Claude Code OAuth 흐름**을 앱이 재현하는 것이다(6.5, 트랙 L, 로드맵 Q61). 이 형태는 `legal-and-compliance`가 명시적으로 금지하는 것(서드파티 앱의 claude.ai 로그인 제공·구독 자격증명 대리 호출·자격증명 저장/중개)에 해당하며, Anthropic이 재량으로 허용하고 서드파티 사용량은 별도 extra usage 크레딧에서 per-token 차감되는 구간에서 운영한다. 이 정책 해석과 그 위험은 사용자 결정이다(검토 문서 5.1·7절 G안, 로드맵 R28·R29). 서버는 여전히 하이브리드 검색·근거·게이트·Workspace 격리·저장을 소유한다. 데스크톱이 로컬 MCP 서버로 터미널 CLI 에이전트에 검색 도구를 제공하는 경로(6.4, `S8`~`S10`)는 선택적 부가 진입점으로 남는다.
 
 한 줄 결론:
 
-> Knot 데스크톱 앱은 `https://knoted.kr` 웹 앱을 원격 로드하는 Electron 셸이다. 탐색(채팅)의 답변은 사용자의 CLI 코딩 에이전트가 만들고, 데스크톱 앱은 로컬 MCP 서버(`http://127.0.0.1:<port>/mcp`)로 `search_documents` 도구를 제공하며, 서버는 검색·저장을 맡는다(2026-09-09 개정, 6.4). Knot은 LLM을 호출하지 않고 LLM 자격증명·CLI 바이너리를 다루지 않는다. 웹 채팅 UI는 브라우저·셸 모두 서버 SSE 경로를 쓴다(로드맵 Q22). 데스크톱이 더하는 것은 상시 실행, 딥링크, 알림, 퀵 질문 창, 자동 업데이트, 그리고 이 CLI 에이전트 연결이다. 인증은 웹·데스크톱 모두 `Authorization: Bearer <JWT>`를 쓰고 쿠키를 쓰지 않는다. 토큰은 웹이 `localStorage`, 데스크톱이 main의 `safeStorage`에 둔다(`D11`, 5.1). 2단계에서 시스템 브라우저 로그인 + 리프레시 토큰(디바이스 세션)을 얹는다. 백엔드 `LlmClient`의 Anthropic 어댑터(B안)는 웹 채팅 UI의 서버 SSE 경로에 쓰인다.
+> Knot 데스크톱 앱은 `https://knoted.kr` 웹 앱을 원격 로드하는 Electron 셸이다. 탐색(채팅)의 답변은 **앱이 사용자 본인의 Claude 구독으로 앱 안에서 만든다**(2026-09-10 개정, 6.5·트랙 L). 데스크톱 main이 Claude Code OAuth 흐름으로 사용자의 Claude 구독 자격증명을 받아 `POST api.anthropic.com/v1/messages`를 직접 호출하고, 서버는 하이브리드 검색·청크 상위 8개·규칙 문장·문서 준비 게이트·Workspace 격리·저장을 맡는다. 웹 브라우저 단독 실행과 구독이 없는 사용자는 서버 SSE 경로(B안, 로드맵 Q22)를 폴백으로 쓴다. 데스크톱이 터미널 CLI 에이전트에 로컬 MCP 서버로 검색 도구를 제공하는 경로(6.4)는 선택적 부가 진입점이다. 데스크톱이 더하는 것은 상시 실행, 딥링크, 알림, 퀵 질문 창, 자동 업데이트, 그리고 이 앱 안 구독 탐색이다. 인증은 웹·데스크톱 모두 `Authorization: Bearer <JWT>`를 쓰고 쿠키를 쓰지 않는다. 토큰은 웹이 `localStorage`, 데스크톱이 main의 `safeStorage`에 둔다(`D11`, 5.1). 사용자 Claude 구독 자격증명도 main의 `safeStorage`에 둔다(6.5). 2단계에서 시스템 브라우저 로그인 + 리프레시 토큰(디바이스 세션)을 얹는다. 이 형태의 정책 리스크는 사용자가 감수한다(로드맵 R28).
 
 제안 대비 무엇이 달라졌는지:
 
 | 제안(검토 대상) | 본 기획 | 이유 |
 | --- | --- | --- |
-| Electron Main이 Agent SDK로 사용자 구독으로 모델 호출 | 모델 호출은 **사용자의 CLI 코딩 에이전트 안에서** 일어난다. 데스크톱은 그 에이전트가 연결하는 로컬 MCP 서버만 띄운다(6.4, 2026-09-09 개정). Agent SDK 내장·Knot 화면 안 로그인·토큰 중개·CLI 바이너리 자식 프로세스 실행은 전부 제외 | 사용자가 공식 CLI에 제3자 MCP 서버를 연결하는 것은 세 회사 모두 문서화된 정식 기능이고(지식 §6.8), Knot은 `legal-and-compliance`가 금지하는 행위(로그인 제공·자격증명 중개·바이너리 변경)를 하지 않는다 |
+| Electron Main이 Agent SDK로 사용자 구독으로 모델 호출 | 모델 호출은 **데스크톱 main이 사용자 본인의 Claude 구독으로 직접** 한다(6.5, 2026-09-10 개정). Agent SDK 대신 Claude Code OAuth 흐름을 재현해 구독 토큰을 받고 `POST api.anthropic.com/v1/messages`를 부른다(Aside식). 서버는 검색·근거·게이트·저장을 소유한다 | 사용자 지시로 정책 차단 판정을 넘어서기로 결정(로드맵 계약 3 삭제). Aside가 같은 방식으로 출시·운영 중이다. 위험은 사용자 감수(R28) |
 | in-process MCP `search_knowledge` 툴 + `POST /v1/search` | 데스크톱 앱이 띄운 **로컬 MCP 서버**의 `search_documents` 툴 + 서버 `POST /api/v1/workspaces/{id}/search`(6.4, 2026-09-09 개정). 툴 루프는 에이전트가 자기 판단으로 돈다 | 제안의 이 부분은 형태가 거의 그대로 채택됐다. 차이는 MCP 서버가 Agent SDK 안(in-process)이 아니라 앱이 띄운 로컬 HTTP 서버이고, 호출 주체가 사용자의 CLI라는 것. 규칙 문장·선별·게이트·저장 검증은 서버가 소유해 정책 분기를 막는다(로드맵 Q24·Q25) |
 | SDK `resume`로 세션 관리 | `chat_sessions`·`chat_messages` DB가 세션 진실 | 다기기·재설치 복원 요구(기능 기획서 12절) |
 | 서비스 JWT Bearer 가정 | 1단계부터 Bearer JWT로 전환(`D11`), 2단계에서 디바이스 세션·리프레시 추가 | 현행 필터가 쿠키만 읽는 것(지식 §1.2)을 `D11`에서 Bearer만 읽도록 바꾼다 |
@@ -44,8 +44,10 @@
 
 ### 2.2 비목표
 
-- Knot이 claude.ai·OpenAI·Google 로그인 화면을 제공하거나 OAuth·세션 토큰·API 키를 저장·중개하는 것, Agent SDK를 제품에 묻어 사용자 구독으로 호출하는 것(검토 문서 D안), CLI 바이너리(`claude`·`codex`·`gemini`)를 자식 프로세스로 실행하는 것(검토 문서 E안 — 사용자 거부, 2026-09-08). 데스크톱은 공식 확장 지점(MCP 서버·스킬)으로만 붙는다(2026-09-09 개정).
-- 데스크톱 앱(main·MCP 서버·renderer)이 LLM을 호출하는 것, 서버 검증 없이 답변·출처를 저장하는 것(2026-09-09 개정).
+- (2026-09-10 개정) 이전 판의 비목표였던 "앱이 사용자 구독으로 모델을 호출/앱이 자격증명을 저장"은 사용자 지시로 **목표로 전환**됐다(2.1·6.5, 로드맵 계약 3 삭제·트랙 L). 아래는 여전히 비목표다.
+- `claude`·`codex`·`gemini` **바이너리를 자식 프로세스로 실행**하는 것(검토 문서 E안 — 사용자 반복 거부). 앱은 바이너리를 실행·동봉하지 않고, 구독 자격증명은 Claude Code OAuth 흐름을 앱이 직접 재현해 받는다(6.5).
+- 서버 검증 없이 답변·출처를 저장하는 것. 앱이 만든 답변·출처도 서버 검증(세션 소유자·Workspace JOIN·rank ≤ 8)을 거쳐 `generated_by=CLIENT`로만 저장한다(6.5).
+- OpenAI·Google 등 Claude 외 제공자의 구독·로그인을 앱이 다루는 것. 트랙 L은 Claude 구독만 대상이며, 그 외는 서버 SSE(B안)·BYO 키(C안)로 둔다.
 - 오프라인 사용. 원격 로드 구조의 한계이며 별도 결정으로 분리한다(지식 §5.2).
 - Tauri·PWA로의 전환. 비교는 지식 §5.1에 두고 재검토 조건만 15절에 남긴다.
 - 모바일, Linux 코드 서명·스토어 배포(Linux는 빌드만 제공).
@@ -57,14 +59,14 @@
 | --- | --- | --- | --- | --- | --- |
 | D1 | 데스크톱 셸 | **Electron 44** | Tauri 2, PWA | 웹과 동일한 Chromium 렌더링, main·preload·renderer 전부 TypeScript, Playwright 지원, 채택 사례(지식 §5.1). PWA는 트레이·글로벌 단축키·자동 시작이 없음 | 필요 |
 | D2 | 콘텐츠 로드 | **원격 URL `https://knoted.kr`** | 로컬 번들(`app://`) | CORS·라우터·SSE를 웹과 동일하게 유지, 웹 배포로 즉시 반영(Slack 하이브리드 모델). 로컬 번들을 막던 쿠키 제약(`__Host-`·SameSite)은 `D11`로 사라졌으므로 전환 검토(`A12`)는 열려 있다(지식 §2.4, §4.7) | D1과 함께 |
-| D3 | 모델 호출 위치 | **사용자의 CLI 코딩 에이전트(터미널)가 답변을 만들고, 데스크톱 앱은 로컬 MCP 서버로 검색 도구를 제공하며, 서버는 검색·저장(6.4, 2026-09-09 개정)**. 웹 채팅 UI는 B안 유지(로드맵 Q22) | B안(백엔드 어댑터), C안(Workspace BYO 키), D안(사용자 구독 Agent SDK 내장), E안(변경 없는 Claude Code 바이너리 자식 프로세스 실행 — 사용자 거부), 개정 전 "데스크톱 main이 사용자 LLM(본인 키·로컬 모델) 호출"(2026-09-07판) | 사용자 지시(2026-09-07·2026-09-08). 앱이 자격증명을 저장·중개하지 않고 CLI 바이너리를 실행·변경하지 않으며 MCP 서버라는 공식 확장 지점으로만 붙으므로 정책 허용 경로이고, 사용자가 API 비용을 따로 내지 않는다. 검색·게이트·규칙 문장·저장 검증을 서버에 남겨 검토 문서 5.4의 무결성·정책 분기 문제를 좁힌다 | 필요(로드맵 `S1`, 계약 2·3번 개정 포함) |
+| D3 | 모델 호출 위치 | **데스크톱 앱(main)이 사용자 본인의 Claude 구독으로 앱 안에서 직접 호출(6.5, 트랙 L, 2026-09-10 개정)**. 서버는 검색·근거·게이트·저장. 구독 없음·브라우저 단독은 서버 SSE(B안) 폴백(로드맵 Q22) | G안(사용자 구독 직접 호출, Aside식 Claude Code OAuth — **채택**), B안(백엔드 어댑터, 폴백으로 유지), C안(Workspace BYO 키), F안(로컬 MCP + CLI 에이전트, 선택적 부가 진입점으로 유지 — `S8`~`S10`), D안(Agent SDK 내장), E안(CLI 바이너리 자식 프로세스 — 사용자 거부) | 사용자 지시(2026-09-10 `불변 계약 3번 제거해 … 이렇게 구현하기 위해서 모든 문서를 다 다시 작성해`). "앱에서 질문하면 내 구독으로 답한다"가 제품 목표. Aside가 같은 방식으로 운영 중임을 실측([[aside-claude-subscription-mechanism]]). 정책 금지 조항 해당·재량 허용 구간이며 위험은 사용자 감수(로드맵 R28). 검색·게이트·규칙 문장·저장 검증을 서버에 남겨 검토 문서 5.4의 무결성 문제를 좁힌다 | 필요(로드맵 `L1`, 계약 2 개정·3 삭제 포함) |
 | D4 | 인증 | **1단계: 앱 창 GitHub 로그인 + Bearer JWT(`D11`) → 2단계: 시스템 브라우저 + 디바이스 토큰(패턴 A·B), Device flow(D)는 fallback** | 처음부터 2단계, 1단계에서 멈추기 | 1단계는 로그인 창 위치만 앱 안이고 자격증명 전달은 이미 2단계와 같은 Bearer다. RFC 8252 §8.12·1시간 만료·리프레시 부재가 상시 실행 앱에 부적합하므로(지식 §4.4) 2단계는 유지하되, 남은 차이는 **로그인 창 위치와 리프레시**뿐이다 | 필요(ADR 314 재논의) |
 | D11 | 인증 자격증명 전달·저장 | **`Authorization: Bearer <JWT>` + 클라이언트 저장(웹 `localStorage`, 데스크톱 main `safeStorage`). 쿠키·CSRF 폐기** | 현행 `HttpOnly` 쿠키 유지, 쿠키+Bearer 이중 경로, 메모리 전용 저장 | 쿠키는 저장 위치를 브라우저가 정해 데스크톱이 `safeStorage`를 쓸 수 없고, `app://` 로컬 번들에서 깨진다(지식 §2.4·§4.7). 이중 경로는 필터·CSRF 매처·CORS가 두 경로를 동시에 지탱해야 한다. 메모리 전용은 새로고침마다 재로그인이라 리프레시 토큰(2단계) 없이는 못 쓴다. 대가로 `HttpOnly`의 XSS 격리를 잃는다(5.1·5.3) | 필요(ADR 314 보완) |
 | D5 | 빌드·패키징 도구 | **Electron Forge 7.x** | electron-builder 26, electron-vite | Electron 공식 권장, Fuses·ASAR 무결성·서명·공증·publisher 통합, Squirrel + update.electronjs.org 무료 경로. electron-builder는 NSIS·차등 업데이트·스테이지 롤아웃·프라이빗 업데이트가 필요할 때 유리(지식 §3.2). 상세는 10절 | D1과 함께 |
 | D6 | 자동 업데이트 채널 | **GitHub Releases + `update-electron-app`(update.electronjs.org)** | electron-updater + generic 서버, 자체 서버(Hazel 등) | 저장소가 공개(PUBLIC)라 무료 서비스 조건(공개 저장소 + macOS 서명) 충족. 자체 서버는 2년 이상 정체. 상세는 10절 | D5와 함께 |
 | D7 | 저장소 위치 | **루트 `desktop/` 독립 pnpm 패키지, 브랜치 area `fe`** | `frontend/desktop/` 하위 패키지 | `deploy-frontend-*.yml`이 `frontend/**`를 감시하므로 분리해야 웹 배포가 불필요하게 돌지 않음. Governance area는 `be|fe`뿐이라 `fe`를 쓴다(지식 §1.6) | 불필요(메모) |
 | D8 | 세션 진실 | **DB(`chat_sessions`·`chat_messages`)** | SDK 로컬 JSONL | 다기기 복원·서버 계측 요구 | 불필요(현행) |
-| D9 | 프롬프트 정책·게이트·계측 | **규칙 문장·게이트·저장 검증은 서버, 도구 결과 조립은 main(6.4)**. 프롬프트는 사용자의 에이전트가 자기 방식으로 만든다 | 앱 내 systemPrompt 전체, 서버 전체 고정(개정 전), main의 프롬프트 조립(2026-09-07판) | 규칙 문장을 서버가 돌려주고 도구 결과 텍스트 앞머리에 그대로 실으므로 앱 버전별 정책 분기는 없다. TTFT는 에이전트 밖에서 잴 수 없어 `S5`는 도구 지연만 잰다(2026-09-09 개정) | D3과 함께 |
+| D9 | 프롬프트 정책·게이트·계측 | **규칙 문장·게이트·저장 검증은 서버, 프롬프트 조립·모델 호출은 main(6.5)**. main이 서버가 준 `groundingRules` + 근거 블록을 `system`으로 조립해 사용자 구독으로 호출한다 | 서버 전체 고정, 앱 내 systemPrompt 전체, 개정 전 "에이전트가 자기 방식으로"(2026-09-09판) | 규칙 문장을 서버가 돌려주고 main이 `system` 앞머리에 그대로 실으므로 앱 버전별 정책 분기가 없다. 앱 안 호출이라 TTFT를 앱에서 계측할 수 있다(`L2`, `S5`) | D3과 함께 |
 | D10 | 관측 | **`electron-log` 파일 로그 + Electron `crashReporter`(수집 서버는 미결)** | Sentry Electron SDK | 개인정보·비용 결정이 필요해 15절 미결로 둠 | 필요 시 |
 
 ## 4. 시스템 아키텍처
@@ -111,7 +113,7 @@ main도 같은 Bearer 토큰으로 Spring의 Workspace 검색·워크스페이�
 
 | 프로세스 | 책임 | 하지 않는 것 |
 | --- | --- | --- |
-| main | `BrowserWindow` 생성·복원, 애플리케이션 메뉴, 트레이, 단일 인스턴스 락, 딥링크 파싱, `will-navigate`·`setWindowOpenHandler`·`setPermissionRequestHandler`, 자동 업데이트, 로그·크래시, **액세스 토큰 보관(`safeStorage`, 1단계)**, **CLI 에이전트 연결(6.4): MCP 서버 `utilityProcess` 기동·종료, 연결 토큰 발급·보관, `MessagePort`로 받은 도구 요청을 서버 API(Workspace 검색·워크스페이스 목록·턴 저장)로 실행해 결과 반환, 등록 스니펫 클립보드 복사**, [2단계] 리프레시·갱신·`onBeforeSendHeaders` Bearer 주입 | LLM 호출, 검색·선별·저장 자체(서버가 한다), 쿠키 값 읽기(`cookies.get`을 쓰지 않는다), 토큰·연결 토큰·질문·문서 본문 로깅, CLI 바이너리 실행·탐색, LLM 자격증명 접근(로드맵 불변 계약 2·3번) |
+| main | `BrowserWindow` 생성·복원, 애플리케이션 메뉴, 트레이, 단일 인스턴스 락, 딥링크 파싱, `will-navigate`·`setWindowOpenHandler`·`setPermissionRequestHandler`, 자동 업데이트, 로그·크래시, **액세스 토큰 보관(`safeStorage`, 1단계)**, **CLI 에이전트 연결(6.4): MCP 서버 `utilityProcess` 기동·종료, 연결 토큰 발급·보관, `MessagePort`로 받은 도구 요청을 서버 API(Workspace 검색·워크스페이스 목록·턴 저장)로 실행해 결과 반환, 등록 스니펫 클립보드 복사**, **앱 안 구독 탐색(6.5, 2026-09-10): 사용자 Claude 구독 OAuth 로그인·토큰 `safeStorage` 보관·갱신, 서버 검색으로 `system` 조립, `api.anthropic.com/v1/messages` 스트리밍 호출, 답변·출처 서버 저장, 폴백 판정**, [2단계] 리프레시·갱신·`onBeforeSendHeaders` Bearer 주입 | 검색·선별·저장 검증 자체(서버가 한다), 쿠키 값 읽기(`cookies.get`을 쓰지 않는다), 토큰·구독 토큰·질문·답변·문서 본문 로깅, CLI 바이너리 실행·탐색(2.2 비목표), 구독 토큰을 renderer·IPC 응답에 싣는 것 |
 | MCP 서버(`utilityProcess`) | Streamable HTTP 서버를 `127.0.0.1:<port>`에 열고 `Origin`·`Host`·연결 토큰을 검사, 도구 정의(`search_documents`·`list_workspaces`·선택 `show_answer`)와 입력 검증, 요청을 `MessagePort`로 main에 위임하고 결과를 MCP 도구 결과로 변환 | 서버 API 직접 호출(액세스 토큰을 갖지 않는다), LLM 호출, main 위임 밖의 파일·네트워크 접근 |
 | preload | `contextBridge.exposeInMainWorld('knotDesktop', …)`로 4.4의 API만 노출(`auth`·`agent` 포함). CJS 단일 번들, sandbox 유지 | `ipcRenderer` 원본 노출, Node API 노출 |
 | renderer | 웹 SPA 그대로. `window.knotDesktop` 존재 여부로 데스크톱을 감지해 외부 링크·딥링크·로그아웃 UX와 **토큰 저장소**, **CLI 에이전트 연결 안내 화면**(9.3, `S9`)만 분기. 채팅은 브라우저와 같은 서버 SSE | Electron 모듈 직접 접근, 토큰을 `localStorage`에 두는 것(데스크톱에서는 preload 경유), LLM 직접 호출, 연결 토큰 보관 |
@@ -121,9 +123,11 @@ main도 같은 Bearer 토큰으로 Spring의 Workspace 검색·워크스페이�
 
 ### 4.3 주요 흐름
 
-**탐색(CLI 에이전트, 2026-09-09 개정 — 6.4)**: 사용자가 터미널에서 에이전트에 질문 → 에이전트가 Knot 스킬 안내대로 `search_documents({query, workspaceId?})` 호출 → 요청이 `http://127.0.0.1:<port>/mcp`(연결 토큰)로 데스크톱의 MCP 서버에 도착 → `MessagePort`로 main → main이 `POST /api/v1/workspaces/{id}/search`를 `Authorization: Bearer <JWT>`로 호출 → 서버가 멤버·스냅샷 검사 후 하이브리드 검색으로 청크 8개와 규칙 문장을 응답(저장 없음) → main이 규칙 + `[근거 문서 n]` 블록 텍스트로 조립해 IPC → MCP 서버가 도구 결과로 반환 → 에이전트가 답변을 만들어 터미널에 표시 → (선택, `S10`) `show_answer`로 세션에 저장하고 앱 창이 그 세션을 연다.
+**탐색(앱 안 구독 — 데스크톱 셸 기본, 2026-09-10 개정 — 6.5)**: renderer가 `window.knotDesktop.llm.streamAnswer(sessionId, content)` 호출 → main이 `POST /api/v1/conversations/{sessionId}/search`(`Authorization: Bearer <JWT>`, `S1`)로 근거 청크 8개 + 규칙 문장을 받음 → main이 `system`(규칙 + 근거 블록)·`messages`(히스토리 + 질문)를 조립해 `safeStorage`의 사용자 구독 토큰으로 `POST https://api.anthropic.com/v1/messages`(stream) 호출(Q61) → SSE `text_delta`를 preload `chunk {delta}`로 renderer에 흘림 → `complete {messageId}` 전에 답변·출처를 `POST /api/v1/conversations/{sessionId}/turns`(`generated_by=CLIENT`, `S2`)로 저장 → renderer가 `GET /messages/{id}/sources`로 "찾은 문서" 표시. 구독 미로그인·401·크레딧 소진이면 아래 서버 SSE로 폴백.
 
-**탐색(웹 채팅 UI — 브라우저·데스크톱 셸 공통, 로드맵 Q22)**: renderer의 `streamChatMessageApi`가 `POST /api/v1/conversations/{sessionId}/messages`를 `Authorization: Bearer <JWT>`로 호출 → 백엔드 파이프라인(게이트 → 검색(청크 8) → `LlmClient` → SSE → 저장) → `complete(messageId)` → `GET /messages/{id}/sources`. Electron renderer는 Chromium이므로 fetch 스트리밍·`TextDecoder`·`parseSseEvents`가 브라우저와 동일하게 동작한다(지식 §2.5). 데스크톱 전용 분기는 없다(2026-09-09 개정, `S4` 폐기).
+**탐색(서버 SSE — 브라우저 단독·구독 폴백, 로드맵 Q22)**: renderer의 `streamChatMessageApi`가 `POST /api/v1/conversations/{sessionId}/messages`를 `Authorization: Bearer <JWT>`로 호출 → 백엔드 파이프라인(게이트 → 검색(청크 8) → `LlmClient` → SSE → 저장) → `complete(messageId)` → `GET /messages/{id}/sources`. Electron renderer는 Chromium이므로 fetch 스트리밍·`TextDecoder`·`parseSseEvents`가 브라우저와 동일하게 동작한다(지식 §2.5). 두 경로가 renderer에 주는 이벤트 모양(`chunk`·`complete`·`error`)은 같다(불변 계약 1번).
+
+**탐색(CLI 에이전트 — 선택적 부가 진입점, 6.4)**: 사용자가 터미널에서 에이전트에 질문 → 에이전트가 Knot 스킬 안내대로 `search_documents` 호출 → `http://127.0.0.1:<port>/mcp`(연결 토큰)로 데스크톱 MCP 서버 → `MessagePort`로 main → main이 `POST /api/v1/workspaces/{id}/search`(`S7`) → 규칙 + 근거 블록을 도구 결과로 반환 → 에이전트가 터미널에 답 표시 → (선택, `S10`) `show_answer`로 세션 저장·앱 창이 그 세션을 연다.
 
 **로그인 1단계(`D11`)**: SPA의 `GithubLoginButton`이 `window.location.href = {API}/oauth2/authorization/github` → main의 `will-navigate`·`will-redirect` 허용 목록(웹 오리진, API 오리진, `github.com`)을 통과 → GitHub 로그인 → `api.*`의 성공 핸들러가 **쿠키를 심지 않고** 설정된 프론트 URL에 토큰을 URL 프래그먼트로 붙여 302(`{success-redirect-uri}#access_token=…&expires_in=3600`, 신규 가입은 `{nickname-redirect-uri}#onboarding_token=…`) → SPA 부팅 코드가 프래그먼트를 읽어 저장소에 넣고 `history.replaceState`로 주소창에서 지운다 → `EntryRedirect`가 분기. 세션 파티션은 `persist:knot`을 유지하지만 이제 인증 쿠키는 담기지 않는다.
 
@@ -160,7 +164,30 @@ export interface KnotDesktopApi {
     logout?(): Promise<void>;               // 폐기 API 호출 + 로컬 삭제
     onSessionChanged?(handler: (state: 'signed-in' | 'signed-out') => void): () => void;
   };
-  // CLI 에이전트 연결(6.4, 2026-09-09). 데스크톱 전용 연결 안내 화면(S9)이 쓴다
+  // 앱 안 구독 탐색(6.5, 2026-09-10, 트랙 L). 데스크톱 셸에서 채팅 화면이 쓴다
+  llm?: {
+    getStatus(): Promise<LlmSubscriptionStatus>;      // 로그인·토큰 만료·폴백 여부
+    signIn(): Promise<void>;                           // claude.ai OAuth(시스템 브라우저). 토큰은 main safeStorage
+    signOut(): Promise<void>;                          // subscription-auth.bin 삭제
+    onStatusChanged(handler: (s: LlmSubscriptionStatus) => void): () => void;
+    // 질문을 사용자 구독으로 스트리밍. main이 서버 검색 근거로 system을 조립해 호출한다
+    streamAnswer(
+      // workspaceId는 라우트 값. 세션에서 Workspace를 되찾는 API가 없다(로드맵 Q65, 2026-09-09)
+      input: { workspaceId: string; sessionId: string; content: string },
+      on: {
+        chunk(delta: string): void;
+        complete(res: { messageId: string }): void;
+        // fallback=true면 renderer가 서버 SSE 경로로 다시 보낸다(구독 미로그인·401·크레딧 소진)
+        error(err: { code: string; message: string; fallback: boolean }): void;
+      },
+    ): () => void;                                     // 반환값은 취소 함수
+    // 설정(L3, 2026-09-09 추가). 모델·effort는 main의 subscription-settings.json에 있고 허용 목록도 main이 준다(Q62)
+    getSettings(): Promise<LlmSettingsView>;
+    // 목록 밖 값은 reject. 바뀌면 onStatusChanged(model)도 온다
+    updateSettings(input: { model: string; effort: string }): Promise<LlmSettingsView>;
+  };
+
+  // CLI 에이전트 연결(6.4, 2026-09-09, 선택적 부가 진입점). 데스크톱 전용 연결 안내 화면(S9)이 쓴다
   agent?: {
     getStatus(): Promise<AgentBridgeStatus>;
     // 등록 스니펫(연결 토큰 포함)을 main이 클립보드에 쓴다. renderer에는 토큰을 가린 미리보기만 돌려준다
@@ -182,6 +209,23 @@ export interface AgentBridgeStatus {
   skillPath: string;              // 앱 리소스 안 SKILL.md 절대 경로(복사 명령용)
 }
 
+export interface LlmSubscriptionStatus {
+  signedIn: boolean;              // 사용자 Claude 구독 로그인 여부
+  expiresAt: string | null;      // access 토큰 만료(ISO 8601). 만료 전 자동 갱신
+  model: string;                 // 현재 모델(Q62 기본 claude-fable-5-1)
+  lastError: string | null;      // 마지막 호출 오류 코드(401·크레딧 소진 등)
+  // 마지막 질문이 어느 경로로 응답됐는지(구독=subscription, 폴백=server-sse)
+  lastAnsweredBy: 'subscription' | 'server-sse' | null;
+}
+
+// L3(2026-09-09). 설정 화면이 고를 수 있는 값은 main이 준다 — SPA가 모델 목록을 하드코딩하지 않는다(Q62)
+export interface LlmSettingsView {
+  model: string;
+  effort: string;
+  models: readonly string[];       // 선택 가능한 모델 ID(Q62·지식 §6.2)
+  efforts: readonly string[];      // output_config.effort 값
+}
+
 ```
 
 규칙:
@@ -193,6 +237,7 @@ export interface AgentBridgeStatus {
 - 토큰 값은 로그·크래시 리포트에 절대 쓰지 않는다. IPC 인자 로깅도 금지한다.
 - `auth.startLogin`·`logout`·`onSessionChanged`는 IPC 채널 `knot:auth-start-login`·`knot:auth-logout`·`knot:auth-session-changed`, `notifications.show`는 `knot:notifications-show`로 구현한다(2026-09-09, `A7`·`A10`). 로그인 콜백의 `code`·`state`는 main에서만 소비하고 renderer에는 성공(resolve)·실패(reject 메시지)만 전달한다. 알림 입력은 main이 `isNotificationInput`으로 다시 검사한다(제목 1~200자, 본문 ≤200자, 링크는 `KnotDeepLink` 모양).
 - `agent.*`는 IPC 채널 `knot:agent-status`·`knot:agent-copy-registration`·`knot:agent-rotate-token`·`knot:agent-set-port`로 구현한다. 연결 토큰 값은 어떤 IPC 응답에도 싣지 않는다(main이 `clipboard.writeText`로 쓴다). MCP 서버 프로세스와 main 사이의 `MessagePort` 메시지는 `{requestId, tool, input}` / `{requestId, result}` 또는 `{requestId, error: {code, message}}`이며 액세스 토큰·연결 토큰을 담지 않는다(2026-09-09, `S8`).
+- `llm.*`는 IPC 채널 `knot:llm-status`·`knot:llm-sign-in`·`knot:llm-sign-out`·`knot:llm-status-changed`(`L1`)와 `knot:llm-stream`(invoke — `{requestId, workspaceId, sessionId, content}`로 스트림 시작, 입력 검사 뒤 바로 resolve)·`knot:llm-stream-event`(main → 호출한 renderer만 — `{requestId, event: "chunk", delta}`·`{requestId, event: "complete", messageId}`·`{requestId, event: "error", code, message, fallback}`)·`knot:llm-stream-cancel`(invoke — `{requestId}`)로 구현한다(2026-09-10 초안, 2026-09-09 `L2` 구현에서 채널 3개로 구체화). `requestId`는 preload가 만든다. 설정은 `knot:llm-settings`(invoke → `LlmSettingsView`)·`knot:llm-update-settings`(invoke `{model, effort}` → `LlmSettingsView`, main이 허용 목록으로 재검사)이다(2026-09-09, `L3`). **사용자 구독 access·refresh 토큰(`sk-ant-oat…`·`sk-ant-ort…`)은 어떤 IPC 응답·이벤트에도 싣지 않는다** — main의 `safeStorage`(`subscription-auth.bin`)만 읽고, renderer에는 `LlmSubscriptionStatus`와 스트림 `chunk`·`complete`·`error`만 준다. OAuth `code`·PKCE `verifier`는 main에서만 소비한다. 스트림 로깅은 세션 id·모델·상태·지연·토큰 사용량만, 질문·답변 본문과 구독 토큰은 남기지 않는다.
 - 도구 호출 로깅은 requestId·도구 이름·workspaceId·상태·지연 ms만. 질문·문서 본문·답변·토큰은 남기지 않는다.
 - 개정 전 `chat`·`llm` API(2026-09-07·08판)는 폐기됐다(로드맵 `S3`·`S6`). 남아 있던 코드는 2026-09-09 `S8`에서 제거했고(`desktop/test/s3Residue.test.ts`가 잔재 0건을 지킨다), 웹 사본(`frontend/src/shared/types/desktop.ts`)에는 처음부터 넣지 않았다.
 
@@ -330,12 +375,14 @@ export interface AgentBridgeStatus {
 | 피싱(가짜 로그인 창) | 앱 안에서 자격증명을 받지 않음(2단계), 환경 전환 UI 없음, 서명된 배포본 |
 | 백엔드 리다이렉트 오용 | `return` 값 화이트리스트, `state`에 URL 미포함 |
 | 로컬 MCP 서버(같은 PC의 다른 프로세스, DNS 리바인딩) | `127.0.0.1`에만 바인딩, `Origin` 헤더가 있으면 403, `Host` 검사, 연결 토큰 필수(로드맵 Q47·Q48·R25). 토큰 파일 `agent-bridge.json`은 `auth.bin`과 같은 위협 모델(같은 계정의 다른 앱은 읽을 수 있음) |
+| **사용자 Claude 구독 토큰 탈취**(2026-09-10, 트랙 L) | main `safeStorage`(`subscription-auth.bin`)에만 두고 renderer·IPC 응답·로그·크래시 리포트에 싣지 않는다. 같은 계정의 다른 앱은 복호화 가능하다는 점은 `auth.bin`과 같은 위협 모델(6.5). 유출 시 사용자가 claude.ai에서 세션을 폐기해야 하며 앱의 로그아웃은 로컬 삭제만 한다 — 이 한계를 연결 화면(`L3`)에 적는다 |
+| **구독 토큰으로 앱이 임의 프롬프트를 보내는 것**(사용자 신뢰 경계) | `system`은 서버가 준 `groundingRules` + 근거 블록으로만 조립하고, `messages`는 세션 히스토리 + 사용자 질문뿐이다(6.5). 앱이 사용자 모르게 별도 모델 호출을 하지 않는다. 호출 로그(세션 id·모델·토큰 사용량)를 남겨 `L3` 화면에서 확인할 수 있게 한다 |
 
 ## 6. 채팅·LLM
 
 ### 6.1 데스크톱 관점
 
-2026-09-09 개정. 데스크톱에서 채팅 화면(웹 SPA)은 브라우저와 같은 서버 SSE 경로를 쓴다(로드맵 Q22). 데스크톱이 더하는 것은 **CLI 에이전트 연결**이다 — 앱이 로컬 MCP 서버를 띄우고, 사용자가 자기 터미널의 CLI 코딩 에이전트에 그 서버와 Knot 스킬을 등록하면 에이전트가 `search_documents`로 Workspace 문서 청크 8개와 규칙 문장을 받아 답변을 만든다(6.4). `CHAT_DOCUMENTS_NOT_READY` 게이트·Workspace 격리·규칙 문장은 서버가 유지한다. 데스크톱 퀵 질문 창(7절 P2)은 같은 SPA 화면을 로드한다. Knot은 LLM을 호출하지 않고 LLM 자격증명·CLI 바이너리를 다루지 않는다(로드맵 불변 계약 2·3번).
+2026-09-10 개정. 데스크톱에서 채팅 화면(웹 SPA)에 질문하면 **앱이 사용자 본인의 Claude 구독으로 앱 안에서 답을 만든다**(6.5, 트랙 L). renderer가 preload `llm.streamAnswer`로 질문을 넘기면 main이 서버 검색(`S1`)으로 근거를 받아 `system`을 조립하고, Claude Code OAuth 흐름으로 받아 둔 구독 토큰으로 Anthropic Messages API를 스트리밍 호출해 `chunk`·`complete`·`error` 이벤트를 renderer로 돌려준다. 답변·출처는 서버 턴 API(`S2`)로 저장한다. `CHAT_DOCUMENTS_NOT_READY` 게이트·Workspace 격리·규칙 문장·저장 검증은 서버가 유지한다. 구독 미로그인·크레딧 소진·`401`이면 서버 SSE 경로(B안, 6.2)로 폴백한다 — 이 폴백과 브라우저 단독 실행은 서버가 `LlmClient`로 모델을 부른다. 데스크톱 퀵 질문 창(7절 P2)도 같은 SPA 화면·같은 경로를 쓴다. 이 형태는 `legal-and-compliance`가 금지하는 것에 해당하며 위험은 사용자가 감수한다(로드맵 R28). 데스크톱이 터미널 CLI 에이전트에 로컬 MCP 서버로 검색 도구를 제공하는 경로(6.4)는 선택적 부가 진입점으로 남는다.
 
 ### 6.2 백엔드 Anthropic 어댑터(B안, 웹 채팅 UI SSE 경로 — 로드맵 Q22)
 
@@ -347,9 +394,9 @@ export interface AgentBridgeStatus {
 | 클래스 | `chat/infrastructure/anthropic/AnthropicLlmClient implements LlmClient`, `AnthropicLlmStream implements LlmStream`(pull형: `hasNext`/`next`가 `content_block_delta.text_delta`만 돌려주고 `message_stop`에서 종료), `AnthropicRequestMapper`(`SearchContext.groundingPrompt` → `system`, 히스토리 → `messages`) |
 | HTTP | 옵션 1: `com.anthropic:anthropic-java`(`client.messages().createStreaming`) 도입. 옵션 2: 기존 JDK `HttpClient`로 `POST /v1/messages`(`x-api-key`, `anthropic-version`, `stream:true`) 직접 호출 + SSE 파서 재사용. → **옵션 2로 확정**(로드맵 Q20, 2026-09-07). 의존성 추가 없이 `chat/infrastructure/anthropic/` 안에서 끝나고 기존 어댑터와 구조가 같다 |
 | 파라미터 | `thinking` 생략(Opus 5 기본 adaptive. 명시하지 않는 쪽이 모델을 바꿔도 400이 나지 않는다 — 확정 2026-09-07), `output_config.effort`. `temperature`는 넘기지 않는다(Opus 5에서 400). assistant prefill 금지 |
-| 캐시 | **`B1`에서는 미적용(정정 2026-09-07)**. Opus 5의 캐시 최소 프리픽스는 512 토큰이고, 그보다 짧은 프리픽스는 `cache_control`이 있어도 조용히 캐시되지 않는다. 고정 부분(`SearchContext.GROUNDING_INSTRUCTION`, 약 330자)이 이를 넘는지 실측 전(로드맵 U18)이라 `B1`은 `system`을 문자열 하나로 보낸다. 넘는 것이 확인되면 `B2`에서 `[근거 규칙(cache_control ephemeral)] + [근거 문서]` 두 블록으로 나눈다 |
+| 캐시 | **`B1`에서는 미적용(정정 2026-09-07)**. Opus 5의 캐시 최소 프리픽스는 512 토큰이고, 그보다 짧은 프리픽스는 `cache_control`이 있어도 조용히 캐시되지 않는다. 고정 부분(`SearchContext.GROUNDING_INSTRUCTION`, 약 330자)이 이를 넘는지 실측 전(로드맵 U18)이라 `B1`은 `system`을 문자열 하나로 보낸다. 넘는 것이 확인되면 `[근거 규칙(cache_control ephemeral)] + [근거 문서]` 두 블록으로 나눈다. **`B2`(2026-09-09)에서도 나누지 않았다** — 실측에는 실제 API 키가 필요한데(Q6) 아직 없어 U18이 그대로 미확인이다. `B2`는 사용량 저장까지만 하고, 캐시 표시는 U18 실측 뒤 별도로 켠다 |
 | 오류 매핑 | 401/403 → `LLM_CONFIGURATION_INVALID`, 429·529(overloaded) → `LLM_RATE_LIMITED`(SSE `error`. `Retry-After`는 로그로만 남긴다 — SSE 응답 헤더는 이미 전송돼 실을 수 없다, 정정 2026-09-07), 타임아웃 → 기존 `LLM_STREAM_TIMEOUT`, `stop_reason=refusal` → 기존 "정보 없음" 정책 문구가 아닌 별도 코드 `LLM_REFUSED`로 사용자에게 안내(`stop_details.category` 로그). 스트림 도중 `event: error`도 같은 표로 매핑한다(`overloaded_error`·`rate_limit_error` → `LLM_RATE_LIMITED`, `authentication_error`·`permission_error` → `LLM_CONFIGURATION_INVALID`, 나머지 → `LLM_STREAM_FAILED`). 새 코드가 SSE `error`에 실리도록 `ChatMessageService`는 어댑터가 던진 `ChatException`의 코드를 그대로 전달한다(로드맵 7절 1번 예외, 2026-09-07) |
-| 계측 | 정정 2026-09-07: 현행 코드에 "단계별 시간 기록"은 없다. `B1`은 `message_start.message.usage`(`input_tokens`·`cache_read_input_tokens`)와 `message_delta.usage`(`output_tokens`)를 INFO 로그로만 남기고, 저장·집계는 `B2`에서 한다 |
+| 계측 | 정정 2026-09-07: 현행 코드에 "단계별 시간 기록"은 없다. `B1`은 `message_start.message.usage`(`input_tokens`·`cache_read_input_tokens`)와 `message_delta.usage`(`output_tokens`)를 INFO 로그로만 남겼다. **`B2`(2026-09-09)**: 어댑터가 그 값을 `LlmStream.usage()`(`chat/domain/LlmUsage`, 기본 구현은 빈 값이라 `fake`·`openai-compatible`은 그대로)로 올리고, `ChatMessageService`가 스트림을 끝까지 읽은 뒤 ASSISTANT 메시지와 **같은 트랜잭션에 저장**한다. 저장 위치는 `chat_messages`의 컬럼(V17 — `llm_model`·`input_tokens`·`output_tokens`·`cache_read_input_tokens`·`cache_creation_input_tokens`, 전부 NULL 허용·`>= 0`)이다. 값이 있는 것은 **서버가 모델을 불러 만든 ASSISTANT 메시지뿐**이며 USER·안내 문구 폴백(`SearchContext`가 READY가 아닐 때)·`generated_by=CLIENT` 턴(6.4·6.5)은 NULL이다. 스트림이 오류·취소로 끝나면 답변 자체를 저장하지 않으므로 사용량도 남지 않는다. 조회·집계 API와 대시보드는 소비자가 없어 `B2` 범위 밖이고(12절 운영 항목), 저장된 컬럼을 SQL로 본다. 아래 `비용 가드` 행의 일일 토큰 예산 경고도 이 작업에 넣지 않는다 |
 | 재검색 루프(선택) | `research-loop.enabled=true`면 `search_knowledge` 툴을 정의하고 `stop_reason=tool_use` 시 서버가 `PublishedDocumentSearchService`를 실행, `tool_result`를 한 user 메시지로 반환, 최대 2회. 기본 off — 왕복 2회로 TTFT가 늘어나므로(검토 문서 5.6절) 실측 후 결정. → `B1` 범위에서 제외하고 로드맵 `B4`로 분리(2026-09-07) |
 | 품질 재검증 | 모델 교체 전 `docs/llm-search-benchmark-independent-30.json` gold set 30문항 + 사람 검수, TTFT 5초 실측(ADR 271 조건). 통과 전 `llm.chat.provider=anthropic`을 운영에 켜지 않는다 |
 | 비용 가드 | 질문당 입력 상한(근거 문서 10,000자 유지), 세션당 히스토리 상한(현행 4개 메시지·4,000자), 일일 토큰 예산 로그 경고 |
@@ -466,13 +513,95 @@ sequenceDiagram
 | `show_answer` 저장 실패 | 서버(HTTP) → main | `isError` + `{code, message}`. 터미널 답변은 이미 표시돼 있다 |
 
 
+### 6.5 앱 안 구독 탐색 (사용자 Claude 구독으로 앱이 직접 호출, 2026-09-10 신설, 로드맵 트랙 L)
+
+사용자 지시(2026-09-10): "불변 계약 3번 제거해. 그리고 이렇게 구현하기 위해서 모든 문서를 다 다시 작성해." 앞선 대화에서 사용자가 원한 것이 "앱에서 질문하면 본인 Claude 구독으로 답한다"임이 확인됐고, Aside가 그것을 어떻게 하는지 실측했다([[aside-claude-subscription-mechanism]]). 이 절은 그 방식을 Knot에 적용한 설계다. 색인(청킹·임베딩·게시)과 서버 검색·저장 API는 6.4와 같은 것을 재사용한다.
+
+```mermaid
+sequenceDiagram
+    actor U as 사용자
+    participant R as 웹 SPA(renderer)
+    participant M as 데스크톱 main
+    participant S as Knot 서버
+    participant A as Anthropic API
+    U->>R: 채팅창에 질문
+    R->>M: preload llm.streamAnswer({workspaceId, sessionId, content})
+    M->>S: POST /workspaces/{id}/search (Bearer JWT, S7 — 저장 없음)
+    S-->>M: {status, groundingRules, chunks[≤8]}
+    M->>S: GET /conversations/{id} (히스토리)
+    Note over M: system = groundingRules + 근거 블록, messages = 히스토리(최근 4개·4,000자) + 질문
+    M->>A: POST /v1/messages (stream, Authorization: Bearer <구독 oat>)
+    A-->>M: SSE content_block_delta …
+    M-->>R: chunk {delta} … complete {messageId}
+    M->>S: POST /conversations/{id}/turns (답변·출처, generated_by=CLIENT, S2)
+    Note over M,S: 구독 미로그인·401·크레딧 소진이면 서버 SSE(B안)로 폴백
+```
+
+#### 흐름
+
+1. 사용자가 앱 채팅창에 질문한다. renderer가 `window.knotDesktop.llm.streamAnswer({workspaceId, sessionId, content})`를 부른다(웹 브라우저에는 이 객체가 없어 기존 서버 SSE 경로를 쓴다). `workspaceId`는 화면 라우트(`/workspace/:id/chat/:sessionId`)의 값이다 — 세션에서 Workspace를 되찾는 서버 API가 없어 renderer가 넘긴다(로드맵 Q65).
+2. main이 **Workspace 검색 API**(`POST /api/v1/workspaces/{workspaceId}/search`, `S7` — 저장·턴 검사 없음)를 저장된 Bearer JWT로 호출해 `groundingRules` + 청크 ≤8을 받는다. 세션 검색 `S1`을 쓰지 않는 이유(2026-09-09 정정, 로드맵 Q65): `S1`은 READY일 때 USER 메시지를 저장하므로 그 뒤 턴 저장 `S2`가 진행 중 턴 검사(`ChatTurnGuard`)에 걸려 409 `CHAT_TURN_IN_PROGRESS`를 낸다 — 이 절의 2026-09-10 초안(S1 → S2)은 성립하지 않았다. 검색 질의는 `S7` 계약대로 현재 질문만이다(후속 질문 문맥은 아래 3의 `messages` 히스토리가 맡는다). `NO_RESULT`·`NEEDS_CLARIFICATION`이면 서버의 `fallbackAnswer`를 그대로 `chunk`로 흘리고 턴 API(`S2`, `references: []`)로 저장한 뒤 끝낸다(모델 호출 없음).
+3. main이 `GET /api/v1/conversations/{sessionId}`로 히스토리를 읽어(마지막 4개·4,000자, 로드맵 Q62) `system` = `groundingRules` + `[근거 문서 n]` 블록(현행 `SearchContext.groundingPrompt`와 같은 형식), `messages` = 히스토리 + 이번 질문으로 요청을 만들고, `safeStorage`의 사용자 구독 토큰으로 `POST https://api.anthropic.com/v1/messages`(`stream:true`)를 호출한다(헤더·모델은 로드맵 Q61·Q62). SSE `content_block_delta.text_delta`를 preload `chunk {delta}` 이벤트로 renderer에 흘린다.
+4. 스트림이 끝나면 main이 답변 전문과 사용한 출처(청크 식별 필드 ≤8)를 서버 턴 API(`POST /api/v1/conversations/{sessionId}/turns`, `S2`)로 보내 USER + ASSISTANT(`generated_by=CLIENT`) + `search_references`로 저장하고, `complete {messageId}`를 renderer로 보낸다. 웹 채팅 화면은 그 답과 "찾은 문서"(`GET /messages/{id}/sources`)를 그대로 보여 준다.
+5. 실패 폴백: 구독 미로그인, 토큰 만료·갱신 실패, `401`·`403`, 크레딧 소진(`429`) 등 **첫 `chunk` 전의 모델 쪽 실패 전부**(로드맵 Q66)이면 main이 renderer에 `error {code, message, fallback: true}`를 주고 renderer가 기존 서버 SSE 경로(`POST …/messages`, B안)로 같은 질문을 다시 보낸다. 사용자에게는 "이번 답변은 서버 모델로 생성됨"을 한 줄로 알린다. Knot 서버 오류(검색 403·404·409·500, 턴 저장 400·409 — 서버 SSE 경로도 같은 결과)와 첫 `chunk` 뒤의 스트림 오류(부분 답변이 이미 화면에 있다)는 `fallback: false`이며 코드·문구는 서버 SSE 경로의 것(`LLM_STREAM_FAILED`·`LLM_STREAM_TIMEOUT`·`LLM_RATE_LIMITED`·`LLM_REFUSED`, 서버 `{code, message}`)을 그대로 쓴다(불변 계약 1번).
+
+#### 구독 자격증명 (`L1`, 로드맵 Q61)
+
+| 항목 | 설계 |
+| --- | --- |
+| 획득 | 시스템 브라우저로 `https://claude.ai/oauth/authorize` 열기(client_id = Claude Code 공개 client `9d1c250a-e61b-44d9-88ed-5944d1962f5e`, PKCE, 스코프 `org:create_api_key user:profile user:inference`, loopback 콜백). authorization code를 `https://platform.claude.com/v1/oauth/token`에서 `sk-ant-oat…`(access)·`sk-ant-ort…`(refresh)로 교환 |
+| 저장 | main `safeStorage`(`subscription-auth.bin`, 0600). renderer로 내리지 않는다. access는 만료(수 시간) 전 refresh로 자동 갱신 |
+| 요청 헤더 | `Authorization: Bearer <oat>`, `anthropic-version: 2023-06-01`, `anthropic-beta: claude-code-20250219,oauth-2025-04-20`, `user-agent: claude-cli/<ver>`, `x-app: cli`, `anthropic-dangerous-direct-browser-access: true` |
+| 로깅 금지 | 구독 access·refresh 토큰, 질문·답변 본문. 남기는 것: 세션 id·모델·상태·지연 ms·토큰 사용량 |
+| 폐기 | 설정 화면 로그아웃(`llm.signOut`)이 `safeStorage`를 지운다. 앱은 Anthropic 세션 자체는 폐기하지 않는다(claude.ai에서 관리) |
+
+구현(2026-09-09, `L1`, 로드맵 4.6절 착수 가정·실측): `desktop/src/main/llm/subscriptionOAuth.ts`(인가 URL·토큰 API)·`subscriptionStore.ts`·`llmSettings.ts`(`subscription-settings.json`, Q62 모델·effort)·`subscriptionFlow.ts`(상태 기계)·`desktopLlm.ts`(Electron 접착). loopback은 5.2의 서버를 그대로 쓰고 `redirect_uri`는 `http://localhost:<port>/callback`(로드맵 Q63). 토큰 교환·갱신 본문은 JSON(`grant_type`·`code`·`state`·`redirect_uri`·`client_id`·`code_verifier` / `refresh_token`)이며 실제 claude.ai와의 종단은 로드맵 U33에서 실측한다. `L2`는 `SubscriptionController.getAccessToken()`(만료 임박 시 먼저 갱신)으로 토큰을 꺼내고 `recordAnswer()`로 `lastAnsweredBy`·`lastError`를 갱신한다. 구현(2026-09-09, `L2`, 로드맵 4.6절 착수 가정·실측): `sseParser.ts`·`promptAssembler.ts`·`messagesClient.ts`·`answerFlow.ts`, `desktopLlm.ts`의 스트림 관리(`requestId`·취소·동시 4개), `knotApi.listMessages`; 웹은 `shared/api/desktopLlm`·`useSendChatMessageMutation`·`useChatStream`. 폴백·오류 코드·타임아웃은 로드맵 Q66. CLIENT 답변의 사용량 컬럼(`B2`)은 NULL이다 — 서버에 넘기려면 `S2` 계약 개정이 필요하다. `L3`(2026-09-09): 설정은 `llm.getSettings`·`updateSettings`(4.4, Q67)로 `subscription-settings.json`을 읽고 쓰며 화면은 웹 `/claude-subscription`(9.3)이다.
+
+#### 정책·과금·위험
+
+- 이 형태는 `legal-and-compliance`가 명시적으로 금지한다: "does not permit third-party developers to offer Claude.ai login into their own applications, or to route requests through Free, Pro, or Max plan credentials on behalf of their users … may not collect, store, or intermediate Claude.ai credentials or session tokens." 앱이 하는 일이 이 세 가지에 정면으로 해당한다.
+- 그럼에도 Anthropic은 재량으로 허용하고(support.claude.com: "may at its discretion allow paid subscribers who have enabled usage credits to use certain third-party tools"), 서드파티 사용량을 구독 한도가 아니라 **extra usage 크레딧에서 per-token** 차감한다(2026-04). Aside가 같은 Claude Code OAuth 흐름으로 출시·운영 중이다([[aside-claude-subscription-mechanism]]).
+- 리스크: 약관 위반 판정, 통보 없는 차단·조치(같은 문서가 명시), 크레딧 없는 사용자·팀원은 사용 불가. 완화가 아니라 **감수**이며 사용자 결정이다(로드맵 R28·R29). 차단 시 서버 SSE 폴백(6.2)으로 되돌아간다.
+- 이 방식을 켜기 전 게이트는 로드맵 GL이다.
+
+### 6.6 원격 MCP 서버 (개발자용, 서버 호스팅 변형, 2026-09-09 신설, 로드맵 `A13`)
+
+`A13`은 처음부터 "별도 기획"이었고 이 문서에 절이 없었다. 2026-09-09 다른 세션이 `backend/src/main/java/com/knot/backend/mcp/` 패키지를 커밋했으나(`d08987e`) 설계 문서도 테스트도 없어 로드맵이 `구현중(설계 문서 없음)`으로 남겨 두었다. 이 절은 **그 코드가 실제로 하는 일을 읽어 정본으로 확정하고**, 문서에 없던 결정(기본값·도구 집합·한계)을 채운 것이다. 코드 주석이 가리키던 "기획서 6.5"는 트랙 L이 차지했으므로 원격 MCP 서버의 정본은 이 절이다.
+
+무엇인가: 6.4의 데스크톱 로컬 MCP 서버가 제공하는 검색 도구를 **앱 없이 서버가 직접** 제공한다. 사용자의 CLI 코딩 에이전트가 `https://<API 오리진>/mcp` 하나에 붙고, 데스크톱 셸·`utilityProcess`·`MessagePort`·연결 토큰이 전부 빠진다.
+
+| 항목 | 설계 |
+| --- | --- |
+| 엔드포인트 | `POST /mcp` 하나(MCP Streamable HTTP). 무상태 — `Mcp-Session-Id`를 만들지 않고 서버 발신 SSE도 없다. `GET`·`DELETE`는 405 `MCP_METHOD_NOT_ALLOWED`(`Allow: POST`) |
+| 인증 | **기존 `Authorization: Bearer` 액세스 토큰뿐**(`JwtAuthenticationFilter`, 5.1). 전용 연결 토큰(6.4 Q48)을 새로 발급하지 않는다 — 서버는 이미 회원을 알고 있고, 토큰을 하나 더 만들면 폐기·회전 경로가 하나 더 생긴다. `SecurityConfig`의 `anyRequest().authenticated()`에 걸리므로 인증 없는 요청은 401이다 |
+| 요청 검사 | `Origin` 헤더가 있으면 403 `MCP_ORIGIN_NOT_ALLOWED`(6.4의 로컬 guard와 같은 규칙 — 브라우저에서 부르는 경로를 막는다). `MCP-Protocol-Version`이 지원 목록 밖이면 400 `MCP_PROTOCOL_VERSION_UNSUPPORTED` |
+| 프로토콜 | 지원 `2025-11-25`(기본)·`2025-06-18`·`2025-03-26`. `initialize`가 모르는 개정판을 요청하면 최신으로 답한다(스펙 허용). JSON-RPC 배치는 거부한다(2025-06-18에서 빠졌고 세 CLI 모두 하나씩 보낸다) |
+| 메서드 | `initialize`·`ping`·`tools/list`·`tools/call`. 알림(`id` 없음)과 클라이언트 응답은 202로 받기만 한다 |
+| 도구 | `list_workspaces`·`search_documents` 둘뿐이며 이름·설명·입력 스키마·결과 텍스트 형식은 6.4의 로컬 서버와 **같은 문구**다(같은 `SKILL.md`가 두 서버에 그대로 통한다). `show_answer`는 **두지 않는다** — 앱 창이 없어 "그 세션을 앞으로 가져와 연다"가 성립하지 않는다. 턴 저장이 필요해지면 `S2`를 그대로 부르는 도구를 나중에 더한다 |
+| 실행 | HTTP를 거치지 않고 `WorkspaceQueryService.findAllByMemberId`·`WorkspaceSearchService.search`(`S7`)를 직접 부른다. 검색·격리·게이트 판정은 전부 `S7`이 이미 하는 것이라 이 패키지에 접근 제어가 따로 없다 |
+| 오류 | 도구 실행 오류는 `isError: true` + `코드: 문구` 텍스트(6.4 Q49와 같다). 입력이 스키마와 다르면 JSON-RPC `-32602`. 서비스 예외는 그 `ErrorCode`를 그대로 싣고, 그 밖의 런타임 예외는 `UNKNOWN` |
+| 로깅 금지 | 액세스 토큰·질문·문서 본문. 남기는 것: 도구 이름·workspaceId·상태·지연 ms |
+| 기본값 | **`mcp.remote.enabled=false`**(결정 2026-09-09 — 커밋된 코드는 `matchIfMissing = true`였다). `@ConditionalOnProperty`라 꺼진 빌드에는 엔드포인트 자체가 없다(인증된 요청도 404). 켜는 것은 설정 한 줄이므로 켜 두는 것보다 되돌리기 쉽다(로드맵 5절 기본값 규칙). **정정 2026-09-09**: 끈 상태의 `POST /mcp`는 404가 아니라 **500**이었다 — 매핑이 없을 때 나는 `NoResourceFoundException`을 `GlobalExceptionHandler`의 포괄 `Exception` 핸들러가 잡고 있었다. 이는 MCP만의 문제가 아니라 **없는 경로 전체가 500**이라는 뜻이라 전역 핸들러에 `NoResourceFoundException` → 404 `ENDPOINT_NOT_FOUND`를 더했다(아래 13절 행) |
+
+**한계(그래서 "개발자용")**: 액세스 토큰 수명이 1시간(`auth.jwt.expiration`)이라 CLI 설정 파일에 붙여 두면 곧 만료된다. 데스크톱의 180일 리프레시(5.2)는 기기 세션 흐름이고, CLI용 장수명 토큰 발급 UI는 없다. 그래서 이 경로는 **개발자가 직접 토큰을 넣어 쓰는 용도**이며, 일반 사용자용 경로는 데스크톱 로컬 MCP 서버(6.4)다. 일반 사용자에게 열려면 토큰 발급·폐기 화면이 먼저 필요하고 그것은 별도 Issue다.
+
+| | 데스크톱 로컬 MCP 서버(`S8`, 6.4) | 원격 MCP 서버(`A13`, 이 절) |
+| --- | --- | --- |
+| 주소 | `http://127.0.0.1:<port>/mcp` | `https://<API 오리진>/mcp` |
+| 실행 위치 | 앱의 `utilityProcess` | 백엔드 |
+| 인증 | 앱이 발급한 연결 토큰(Q48) + `Origin`·`Host` 검사 | Knot 액세스 토큰(Bearer) + `Origin` 검사 |
+| 서버 호출 | main이 Bearer로 HTTP | 같은 프로세스에서 서비스 직접 호출 |
+| 도구 | `list_workspaces`·`search_documents`·`show_answer` | `list_workspaces`·`search_documents` |
+| 전제 | 앱 설치·로그인 | 액세스 토큰을 직접 넣을 수 있는 사람 |
+| 기본값 | 앱과 함께 켜짐 | `mcp.remote.enabled=false` |
+
 ## 7. 데스크톱 기능 로드맵
 
 | 단계 | 범위 | 완료 조건 |
 | --- | --- | --- |
 | **P0 스파이크(1~2주)** | `desktop/` 생성, Forge 스캐폴딩, `https://dev.knoted.kr` 로드, 보안 기본값·Fuses, 네비게이션 허용 목록, 메뉴·외부 링크, macOS 임시 서명, dev 빌드 배포 | GitHub 로그인·Notion OAuth·채팅 SSE가 Electron 창에서 동작함을 확인. GitHub 로그인 차단·경고 여부 기록 |
 | **P1 MVP** | P0 + 창 상태 복원, 로그아웃 메뉴(SPA 로그아웃 호출 추가), `electron-log`·crashReporter, Playwright Electron 스모크, 3-OS CI 빌드, macOS 서명·공증, Windows 서명(또는 미서명 결정), GitHub Releases + 자동 업데이트, 다운로드 안내 페이지 | G1·G2·G3·G5·G6·G7 |
-| **P2 데스크톱 통합** | `knot://` 딥링크(초대·채팅), 2단계 인증(디바이스 토큰), 트레이·글로벌 단축키 퀵 질문 창(작은 `BrowserWindow`에 `/workspace/:id/chat` 로드), Notion 동기화 완료 알림(앱이 `GET /api/v1/imports/{id}`를 폴링), Dock 배지. CLI 에이전트 연결(로컬 MCP 서버·스킬·안내 화면, 6.4)은 로드맵 트랙 S로 마일스톤과 독립 진행 | G4, 2단계 인증 ADR Accepted |
+| **P2 데스크톱 통합** | `knot://` 딥링크(초대·채팅), 2단계 인증(디바이스 토큰), 트레이·글로벌 단축키 퀵 질문 창(작은 `BrowserWindow`에 `/workspace/:id/chat` 로드), Notion 동기화 완료 알림(앱이 `GET /api/v1/imports/{id}`를 폴링), Dock 배지. **앱 안 구독 탐색(사용자 Claude 구독으로 앱이 직접 호출, 6.5)은 로드맵 트랙 L로 진행**. CLI 에이전트 연결(로컬 MCP 서버·스킬·안내 화면, 6.4)은 로드맵 트랙 S로 선택적 부가 진입점 | G4, GL, 2단계 인증 ADR Accepted |
 | **P3 선택** | 기기 목록·원격 로그아웃 UI(웹 공용), 로컬 번들(`app://`) 셸로 시작 속도 개선(2단계 인증 전제), 원격 MCP 서버(개발자용, 지식 §5.4 — 로컬 MCP 서버 `S8`의 서버 호스팅 변형), C안 BYO 키 | 각각 별도 Issue·ADR |
 
 각 단계의 실제 작업 ID·상태·선행·게이트는 [로드맵](./electron-desktop-app-roadmap.md)이 정본이다. 이 절은 단계의 의미와 범위만 설명한다.
@@ -526,7 +655,8 @@ desktop/
 │  │  ├─ menu.ts, tray.ts, updater.ts, logging.ts, crash.ts
 │  │  ├─ chat/knotApi.ts   # Bearer 서버 API 클라이언트(워크스페이스 목록·Workspace 검색·세션 생성·턴 저장 — S10 구현 2026-09-09). S3에서 만든 것을 개편
 │  │  ├─ agent/            # CLI 에이전트 연결(6.4, S8 구현 2026-09-09): bridgeConfig(agent-bridge.json)·bridgeCore(MessagePort 왕복·동시 4개)·toolExecutor(도구 입력 검증·서버 호출·결과 조립. S10 show_answer는 세션 생성→턴 저장→presentAnswer 콜백으로 창 앞으로+딥링크)·registration(스니펫 3종+스킬)·instructions·bridge(utilityProcess 기동·클립보드)
-│  │  └─ auth/             # 2단계: loopback 서버, pkce, tokenStore(safeStorage), bearerInjector
+│  │  ├─ auth/             # 2단계: loopback 서버, pkce, tokenStore(safeStorage), bearerInjector
+│  │  └─ llm/              # 앱 안 구독 탐색(6.5, L1 구현 2026-09-09): subscriptionOAuth(claude.ai 인가 URL·platform.claude.com 토큰 교환·갱신)·subscriptionStore(subscription-auth.bin)·llmSettings(subscription-settings.json, Q62)·subscriptionFlow(상태 기계, Electron 미의존)·desktopLlm(접착·스트림 requestId 관리). L2 구현 2026-09-09: sseParser(증분 SSE)·promptAssembler(system = 규칙 + 근거 블록, messages = 히스토리 4개·4,000자)·messagesClient(fetch 직접 호출·Q61 c 헤더·request/stream 단계 오류)·answerFlow(S7 검색 → 히스토리 → 구독 호출 → S2 저장, 폴백 Q66)
 │  ├─ mcp/                 # utilityProcess(S8 구현 2026-09-09): index(parentPort 시작 메시지)·server(무상태 Streamable HTTP + 도구 정의 3개 — list_workspaces·search_documents·show_answer(S10), @modelcontextprotocol/sdk)·guard(Origin/Host/토큰 검사)·portRequester(main 위임·35초 타임아웃)
 │  ├─ preload/index.ts     # contextBridge.exposeInMainWorld('knotDesktop', …)
 │  ├─ shared/              # api.ts(4.4 타입), env.ts(오리진 표), deepLink 타입
@@ -536,7 +666,7 @@ desktop/
 └─ README.md
 ```
 
-- `src/main/llm/`·`src/main/chat/{prompt,chatService}`(2026-09-08 `S3`)는 폐기된 설계의 잔재였고 2026-09-09 `S8`에서 제거했다. `S9` 연결 안내 화면이 생기기 전까지의 진입점은 앱 메뉴 `CLI 에이전트 연결`(연결 안내 화면 열기·스니펫 복사·상태·토큰 재발급)이다(로드맵 4.5절 `S8` 착수 가정).
+- `src/main/llm/`·`src/main/chat/{prompt,chatService}`(2026-09-08 `S3`)는 폐기된 설계의 잔재였고 2026-09-09 `S8`에서 제거했다. 2026-09-09 `L1`이 `src/main/llm/`을 **구독 OAuth 기반으로 새로** 만들었다(자격증명 출처가 다르다 — `S3`는 사용자가 붙여 넣는 API 키, `L1`은 claude.ai OAuth 토큰). `L3` 설정 화면 전까지의 진입점은 앱 메뉴 `Claude 구독`(로드맵 Q64). `S9` 연결 안내 화면이 생기기 전까지의 진입점은 앱 메뉴 `CLI 에이전트 연결`(연결 안내 화면 열기·스니펫 복사·상태·토큰 재발급)이다(로드맵 4.5절 `S8` 착수 가정).
 - 빌드: `scripts/build.mjs`가 main·preload·mcp 세 엔트리를 esbuild로 묶는다. mcp 번들은 SDK(hono·express 포함)를 한 파일(약 1.3MB)에 넣어 asar 안 모듈 해석에 기대지 않는다. `SKILL.md`는 앱 시작 시 `userData/skills/knot/SKILL.md`로 복사해 두고(`AgentBridgeStatus.skillPath`) 사용자가 그 경로를 `cp`한다 — asar 안 파일은 셸 도구로 읽을 수 없기 때문이다.
 - 빌드: main·preload·mcp 엔트리는 TypeScript → esbuild 번들을 Forge `hooks.generateAssets`(또는 `prePackage`)에서 실행한다. Forge `plugin-webpack`/`plugin-vite`는 renderer 엔트리를 전제하므로 쓰지 않는다. renderer 빌드는 없다(원격). 로컬 `offline.html`만 정적 포함.
 - 웹 SPA(`frontend/`)와 코드 공유는 `desktop/src/shared/api.ts`의 타입 파일 하나뿐이다. SPA는 이 타입을 복사해 `src/shared/types/desktop.ts`로 두고 `declare global { interface Window { knotDesktop?: KnotDesktopApi } }`를 선언한다(패키지 간 import는 두 프로젝트의 lockfile을 얽히게 하므로 피한다).
@@ -549,7 +679,7 @@ desktop/
 | 런타임 | `electron@44`, `update-electron-app`, `electron-log`, `electron-squirrel-startup`(Windows Squirrel 설치·업데이트 이벤트), `@modelcontextprotocol/sdk`(MCP 서버 전송·도구 정의. LLM SDK가 아니며 모델을 호출하지 않는다 — 추가 2026-09-09, `S8`. 설치본 1.30.0, `LATEST_PROTOCOL_VERSION` 2025-11-25), `zod`(SDK 도구 입력 스키마, 4.x) |
 | 빌드 | `@electron-forge/cli@7`(7.11.2 안정, 8은 alpha), `@electron-forge/maker-{dmg,zip,squirrel,deb}`, `@electron-forge/plugin-fuses`, `@electron-forge/publisher-github`, `@electron/fuses`, `@electron/notarize`, `typescript@7`, `esbuild`. `packagerConfig.asar: true`를 명시한다(Forge 7 기본 off) |
 | 테스트 | `vitest`, `@playwright/test`(`_electron`) |
-| 금지 | `keytar`, `electron-remote`류, 클라이언트 LLM SDK(`@anthropic-ai/claude-agent-sdk`, `@anthropic-ai/sdk`, `openai`, `@google/genai`), CLI 바이너리(`claude`·`codex`·`gemini`)의 실행·탐색·동봉(로드맵 불변 계약 3번, 2026-09-09) |
+| 금지 | `keytar`(`safeStorage`를 쓴다), `electron-remote`류, CLI 바이너리(`claude`·`codex`·`gemini`)의 실행·탐색·동봉(2.2 비목표 — 사용자 반복 거부). LLM SDK(`@anthropic-ai/sdk`·`@anthropic-ai/claude-agent-sdk`·`openai`·`@google/genai`)는 **의존성으로 넣지 않는다**(2026-09-10 개정 — 금지 사유가 "LLM을 부르지 않으므로"에서 "구독 OAuth 헤더를 SDK가 그대로 실어 주지 않으므로"로 바뀌었다). 트랙 L의 Anthropic 호출은 Node 전역 `fetch`(undici)로 `POST /v1/messages`를 직접 부르고 SSE를 직접 판다(6.5, 백엔드 `B1`이 Q20에서 같은 선택을 했다) |
 
 ### 9.3 웹 SPA(`frontend/`) 변경 목록
 
@@ -563,6 +693,9 @@ desktop/
 | 딥링크 수신 → 라우터 이동 | P2 | 구현됨(2026-09-09, `A8`·U32): 경로 없는 최상위 레이아웃 `shared/routes/DeepLinkListener`가 라우터 안에서 `onDeepLink`를 구독하고 마운트 시 `getPendingDeepLink`를 한 번 소비한다. `resolveDeepLinkPath`가 `invite` → `/invite/:token`, `chat` → `/workspace/:id/chat[/:sessionId]`로 바꾸며 `replace` 이동. `RouterProvider` 상위가 아니라 안쪽에 둔 이유는 `useNavigate`를 쓰기 위해서다 |
 | 로그인 버튼·로그아웃의 데스크톱 2단계 분기 | P2 | 구현됨(2026-09-09, `A7`, 로드맵 Q60): `GithubLoginButton`은 `knotDesktop.auth.startLogin`이 있으면 시스템 브라우저 로그인, `useLogout`은 토큰 삭제 뒤 `auth.logout?.()`로 기기 세션 폐기 |
 | 초대 페이지에 "앱에서 열기"(`knot://invite/<token>`) | P2 | 앱 미설치 시 안내 |
+| **채팅 전송의 데스크톱 구독 분기** | P2 | 2026-09-10, `L2`. `knotDesktop.llm`이 있으면 `llm.streamAnswer`로 보내고, 없거나 `error.fallback === true`면 기존 `streamChatMessageApi`(서버 SSE)로 같은 질문을 재전송한다. 화면이 받는 이벤트 모양은 두 경로가 같다(불변 계약 1번). 구현됨(2026-09-09): `shared/api/desktopLlm`(콜백 → Promise, vitest 4건)·`useSendChatMessageMutation`(데스크톱 분기, 결과에 `answeredBy`)·`useChatStream`(데스크톱에서 `server-sse`면 `notice`로 `이번 답변은 서버 모델로 생성됐어요.`). 실제 셸 경유는 로드맵 U34 |
+| `window.knotDesktop` 사본에 `llm`·`LlmSubscriptionStatus` 추가 | P2 | 2026-09-09, `L1`. `shared/types/desktop.ts`만 갱신(화면 없음, tsc·Prettier 통과) |
+| **구독 연결·모델 설정 화면(데스크톱 전용)** | P2 | 2026-09-10, `L3`. `/agent-connection` 옆에 두거나 같은 화면의 탭. 구독 로그인·로그아웃, 모델 선택(Q62), extra usage 크레딧 과금 고지·정책 리스크 고지(R28·R29), 마지막 답변 경로(`lastAnsweredBy`) 표시. 구현됨(2026-09-09, `L3`): 별도 라우트 `/claude-subscription`(CenteredLayout·AuthGuard, `knotDesktop.llm`이 있을 때만 GNB 프로필 메뉴 `Claude 구독` 항목), `modules/widgets/llm/ClaudeSubscriptionCard`(상태 패널·모델/effort `<select>` 폼·데스크톱 전용 안내·과금/정책/폴백 고지 3문단, 통합 테스트 8건), 쿼리 `useDesktopLlmStatusQuery`·`useDesktopLlmSettingsQuery`(폴링 없이 `onStatusChanged`로 캐시 갱신), 설정은 preload `llm.getSettings`·`updateSettings`(로드맵 Q67). `formatDateTime`은 `shared/utils`로 옮겨 `S9` 위젯과 공유. 실제 셸 경유는 로드맵 U33·U34 |
 | 다운로드 페이지(`/download`, OS 감지) | P1 | 정적 라우트 |
 | `<title>` 수정(`Document` → `Knot`) | P1 | 창 제목에 그대로 보인다 |
 | CSP 헤더(`_headers`) | P1 병행 | 웹 보안 Issue로 분리 |
@@ -659,12 +792,13 @@ tag desktop-v0.1.0 ─▶ GitHub Actions matrix(macos-latest arm64/x64, windows-
 | **임베딩 Gemini 어댑터** `GeminiEmbeddingClient` + `llm.gemini.*` 설정 키 + `DocumentEmbeddingClient.embed(texts, EmbeddingTask)` 시그니처(색인·질의 `taskType` 분리) | B5 | `external`, `shared`, `data` | 6.2 임베딩 행. V13 차원 1,024 유지(`outputDimensionality` + L2 정규화). 기존 색인은 동기화 재실행으로 재색인(로드맵 Q39) |
 | 임베딩 배치 기본값 64 → 16(`llm.search.embedding-batch-size`) | B5 정정 | `external` | 로컬 실측(2026-09-08) 배치 64가 Gemini 429 `RESOURCE_EXHAUSTED`로 Notion 동기화 전체를 실패시킴. 로드맵 Q37·U25 |
 | Gemini 색인 배치 429·503 지수 백오프 재시도(`llm.gemini.retry-max-attempts`·`retry-initial-delay`, 질의는 제외) | B5 정정 | `external` | 배치 16으로도 무료 티어 분당 한도(약 32청크)에 3번째 배치가 걸림. 로드맵 Q42·R22 |
-| 사용량 계측 컬럼(입력·출력·캐시 토큰) | B안 | `data` | Flyway |
+| 매핑 없는 경로를 404 `ENDPOINT_NOT_FOUND`로(`GlobalExceptionHandler`에 `NoResourceFoundException` 핸들러) | `A13` 곁가지 | 없음 | 6.6 기본값 행. 포괄 `Exception` 핸들러가 잡아 **없는 주소가 전부 500**이었다(2026-09-09 관측). 오탐 알람·모니터링 왜곡을 막는 정정이며 MCP와 무관한 경로에도 적용된다 |
+| 사용량 계측 컬럼(입력·출력·캐시 토큰) | `B2` | `data` | 6.2 `계측` 행. V17이 `chat_messages`에 `llm_model`·`input_tokens`·`output_tokens`·`cache_read_input_tokens`·`cache_creation_input_tokens`를 NULL 허용으로 추가하고, `LlmStream.usage()` → `ChatMessagePersistenceService.saveAssistantWithReferences`가 답변·근거와 한 트랜잭션에 넣는다. 서버가 모델을 부른 ASSISTANT 메시지만 값이 있다 |
 | `device_sessions`·인가 코드 저장, 디바이스 토큰 API 5종 | 2단계 | `security`, `data`, `cross-boundary`, `core-flow` | 인터뷰 + Grill + ADR(314 보완) |
 | `typ=DEVICE_ACCESS`·`sid` 검증 추가, OAuth resolver·성공 핸들러 `client=desktop` 분기 | 2단계 | `security` | 동일 ADR. CSRF 매처 작업은 `D11`에서 사라졌다 |
 | CORS 허용 메서드에 DELETE(기기 세션 삭제를 웹에서 쓸 때) | P3 | `security` | 없어도 POST 대체 가능 |
 | 로그아웃 응답 204(302 대신) | P1 | `cross-boundary` | SPA가 XHR로 호출하므로. `D11`에 흡수됐다 |
-| 원격 MCP 서버(Spring AI) | P3 선택 | `external`, `security` | 별도 기획. 데스크톱 로컬 MCP 서버(`S8`)의 서버 호스팅 변형이며 도구 집합을 맞춘다 |
+| 원격 MCP 서버 `POST /mcp`(JSON-RPC 무상태, `initialize`·`ping`·`tools/list`·`tools/call`, 도구 2개) | `A13` | `external`, `security` | 6.6이 정본(2026-09-09 신설). 데스크톱 로컬 MCP 서버(`S8`)의 서버 호스팅 변형이며 도구 이름·설명·결과 형식을 맞춘다. Spring AI를 쓰지 않고 `mcp/` 패키지에서 JSON-RPC를 직접 처리한다(의존성 추가 없음). 인증은 기존 Bearer, 검색은 `S7` 서비스 직접 호출, 기본값 `mcp.remote.enabled=false` |
 | **탐색 세션 검색 API `POST /conversations/{sessionId}/search`**(청크 단위 상위 8, 규칙 문장 응답, READY 아니면 안내 문구 저장) + `top-k=8`·`max-context-characters=12000` | S1 | `core-flow`, `data`, `shared` | 6.4. 불변 계약 1·2 개정 ADR. 2026-09-09: 데스크톱 소비자 폐기, 검색 로직은 `S7`이 재사용 |
 | **V14**: `search_references` rank 1~8·`chunk_index`·유일 키, `chat_messages.generated_by` | S1 | `data` | Flyway. 6.4 |
 | **턴 저장 API `POST /conversations/{sessionId}/turns`**(질문 + 에이전트 답변 + 근거 ≤8을 한 트랜잭션에, `generated_by=CLIENT`) + 출처 조회 8건·`chunkIndex` | S2 | `data`, `security`, `core-flow` | 6.4. Workspace JOIN 검증 재사용. 재정의 2026-09-09(개정 전 `…/messages/assistant`는 만들지 않음) |
@@ -705,6 +839,9 @@ tag desktop-v0.1.0 ─▶ GitHub Actions matrix(macos-latest arm64/x64, windows-
 | I25 | `[FE] 데스크톱 로컬 MCP 서버와 문서 검색 도구` | fe | S8 | `security`, `external`, `core-flow` | 필요 | I18과 같은 ADR(불변 계약 2·3번 개정 포함), Q47~Q49 | I1, I17, I24 |
 | I26 | `[FE] Knot 스킬과 CLI 에이전트 연결 안내 화면·찾은 문서 연동` | fe | S9 | `core-flow` | 필요(짧게) | Q50 | I25 |
 | I27 | `[FE] show_answer 도구와 턴 저장 API 연동` | fe | S10 | `data`, `core-flow` | 필요 | I18과 같은 ADR, Q51 | I19, I25 |
+| I28 | `[FE] 데스크톱 사용자 Claude 구독 로그인과 토큰 보관` | fe | L1 | `security`, `external`, `hard-to-reverse` | 필요(계약 2 개정·3 삭제 ADR) | Q61 (a)(b), 정책 리스크 수용 근거(R28) | I1, I17 |
+| I29 | `[FE] 앱 안 채팅을 사용자 구독으로 호출하고 답변·출처를 서버에 저장` | fe | L2 | `core-flow`, `data`, `security` | I28과 같은 ADR | Q61 (c)(e), Q62, Q22 폴백 | I28, I19, I24 |
+| I30 | `[FE] 구독 연결·모델 설정 화면과 과금·정책 고지` | fe | L3 | `security` | 필요(짧게) | Q62, R29 고지 문구 | I28, I26 |
 
 Issue 생성은 사용자가 명시적으로 허용하고 판정기가 `pass`·`publish_ready=true`를 반환한 경우에만 `--publish`로 수행한다. 이 표는 초안일 뿐 snapshot이 아니다.
 

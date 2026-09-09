@@ -1,11 +1,13 @@
 # Knot 데스크톱 셸
 
-`https://knoted.kr` 웹 앱을 원격 로드하는 Electron 셸이다. 탐색(채팅)의 답변은 사용자가 터미널에서
-쓰는 CLI 코딩 에이전트(Claude Code·Codex CLI·Gemini CLI)가 만들고, 이 셸은 그 에이전트가 붙는
-**로컬 MCP 서버**를 띄워 문서 검색 도구를 제공한다(기획서 6.4, 2026-09-09 개정). 셸은 LLM을
-호출하지 않고 LLM 자격증명을 저장·중개하지 않으며 CLI 바이너리를 실행·변경하지 않는다(로드맵
-불변 계약 2·3번). 셸 안의 웹 채팅 UI는 브라우저와 같은 서버 SSE 경로를 쓴다(로드맵 Q22). 셸이
-더하는 것은 상시 실행·딥링크·알림·퀵 질문 창·자동 업데이트, 그리고 이 CLI 에이전트 연결이다.
+`https://knoted.kr` 웹 앱을 원격 로드하는 Electron 셸이다. 탐색(채팅)의 답변은 **앱이 사용자
+본인의 Claude 구독으로 앱 안에서 만든다**(기획서 6.5, 2026-09-10 개정, 로드맵 트랙 L). main이
+Claude Code OAuth 흐름으로 받은 구독 토큰으로 `api.anthropic.com`을 직접 부르고, 서버는 검색·
+근거·게이트·저장을 맡는다. 구독이 없거나 크레딧이 소진되면 서버 SSE 경로로 폴백한다(로드맵 Q22).
+이 형태는 Anthropic `legal-and-compliance`가 금지하는 것에 해당하며 재량 허용 구간에서 운영하는,
+사용자가 감수하기로 한 정책 리스크다(로드맵 R28·R29, 게이트 GL). 터미널의 CLI 코딩 에이전트가
+붙는 **로컬 MCP 서버**(기획서 6.4)는 선택적 부가 진입점으로 남는다. 셸이 더하는 것은 상시 실행·
+딥링크·알림·퀵 질문 창·자동 업데이트, 그리고 이 앱 안 구독 탐색이다.
 
 **작업 전에 [실행 정본 로드맵](../docs/electron-desktop-app-roadmap.md)을 먼저 읽는다.**
 설계 근거는 [기술 기획서](../docs/electron-desktop-app-tech-plan.md), 조사 사실은
@@ -16,8 +18,10 @@
 
 로드맵 `A1`(데스크톱 스파이크, 기획서 7절 P0) + `C3`(토큰 저장) + `S8`(로컬 MCP 서버, 2026-09-09) + `S10`(`show_answer` 도구, 2026-09-09)
 + 트랙 A 배선(`A2`·`A4`·`A7`~`A10`, 2026-09-09 — 모듈은 다른 세션이 만들고 배선·테스트 정정은 사용자 지시 `남은 구현 다 해`)까지다.
-`S3`(탐색 IPC·사용자 LLM 클라이언트)은 구현됐다가 2026-09-08 폐기됐고 `S8`에서 코드를 지웠다. 그 위에
-새 기능을 얹지 않는다.
+**트랙 L(앱 안 구독 탐색)은 `L1`(구독 OAuth 로그인·보관·갱신)까지 구현됐다**(2026-09-09, `src/main/llm/`,
+`test/agentResidue.test.ts`로 잔재 검사 범위 조정)·`L2`(앱 안 채팅 호출·서버 SSE 폴백)·`L3`(구독 설정 화면 `/claude-subscription`, frontend)까지 같은 날 구현됐다. 남은 것은 실제 구독으로의 종단 실측(로드맵 U33·U34)뿐이다.
+`S3`(탐색 IPC·사용자 LLM 클라이언트)은 2026-09-08 폐기돼 코드가 지워졌다. 트랙 L은 그 코드를
+되살리는 것이 아니라 **구독 OAuth 기반으로 새로 쓴 것**이다(자격증명 출처가 다르다).
 
 | 있음 | 없음(담당 작업) |
 | --- | --- |
@@ -33,13 +37,15 @@
 | 로컬 MCP 서버(`utilityProcess`, `127.0.0.1:47871/mcp`)·연결 토큰(`agent-bridge.json`)·`search_documents`·`list_workspaces` 도구·preload `agent` API (`S8`) | |
 | `show_answer` 도구(`S10`) — 에이전트 답변·근거를 세션에 저장하고 창을 앞으로 가져와 `knot:deep-link`로 그 대화를 연다 | 실제 `show_answer` 저장 종단(로컬 백엔드 로그인 뒤 실측) |
 | 서버 API 클라이언트(`src/main/chat/knotApi.ts`, Bearer — 워크스페이스 목록·Workspace 검색·세션 생성·턴 저장) | |
+| **사용자 Claude 구독 OAuth 로그인·`safeStorage` 보관(`subscription-auth.bin`)·자동 갱신·로그아웃**(`L1`, 2026-09-09) + preload `llm.getStatus/signIn/signOut/onStatusChanged/getSettings/updateSettings` + 메뉴 `Claude 구독 → 구독 설정 열기`(웹 `/claude-subscription`, `L3`) + 설정 `subscription-settings.json`(모델·effort, 로드맵 Q62·Q67) | 실제 claude.ai OAuth 종단(로드맵 U33 — 구독을 가진 사용자가 실측) |
+| **앱 안 채팅 호출**(`L2`, 2026-09-09) — preload `llm.streamAnswer` → Workspace 검색(`S7`) → 히스토리 → 구독 Messages API 스트리밍(`src/main/llm/messagesClient.ts`) → 턴 저장(`S2`, `generated_by=CLIENT`). 첫 chunk 전의 구독 쪽 실패는 `fallback: true`로 웹이 서버 SSE에 재전송(로드맵 Q66) | 실제 구독으로 질문 → 저장 → 찾은 문서 표시 종단(U34) |
 | Knot 스킬(`resources/skills/knot/SKILL.md`), 세 CLI 등록 스니펫 복사(메뉴 `CLI 에이전트 연결`) | 연결 안내 화면은 웹 SPA `/agent-connection`(`S9`, frontend) |
 
 로컬 MCP 서버는 앱이 켜져 있는 동안 `http://127.0.0.1:47871/mcp`(Streamable HTTP, 로드맵 Q47)에서 듣고,
 연결 설정은 `~/Library/Application Support/Knot/agent-bridge.json`(포트·연결 토큰, 0600, 로드맵 Q48)에 둔다.
 `Origin` 헤더가 있는 요청과 연결 토큰이 없거나 다른 요청은 거부한다. 서버 액세스 토큰·연결 토큰·질문·검색
 결과 본문은 로그와 도구 결과에 남기지 않는다. 폐기된 `S3`가 만들던 `llm-settings.json`·`llm-key.bin`은
-앱 시작 시 지운다.
+앱 시작 시 지운다(트랙 L의 설정 파일은 그래서 `subscription-settings.json`이다).
 
 ### CLI 에이전트 연결 (Claude Code 예)
 
