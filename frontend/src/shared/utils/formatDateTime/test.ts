@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { formatDateTime } from "./formatDateTime";
+import { formatDateTime } from ".";
 
 describe("formatDateTime", () => {
   it("사용자 시간대의 연월일과 시분을 보여 준다", () => {

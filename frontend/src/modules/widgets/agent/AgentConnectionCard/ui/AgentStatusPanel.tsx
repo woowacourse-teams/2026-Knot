@@ -2,12 +2,12 @@ import styled from "@emotion/styled";
 import Button from "@primitives/ui/Button";
 
 import type { AgentBridgeStatus } from "@/shared/types/desktop";
+import { formatDateTime } from "@/shared/utils/formatDateTime";
 
 import {
   AGENT_CONNECTION_MESSAGE,
   AGENT_STATUS_LABEL,
 } from "../constants/agentConnection";
-import { formatDateTime } from "../utils/formatDateTime";
 
 interface AgentStatusPanelProps {
   /** 아직 읽지 못했으면 null */
