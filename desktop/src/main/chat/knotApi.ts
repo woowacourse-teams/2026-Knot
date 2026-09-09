@@ -4,7 +4,8 @@
  * 로컬 MCP 서버의 도구 실행은 전부 main이 하며(로드맵 Q47), 토큰은 `tokenStore`에서 읽어
  * `Authorization: Bearer`로 붙인다(불변 계약 10번). 토큰·질문·답변·본문은 로그에 남기지 않는다.
  * 세션 생성(`POST /workspaces/{id}/conversations`)·턴 저장(`POST /conversations/{id}/turns`, `S2`)은
- * `show_answer`(`S10`, 로드맵 Q51)가 쓴다.
+ * `show_answer`(`S10`, 로드맵 Q51)가 쓴다. 앱 안 구독 탐색(`L2`, 기획서 6.5)은 Workspace 검색·메시지 목록
+ * (`GET /conversations/{id}`, 히스토리)·턴 저장을 쓴다(로드맵 Q65).
  *
  * 오류(로드맵 Q49): 저장된 토큰이 없으면 `UNAUTHENTICATED`("Knot 앱에 로그인하세요"), 서버 HTTP 오류는
  * 본문 `{code, message}` 그대로(본문을 못 읽으면 `UNKNOWN`), 네트워크 오류·30초 타임아웃은
@@ -37,6 +38,14 @@ export interface SearchChunk {
 export type WorkspaceSearchResponse =
   | { status: "READY"; groundingRules: string; chunks: SearchChunk[] }
   | { status: "NO_RESULT" | "NEEDS_CLARIFICATION"; fallbackAnswer: string };
+
+/** `GET /api/v1/conversations/{sessionId}`의 메시지 한 건. `L2`가 히스토리로 쓴다 */
+export interface ChatMessageSummary {
+  id: number;
+  role: "USER" | "ASSISTANT";
+  content: string;
+  createdAt: string;
+}
 
 /** 턴 저장 API의 근거 한 건(기획서 6.4 `S2`). 배열 순서가 rank다 */
 export interface TurnReference {
@@ -88,6 +97,8 @@ export interface KnotApiClient {
   createConversation(workspaceId: number, title: string, signal: AbortSignal): Promise<{ sessionId: number }>;
   /** `POST /api/v1/conversations/{sessionId}/turns`(`S2`) → `{userMessageId, messageId}` */
   saveTurn(sessionId: number, turn: SaveTurnRequest, signal: AbortSignal): Promise<SavedTurn>;
+  /** `GET /api/v1/conversations/{sessionId}` → 세션의 메시지 전부(시간순). `L2` 히스토리 */
+  listMessages(sessionId: number, signal: AbortSignal): Promise<ChatMessageSummary[]>;
 }
 
 export interface KnotApiClientOptions {
@@ -176,7 +187,27 @@ export function createKnotApiClient(options: KnotApiClientOptions): KnotApiClien
       if (typeof userMessageId !== "number" || typeof messageId !== "number") throw malformed("턴 저장 응답");
       return { userMessageId, messageId };
     },
+
+    async listMessages(sessionId, signal) {
+      const json = await request(`/api/v1/conversations/${sessionId}`, { method: "GET" }, signal);
+      if (!Array.isArray(json)) throw malformed("메시지 목록");
+      return json.map(parseMessage);
+    },
   };
+}
+
+function parseMessage(raw: unknown): ChatMessageSummary {
+  const message = asObject(raw, "메시지 항목");
+  const { id, role, content, createdAt } = message;
+  if (
+    typeof id !== "number" ||
+    (role !== "USER" && role !== "ASSISTANT") ||
+    typeof content !== "string" ||
+    typeof createdAt !== "string"
+  ) {
+    throw malformed("메시지 항목");
+  }
+  return { id, role, content, createdAt };
 }
 
 export function isAbortError(error: unknown): boolean {

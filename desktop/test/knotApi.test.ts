@@ -23,6 +23,36 @@ function client(fetchImpl: typeof fetch, token: string | null = "jwt", timeoutMs
 const signal = () => new AbortController().signal;
 
 describe("createKnotApiClient", () => {
+  it("세션 메시지 목록을 GET하고 role을 검사한다(L2 히스토리)", async () => {
+    const fetchMock = vi.fn(async () =>
+      json([
+        { id: 1, role: "USER", content: "q", createdAt: "2026-09-09T00:00:00Z" },
+        { id: 2, role: "ASSISTANT", content: "a", createdAt: "2026-09-09T00:00:01Z" },
+      ]),
+    );
+
+    const messages = await client(fetchMock).listMessages(42, signal());
+
+    expect(messages).toEqual([
+      { id: 1, role: "USER", content: "q", createdAt: "2026-09-09T00:00:00Z" },
+      { id: 2, role: "ASSISTANT", content: "a", createdAt: "2026-09-09T00:00:01Z" },
+    ]);
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe("http://localhost:8080/api/v1/conversations/42");
+    expect(init.method).toBe("GET");
+  });
+
+  it("메시지 목록의 모양이 다르면 KNOT_API_MALFORMED다", async () => {
+    const fetchMock = vi.fn(async () => json([{ id: 1, role: "SYSTEM", content: "x", createdAt: "t" }]));
+
+    const error = (await client(fetchMock)
+      .listMessages(42, signal())
+      .catch((caught: unknown) => caught)) as { code: string };
+
+    expect(error.code).toBe(KNOT_API_ERRORS.malformed.code);
+  });
+
+
   it("워크스페이스 목록을 Bearer 헤더로 GET하고 role은 있을 때만 옮긴다", async () => {
     const fetchMock = vi.fn(async () =>
       json({ lastViewedWorkspaceId: 1, workspaces: [{ id: 1, name: "팀" }, { id: 2, name: "개인", role: "OWNER" }] }),

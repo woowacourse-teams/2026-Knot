@@ -22,6 +22,7 @@ function fakeApi(overrides: Partial<KnotApiClient> = {}): KnotApiClient {
     searchWorkspace: vi.fn(async () => READY),
     createConversation: vi.fn(async () => ({ sessionId: 12 })),
     saveTurn: vi.fn(async () => ({ userMessageId: 41, messageId: 42 })),
+    listMessages: vi.fn(async () => []),
     ...overrides,
   };
 }
