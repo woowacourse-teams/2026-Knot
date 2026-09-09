@@ -4,7 +4,7 @@
  * `session.webRequest.onBeforeSendHeaders`를 API 오리진(`{API}/*`)에만 건다. 다른 오리진에는
  * 절대 붙이지 않는다(불변 계약 10번). renderer가 이미 헤더를 붙였으면 건드리지 않으므로,
  * SPA가 `auth.getToken`으로 스스로 헤더를 붙이는 현행 방식과 겹쳐도 결과는 같다
- * (로드맵 Q52 — `getToken`을 null로 바꾸는 것은 SPA가 헤더를 떼는 변경과 함께 한다).
+ * (로드맵 Q55 — `getToken`을 null로 바꾸는 것은 SPA가 헤더를 떼는 변경과 함께 한다).
  * 페이지 이동(`mainFrame`·`subFrame`)에는 붙이지 않는다 — `/oauth2/authorization/github`
  * 같은 로그인 진입 네비게이션에 만료된 토큰이 실리면 필터가 401을 줄 수 있다(로드맵 Q41).
  */

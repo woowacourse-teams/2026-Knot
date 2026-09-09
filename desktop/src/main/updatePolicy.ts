@@ -1,10 +1,10 @@
 /**
- * 자동 업데이트를 켤지 정하는 순수 판정 (기획서 10.2 "업데이트", 로드맵 `A4`·Q53).
+ * 자동 업데이트를 켤지 정하는 순수 판정 (기획서 10.2 "업데이트", 로드맵 `A4`·Q59).
  *
  * `update-electron-app` + GitHub Releases(update.electronjs.org)를 쓴다. 조건:
  * - 패키징된 빌드여야 한다(미패키징 빌드는 `update-electron-app`이 스스로 건너뛴다)
  * - macOS·Windows만. Linux는 내장 `autoUpdater`가 지원하지 않는다(지식 §3.4)
- * - `prod` 빌드만. dev·local 빌드는 같은 저장소의 최신 릴리스로 덮어써지면 안 된다(Q53)
+ * - `prod` 빌드만. dev·local 빌드는 같은 저장소의 최신 릴리스로 덮어써지면 안 된다(Q59)
  */
 
 import type { KnotEnvName } from "../shared/env";
