@@ -167,8 +167,9 @@ describe("createSyncWatcher", () => {
     await h.runTimers();
 
     expect(h.fetchMock).toHaveBeenCalledTimes(2);
-    expect(h.fetchMock.mock.calls[0]?.[0]).toBe(`${API}/api/v1/imports/5`);
-    expect((h.fetchMock.mock.calls[0]?.[1] as RequestInit).headers).toMatchObject({ Authorization: "Bearer jwt" });
+    const [url, init] = h.fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe(`${API}/api/v1/imports/5`);
+    expect(init.headers).toMatchObject({ Authorization: "Bearer jwt" });
     expect(h.onNotice).toHaveBeenCalledWith({
       kind: "completed",
       importRunId: 5,
