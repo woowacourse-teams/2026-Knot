@@ -193,7 +193,7 @@ export interface AgentBridgeStatus {
 - 토큰 값은 로그·크래시 리포트에 절대 쓰지 않는다. IPC 인자 로깅도 금지한다.
 - `agent.*`는 IPC 채널 `knot:agent-status`·`knot:agent-copy-registration`·`knot:agent-rotate-token`·`knot:agent-set-port`로 구현한다. 연결 토큰 값은 어떤 IPC 응답에도 싣지 않는다(main이 `clipboard.writeText`로 쓴다). MCP 서버 프로세스와 main 사이의 `MessagePort` 메시지는 `{requestId, tool, input}` / `{requestId, result}` 또는 `{requestId, error: {code, message}}`이며 액세스 토큰·연결 토큰을 담지 않는다(2026-09-09, `S8`).
 - 도구 호출 로깅은 requestId·도구 이름·workspaceId·상태·지연 ms만. 질문·문서 본문·답변·토큰은 남기지 않는다.
-- 개정 전 `chat`·`llm` API(2026-09-07·08판)는 폐기됐다(로드맵 `S3`·`S6`). 남아 있는 코드는 `S8`에서 제거하고, 웹 사본(`frontend/src/shared/types/desktop.ts`)에는 처음부터 넣지 않는다.
+- 개정 전 `chat`·`llm` API(2026-09-07·08판)는 폐기됐다(로드맵 `S3`·`S6`). 남아 있던 코드는 2026-09-09 `S8`에서 제거했고(`desktop/test/s3Residue.test.ts`가 잔재 0건을 지킨다), 웹 사본(`frontend/src/shared/types/desktop.ts`)에는 처음부터 넣지 않았다.
 
 - API 추가는 이 인터페이스 파일의 변경으로만 하며, 웹 SPA는 `window.knotDesktop?.xxx` 옵셔널 접근으로 하위 호환을 지킨다(셸 업데이트가 웹 배포보다 느리다).
 
@@ -523,10 +523,10 @@ desktop/
 │  │  ├─ navigation.ts     # 허용 목록, will-navigate, setWindowOpenHandler, permission handler
 │  │  ├─ deepLink.ts       # knot:// 파서(순수 함수) + 등록·수신
 │  │  ├─ menu.ts, tray.ts, updater.ts, logging.ts, crash.ts
-│  │  ├─ chat/knotApi.ts   # Bearer 서버 API 클라이언트(검색·목록·턴 저장). S3에서 만든 것을 재사용
-│  │  ├─ agent/            # CLI 에이전트 연결(6.4): MCP utilityProcess 기동·MessagePort 브리지·연결 토큰·도구 실행·등록 스니펫
+│  │  ├─ chat/knotApi.ts   # Bearer 서버 API 클라이언트(워크스페이스 목록·Workspace 검색·세션 생성·턴 저장 — S10 구현 2026-09-09). S3에서 만든 것을 개편
+│  │  ├─ agent/            # CLI 에이전트 연결(6.4, S8 구현 2026-09-09): bridgeConfig(agent-bridge.json)·bridgeCore(MessagePort 왕복·동시 4개)·toolExecutor(도구 입력 검증·서버 호출·결과 조립. S10 show_answer는 세션 생성→턴 저장→presentAnswer 콜백으로 창 앞으로+딥링크)·registration(스니펫 3종+스킬)·instructions·bridge(utilityProcess 기동·클립보드)
 │  │  └─ auth/             # 2단계: loopback 서버, pkce, tokenStore(safeStorage), bearerInjector
-│  ├─ mcp/index.ts         # utilityProcess 엔트리: Streamable HTTP 서버·Origin/Host/토큰 검사·도구 정의(@modelcontextprotocol/sdk)
+│  ├─ mcp/                 # utilityProcess(S8 구현 2026-09-09): index(parentPort 시작 메시지)·server(무상태 Streamable HTTP + 도구 정의 3개 — list_workspaces·search_documents·show_answer(S10), @modelcontextprotocol/sdk)·guard(Origin/Host/토큰 검사)·portRequester(main 위임·35초 타임아웃)
 │  ├─ preload/index.ts     # contextBridge.exposeInMainWorld('knotDesktop', …)
 │  ├─ shared/              # api.ts(4.4 타입), env.ts(오리진 표), deepLink 타입
 │  └─ renderer/            # 없음(원격 로드). 로컬 오류 페이지(offline.html)만
@@ -535,7 +535,8 @@ desktop/
 └─ README.md
 ```
 
-- `src/main/llm/`·`src/main/chat/{prompt,chatService}`(2026-09-08 `S3`)는 폐기된 설계의 잔재이며 `S8`에서 제거한다.
+- `src/main/llm/`·`src/main/chat/{prompt,chatService}`(2026-09-08 `S3`)는 폐기된 설계의 잔재였고 2026-09-09 `S8`에서 제거했다. `S9` 연결 안내 화면이 생기기 전까지의 진입점은 앱 메뉴 `CLI 에이전트 연결`(연결 안내 화면 열기·스니펫 복사·상태·토큰 재발급)이다(로드맵 4.5절 `S8` 착수 가정).
+- 빌드: `scripts/build.mjs`가 main·preload·mcp 세 엔트리를 esbuild로 묶는다. mcp 번들은 SDK(hono·express 포함)를 한 파일(약 1.3MB)에 넣어 asar 안 모듈 해석에 기대지 않는다. `SKILL.md`는 앱 시작 시 `userData/skills/knot/SKILL.md`로 복사해 두고(`AgentBridgeStatus.skillPath`) 사용자가 그 경로를 `cp`한다 — asar 안 파일은 셸 도구로 읽을 수 없기 때문이다.
 - 빌드: main·preload·mcp 엔트리는 TypeScript → esbuild 번들을 Forge `hooks.generateAssets`(또는 `prePackage`)에서 실행한다. Forge `plugin-webpack`/`plugin-vite`는 renderer 엔트리를 전제하므로 쓰지 않는다. renderer 빌드는 없다(원격). 로컬 `offline.html`만 정적 포함.
 - 웹 SPA(`frontend/`)와 코드 공유는 `desktop/src/shared/api.ts`의 타입 파일 하나뿐이다. SPA는 이 타입을 복사해 `src/shared/types/desktop.ts`로 두고 `declare global { interface Window { knotDesktop?: KnotDesktopApi } }`를 선언한다(패키지 간 import는 두 프로젝트의 lockfile을 얽히게 하므로 피한다).
 - 린트·포맷은 `frontend/eslint.config.js`를 참조해 동일 규칙을 복사한다. `frontend/.claude/rules`는 React 규칙이므로 `desktop/`에는 별도 `CLAUDE.md`(main 프로세스 규칙)를 둔다.
@@ -544,7 +545,7 @@ desktop/
 
 | 구분 | 패키지 |
 | --- | --- |
-| 런타임 | `electron@44`, `update-electron-app`, `electron-log`, `electron-squirrel-startup`(Windows Squirrel 설치·업데이트 이벤트), `@modelcontextprotocol/sdk`(MCP 서버 전송·도구 정의. LLM SDK가 아니며 모델을 호출하지 않는다 — 추가 2026-09-09, `S8`) |
+| 런타임 | `electron@44`, `update-electron-app`, `electron-log`, `electron-squirrel-startup`(Windows Squirrel 설치·업데이트 이벤트), `@modelcontextprotocol/sdk`(MCP 서버 전송·도구 정의. LLM SDK가 아니며 모델을 호출하지 않는다 — 추가 2026-09-09, `S8`. 설치본 1.30.0, `LATEST_PROTOCOL_VERSION` 2025-11-25), `zod`(SDK 도구 입력 스키마, 4.x) |
 | 빌드 | `@electron-forge/cli@7`(7.11.2 안정, 8은 alpha), `@electron-forge/maker-{dmg,zip,squirrel,deb}`, `@electron-forge/plugin-fuses`, `@electron-forge/publisher-github`, `@electron/fuses`, `@electron/notarize`, `typescript@7`, `esbuild`. `packagerConfig.asar: true`를 명시한다(Forge 7 기본 off) |
 | 테스트 | `vitest`, `@playwright/test`(`_electron`) |
 | 금지 | `keytar`, `electron-remote`류, 클라이언트 LLM SDK(`@anthropic-ai/claude-agent-sdk`, `@anthropic-ai/sdk`, `openai`, `@google/genai`), CLI 바이너리(`claude`·`codex`·`gemini`)의 실행·탐색·동봉(로드맵 불변 계약 3번, 2026-09-09) |
@@ -563,8 +564,8 @@ desktop/
 | 다운로드 페이지(`/download`, OS 감지) | P1 | 정적 라우트 |
 | `<title>` 수정(`Document` → `Knot`) | P1 | 창 제목에 그대로 보인다 |
 | CSP 헤더(`_headers`) | P1 병행 | 웹 보안 Issue로 분리 |
-| **CLI 에이전트 연결 안내 화면(데스크톱 전용, `knotDesktop.agent`)** | S9 | 6.4. 세 CLI 등록 스니펫·스킬 설치·토큰 재발급·포트 변경·소유자 고지 |
-| **찾은 문서 서버 연동(`GET /messages/{id}/sources` 8건, 페이지로 묶기)** | S9 | 6.4. `useSearchReferenceList` mock 제거 |
+| **CLI 에이전트 연결 안내 화면(데스크톱 전용, `knotDesktop.agent`)** | S9 | 6.4. 세 CLI 등록 스니펫·스킬 설치·토큰 재발급·포트 변경·소유자 고지. 구현됨(2026-09-09): 라우트 `/agent-connection`(CenteredLayout·AuthGuard) + `modules/widgets/agent/AgentConnectionCard`, 진입점은 GNB 프로필 메뉴(`agent`가 있을 때만)와 앱 메뉴. 상태는 `useDesktopAgentStatusQuery`(10초 폴링, 재기동 뒤 1초 후 재조회) |
+| **찾은 문서 서버 연동(`GET /messages/{id}/sources` 8건, 페이지로 묶기)** | S9 | 6.4. `useSearchReferenceList` mock 제거. 구현됨(2026-09-09): `dto/chatMessage.ts`·`fetch/api/v1/messages/[messageId]/sources`·`useChatMessageSourcesQuery`, 페이지 대표 점수는 최고 청크 점수. 카드 둘째 줄은 서버에 경로가 없어 `Notion · YYYY.MM.DD 수정`. `chunkIndex`는 `S2`가 응답에 더하면 DTO에 추가 |
 | (폐기) 탐색 요청 함수 데스크톱 분기·LLM 설정 화면·설정 없음 안내 | — | 2026-09-09 `S4` 폐기. 채팅은 서버 SSE 그대로(로드맵 Q22) |
 
 
@@ -665,7 +666,7 @@ tag desktop-v0.1.0 ─▶ GitHub Actions matrix(macos-latest arm64/x64, windows-
 | **탐색 세션 검색 API `POST /conversations/{sessionId}/search`**(청크 단위 상위 8, 규칙 문장 응답, READY 아니면 안내 문구 저장) + `top-k=8`·`max-context-characters=12000` | S1 | `core-flow`, `data`, `shared` | 6.4. 불변 계약 1·2 개정 ADR. 2026-09-09: 데스크톱 소비자 폐기, 검색 로직은 `S7`이 재사용 |
 | **V14**: `search_references` rank 1~8·`chunk_index`·유일 키, `chat_messages.generated_by` | S1 | `data` | Flyway. 6.4 |
 | **턴 저장 API `POST /conversations/{sessionId}/turns`**(질문 + 에이전트 답변 + 근거 ≤8을 한 트랜잭션에, `generated_by=CLIENT`) + 출처 조회 8건·`chunkIndex` | S2 | `data`, `security`, `core-flow` | 6.4. Workspace JOIN 검증 재사용. 재정의 2026-09-09(개정 전 `…/messages/assistant`는 만들지 않음) |
-| **Workspace 검색 API `POST /workspaces/{workspaceId}/search`**(멤버·스냅샷 검사, 청크 상위 8 + 규칙 문장, 저장 없음) | S7 | `core-flow`, `shared` | 6.4. `S1` 검색 서비스 재사용. 데스크톱 MCP `search_documents`의 백엔드 |
+| **Workspace 검색 API `POST /workspaces/{workspaceId}/search`**(멤버·스냅샷 검사, 청크 상위 8 + 규칙 문장, 저장 없음) | S7 | `core-flow`, `shared` | 6.4. `S1` 검색 서비스 재사용. 데스크톱 MCP `search_documents`의 백엔드. 2026-09-09 구현: `chat/application/WorkspaceSearchService`가 `WorkspaceQueryService.findDetail`(존재 404·멤버 403 검사 그대로 재사용) → `PublishedDocumentSearchService.requirePublishedSnapshot`(`SEARCH_IMPORT_NOT_READY`만 409 `CHAT_DOCUMENTS_NOT_READY`로 번역) → `search(workspaceId, content)`(이력 없이 현재 질문만) 순서로 부르고, 결과 `WorkspaceSearchResult`를 `chat/presentation/WorkspaceSearchController`가 `WorkspaceSearchResponse`(`{status, groundingRules?, chunks?, fallbackAnswer?}`, `Cache-Control: no-store`)로 돌려준다. 요청 DTO는 `WorkspaceSearchRequest`(`content` 1~10,000자), 청크 응답은 `S1`의 `ChatSearchChunkResponse`를 공유한다. 세션·메시지·잠금·턴 검사가 없어 같은 질문을 연속으로 보내도 200이다 |
 
 변경하지 않는 것: 색인(청킹·임베딩·게시), 하이브리드 검색의 융합 가중·임계·후보 수, 문서 준비 게이트, 규칙 문장, 세션 모델, Notion 연결, JWT 발급 로직·클레임. 웹 채팅 UI의 SSE 경로는 자격증명 헤더 교체와 근거 8청크 외에 바꾸지 않는다(로드맵 Q22). 서버는 CLI 에이전트 경로에서 LLM을 부르지 않는다.
 

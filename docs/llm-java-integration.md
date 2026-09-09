@@ -156,6 +156,11 @@ Gemini API 무료 티어가 있고 유료 티어는 입력 1M 토큰당 US$0.15(
   - READY: USER 메시지를 저장하고 `{status, userMessageId, groundingRules, chunks[≤8]}`를 돌려준다. `chunks[].content`는 `LLM_SEARCH_MAX_CONTEXT_CHARACTERS`(기본 12,000) 예산에 맞춰 잘린다.
   - NO_RESULT·NEEDS_CLARIFICATION: USER와 안내 ASSISTANT를 같은 트랜잭션에 저장하고 `{status, userMessageId, assistantMessageId, fallbackAnswer}`를 돌려준다.
   - 검색 자체가 실패하면(임베딩 provider 오류 등) 아무것도 저장하지 않고 `SEARCH_*` 코드를 500으로 돌려준다.
+- 구현됨(`S7`, 2026-09-09): `POST /api/v1/workspaces/{workspaceId}/search` — Workspace 기준 검색. 데스크톱 로컬 MCP 서버(`S8`)의 `search_documents` 도구가 부르는 백엔드이며 서버 LLM을 부르지 않는다.
+  - 검사 순서: Workspace 존재(`WORKSPACE_NOT_FOUND` 404) → 멤버(`WORKSPACE_ACCESS_DENIED` 403, 현행 Workspace 조회 API 검사 재사용) → 공개 스냅샷(`CHAT_DOCUMENTS_NOT_READY` 409). 세션·잠금·진행 중 턴 검사가 없고 **아무것도 저장하지 않는다**(같은 질문을 연속으로 보내도 200).
+  - READY: `{status, groundingRules, chunks[≤8]}`. `chunks[].content` 예산은 `S1`과 같다(`LLM_SEARCH_MAX_CONTEXT_CHARACTERS`). 검색 질의는 이력 없이 현재 질문뿐이다.
+  - NO_RESULT·NEEDS_CLARIFICATION: `{status, fallbackAnswer}`만 돌려준다(메시지 ID 없음).
+  - 검색 실패는 `S1`과 같이 `SEARCH_*` 코드를 500으로 돌려준다. 요청 DTO `WorkspaceSearchRequest`(`content` 1~10,000자), 응답 `WorkspaceSearchResponse`.
 - 계획(`S7`, 미구현): `POST /api/v1/workspaces/{workspaceId}/search` — Workspace 멤버·공개 스냅샷 검사, `S1`과 같은 하이브리드 검색·청크 상위 8개·규칙 문장·예산. **저장·턴 검사 없음.** READY가 아니면 안내 문구만 돌려준다. 데스크톱 MCP 도구 `search_documents`가 이것을 부른다(로드맵 Q49).
 - 계획(`S2`, 미구현): `POST /api/v1/conversations/{sessionId}/turns` — 에이전트가 만든 질문·답변·근거(≤8)를 USER + ASSISTANT(`generated_by=CLIENT`) + `search_references`로 한 트랜잭션에 저장. 세션 소유자·Workspace JOIN 검증, rank ≤ 8, 진행 중 턴 검사(로드맵 Q23). MCP 도구 `show_answer`(`S10`)가 부른다.
 
