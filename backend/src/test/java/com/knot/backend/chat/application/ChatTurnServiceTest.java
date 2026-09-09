@@ -91,6 +91,11 @@ class ChatTurnServiceTest {
     void save_success() {
         // given
         SaveChatTurnCommand command = command(List.of(REFERENCE));
+        // 중첩 스텁을 피하려고 반환값을 먼저 만든다(Mockito UnfinishedStubbingException)
+        ChatTurn savedTurn = turn(
+                        101L,
+                        102L
+               );
         when(
                 persistenceService.saveClientTurn(
                         SESSION_ID,
@@ -99,12 +104,7 @@ class ChatTurnServiceTest {
                         NOW,
                         List.of(REFERENCE)
                 )
-        ).thenReturn(
-                turn(
-                        101L,
-                        102L
-                )
-        );
+        ).thenReturn(savedTurn);
 
         // when
         ChatTurnResult result = service.save(
@@ -123,18 +123,14 @@ class ChatTurnServiceTest {
     @DisplayName("근거가 없어도 저장하고, 마지막 메시지가 ASSISTANT면 진행 중 턴으로 보지 않는다")
     void save_success_withoutReferencesAfterCompletedTurn() {
         // given
-        when(chatMessageRepository.findAllBySessionId(SESSION_ID)).thenReturn(
-                List.of(
-                        message(
-                                ChatMessageRole.USER,
-                                NOW.minus(Duration.ofMinutes(1))
-                        ),
-                        message(
-                                ChatMessageRole.ASSISTANT,
-                                NOW.minus(Duration.ofSeconds(30))
-                        )
-                )
-        );
+        // 중첩 스텁을 피하려고 반환값을 먼저 만든다(Mockito UnfinishedStubbingException)
+        List<ChatMessage> messages = List.of(message(ChatMessageRole.USER, NOW.minus(Duration.ofMinutes(1))), message(ChatMessageRole.ASSISTANT, NOW.minus(Duration.ofSeconds(30))));
+        when(chatMessageRepository.findAllBySessionId(SESSION_ID)).thenReturn(messages);
+        // 중첩 스텁을 피하려고 반환값을 먼저 만든다(Mockito UnfinishedStubbingException)
+        ChatTurn savedTurn = turn(
+                        103L,
+                        104L
+               );
         when(
                 persistenceService.saveClientTurn(
                         eq(SESSION_ID),
@@ -143,12 +139,7 @@ class ChatTurnServiceTest {
                         eq(NOW),
                         eq(List.of())
                 )
-        ).thenReturn(
-                turn(
-                        103L,
-                        104L
-                )
-        );
+        ).thenReturn(savedTurn);
 
         // when
         ChatTurnResult result = service.save(
@@ -165,14 +156,14 @@ class ChatTurnServiceTest {
     @DisplayName("timeout이 지난 미완 USER 턴은 진행 중으로 보지 않고 새 턴을 저장한다")
     void save_success_staleTurn() {
         // given
-        when(chatMessageRepository.findAllBySessionId(SESSION_ID)).thenReturn(
-                List.of(
-                        message(
-                                ChatMessageRole.USER,
-                                NOW.minus(Duration.ofMinutes(6))
-                        )
-                )
-        );
+        // 중첩 스텁을 피하려고 반환값을 먼저 만든다(Mockito UnfinishedStubbingException)
+        List<ChatMessage> messages = List.of(message(ChatMessageRole.USER, NOW.minus(Duration.ofMinutes(6))));
+        when(chatMessageRepository.findAllBySessionId(SESSION_ID)).thenReturn(messages);
+        // 중첩 스텁을 피하려고 반환값을 먼저 만든다(Mockito UnfinishedStubbingException)
+        ChatTurn savedTurn = turn(
+                        105L,
+                        106L
+               );
         when(
                 persistenceService.saveClientTurn(
                         anyLong(),
@@ -181,12 +172,7 @@ class ChatTurnServiceTest {
                         any(),
                         anyList()
                 )
-        ).thenReturn(
-                turn(
-                        105L,
-                        106L
-                )
-        );
+        ).thenReturn(savedTurn);
 
         // when
         ChatTurnResult result = service.save(
@@ -203,14 +189,9 @@ class ChatTurnServiceTest {
     @DisplayName("답변 없는 USER 메시지가 timeout 안이면 저장 없이 진행 중 턴 오류를 반환하고 잠금을 푼다")
     void save_failure_turnInProgress() {
         // given
-        when(chatMessageRepository.findAllBySessionId(SESSION_ID)).thenReturn(
-                List.of(
-                        message(
-                                ChatMessageRole.USER,
-                                NOW.minus(Duration.ofMinutes(4))
-                        )
-                )
-        );
+        // 중첩 스텁을 피하려고 반환값을 먼저 만든다(Mockito UnfinishedStubbingException)
+        List<ChatMessage> messages = List.of(message(ChatMessageRole.USER, NOW.minus(Duration.ofMinutes(4))));
+        when(chatMessageRepository.findAllBySessionId(SESSION_ID)).thenReturn(messages);
 
         // when
         ThrowingCallable action = () -> service.save(
