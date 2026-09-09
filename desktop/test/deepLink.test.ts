@@ -220,7 +220,7 @@ describe("createDeepLinkRouter", () => {
 
 describe("attachDeepLinkHandling", () => {
   it("open-url과 second-instance 인자를 라우터로 넘긴다", () => {
-    const router = { handleUrl: vi.fn(), takePending: vi.fn(), onAuthCallback: vi.fn() };
+    const router = { handleUrl: vi.fn(), dispatch: vi.fn(), takePending: vi.fn(), onAuthCallback: vi.fn() };
     attachDeepLinkHandling(router);
 
     const openUrl = appMock.on.mock.calls.find(([name]) => name === "open-url")?.[1] as (e: unknown, u: string) => void;

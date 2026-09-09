@@ -143,6 +143,8 @@ export type AuthCallbackHandler = (callback: AuthCallbackDeepLink) => void;
 export interface DeepLinkRouter {
   /** 문법에 맞으면 처리하고 true. 아니면 로그만 남기고 false */
   handleUrl(rawUrl: string): boolean;
+  /** main이 만든 목적지를 같은 경로로 보낸다(`S10` `show_answer`·`A10` 알림 클릭) */
+  dispatch(link: KnotDeepLink): void;
   /** SPA 부팅 시 한 번 가져간다(`getPendingDeepLink`). 가져가면 비운다 */
   takePending(): KnotDeepLink | null;
   /** `knot://auth/callback` 수신자(A7). 해제 함수를 돌려준다 */
@@ -195,6 +197,9 @@ export function createDeepLinkRouter(options: DeepLinkRouterOptions): DeepLinkRo
       logger.info("[knot] 딥링크 수신", { type: target.type });
       deliver(target);
       return true;
+    },
+    dispatch(link) {
+      deliver(link);
     },
     takePending() {
       if (pending === null) return null;
