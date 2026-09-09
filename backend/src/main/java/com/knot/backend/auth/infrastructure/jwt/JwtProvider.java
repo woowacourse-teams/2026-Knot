@@ -32,7 +32,10 @@ public class JwtProvider implements AuthTokenProvider {
     private static final String HMAC_ALGORITHM = "HmacSHA256";
     private static final int MINIMUM_SECRET_BYTES = 32;
     private static final String ACCESS_TOKEN_TYPE = "ACCESS";
+    private static final String DEVICE_ACCESS_TOKEN_TYPE = "DEVICE_ACCESS";
     private static final String ONBOARDING_TOKEN_TYPE = "ONBOARDING";
+    private static final String TOKEN_TYPE_CLAIM = "token_type";
+    private static final String SESSION_ID_CLAIM = "sid";
 
     private final JwtProperties properties;
     private final JwtEncoder encoder;
@@ -84,6 +87,39 @@ public class JwtProvider implements AuthTokenProvider {
     }
 
     @Override
+    public String issueDevice(
+            AuthenticatedMember member,
+            long deviceSessionId
+    ) {
+        if (member == null) {
+            throw new AuthException(AuthErrorCode.INVALID_AUTHENTICATED_MEMBER);
+        }
+        if (deviceSessionId <= 0) {
+            throw new AuthException(AuthErrorCode.INVALID_AUTHENTICATED_MEMBER);
+        }
+
+        Instant issuedAt = Instant.now(clock);
+        JwtClaimsSet.Builder claimsBuilder = baseClaims(
+                member,
+                issuedAt
+        ).claim(
+                TOKEN_TYPE_CLAIM,
+                DEVICE_ACCESS_TOKEN_TYPE
+        )
+                .claim(
+                        SESSION_ID_CLAIM,
+                        String.valueOf(deviceSessionId)
+                );
+        if (member.getProfileImageUrl() != null) {
+            claimsBuilder.claim(
+                    "profile_image_url",
+                    member.getProfileImageUrl()
+            );
+        }
+        return encode(claimsBuilder.build());
+    }
+
+    @Override
     public String issueNickname(OAuthUser oauthUser) {
         if (oauthUser == null) {
             throw new AuthException(AuthErrorCode.INVALID_OAUTH_USER);
@@ -97,7 +133,7 @@ public class JwtProvider implements AuthTokenProvider {
                 .issuedAt(issuedAt)
                 .expiresAt(issuedAt.plus(properties.getNicknameTokenExpiration()))
                 .claim(
-                        "token_type",
+                        TOKEN_TYPE_CLAIM,
                         ONBOARDING_TOKEN_TYPE
                 )
                 .claim(
@@ -120,6 +156,15 @@ public class JwtProvider implements AuthTokenProvider {
     public AuthenticatedMember authenticate(String token) {
         try {
             Jwt jwt = decodeAndValidate(token);
+            String tokenType = jwt.getClaimAsString(TOKEN_TYPE_CLAIM);
+            if (DEVICE_ACCESS_TOKEN_TYPE.equals(tokenType)) {
+                return AuthenticatedMember.ofDeviceSession(
+                        positiveLong(jwt.getSubject()),
+                        requiredClaim(jwt.getClaimAsString("nickname")),
+                        jwt.getClaimAsString("profile_image_url"),
+                        positiveLong(jwt.getClaimAsString(SESSION_ID_CLAIM))
+                );
+            }
             validateTokenType(
                     jwt,
                     ACCESS_TOKEN_TYPE
@@ -258,7 +303,7 @@ public class JwtProvider implements AuthTokenProvider {
                 .issuedAt(issuedAt)
                 .expiresAt(issuedAt.plus(properties.getExpiration()))
                 .claim(
-                        "token_type",
+                        TOKEN_TYPE_CLAIM,
                         ACCESS_TOKEN_TYPE
                 )
                 .claim(
@@ -271,7 +316,7 @@ public class JwtProvider implements AuthTokenProvider {
             Jwt jwt,
             String expectedType
     ) {
-        if (!expectedType.equals(jwt.getClaimAsString("token_type"))) {
+        if (!expectedType.equals(jwt.getClaimAsString(TOKEN_TYPE_CLAIM))) {
             throw new AuthException(AuthErrorCode.INVALID_JWT);
         }
     }
