@@ -33,7 +33,7 @@ class FlywayMigrationUpgradeIntegrationTest {
             .withUsername("knot")
             .withPassword("knot");
 
-    @DisplayName("V9 스키마를 V14 탐색 스키마로 업그레이드하고 V13 근거 행을 청크 단위로 옮긴다")
+    @DisplayName("V9 스키마를 최신 스키마로 업그레이드하고 V13 근거 행을 청크 단위로 옮긴다")
     @Test
     void migrate_success_v9ToContentImportSchema() throws SQLException {
         // given
@@ -83,8 +83,8 @@ class FlywayMigrationUpgradeIntegrationTest {
         assertThat(v11Result.success).isTrue();
         assertThat(v11Result.migrationsExecuted).isEqualTo(2);
         assertThat(v13Result.migrationsExecuted).isEqualTo(2);
-        // V14(탐색 스키마) + V16(기기 세션, 기획서 5.2 `A6`)
-        assertThat(result.migrationsExecuted).isEqualTo(2);
+        // V14(탐색 스키마) + V16(기기 세션, 기획서 5.2 `A6`) + V17(사용량 계측, 기획서 6.2 `B2`)
+        assertThat(result.migrationsExecuted).isEqualTo(3);
         assertThat(appliedVersions(latestFlyway)).containsExactly(
                 "1",
                 "2",
@@ -98,7 +98,8 @@ class FlywayMigrationUpgradeIntegrationTest {
                 "12",
                 "13",
                 "14",
-                "16"
+                "16",
+                "17"
         );
         assertThat(schemaObjectNames("""
                 SELECT table_name
@@ -148,7 +149,12 @@ class FlywayMigrationUpgradeIntegrationTest {
                 "chk_search_references_rank",
                 "chk_search_references_chunk_index",
                 "chk_search_references_relevance",
-                "chk_chat_messages_generated_by"
+                "chk_chat_messages_generated_by",
+                "chk_chat_messages_input_tokens_not_negative",
+                "chk_chat_messages_output_tokens_not_negative",
+                "chk_chat_messages_cache_read_input_tokens_not_negative",
+                "chk_chat_messages_cache_creation_input_tokens_not_negative",
+                "chk_chat_messages_llm_model_not_blank"
         )
                 .doesNotContain("uk_search_references_message_page");
         assertThat(schemaObjectNames("""
@@ -186,7 +192,14 @@ class FlywayMigrationUpgradeIntegrationTest {
                 WHERE table_schema = 'public'
                     AND table_name = 'chat_messages'
                 ORDER BY ordinal_position
-                """)).contains("generated_by");
+                """)).contains(
+                "generated_by",
+                "llm_model",
+                "input_tokens",
+                "output_tokens",
+                "cache_read_input_tokens",
+                "cache_creation_input_tokens"
+        );
         // V13 근거 행은 chunk_index 0, 기존 메시지는 SERVER로 옮겨진다(로드맵 Q25·Q32)
         assertThat(queryBoolean("""
                 SELECT BOOL_AND(chunk_index = 0)
@@ -194,6 +207,17 @@ class FlywayMigrationUpgradeIntegrationTest {
                 """)).isTrue();
         assertThat(queryBoolean("""
                 SELECT BOOL_AND(generated_by = 'SERVER')
+                FROM chat_messages
+                """)).isTrue();
+        // V16까지의 답변에는 사용량이 없으므로 V17 컬럼은 전부 NULL로 남는다(로드맵 B2)
+        assertThat(queryBoolean("""
+                SELECT BOOL_AND(
+                    llm_model IS NULL
+                        AND input_tokens IS NULL
+                        AND output_tokens IS NULL
+                        AND cache_read_input_tokens IS NULL
+                        AND cache_creation_input_tokens IS NULL
+                )
                 FROM chat_messages
                 """)).isTrue();
         // rank 8과 같은 페이지의 다른 청크는 허용하고 rank 9는 거부한다(기획서 6.4 V14)
