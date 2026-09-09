@@ -55,6 +55,32 @@ export interface KnotDesktopApi {
       handler: (state: "signed-in" | "signed-out") => void,
     ): () => void;
   };
+  /**
+   * CLI 에이전트 연결(기획서 6.4). 데스크톱 전용 연결 안내 화면(`/agent-connection`)이 써요.
+   *
+   * 셸이 띄운 로컬 MCP 서버의 상태를 읽고, 사용자의 CLI(Claude Code·Codex CLI·Gemini CLI)에
+   * 등록할 명령·설정을 클립보드로 복사해요. 연결 토큰 값은 이 API로 내려오지 않고 main이
+   * 클립보드에 직접 쓰므로, 화면에는 토큰을 가린 미리보기(`preview`)만 보여 줍니다.
+   */
+  agent?: {
+    /** 로컬 MCP 서버의 현재 상태. 거절되지 않고 항상 값을 돌려줘요 */
+    getStatus(): Promise<AgentBridgeStatus>;
+    /**
+     * 등록 스니펫(연결 토큰 포함)을 main이 클립보드에 써요. 토큰을 가린 미리보기만 돌려줍니다.
+     * MCP 서버가 꺼져 있어도 동작하고, 클립보드에 쓰지 못했을 때만 거절돼요.
+     */
+    copyRegistration(
+      target: AgentRegistrationTarget,
+    ): Promise<{ preview: string }>;
+    /** 연결 토큰을 다시 발급해요. 기존 CLI 등록은 무효가 되니 다시 복사해 등록해야 해요 */
+    rotateToken(): Promise<void>;
+    /**
+     * MCP 서버 포트를 바꾸고 다시 열어요(앱 재시작 없음). 1024~65535 정수가 아니면 거절돼요.
+     * 포트 충돌은 거절이 아니라 `getStatus()`의 `running: false`·`error`로 드러나요.
+     * 저장·재기동을 시작하면 곧바로 응답하므로, 열렸는지는 잠시(약 1초) 뒤 `getStatus()`로 다시 읽어요.
+     */
+    setPort(port: number): Promise<void>;
+  };
   /** 알림 기능이 붙은 셸에만 있어요 */
   notifications?: {
     show(input: {
@@ -63,6 +89,28 @@ export interface KnotDesktopApi {
       link?: KnotDeepLink;
     }): Promise<void>;
   };
+}
+
+/** 등록 스니펫을 복사할 대상. `skill`은 Knot 스킬(`SKILL.md`) 설치 명령이에요 */
+export type AgentRegistrationTarget =
+  "claude-code" | "codex" | "gemini" | "skill";
+
+/** 로컬 MCP 서버(CLI 에이전트 연결)의 상태 */
+export interface AgentBridgeStatus {
+  /** MCP 서버가 열려 있는가 */
+  running: boolean;
+  /** 서버가 듣는 포트. 기본 47871 */
+  port: number;
+  /** 등록 스니펫에 들어가는 서버 주소. `http://127.0.0.1:<port>/mcp` */
+  url: string;
+  /** 포트 충돌 등 기동 실패 사유. 정상이면 null */
+  error: string | null;
+  /** 연결 토큰 발급 시각(ISO 8601) */
+  tokenIssuedAt: string;
+  /** 마지막 도구 호출 시각(ISO 8601). 아직 없으면 null. CLI가 실제로 붙었는지 확인하는 용도예요 */
+  lastToolCallAt: string | null;
+  /** 앱 리소스 안 `SKILL.md`의 절대 경로. 스킬 설치 명령이 이 파일을 복사해요 */
+  skillPath: string;
 }
 
 declare global {
