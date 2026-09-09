@@ -10,7 +10,9 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 class GlobalExceptionHandlerTest {
 
@@ -62,6 +64,29 @@ class GlobalExceptionHandlerTest {
                 response.getBody()
                         .message()
         ).isEqualTo("워크스페이스 초대 코드 조회 요청이 너무 많습니다");
+    }
+
+    @DisplayName("매핑이 없는 경로는 500이 아니라 404로 답한다")
+    @Test
+    void handleNoResourceFound_success() {
+        // given
+        GlobalExceptionHandler handler = new GlobalExceptionHandler();
+        NoResourceFoundException exception = new NoResourceFoundException(
+                HttpMethod.POST,
+                "/mcp",
+                "/mcp"
+        );
+
+        // when
+        ResponseEntity<ErrorResponse> response = handler.handleNoResourceFound(exception);
+
+        // then
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(
+                response.getBody()
+                        .code()
+        ).isEqualTo(CommonErrorCode.ENDPOINT_NOT_FOUND.getCode());
     }
 
     private static final class RateLimitedProjectException extends ProjectException implements RetryAfterException {

@@ -17,6 +17,7 @@ import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -98,6 +99,15 @@ public class GlobalExceptionHandler {
                 CommonErrorCode.MISSING_PARAMETER,
                 List.of(fieldError)
         );
+    }
+
+    /**
+     * 매핑이 없는 경로. 포괄 {@link Exception} 핸들러가 잡으면 500이 되어 없는 주소가 서버 장애로 보인다(2026-09-09
+     * 관측 — {@code mcp.remote.enabled=false}로 끈 {@code POST /mcp}가 500을 돌려줬다).
+     */
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ErrorResponse> handleNoResourceFound(NoResourceFoundException ignored) {
+        return respond(CommonErrorCode.ENDPOINT_NOT_FOUND);
     }
 
     @ExceptionHandler(Exception.class)

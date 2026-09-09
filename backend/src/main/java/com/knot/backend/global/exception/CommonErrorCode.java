@@ -31,6 +31,12 @@ public enum CommonErrorCode implements ErrorCode {
             "요청 권한이 없습니다"
     ),
 
+    ENDPOINT_NOT_FOUND(
+            ErrorCategory.NOT_FOUND,
+            "ENDPOINT_NOT_FOUND",
+            "요청한 경로를 찾을 수 없습니다"
+    ),
+
     INTERNAL_SERVER_ERROR(
             ErrorCategory.INTERNAL_SERVER_ERROR,
             "INTERNAL_SERVER_ERROR",
