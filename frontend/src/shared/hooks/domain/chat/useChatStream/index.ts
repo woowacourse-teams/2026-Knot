@@ -7,7 +7,11 @@ import useSendChatMessageMutation, {
 import useNavigateToChatSession from "@hooks/domain/chat/useNavigateToChatSession";
 
 /** 서버가 문구를 주지 못했을 때 보여 줄 안내 */
-const SEND_ERROR_MESSAGE = "질문을 보내지 못했어요. 잠시 후 다시 시도해 주세요.";
+const SEND_ERROR_MESSAGE =
+  "질문을 보내지 못했어요. 잠시 후 다시 시도해 주세요.";
+
+/** 데스크톱에서 구독 대신 서버 모델이 답했을 때의 한 줄 안내(기획서 6.5 흐름 5) */
+const SERVER_FALLBACK_NOTICE = "이번 답변은 서버 모델로 생성됐어요.";
 
 interface StartStreamParams {
   /** 답변을 받을 대화 세션 ID */
@@ -24,7 +28,7 @@ interface StartStreamParams {
  * 이 훅을 화면(라우트)이 아니라 그 위에서 부르는 덕에, 첫 질문으로 세션이 생겨 주소가
  * `/chat`에서 `/chat/:sessionId`로 바뀌어도 상태가 이동을 견딥니다.
  *
- * 조각(`delta`)은 뮤테이션이 아니라 여기에 쌓습니다. 
+ * 조각(`delta`)은 뮤테이션이 아니라 여기에 쌓습니다.
  * 뮤테이션은 보내는 중인지, 실패했는지, 끝났는지만 알고, 화면에 그릴 부분 답변은 이 state가 정본입니다.
  */
 const useChatStream = () => {
@@ -122,6 +126,11 @@ const useChatStream = () => {
 
           // 저장본을 이미 받아 둔 뒤라, 여기서 비워야 같은 답변이 두 번 보이지 않습니다
           clearTurn();
+
+          // 데스크톱에서 구독 경로가 폴백된 경우만 알립니다. 브라우저는 늘 서버 모델이라 알릴 것이 없어요
+          if (complete.answeredBy === "server-sse" && window.knotDesktop?.llm) {
+            setNotice(SERVER_FALLBACK_NOTICE);
+          }
         },
         onError: (error) => {
           finishStream();

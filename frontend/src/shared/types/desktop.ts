@@ -81,6 +81,37 @@ export interface KnotDesktopApi {
      */
     setPort(port: number): Promise<void>;
   };
+  /**
+   * 앱 안 구독 탐색(기획서 6.5, 로드맵 트랙 L). 사용자 본인의 Claude 구독으로 앱이 답을 만들어요.
+   *
+   * 구독 토큰은 셸 main에만 있고 여기로는 상태만 내려와요. 로그인은 시스템 브라우저의 claude.ai OAuth이며
+   * 끝나면 resolve, 실패·취소·타임아웃은 reject돼요. 이 객체가 없는 셸·브라우저는 서버 SSE 경로만 써요.
+   */
+  llm?: {
+    /** 구독 로그인 상태. 거절되지 않고 항상 값을 돌려줘요 */
+    getStatus(): Promise<LlmSubscriptionStatus>;
+    /** claude.ai OAuth(시스템 브라우저)로 구독에 로그인해요 */
+    signIn(): Promise<void>;
+    /** 셸에 저장된 구독 자격증명을 지워요. claude.ai 세션 자체는 그대로예요 */
+    signOut(): Promise<void>;
+    /** 로그인·갱신·로그아웃·호출 결과로 상태가 바뀔 때. 돌려주는 함수를 부르면 구독이 끊겨요 */
+    onStatusChanged(
+      handler: (status: LlmSubscriptionStatus) => void,
+    ): () => void;
+    /**
+     * 질문을 사용자 구독으로 스트리밍해요. 셸이 서버 검색 근거로 프롬프트를 만들어 호출하고 답변·출처를
+     * 서버에 저장한 뒤 `complete`를 줘요. 이벤트 모양은 서버 SSE 경로와 같아요.
+     * 돌려주는 함수를 부르면 취소되고, 그 뒤로는 어떤 콜백도 오지 않아요.
+     */
+    streamAnswer(input: LlmStreamInput, on: LlmStreamHandlers): () => void;
+    /** 설정 화면용. 현재 모델·effort와 셸이 허용하는 목록 */
+    getSettings(): Promise<LlmSettingsView>;
+    /** 목록 밖 값이면 거절돼요. 바뀌면 `onStatusChanged`(model)도 와요 */
+    updateSettings(input: {
+      model: string;
+      effort: string;
+    }): Promise<LlmSettingsView>;
+  };
   /** 알림 기능이 붙은 셸에만 있어요 */
   notifications?: {
     show(input: {
@@ -111,6 +142,56 @@ export interface AgentBridgeStatus {
   lastToolCallAt: string | null;
   /** 앱 리소스 안 `SKILL.md`의 절대 경로. 스킬 설치 명령이 이 파일을 복사해요 */
   skillPath: string;
+}
+
+/** `llm.streamAnswer` 입력. ID는 라우트 값이라 문자열이에요 */
+export interface LlmStreamInput {
+  workspaceId: string;
+  sessionId: string;
+  content: string;
+}
+
+/**
+ * `llm.streamAnswer`의 실패. `fallback`이 true면 첫 조각 전의 구독 쪽 실패(미로그인·401·크레딧 소진 등)라
+ * 같은 질문을 서버 SSE 경로로 다시 보내면 돼요. false면 서버 SSE로 보내도 같은 결과예요
+ */
+export interface LlmStreamError {
+  code: string;
+  message: string;
+  fallback: boolean;
+}
+
+/** `llm.streamAnswer` 콜백. 서버 SSE 경로의 chunk·complete·error와 같은 모양이에요 */
+export interface LlmStreamHandlers {
+  chunk(delta: string): void;
+  complete(res: { messageId: number }): void;
+  error(err: LlmStreamError): void;
+}
+
+/** 구독 호출 설정. 고를 수 있는 값은 셸이 줘요 — 화면이 모델 목록을 하드코딩하지 않아요 */
+export interface LlmSettingsView {
+  /** 현재 모델 ID */
+  model: string;
+  /** 현재 effort */
+  effort: string;
+  /** 선택 가능한 모델 ID */
+  models: readonly string[];
+  /** 선택 가능한 effort 값 */
+  efforts: readonly string[];
+}
+
+/** 사용자 Claude 구독 로그인 상태. 토큰 값은 절대 담기지 않아요 */
+export interface LlmSubscriptionStatus {
+  /** 사용자 Claude 구독에 로그인돼 있는가 */
+  signedIn: boolean;
+  /** access 토큰 만료(ISO 8601). 셸이 만료 전에 자동 갱신해요. 로그인 전이면 null */
+  expiresAt: string | null;
+  /** 현재 모델. 기본 `claude-fable-5-1` */
+  model: string;
+  /** 마지막 호출·갱신 오류 코드. 없으면 null */
+  lastError: string | null;
+  /** 마지막 질문이 어느 경로로 응답됐는지. 구독이면 `subscription`, 서버 폴백이면 `server-sse` */
+  lastAnsweredBy: "subscription" | "server-sse" | null;
 }
 
 declare global {
