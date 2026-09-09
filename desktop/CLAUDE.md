@@ -23,7 +23,8 @@ main·preload 프로세스 코드다.
 - `shell.openExternal`은 `https:`·`mailto:`만 받는다.
 - Knot은 **LLM을 호출하지 않는다**(불변 계약 2번, 2026-09-09 개정). main·MCP 서버 프로세스·
   renderer 어디에서도 LLM API를 부르지 않는다. 답변은 사용자의 CLI 코딩 에이전트가 만들고, 이
-  셸은 로컬 MCP 서버의 `search_documents`·`list_workspaces` 도구로 서버 검색 결과만 돌려준다.
+  셸은 로컬 MCP 서버의 `search_documents`·`list_workspaces` 도구로 서버 검색 결과만 돌려주고, `show_answer`(`S10`)는
+  에이전트가 이미 만든 답변을 서버에 저장해 앱 화면에 보여 줄 뿐 답을 만들지 않는다.
   도구 실행(서버 API 호출)은 main만 하며 MCP 서버 프로세스는 서버 액세스 토큰을 모른다.
   서버 액세스 토큰·연결 토큰은 main 밖(renderer·MCP 프로세스·도구 결과·로그)으로 내지 않는다.
 - Knot은 **어떤 LLM 자격증명도 저장·중개·요구하지 않고, CLI 바이너리를 실행·동봉·변경하지
@@ -41,15 +42,14 @@ main·preload 프로세스 코드다.
 | 위치 | 책임 |
 | --- | --- |
 | `src/main/` | 창·메뉴·네비게이션 정책·IPC·로그. Node 환경 |
-| `src/main/chat/` | `knotApi.ts`(Bearer 서버 API 클라이언트)는 `S8`이 도구 실행에 재사용한다. `prompt.ts`·`chatService.ts`는 폐기된 `S3` 잔재라 `S8`에서 지운다 |
-| `src/main/llm/` | 폐기된 `S3` 잔재(사용자 LLM 클라이언트·설정·SSE 파서). `S8`에서 디렉터리째 지운다. 새 코드를 넣지 않는다 |
-| `src/main/agent/` (예정, `S8`) | main 쪽 브리지: `utilityProcess` 기동·`MessagePort` 왕복·연결 토큰(`agent-bridge.json`)·도구 실행(서버 API 호출)·preload `agent` API 핸들러 |
-| `src/mcp/index.ts` (예정, `S8`) | `utilityProcess` 엔트리. `@modelcontextprotocol/sdk` Streamable HTTP 서버(`127.0.0.1:47871/mcp`), Origin/Host/토큰 검사, 도구 정의. 서버 액세스 토큰을 받지 않는다 |
-| `resources/skills/knot/SKILL.md` (예정, `S9`) | Knot 스킬. Agent Skills 표준 필드만(로드맵 Q50). 앱은 사용자 홈에 자동으로 쓰지 않고 설정 화면이 복사 명령을 보여 준다 |
+| `src/main/chat/` | `knotApi.ts`(Bearer 서버 API 클라이언트 — 워크스페이스 목록·Workspace 검색·세션 생성·턴 저장). `S8`·`S10`의 도구 실행이 쓴다. 폐기된 `S3` 잔재(`prompt`·`chatService`·`src/main/llm/`)는 2026-09-09 제거했고 `test/s3Residue.test.ts`가 다시 생기지 않게 지킨다 |
+| `src/main/agent/` (`S8`) | main 쪽 브리지: `bridge.ts`(`utilityProcess` 기동·`MessageChannelMain`·클립보드, Electron 접착), `bridgeCore.ts`(`MessagePort` 왕복·동시 4개·로그 필드 제한), `bridgeConfig.ts`(`agent-bridge.json` 0600·연결 토큰·포트), `toolExecutor.ts`(도구 입력 재검사·서버 호출·결과 조립. `show_answer`는 세션 생성 → 턴 저장 → `presentAnswer` 콜백 순), `registration.ts`(세 CLI 스니펫·스킬 설치 명령·토큰 가림), `instructions.ts`(MCP `instructions`). 순수 로직은 Electron을 import 하지 않아 vitest로 검증한다 |
+| `src/mcp/` (`S8`) | `utilityProcess` 엔트리 `index.ts`(parentPort `start` 메시지 수신) + `server.ts`(`@modelcontextprotocol/sdk` 무상태 Streamable HTTP, `127.0.0.1:<port>/mcp`, 도구 정의 3개 — `list_workspaces`·`search_documents`·`show_answer`) + `guard.ts`(Origin 있으면 403·Host·Bearer 연결 토큰) + `portRequester.ts`(main 위임·35초 타임아웃). 서버 액세스 토큰을 받지 않고 LLM을 부르지 않는다 |
+| `resources/skills/knot/SKILL.md` (Q50) | Knot 스킬. Agent Skills 표준 필드만. 앱 시작 시 `userData/skills/knot/SKILL.md`로 복사해 두고, 사용자 홈(`~/.claude/skills`·`~/.agents/skills`)에는 자동으로 쓰지 않는다 — 메뉴·연결 안내 화면이 `cp` 명령을 복사해 준다 |
 | `src/preload/` | `contextBridge`로 `window.knotDesktop` 노출. **CJS 단일 번들**(sandbox preload는 ESM 불가) |
 | `src/shared/api.ts` | preload 계약. 웹 SPA가 **복사**해 쓰므로 다른 파일을 import 하지 않는다 |
 | `src/shared/env.ts` | 오리진 표(기획서 4.5). 허용 목록의 근거 |
-| `test/` | vitest. main의 순수 함수만 — `electron`은 `vi.mock`한다 |
+| `test/` | vitest. main의 순수 함수와 `src/mcp`(실제 HTTP + 공식 SDK 클라이언트) — `electron`·`electron-log`는 `vi.mock`한다. `helpers/portPair.ts`가 `MessagePortMain` 한 쌍을 흉내 낸다 |
 
 `renderer/`는 없다. 원격 로드이므로 renderer 빌드가 없고 `resources/offline.html`만 로컬이다.
 

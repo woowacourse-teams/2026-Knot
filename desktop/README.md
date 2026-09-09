@@ -14,8 +14,8 @@
 
 ## 현재 범위
 
-로드맵 `A1`(데스크톱 스파이크, 기획서 7절 P0) + `C3`(토큰 저장)까지다. `S3`(탐색 IPC·사용자 LLM
-클라이언트)은 구현됐다가 2026-09-08 폐기됐고, 그 코드는 `S8`(로컬 MCP 서버)에서 제거한다. 그 위에
+로드맵 `A1`(데스크톱 스파이크, 기획서 7절 P0) + `C3`(토큰 저장) + `S8`(로컬 MCP 서버, 2026-09-09) + `S10`(`show_answer` 도구, 2026-09-09)까지다.
+`S3`(탐색 IPC·사용자 LLM 클라이언트)은 구현됐다가 2026-09-08 폐기됐고 `S8`에서 코드를 지웠다. 그 위에
 새 기능을 얹지 않는다.
 
 | 있음 | 없음(담당 작업) |
@@ -25,15 +25,30 @@
 | 세션 권한 정책, IPC sender 검증 | 트레이·퀵 질문 창 (`A9`) |
 | 메뉴, 외부 링크, 오프라인 화면, 파일 로그 | 디바이스 토큰 인증 (`A6`·`A7`) |
 | 액세스 토큰 `safeStorage` 저장(`auth.bin`) | 서명·공증·DMG·Squirrel·릴리스 (`A3`) |
-| 폐기된 `S3` 잔재: 탐색 IPC `chat.ask`, 사용자 LLM 설정 `llm.*`, `src/main/llm/`(제거 예정) | 창 상태 복원, crashReporter (`A2`) |
-| 서버 API 클라이언트(`src/main/chat/knotApi.ts`, Bearer) — `S8`이 도구 실행에 재사용 | 로컬 MCP 서버·연결 토큰·`search_documents`·`list_workspaces` 도구·preload `agent` API (`S8`) |
-| | Knot 스킬·세 CLI 등록 스니펫·연결 안내 화면 (`S9`), `show_answer` 도구 (`S10`) |
-| | 서버 Workspace 검색 API (`S7`), 턴 저장 API (`S2`) |
+| 로컬 MCP 서버(`utilityProcess`, `127.0.0.1:47871/mcp`)·연결 토큰(`agent-bridge.json`)·`search_documents`·`list_workspaces` 도구·preload `agent` API (`S8`) | 창 상태 복원, crashReporter (`A2`) |
+| `show_answer` 도구(`S10`) — 에이전트 답변·근거를 세션에 저장하고 창을 앞으로 가져와 `knot:deep-link`로 그 대화를 연다 | 턴 저장 API (`S2`, backend)·SPA의 딥링크 구독(로드맵 U32) |
+| 서버 API 클라이언트(`src/main/chat/knotApi.ts`, Bearer — 워크스페이스 목록·Workspace 검색·세션 생성·턴 저장) | |
+| Knot 스킬(`resources/skills/knot/SKILL.md`), 세 CLI 등록 스니펫 복사(메뉴 `CLI 에이전트 연결`) | 연결 안내 화면은 웹 SPA `/agent-connection`(`S9`, frontend) |
 
-로컬 MCP 서버(`S8` 구현 후)는 `http://127.0.0.1:47871/mcp`(Streamable HTTP, 로드맵 Q47)에서 듣고,
-연결 설정은 `~/Library/Application Support/Knot/agent-bridge.json`(포트·연결 토큰, 로드맵 Q48)에 둔다.
-서버 액세스 토큰·연결 토큰·질문·검색 결과 본문은 로그와 도구 결과에 남기지 않는다. 폐기된 `S3`가
-만들던 `llm-settings.json`·`llm-key.bin`은 `S8`에서 코드와 함께 없앤다.
+로컬 MCP 서버는 앱이 켜져 있는 동안 `http://127.0.0.1:47871/mcp`(Streamable HTTP, 로드맵 Q47)에서 듣고,
+연결 설정은 `~/Library/Application Support/Knot/agent-bridge.json`(포트·연결 토큰, 0600, 로드맵 Q48)에 둔다.
+`Origin` 헤더가 있는 요청과 연결 토큰이 없거나 다른 요청은 거부한다. 서버 액세스 토큰·연결 토큰·질문·검색
+결과 본문은 로그와 도구 결과에 남기지 않는다. 폐기된 `S3`가 만들던 `llm-settings.json`·`llm-key.bin`은
+앱 시작 시 지운다.
+
+### CLI 에이전트 연결 (Claude Code 예)
+
+1. 앱 메뉴 **CLI 에이전트 연결 → Claude Code 등록 명령 복사**를 누르고 터미널에 붙여 넣는다
+   (`claude mcp add --transport http knot http://127.0.0.1:47871/mcp --header "Authorization: Bearer <연결 토큰>"`).
+   Codex CLI는 `~/.codex/config.toml` 스니펫, Gemini CLI는 `gemini mcp add` 명령을 같은 메뉴에서 복사한다.
+2. **Knot 스킬 설치 명령 복사**로 `SKILL.md`를 `~/.claude/skills/knot/`·`~/.agents/skills/knot/`에 복사한다.
+3. `claude mcp list`에 `knot … ✔ Connected`가 보이면 터미널에서 팀 문서 질문을 한다. 앱에 로그인돼 있지 않으면
+   도구가 `UNAUTHENTICATED: Knot 앱에 로그인하세요`를 돌려준다.
+4. 답을 앱에서 보고 싶으면 "Knot 앱에서 보여줘"라고 말한다. 에이전트가 `show_answer`로 질문·답변·근거를 저장하면
+   앱 창이 앞으로 오고 그 대화가 열린다(웹 SPA의 딥링크 구독이 붙기 전까지는 창만 앞으로 온다 — 로드맵 U32).
+
+**연결 토큰 재발급**을 하면 기존 등록은 무효가 되므로 1번을 다시 한다. 2026-09-09 이 PC의 Claude Code 2.1.263으로
+등록·도구 호출 왕복까지 실측했다(로드맵 4.5절 `S8` 실측).
 
 ## 개발
 
