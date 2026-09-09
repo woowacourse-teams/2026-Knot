@@ -75,6 +75,7 @@ class ChatMessageSourceQueryApiDocumentationAcceptanceTest {
                 .andExpect(jsonPath("$.components.schemas.SearchReferenceResponse.properties.id").exists())
                 .andExpect(jsonPath("$.components.schemas.SearchReferenceResponse.properties.messageId").exists())
                 .andExpect(jsonPath("$.components.schemas.SearchReferenceResponse.properties.rank").exists())
+                .andExpect(jsonPath("$.components.schemas.SearchReferenceResponse.properties.chunkIndex").exists())
                 .andExpect(jsonPath("$.components.schemas.SearchReferenceResponse.properties.relevanceScore").exists())
                 .andExpect(jsonPath("$.components.schemas.SearchReferenceResponse.properties.source").exists())
                 .andExpect(jsonPath("$.components.schemas.SearchReferenceResponse.properties.notionPage").exists())

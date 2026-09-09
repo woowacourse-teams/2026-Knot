@@ -9,6 +9,7 @@ public record SearchReferenceResponse(
         @Schema(description = "검색 출처 ID", example = "1") long id,
         @Schema(description = "출처가 연결된 메시지 ID", example = "102") long messageId,
         @Schema(description = "메시지 내 관련도 순위", example = "1") int rank,
+        @Schema(description = "출처 페이지 안의 청크 순번(0부터). V14 이전에 저장된 근거는 0", example = "2") int chunkIndex,
         @Schema(description = "검색 관련도 점수", example = "0.9472") double relevanceScore,
         @Schema(description = "출처 제공자", example = "NOTION") ContentSourceProvider source,
         @Schema(description = "원본 출처 문서") NotionPageReferenceResponse notionPage
@@ -20,6 +21,7 @@ public record SearchReferenceResponse(
                 reference.id(),
                 reference.messageId(),
                 reference.rank(),
+                reference.chunkIndex(),
                 reference.relevanceScore(),
                 reference.source(),
                 new NotionPageReferenceResponse(

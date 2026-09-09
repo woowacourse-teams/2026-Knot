@@ -94,6 +94,7 @@ class ChatMessageSourceQueryAcceptanceTest {
                 .andExpect(jsonPath("$.searchReferences[0].id").isNumber())
                 .andExpect(jsonPath("$.searchReferences[0].messageId").value(fixture.messageId()))
                 .andExpect(jsonPath("$.searchReferences[0].rank").value(1))
+                .andExpect(jsonPath("$.searchReferences[0].chunkIndex").value(0))
                 .andExpect(jsonPath("$.searchReferences[0].relevanceScore").value(0.9472))
                 .andExpect(jsonPath("$.searchReferences[0].source").value("NOTION"))
                 .andExpect(jsonPath("$.searchReferences[0].notionPage.id").value("notion-page-1"))
@@ -105,6 +106,7 @@ class ChatMessageSourceQueryAcceptanceTest {
                 .andExpect(jsonPath("$.searchReferences[0].notionPage.createdAt").value("2026-08-30T00:00:00Z"))
                 .andExpect(jsonPath("$.searchReferences[0].notionPage.updatedAt").value("2026-08-30T01:00:00Z"))
                 .andExpect(jsonPath("$.searchReferences[1].rank").value(2))
+                .andExpect(jsonPath("$.searchReferences[1].chunkIndex").value(3))
                 .andExpect(jsonPath("$.searchReferences[1].relevanceScore").value(0.8))
                 .andExpect(jsonPath("$.searchReferences[1].notionPage.id").value("notion-page-2"));
     }
@@ -457,7 +459,7 @@ class ChatMessageSourceQueryAcceptanceTest {
                 ) VALUES (
                     :messageId, :workspaceId, :importRunId, :importedPageId, 1, 0, 0.9472
                 ), (
-                    :messageId, :workspaceId, :importRunId, :secondImportedPageId, 2, 0, 0.8
+                    :messageId, :workspaceId, :importRunId, :secondImportedPageId, 2, 3, 0.8
                 )
                 """)
                 .param(
