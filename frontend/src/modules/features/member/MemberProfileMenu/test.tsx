@@ -22,6 +22,8 @@ import MemberProfileMenu from ".";
 const LOGIN_SCREEN_TEXT = "로그인 화면";
 const AGENT_CONNECTION_SCREEN_TEXT = "CLI 에이전트 연결 화면";
 const AGENT_MENU_ITEM = "CLI 에이전트 연결";
+const CLAUDE_SUBSCRIPTION_SCREEN_TEXT = "Claude 구독 화면";
+const CLAUDE_SUBSCRIPTION_MENU_ITEM = "Claude 구독";
 
 /** 로컬 MCP 서버를 띄우는 데스크톱 셸을 흉내 내요. `agent`가 있어야 연결 항목이 보여요 */
 const stubDesktopWithAgent = () => {
@@ -41,6 +43,27 @@ const stubDesktopWithAgent = () => {
   };
 };
 
+/** 사용자 구독으로 답하는 데스크톱 셸을 흉내 내요. `llm`이 있어야 구독 항목이 보여요 */
+const stubDesktopWithLlm = () => {
+  window.knotDesktop = {
+    version: "0.1.0",
+    platform: "darwin",
+    env: "local",
+    openExternal: vi.fn(() => Promise.resolve()),
+    onDeepLink: vi.fn(() => () => undefined),
+    getPendingDeepLink: vi.fn(() => Promise.resolve(null)),
+    llm: {
+      getStatus: vi.fn(),
+      signIn: vi.fn(),
+      signOut: vi.fn(),
+      onStatusChanged: vi.fn(() => () => undefined),
+      streamAnswer: vi.fn(() => () => undefined),
+      getSettings: vi.fn(),
+      updateSettings: vi.fn(),
+    },
+  };
+};
+
 const expectedMe = new GetMeResponseDto(meResponse);
 
 const renderMenu = () => {
@@ -54,6 +77,10 @@ const renderMenu = () => {
       {
         path: PATH_ROUTE.AGENT_CONNECTION,
         element: <p>{AGENT_CONNECTION_SCREEN_TEXT}</p>,
+      },
+      {
+        path: PATH_ROUTE.CLAUDE_SUBSCRIPTION,
+        element: <p>{CLAUDE_SUBSCRIPTION_SCREEN_TEXT}</p>,
       },
     ],
     { initialEntries: [PATH_ROUTE.HOME] },
@@ -134,6 +161,35 @@ describe("MemberProfileMenu", () => {
       expect(router.state.location.pathname).toBe(PATH_ROUTE.AGENT_CONNECTION);
     });
     expect(screen.getByText(AGENT_CONNECTION_SCREEN_TEXT)).toBeInTheDocument();
+  });
+
+  it("브라우저에서는 Claude 구독 항목이 없다", () => {
+    const { trigger } = renderMenu();
+
+    openMenu(trigger);
+
+    expect(
+      screen.queryByRole("menuitem", { name: CLAUDE_SUBSCRIPTION_MENU_ITEM }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("데스크톱 셸에서는 Claude 구독 항목이 보이고, 누르면 구독 화면으로 옮긴다", async () => {
+    stubDesktopWithLlm();
+    const { router, trigger } = renderMenu();
+
+    openMenu(trigger);
+    fireEvent.click(
+      screen.getByRole("menuitem", { name: CLAUDE_SUBSCRIPTION_MENU_ITEM }),
+    );
+
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe(
+        PATH_ROUTE.CLAUDE_SUBSCRIPTION,
+      );
+    });
+    expect(
+      screen.getByText(CLAUDE_SUBSCRIPTION_SCREEN_TEXT),
+    ).toBeInTheDocument();
   });
 
   it("메뉴 바깥을 누르면 닫힌다", () => {

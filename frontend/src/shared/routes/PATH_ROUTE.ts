@@ -24,6 +24,9 @@ export const PATH_ROUTE = {
   /** 데스크톱 전용. 로컬 MCP 서버 상태와 CLI 등록 스니펫을 보여 줘요 */
   AGENT_CONNECTION: "/agent-connection",
 
+  /** 데스크톱 전용. 내 Claude 구독 로그인과 모델 설정을 다뤄요 */
+  CLAUDE_SUBSCRIPTION: "/claude-subscription",
+
   JOIN_ERROR: "/join-error",
 } as const;
 

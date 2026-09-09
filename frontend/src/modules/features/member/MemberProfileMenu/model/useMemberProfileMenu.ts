@@ -2,6 +2,7 @@ import useDesktop from "@hooks/common/useDesktop";
 import useOutsideClick from "@hooks/common/useOutsideClick";
 import useNavigateToAgentConnection from "@hooks/domain/agent/useNavigateToAgentConnection";
 import useLogout from "@hooks/domain/auth/useLogout";
+import useNavigateToClaudeSubscription from "@hooks/domain/llm/useNavigateToClaudeSubscription";
 import { useState } from "react";
 
 /**
@@ -13,14 +14,17 @@ import { useState } from "react";
  * 메뉴는 바깥을 누르면 닫혀요. 열려 있는 동안에만 바깥 클릭을 봅니다.
  *
  * `CLI 에이전트 연결` 항목은 로컬 MCP 서버를 띄우는 데스크톱 셸(`knotDesktop.agent`)에서만
- * 뜻이 있어 그때만 보여 줘요(기획서 6.4).
+ * 뜻이 있어 그때만 보여 줘요(기획서 6.4). `Claude 구독` 항목도 같은 이유로 `knotDesktop.llm`이
+ * 있을 때만 보여요(기획서 6.5).
  */
 const useMemberProfileMenu = () => {
   const [isOpen, setIsOpen] = useState(false);
   const { logout, isLoggingOut } = useLogout();
   const { desktopApi } = useDesktop();
   const { navigateToAgentConnection } = useNavigateToAgentConnection();
+  const { navigateToClaudeSubscription } = useNavigateToClaudeSubscription();
   const hasAgentConnection = desktopApi?.agent !== undefined;
+  const hasClaudeSubscription = desktopApi?.llm !== undefined;
 
   const { ref: containerRef } = useOutsideClick<HTMLDivElement>({
     isEnabled: isOpen,
@@ -34,6 +38,11 @@ const useMemberProfileMenu = () => {
     navigateToAgentConnection();
   };
 
+  const goToClaudeSubscription = () => {
+    setIsOpen(false);
+    navigateToClaudeSubscription();
+  };
+
   return {
     isOpen,
     toggleMenu,
@@ -42,6 +51,8 @@ const useMemberProfileMenu = () => {
     isLoggingOut,
     hasAgentConnection,
     goToAgentConnection,
+    hasClaudeSubscription,
+    goToClaudeSubscription,
   };
 };
 

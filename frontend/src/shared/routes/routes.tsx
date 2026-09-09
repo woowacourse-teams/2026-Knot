@@ -1,4 +1,5 @@
 import AgentConnectionPage from "@pages/agent-connection";
+import ClaudeSubscriptionPage from "@pages/claude-subscription";
 import CenteredLayout from "@pages/_layout/CenteredLayout";
 import WorkspaceLayout from "@pages/_layout/WorkspaceLayout";
 import InvitePage from "@pages/invite/[token]";
@@ -111,6 +112,10 @@ export const router = createBrowserRouter([
               {
                 path: PATH_ROUTE.AGENT_CONNECTION,
                 element: <AgentConnectionPage />,
+              },
+              {
+                path: PATH_ROUTE.CLAUDE_SUBSCRIPTION,
+                element: <ClaudeSubscriptionPage />,
               },
             ],
           },
