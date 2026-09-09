@@ -64,6 +64,36 @@ public enum AuthErrorCode implements ErrorCode {
             ErrorCategory.CONFLICT,
             "NICKNAME_SETUP_ALREADY_COMPLETED",
             "이미 닉네임 설정이 완료된 사용자입니다"
+    ),
+
+    DEVICE_LOGIN_REQUEST_INVALID(
+            ErrorCategory.INVALID_INPUT,
+            "DEVICE_LOGIN_REQUEST_INVALID",
+            "데스크톱 로그인 요청 파라미터가 올바르지 않습니다"
+    ),
+
+    DEVICE_CODE_INVALID(
+            ErrorCategory.INVALID_INPUT,
+            "DEVICE_CODE_INVALID",
+            "디바이스 코드가 유효하지 않습니다"
+    ),
+
+    INVALID_DEVICE_INFO(
+            ErrorCategory.INVALID_INPUT,
+            "INVALID_DEVICE_INFO",
+            "기기 정보가 올바르지 않습니다"
+    ),
+
+    REFRESH_TOKEN_INVALID(
+            ErrorCategory.UNAUTHORIZED,
+            "REFRESH_TOKEN_INVALID",
+            "리프레시 토큰이 유효하지 않습니다"
+    ),
+
+    DEVICE_SESSION_NOT_FOUND(
+            ErrorCategory.NOT_FOUND,
+            "DEVICE_SESSION_NOT_FOUND",
+            "기기 세션을 찾을 수 없습니다"
     );
 
     private final ErrorCategory category;
