@@ -2,6 +2,7 @@ package com.knot.backend.auth.presentation.handler;
 
 import com.knot.backend.auth.domain.AuthErrorCode;
 import com.knot.backend.auth.domain.AuthException;
+import com.knot.backend.auth.infrastructure.oauth.StashingAuthorizationRequestRepository;
 import com.knot.backend.global.config.OAuth2LoginProperties;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -15,6 +16,9 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.stereotype.Component;
 
+/**
+ * OAuth 실패를 안전한 리다이렉트로 바꾼다. 데스크톱 로그인(기획서 5.2)이면 앱이 기다리는 loopback·딥링크로 `error`를 보낸다.
+ */
 @Component
 public class OAuth2AuthenticationFailureHandler implements AuthenticationFailureHandler {
     private static final Logger log = LoggerFactory.getLogger(OAuth2AuthenticationFailureHandler.class);
@@ -54,8 +58,11 @@ public class OAuth2AuthenticationFailureHandler implements AuthenticationFailure
             HttpServletRequest request,
             HttpServletResponse response
     ) throws IOException {
+        String redirectUri = StashingAuthorizationRequestRepository.findDeviceLogin(request)
+                .map(DeviceLoginRedirects::failure)
+                .orElseGet(loginProperties::getFailureRedirectUri);
         clearAuthentication(request);
-        response.sendRedirect(loginProperties.getFailureRedirectUri());
+        response.sendRedirect(redirectUri);
     }
 
     public void clearAuthentication(HttpServletRequest request) {

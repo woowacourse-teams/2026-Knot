@@ -1,6 +1,7 @@
 package com.knot.backend.auth.presentation;
 
 import com.knot.backend.auth.application.AuthService;
+import com.knot.backend.auth.application.DeviceAuthService;
 import com.knot.backend.auth.application.dto.command.CompleteNicknameCommand;
 import com.knot.backend.auth.domain.AuthenticatedMember;
 import com.knot.backend.auth.infrastructure.jwt.BearerTokenResolver;
@@ -27,6 +28,7 @@ import org.springframework.web.bind.annotation.RestController;
 @Tag(name = "인증", description = "회원가입, 로그인, 리프레쉬, 로그아웃, 확인")
 public class AuthController {
     private final AuthService authService;
+    private final DeviceAuthService deviceAuthService;
     private final JwtProperties jwtProperties;
 
     @GetMapping("/me")
@@ -62,10 +64,16 @@ public class AuthController {
      * 로그아웃 훅.
      *
      * 자격증명이 클라이언트 저장소에만 있으므로 실제 로그아웃은 클라이언트가 토큰을 지우는 것이다(기획서 5.1). 서버는 204만 돌려주며,
-     * 2단계(`A6`) 디바이스 세션 폐기가 붙을 자리다.
+     * 데스크톱 디바이스 토큰(`sid`)으로 왔으면 그 기기 세션을 함께 폐기해 리프레시 토큰도 무효로 만든다(기획서 5.2, `A6`).
      */
     @PostMapping("/logout")
-    public ResponseEntity<Void> logout() {
+    public ResponseEntity<Void> logout(@AuthenticationPrincipal AuthenticatedMember authenticatedMember) {
+        if (authenticatedMember != null && authenticatedMember.isDeviceSession()) {
+            deviceAuthService.revokeSession(
+                    authenticatedMember.getDeviceSessionId(),
+                    authenticatedMember.getMemberId()
+            );
+        }
         return ResponseEntity.noContent()
                 .build();
     }

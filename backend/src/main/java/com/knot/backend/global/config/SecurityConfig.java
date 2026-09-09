@@ -4,6 +4,8 @@ import com.knot.backend.auth.domain.AuthErrorCode;
 import com.knot.backend.auth.domain.AuthException;
 import com.knot.backend.auth.infrastructure.github.GithubOAuth2UserService;
 import com.knot.backend.auth.infrastructure.jwt.JwtAuthenticationFilter;
+import com.knot.backend.auth.infrastructure.oauth.DesktopOAuth2AuthorizationRequestResolver;
+import com.knot.backend.auth.infrastructure.oauth.StashingAuthorizationRequestRepository;
 import com.knot.backend.auth.presentation.handler.AuthAccessDeniedHandler;
 import com.knot.backend.auth.presentation.handler.AuthAuthenticationEntryPoint;
 import com.knot.backend.auth.presentation.handler.OAuth2AuthenticationFailureHandler;
@@ -28,13 +30,15 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 @Configuration
 @EnableWebSecurity
 @EnableConfigurationProperties({JwtProperties.class, OAuth2LoginProperties.class, CorsProperties.class,
-        ApiDocumentationProperties.class})
+        ApiDocumentationProperties.class, DeviceAuthProperties.class})
 @RequiredArgsConstructor
 public class SecurityConfig {
     private final GithubOAuth2UserService githubOAuth2UserService;
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final OAuth2AuthenticationSuccessHandler successHandler;
     private final OAuth2AuthenticationFailureHandler failureHandler;
+    private final DesktopOAuth2AuthorizationRequestResolver authorizationRequestResolver;
+    private final StashingAuthorizationRequestRepository authorizationRequestRepository;
     private final AuthAuthenticationEntryPoint authenticationEntryPoint;
     private final AuthAccessDeniedHandler accessDeniedHandler;
     private final CorsProperties corsProperties;
@@ -55,6 +59,8 @@ public class SecurityConfig {
                         HttpMethod.GET.name(),
                         HttpMethod.POST.name(),
                         HttpMethod.PUT.name(),
+                        // 기기 세션 폐기(원격 로그아웃)를 웹에서 쓴다(기획서 5.2 계약 표, 13절)
+                        HttpMethod.DELETE.name(),
                         HttpMethod.OPTIONS.name()
                 )
         );
@@ -100,6 +106,10 @@ public class SecurityConfig {
                             "/login/**",
                             "/api/v1/auth/nickname",
                             "/api/v1/auth/logout",
+                            // 데스크톱 디바이스 토큰 교환·갱신·폐기는 자격증명이 본문에 있다(기획서 5.2)
+                            "/api/v1/auth/device/token",
+                            "/api/v1/auth/device/refresh",
+                            "/api/v1/auth/device/revoke",
                             "/actuator/health",
                             "/error"
                     )
@@ -122,6 +132,12 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
                 .oauth2Login(
                         oauth2 -> oauth2.userInfoEndpoint(userInfo -> userInfo.userService(githubOAuth2UserService))
+                                // client=desktop 파라미터를 인가 요청에 보관하고 콜백에서 핸들러에 넘긴다(기획서 5.2)
+                                .authorizationEndpoint(
+                                        endpoint -> endpoint
+                                                .authorizationRequestResolver(authorizationRequestResolver)
+                                                .authorizationRequestRepository(authorizationRequestRepository)
+                                )
                                 .successHandler(successHandler)
                                 .failureHandler(failureHandler)
                 )
