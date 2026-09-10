@@ -77,7 +77,8 @@ describe("DeepLinkListener", () => {
     await waitFor(() => {
       expect(router.state.location.pathname).toBe("/workspace/7/chat/42");
     });
-    expect(screen.getByText("대화")).toBeInTheDocument();
+    // 라우터 상태가 먼저 바뀌고 화면은 다음 렌더에 그려져요. 동기 조회는 한 번씩 비어 플레이크가 났어요
+    expect(await screen.findByText("대화")).toBeInTheDocument();
   });
 
   it("세션 없는 채팅 딥링크는 새 대화 화면으로, 초대 딥링크는 초대 판정 화면으로 옮긴다", async () => {
