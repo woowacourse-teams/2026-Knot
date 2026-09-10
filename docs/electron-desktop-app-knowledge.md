@@ -979,6 +979,7 @@ anthropic-dangerous-direct-browser-access: true
 ```
 
 - `anthropic-beta`의 두 값이 함께 있어야 구독 OAuth 토큰이 Messages API에서 받아들여진다(Aside가 provider `claude-code`일 때만 이 두 값을 붙이고, API 키 경로에서는 붙이지 않는다).
+- [실측 2026-09-10, Knot 데스크톱 `L2`] 위 헤더 여섯 개가 다 있어도 요청 본문 `system`의 첫 블록이 `You are Claude Code, Anthropic's official CLI for Claude.`가 아니면 `429 {"type":"rate_limit_error","message":"Error"}`로 거절된다(모델 `claude-fable-5-1`·`claude-sonnet-5` 모두, curl 재현). `system`을 배열로 보내고 첫 블록에 이 문장을 두면 200이다. 실제 사용량 한도의 429와 상태·타입이 같으므로 본문 `message`로 구분한다.
 - 사용량 조회는 별도 엔드포인트(`CLAUDE_CODE_USAGE_URL`, 헤더 `anthropic-beta: oauth-2025-04-20`)로 한다 — 크레딧 잔량 표시(`L3`)에 쓸 수 있다.
 - 스트리밍 이벤트 파싱은 §6.4(SSE `content_block_delta.text_delta` → `message_stop`)와 같다. 백엔드 어댑터(`B1`)가 이미 같은 파서를 쓴다.
 

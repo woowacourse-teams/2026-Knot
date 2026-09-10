@@ -544,7 +544,7 @@ sequenceDiagram
     M->>S: POST /workspaces/{id}/search (Bearer JWT, S7 — 저장 없음)
     S-->>M: {status, groundingRules, chunks[≤8]}
     M->>S: GET /conversations/{id} (히스토리)
-    Note over M: system = groundingRules + 근거 블록, messages = 히스토리(최근 4개·4,000자) + 질문
+    Note over M: system = [Claude Code 식별 문장, groundingRules + 근거 블록], messages = 히스토리(최근 4개·4,000자) + 질문
     M->>A: POST /v1/messages (stream, Authorization: Bearer <구독 oat>)
     A-->>M: SSE content_block_delta …
     M-->>R: chunk {delta} … complete {messageId}
@@ -556,7 +556,7 @@ sequenceDiagram
 
 1. 사용자가 앱 채팅창에 질문한다. renderer가 `window.knotDesktop.llm.streamAnswer({workspaceId, sessionId, content})`를 부른다(웹 브라우저에는 이 객체가 없어 기존 서버 SSE 경로를 쓴다). `workspaceId`는 화면 라우트(`/workspace/:id/chat/:sessionId`)의 값이다 — 세션에서 Workspace를 되찾는 서버 API가 없어 renderer가 넘긴다(로드맵 Q65).
 2. main이 **Workspace 검색 API**(`POST /api/v1/workspaces/{workspaceId}/search`, `S7` — 저장·턴 검사 없음)를 저장된 Bearer JWT로 호출해 `groundingRules` + 청크 ≤8을 받는다. 세션 검색 `S1`을 쓰지 않는 이유(2026-09-09 정정, 로드맵 Q65): `S1`은 READY일 때 USER 메시지를 저장하므로 그 뒤 턴 저장 `S2`가 진행 중 턴 검사(`ChatTurnGuard`)에 걸려 409 `CHAT_TURN_IN_PROGRESS`를 낸다 — 이 절의 2026-09-10 초안(S1 → S2)은 성립하지 않았다. 검색 질의는 `S7` 계약대로 현재 질문만이다(후속 질문 문맥은 아래 3의 `messages` 히스토리가 맡는다). `NO_RESULT`·`NEEDS_CLARIFICATION`이면 서버의 `fallbackAnswer`를 그대로 `chunk`로 흘리고 턴 API(`S2`, `references: []`)로 저장한 뒤 끝낸다(모델 호출 없음).
-3. main이 `GET /api/v1/conversations/{sessionId}`로 히스토리를 읽어(마지막 4개·4,000자, 로드맵 Q62) `system` = `groundingRules` + `[근거 문서 n]` 블록(현행 `SearchContext.groundingPrompt`와 같은 형식), `messages` = 히스토리 + 이번 질문으로 요청을 만들고, `safeStorage`의 사용자 구독 토큰으로 `POST https://api.anthropic.com/v1/messages`(`stream:true`)를 호출한다(헤더·모델은 로드맵 Q61·Q62). SSE `content_block_delta.text_delta`를 preload `chunk {delta}` 이벤트로 renderer에 흘린다.
+3. main이 `GET /api/v1/conversations/{sessionId}`로 히스토리를 읽어(마지막 4개·4,000자, 로드맵 Q62) `system` = 배열 두 블록 — 첫 블록은 Claude Code 식별 문장 `You are Claude Code, Anthropic's official CLI for Claude.`(2026-09-10 실측: 이 블록이 없으면 헤더가 다 있어도 Anthropic이 `429 rate_limit_error {message: "Error"}`로 거절한다, 로드맵 Q61 c), 둘째 블록은 `groundingRules` + `[근거 문서 n]` 블록(현행 `SearchContext.groundingPrompt`와 같은 형식) — `messages` = 히스토리 + 이번 질문으로 요청을 만들고, `safeStorage`의 사용자 구독 토큰으로 `POST https://api.anthropic.com/v1/messages`(`stream:true`)를 호출한다(헤더·모델은 로드맵 Q61·Q62). SSE `content_block_delta.text_delta`를 preload `chunk {delta}` 이벤트로 renderer에 흘린다.
 4. 스트림이 끝나면 main이 답변 전문과 사용한 출처(청크 식별 필드 ≤8)를 서버 턴 API(`POST /api/v1/conversations/{sessionId}/turns`, `S2`)로 보내 USER + ASSISTANT(`generated_by=CLIENT`) + `search_references`로 저장하고, `complete {messageId}`를 renderer로 보낸다. 웹 채팅 화면은 그 답과 "찾은 문서"(`GET /messages/{id}/sources`)를 그대로 보여 준다.
 5. 실패 폴백: 구독 미로그인, 토큰 만료·갱신 실패, `401`·`403`, 크레딧 소진(`429`) 등 **첫 `chunk` 전의 모델 쪽 실패 전부**(로드맵 Q66)이면 main이 renderer에 `error {code, message, fallback: true}`를 주고 renderer가 기존 서버 SSE 경로(`POST …/messages`, B안)로 같은 질문을 다시 보낸다. 사용자에게는 "이번 답변은 서버 모델로 생성됨"을 한 줄로 알린다. Knot 서버 오류(검색 403·404·409·500, 턴 저장 400·409 — 서버 SSE 경로도 같은 결과)와 첫 `chunk` 뒤의 스트림 오류(부분 답변이 이미 화면에 있다)는 `fallback: false`이며 코드·문구는 서버 SSE 경로의 것(`LLM_STREAM_FAILED`·`LLM_STREAM_TIMEOUT`·`LLM_RATE_LIMITED`·`LLM_REFUSED`, 서버 `{code, message}`)을 그대로 쓴다(불변 계약 1번).
 
@@ -567,7 +567,8 @@ sequenceDiagram
 | 획득 | 시스템 브라우저로 `https://claude.ai/oauth/authorize` 열기(client_id = Claude Code 공개 client `9d1c250a-e61b-44d9-88ed-5944d1962f5e`, PKCE, 스코프 `org:create_api_key user:profile user:inference`, loopback 콜백). authorization code를 `https://platform.claude.com/v1/oauth/token`에서 `sk-ant-oat…`(access)·`sk-ant-ort…`(refresh)로 교환 |
 | 저장 | main `safeStorage`(`subscription-auth.bin`, 0600). renderer로 내리지 않는다. access는 만료(수 시간) 전 refresh로 자동 갱신 |
 | 요청 헤더 | `Authorization: Bearer <oat>`, `anthropic-version: 2023-06-01`, `anthropic-beta: claude-code-20250219,oauth-2025-04-20`, `user-agent: claude-cli/<ver>`, `x-app: cli`, `anthropic-dangerous-direct-browser-access: true` |
-| 로깅 금지 | 구독 access·refresh 토큰, 질문·답변 본문. 남기는 것: 세션 id·모델·상태·지연 ms·토큰 사용량 |
+| 요청 본문 `system` | `[{type: "text", text: `You are Claude Code, Anthropic's official CLI for Claude.`}, {type: "text", text: groundingRules + 근거 블록}]`. 첫 블록이 없으면 `429 rate_limit_error {message: "Error"}`(2026-09-10 실측, 로드맵 Q61 c) |
+| 로깅 금지 | 구독 access·refresh 토큰, 질문·답변 본문. 남기는 것: 세션 id·모델·상태·지연 ms·토큰 사용량·Anthropic 오류 본문 `message`(200자까지, 실제 한도와 게이트 거절을 구분하기 위해, 로드맵 Q66) |
 | 폐기 | 설정 화면 로그아웃(`llm.signOut`)이 `safeStorage`를 지운다. 앱은 Anthropic 세션 자체는 폐기하지 않는다(claude.ai에서 관리) |
 
 구현(2026-09-09, `L1`, 로드맵 4.6절 착수 가정·실측): `desktop/src/main/llm/subscriptionOAuth.ts`(인가 URL·토큰 API)·`subscriptionStore.ts`·`llmSettings.ts`(`subscription-settings.json`, Q62 모델·effort)·`subscriptionFlow.ts`(상태 기계)·`desktopLlm.ts`(Electron 접착). loopback은 5.2의 서버를 그대로 쓰고 `redirect_uri`는 `http://localhost:<port>/callback`(로드맵 Q63). 토큰 교환·갱신 본문은 JSON(`grant_type`·`code`·`state`·`redirect_uri`·`client_id`·`code_verifier` / `refresh_token`)이며 실제 claude.ai와의 종단은 로드맵 U33에서 실측한다. `L2`는 `SubscriptionController.getAccessToken()`(만료 임박 시 먼저 갱신)으로 토큰을 꺼내고 `recordAnswer()`로 `lastAnsweredBy`·`lastError`를 갱신한다. 구현(2026-09-09, `L2`, 로드맵 4.6절 착수 가정·실측): `sseParser.ts`·`promptAssembler.ts`·`messagesClient.ts`·`answerFlow.ts`, `desktopLlm.ts`의 스트림 관리(`requestId`·취소·동시 4개), `knotApi.listMessages`; 웹은 `shared/api/desktopLlm`·`useSendChatMessageMutation`·`useChatStream`. 폴백·오류 코드·타임아웃은 로드맵 Q66. CLIENT 답변의 사용량 컬럼(`B2`)은 NULL이다 — 서버에 넘기려면 `S2` 계약 개정이 필요하다. `L3`(2026-09-09): 설정은 `llm.getSettings`·`updateSettings`(4.4, Q67)로 `subscription-settings.json`을 읽고 쓰며 화면은 웹 `/claude-subscription`(9.3)이다.
