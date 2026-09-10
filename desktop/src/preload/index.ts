@@ -18,6 +18,7 @@ import type {
   LlmStreamHandlers,
   LlmStreamInput,
   LlmSubscriptionStatus,
+  LoginPromptState,
 } from "../shared/api";
 
 type SessionState = "signed-in" | "signed-out";
@@ -97,11 +98,15 @@ const api: KnotDesktopApi = {
     getToken: () => ipcRenderer.invoke(IPC_CHANNELS.authGetToken),
     setToken: (token: string) => ipcRenderer.invoke(IPC_CHANNELS.authSetToken, token),
     clearToken: () => ipcRenderer.invoke(IPC_CHANNELS.authClearToken),
-    // 2단계(A7): 시스템 브라우저 로그인·기기 세션 폐기·세션 변경 알림(로드맵 Q60)
+    // 2단계(A7): 메인 창 안 로그인 뷰·기기 세션 폐기·세션 변경 알림(로드맵 Q60·Q68)
     startLogin: () => ipcRenderer.invoke(IPC_CHANNELS.authStartLogin),
+    cancelLogin: () => ipcRenderer.invoke(IPC_CHANNELS.authCancelLogin),
     logout: () => ipcRenderer.invoke(IPC_CHANNELS.authLogout),
     onSessionChanged: (handler: (state: SessionState) => void) =>
       subscribe<SessionState>(IPC_CHANNELS.authSessionChanged, handler),
+    // 로그인 뷰가 붙어 있는 동안 SPA가 상단 띠에 제목·취소를 그린다(2026-09-10, 기획서 5.2)
+    onLoginPromptChanged: (handler: (prompt: LoginPromptState) => void) =>
+      subscribe<LoginPromptState>(IPC_CHANNELS.authLoginPrompt, handler),
   },
 
   // 연결 토큰은 main이 클립보드에만 쓴다. 여기로는 가린 미리보기만 온다(기획서 4.4)

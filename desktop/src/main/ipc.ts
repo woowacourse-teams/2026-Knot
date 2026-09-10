@@ -29,7 +29,7 @@ export interface IpcDependencies {
   bridge: AgentBridge;
   /** A8: 콜드 스타트 보류 링크를 SPA가 가져간다 */
   deepLinks: DeepLinkRouter;
-  /** A7: 시스템 브라우저 로그인·로그아웃 */
+  /** A7: 메인 창 안 로그인 뷰·로그아웃 */
   auth: AuthController;
   /** A10: renderer가 요청한 OS 알림. 표시 실패는 조용히 무시한다 */
   showNotification: (input: DesktopNotificationInput) => void;
@@ -85,10 +85,16 @@ export function registerIpcHandlers(env: KnotEnvironment, deps: IpcDependencies)
     clearToken();
   });
 
-  // A7: 시스템 브라우저 로그인. 실패·취소·타임아웃은 reject로 renderer에 전달된다(코드·state 값은 넘기지 않는다)
+  // A7: 메인 창 안 로그인 뷰(Q68). 실패·취소·타임아웃은 reject로 renderer에 전달된다(코드·state 값은 넘기지 않는다)
   ipcMain.handle(IPC_CHANNELS.authStartLogin, async (event) => {
     assertTrustedSender(event, env, IPC_CHANNELS.authStartLogin);
     await auth.startLogin();
+  });
+
+  // 로그인 뷰 헤더의 "취소"(2026-09-10, 기획서 5.2). 대기 중인 로그인이 없으면 아무 일도 하지 않는다
+  ipcMain.handle(IPC_CHANNELS.authCancelLogin, (event) => {
+    assertTrustedSender(event, env, IPC_CHANNELS.authCancelLogin);
+    auth.cancelLogin();
   });
 
   ipcMain.handle(IPC_CHANNELS.authLogout, async (event) => {

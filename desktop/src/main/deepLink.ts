@@ -4,7 +4,7 @@
  * 문법(정본은 기획서 4.3):
  * - `knot://invite/<token>`                → `{type: "invite", token}`
  * - `knot://chat/<workspaceId>[/<sessionId>]` → `{type: "chat", workspaceId, sessionId?}`
- * - `knot://auth/callback?code&state|error` → main에서만 소비(A7 시스템 브라우저 로그인 콜백).
+ * - `knot://auth/callback?code&state|error` → main에서만 소비(A7 로그인 콜백의 2차 경로).
  *   renderer로 보내지 않는다(기획서 4.4 규칙 "`auth.callback` 같은 로그인 콜백 데이터는 main에서만 소비").
  *
  * 파서는 순수 함수라 vitest로 검증한다. 수신 경로는 macOS `open-url`, Windows·Linux는

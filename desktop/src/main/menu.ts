@@ -2,7 +2,7 @@
  * 애플리케이션 메뉴.
  *
  * 편집 메뉴는 macOS에서 복사·붙여넣기 단축키를 살리기 위해 반드시 필요하다.
- * `파일` 메뉴의 로그인·로그아웃은 `A7` 시스템 브라우저 로그인 경로다(로드맵 Q60) — SPA의 로그아웃
+ * `파일` 메뉴의 로그인·로그아웃은 `A7` 메인 창 안 로그인 뷰 경로다(로드맵 Q60·Q68) — SPA의 로그아웃
  * 액션(GNB)과 같은 결과를 내며 진입점만 하나 더 있는 것이다(기획서 5.1).
  *
  * `CLI 에이전트 연결` 메뉴는 `S9` 연결 안내 화면(웹 SPA)이 생기기 전까지의 임시 진입점이다
@@ -28,7 +28,7 @@ export interface ApplicationMenuOptions {
   env: KnotEnvironment;
   getWindow: () => BrowserWindow | null;
   bridge: AgentBridge;
-  /** A7 시스템 브라우저 로그인·로그아웃 */
+  /** A7 메인 창 안 로그인 뷰·로그아웃 */
   auth: AuthController;
   /** L1 사용자 Claude 구독 로그인·로그아웃·상태 */
   llm: SubscriptionController;
@@ -89,12 +89,12 @@ export function buildApplicationMenu(options: ApplicationMenuOptions): void {
         },
         { type: "separator" },
         {
-          // A7: 앱 안에서 자격증명을 받지 않고 시스템 브라우저에서 로그인한다(기획서 5.2)
-          label: "브라우저로 로그인",
+          // A7: 앱 안 자식 창에서 로그인한다(기획서 5.2, 로드맵 Q68 — 이전에는 시스템 브라우저)
+          label: "로그인",
           click: () => {
             auth.startLogin().catch((error: unknown) => {
               const message = error instanceof Error ? error.message : "로그인하지 못했어요.";
-              logger.warn("[knot] 브라우저 로그인 실패", { reason: error instanceof Error ? error.name : "Unknown" });
+              logger.warn("[knot] 로그인 실패", { reason: error instanceof Error ? error.name : "Unknown" });
               void dialog.showMessageBox({ type: "warning", title: "Knot", message });
             });
           },

@@ -95,6 +95,17 @@ export type LlmStreamEventPayload =
   | { requestId: string; event: "complete"; messageId: number }
   | { requestId: string; event: "error"; code: string; message: string; fallback: boolean };
 
+/**
+ * 로그인 뷰의 열림 상태(A7, 2026-09-10, 기획서 5.2).
+ *
+ * `open`이면 메인 창 안에 로그인 뷰가 붙어 있고, 위쪽 `headerHeight`(px)만 SPA가 보인다.
+ */
+export interface LoginPromptState {
+  open: boolean;
+  /** 뷰가 덮지 않는 상단 띠의 높이(px). 닫혀 있으면 0 */
+  headerHeight: number;
+}
+
 export interface KnotDesktopApi {
   /** 앱 버전(semver). 빌드 시점에 `package.json`에서 고정된다 */
   readonly version: string;
@@ -121,12 +132,24 @@ export interface KnotDesktopApi {
     /** 저장된 액세스 토큰을 지운다(로그아웃·401) */
     clearToken(): Promise<void>;
     // 2단계 인증(A6·A7). 이 셸부터 채워져 있다(로드맵 Q60)
-    /** 시스템 브라우저를 열어 로그인한다. 끝나면 resolve, 실패·취소·타임아웃은 reject */
+    /**
+     * 메인 창 안 로그인 뷰를 붙여 로그인한다(재개정 2026-09-10, 로드맵 Q68 — 창을 새로 만들지 않는다).
+     * 끝나면 resolve, 실패·취소·타임아웃은 reject.
+     */
     startLogin?(): Promise<void>;
+    /** 로그인 뷰 헤더의 "취소". 대기 중인 로그인이 없으면 아무 일도 하지 않는다(2026-09-10) */
+    cancelLogin?(): Promise<void>;
     /** 기기 세션 폐기 API 호출(실패해도 계속) + 로컬 토큰 삭제 */
     logout?(): Promise<void>;
     /** 셸이 세션을 얻거나 잃었을 때. 구독 해제 함수를 돌려준다 */
     onSessionChanged?(handler: (state: "signed-in" | "signed-out") => void): () => void;
+    /**
+     * 로그인 뷰가 붙고 떨어질 때(2026-09-10, 기획서 5.2).
+     *
+     * 뷰는 메인 창 content 영역에서 위쪽 `headerHeight`만 남기고 덮는다. SPA는 열려 있는 동안
+     * 그 띠에 제목과 "취소"를 그린다 — 그리지 않으면 빈 띠만 남고 취소는 뷰 안 `Esc`뿐이다(R31).
+     */
+    onLoginPromptChanged?(handler: (prompt: LoginPromptState) => void): () => void;
   };
   /**
    * CLI 에이전트 연결(기획서 6.4, 로드맵 `S8`). 데스크톱 전용 연결 안내 화면(`S9`)이 쓴다.
@@ -192,12 +215,16 @@ export const IPC_CHANNELS = {
   authSetToken: "knot:auth-set-token",
   /** invoke: () => void */
   authClearToken: "knot:auth-clear-token",
-  /** invoke: () => void — 시스템 브라우저 로그인이 끝나면 resolve, 실패·취소는 reject(A7) */
+  /** invoke: () => void — 메인 창 안 로그인 뷰의 로그인이 끝나면 resolve, 실패·취소는 reject(A7) */
   authStartLogin: "knot:auth-start-login",
+  /** invoke: () => void — 로그인 뷰 헤더의 "취소"(A7, 2026-09-10) */
+  authCancelLogin: "knot:auth-cancel-login",
   /** invoke: () => void — 기기 세션 폐기 + 로컬 토큰 삭제(A7) */
   authLogout: "knot:auth-logout",
   /** main → renderer: "signed-in" | "signed-out" (A7) */
   authSessionChanged: "knot:auth-session-changed",
+  /** main → renderer: LoginPromptState — 로그인 뷰가 붙고 떨어질 때(A7, 2026-09-10) */
+  authLoginPrompt: "knot:auth-login-prompt",
   /** invoke: ({title, body, link?}) => void (A10) */
   notificationsShow: "knot:notifications-show",
   /** invoke: () => AgentBridgeStatus */

@@ -1,5 +1,5 @@
 /**
- * 시스템 브라우저 로그인의 인가 URL 조립과 콜백 쿼리 해석 (기획서 5.2 API 계약).
+ * 2단계 로그인(메인 창 안 로그인 뷰, 로드맵 Q68)의 인가 URL 조립과 콜백 쿼리 해석 (기획서 5.2 API 계약).
  *
  * 인가 요청: `GET {API}/oauth2/authorization/github?client=desktop&code_challenge=…
  * &code_challenge_method=S256&state=…&return=loopback:{port}` → 백엔드가 302로 GitHub에 보낸다.

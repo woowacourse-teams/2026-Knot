@@ -35,6 +35,36 @@ export function isAllowedNavigation(rawUrl: string, allowlist: readonly string[]
 }
 
 /**
+ * webContents 하나에만 한시로 더 허용하는 오리진(기획서 4.5, 로드맵 Q68).
+ *
+ * 2단계 로그인은 메인 창 안 로그인 뷰에서 진행하고, 그 체인의 마지막 302 목적지는
+ * `http://127.0.0.1:{port}/callback`이다. 포트가 로그인마다 달라 빌드 상수 허용 목록에
+ * 넣을 수 없고, 넣으면 메인 창·퀵 질문 창까지 그 오리진으로 이동할 수 있다. 그래서
+ * 로그인 뷰(webContents)에만 걸고 뷰가 사라질 때 함께 지운다.
+ */
+const extraOriginsByContents = new Map<number, readonly string[]>();
+
+/** 이 webContents에만 허용할 오리진을 등록한다. 파괴되면 자동으로 사라진다 */
+export function allowExtraOrigins(contents: WebContents, origins: readonly string[]): void {
+  extraOriginsByContents.set(contents.id, origins);
+  contents.once("destroyed", () => {
+    extraOriginsByContents.delete(contents.id);
+  });
+}
+
+/** 살아 있는 동안 허용을 먼저 회수한다(로그인이 끝난 뒤) */
+export function revokeExtraOrigins(contents: WebContents): void {
+  extraOriginsByContents.delete(contents.id);
+}
+
+/** 그 webContents에 실제로 적용되는 허용 목록 — 빌드 상수 목록 + 한시 허용 */
+export function allowlistFor(contents: WebContents, env: KnotEnvironment): readonly string[] {
+  const extra = extraOriginsByContents.get(contents.id);
+  if (extra === undefined) return env.navigationAllowlist;
+  return [...env.navigationAllowlist, ...extra];
+}
+
+/**
  * 자식 창에 다시 명시하는 보안 webPreferences(기획서 8절 #2~#4·#11, 불변 계약 4).
  *
  * Electron은 보안 관련 webPreferences를 부모에서 상속하지만, 창을 추가할 때도 같은
@@ -111,7 +141,7 @@ type BlockableNavigation =
  */
 export function applyNavigationPolicy(contents: WebContents, env: KnotEnvironment): void {
   const guard = (details: BlockableNavigation, event: "will-navigate" | "will-redirect"): void => {
-    if (isAllowedNavigation(details.url, env.navigationAllowlist)) {
+    if (isAllowedNavigation(details.url, allowlistFor(contents, env))) {
       logger.info("[knot] 네비게이션 허용", { event, url: details.url });
       return;
     }
@@ -129,7 +159,7 @@ export function applyNavigationPolicy(contents: WebContents, env: KnotEnvironmen
 
   // 허용 목록 안은 자식 창(OAuth 로그인 팝업), 밖은 거부 + 검증된 URL만 외부 브라우저(기획서 8절 #14)
   contents.setWindowOpenHandler(({ url }) => {
-    const response = resolveWindowOpen(url, env.navigationAllowlist);
+    const response = resolveWindowOpen(url, allowlistFor(contents, env));
     if (response.action === "allow") {
       logger.info("[knot] 새 창 허용 → 자식 창", { url });
       return response;
@@ -153,6 +183,28 @@ export function applyNavigationPolicy(contents: WebContents, env: KnotEnvironmen
   contents.on("did-redirect-navigation", (details) => {
     if (!details.isMainFrame) return;
     logger.info("[knot] 리다이렉트", { url: details.url });
+  });
+}
+
+/**
+ * 로그인 뷰 전용 새 창 정책(기획서 4.5·5.2, 로드맵 Q69).
+ *
+ * 로그인 뷰에서는 창을 하나도 만들지 않는다(사용자 지시 2026-09-10). 허용 목록 안 URL이면
+ * **같은 뷰에서 이동**시키고, 밖이면 거부한다 — 외부 브라우저로도 넘기지 않는다. 로그인
+ * 체인의 URL에는 코드·state가 실리므로 로그에 남기지 않는다.
+ *
+ * `web-contents-created`가 이미 건 `applyNavigationPolicy`의 핸들러를 덮어쓴다. Q46의 자식
+ * 창 허용은 메인 창·퀵 질문 창에만 남는다(Notion 팝업은 `window.opener`를 요구한다).
+ */
+export function applyLoginViewWindowPolicy(contents: WebContents, env: KnotEnvironment): void {
+  contents.setWindowOpenHandler(({ url }) => {
+    if (isAllowedNavigation(url, allowlistFor(contents, env))) {
+      logger.info("[knot] 로그인 뷰 새 창 요청 → 같은 뷰에서 이동");
+      void contents.loadURL(url);
+    } else {
+      logger.warn("[knot] 로그인 뷰 새 창 요청 거부");
+    }
+    return { action: "deny" };
   });
 }
 
