@@ -21,6 +21,11 @@ main·preload 프로세스 코드다.
 - preload는 `src/shared/api.ts`의 인터페이스만 노출한다. `ipcRenderer` 원본과
   `ipcRenderer.on`의 `event` 객체는 renderer로 넘기지 않는다.
 - `shell.openExternal`은 `https:`·`mailto:`만 받는다.
+- 2단계 로그인 화면은 **메인 창 안 `WebContentsView`**다(재개정 2026-09-10, 로드맵 Q68).
+  로그인 때문에 `BrowserWindow`를 새로 만들지 않는다 — 자식 창·모달·시스템 브라우저
+  전부 금지다. 로그인 뷰에서는 새 창도 만들지 않는다(로드맵 Q69 — 허용 목록 안이면 같은
+  뷰에서 이동, 밖이면 거부). loopback 콜백 오리진은 **그 뷰에만** 한시로 허용하고, 빌드
+  상수 허용 목록에 넣지 않는다.
 - 탐색 답변은 **앱이 사용자 본인의 Claude 구독으로 앱 안에서 만든다**(불변 계약 2번,
   2026-09-10 개정, 트랙 L). main이 Claude Code OAuth 흐름으로 받은 구독 토큰으로
   `api.anthropic.com`을 직접 부르고, 서버는 검색·근거·게이트·저장을 소유한다(기획서 6.5,
@@ -49,7 +54,7 @@ main·preload 프로세스 코드다.
 | `src/main/agent/` (`S8`) | main 쪽 브리지: `bridge.ts`(`utilityProcess` 기동·`MessageChannelMain`·클립보드, Electron 접착), `bridgeCore.ts`(`MessagePort` 왕복·동시 4개·로그 필드 제한), `bridgeConfig.ts`(`agent-bridge.json` 0600·연결 토큰·포트), `toolExecutor.ts`(도구 입력 재검사·서버 호출·결과 조립. `show_answer`는 세션 생성 → 턴 저장 → `presentAnswer` 콜백 순), `registration.ts`(세 CLI 스니펫·스킬 설치 명령·토큰 가림), `instructions.ts`(MCP `instructions`). 순수 로직은 Electron을 import 하지 않아 vitest로 검증한다 |
 | `src/mcp/` (`S8`) | `utilityProcess` 엔트리 `index.ts`(parentPort `start` 메시지 수신) + `server.ts`(`@modelcontextprotocol/sdk` 무상태 Streamable HTTP, `127.0.0.1:<port>/mcp`, 도구 정의 3개 — `list_workspaces`·`search_documents`·`show_answer`) + `guard.ts`(Origin 있으면 403·Host·Bearer 연결 토큰) + `portRequester.ts`(main 위임·35초 타임아웃). 서버 액세스 토큰을 받지 않고 LLM을 부르지 않는다 |
 | `resources/skills/knot/SKILL.md` (Q50) | Knot 스킬. Agent Skills 표준 필드만. 앱 시작 시 `userData/skills/knot/SKILL.md`로 복사해 두고, 사용자 홈(`~/.claude/skills`·`~/.agents/skills`)에는 자동으로 쓰지 않는다 — 메뉴·연결 안내 화면이 `cp` 명령을 복사해 준다 |
-| `src/main/auth/` (`A7`) | 시스템 브라우저 로그인·토큰 갱신: `pkce`·`authorizeUrl`·`loopbackServer`(127.0.0.1 임의 포트, 콜백 1회)·`deviceTokenApi`(교환·갱신·폐기)·`deviceSessionStore`(`auth-session.bin`)·`loginFlow`(상태 기계, Electron 미의존)·`bearerInjector`(API 오리진 XHR·fetch에만 주입, Q55)·`desktopAuth`(Electron 접착 — `signed-out`이면 쿠키 삭제 + `/login`). 코드·state·토큰 값은 로그·IPC 인자에 싣지 않는다 |
+| `src/main/auth/` (`A7`) | 메인 창 안 로그인 뷰(재개정 2026-09-10, 로드맵 Q68 — 2026-09-09 판은 자식 창, 그 전은 시스템 브라우저)·토큰 갱신: `pkce`·`authorizeUrl`·`loopbackServer`(127.0.0.1 임의 포트, 콜백 1회)·`loginView`(메인 창 `contentView`의 `WebContentsView`, 상단 44px 헤더 띠·`resize` 추적·`Esc` 취소·새 창 금지, loopback 오리진을 그 뷰에만 한시 허용)·`deviceTokenApi`(교환·갱신·폐기)·`deviceSessionStore`(`auth-session.bin`)·`loginFlow`(상태 기계, Electron 미의존)·`bearerInjector`(API 오리진 XHR·fetch에만 주입, Q55)·`desktopAuth`(Electron 접착 — `signed-out`이면 쿠키 삭제 + `/login`). 코드·state·토큰 값은 로그·IPC 인자에 싣지 않는다 |
 | `src/main/deepLink.ts` (`A8`) | `knot://` 파서(순수)·라우터(웜 스타트 이벤트 + 60초 보류, 콜드 스타트 보류)·`open-url`/`second-instance`/`process.argv` 수신·스킴 등록. `auth/callback`은 main에서만 소비한다. `dispatch`는 `show_answer`·알림 클릭이 같은 경로로 쓴다 |
 | `src/main/tray.ts`·`quickAsk.ts` (`A9`) | 트레이 메뉴·글로벌 단축키(`CommandOrControl+Shift+K`)·퀵 질문 창(웹 `/workspace/:id/chat` 로드, 같은 세션·preload·보안 webPreferences)·마지막 워크스페이스(`last-workspace.json`) |
 | `src/main/notifications.ts` (`A10`) | `webRequest.onCompleted`로 동기화 시작·조회 요청의 URL·상태 코드만 보고 main이 Bearer로 폴링 → OS 알림·Dock 배지. preload `notifications.show` 입력 재검사 |

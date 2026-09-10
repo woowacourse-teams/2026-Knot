@@ -60,7 +60,7 @@
 | D1 | 데스크톱 셸 | **Electron 44** | Tauri 2, PWA | 웹과 동일한 Chromium 렌더링, main·preload·renderer 전부 TypeScript, Playwright 지원, 채택 사례(지식 §5.1). PWA는 트레이·글로벌 단축키·자동 시작이 없음 | 필요 |
 | D2 | 콘텐츠 로드 | **원격 URL `https://knoted.kr`** | 로컬 번들(`app://`) | CORS·라우터·SSE를 웹과 동일하게 유지, 웹 배포로 즉시 반영(Slack 하이브리드 모델). 로컬 번들을 막던 쿠키 제약(`__Host-`·SameSite)은 `D11`로 사라졌으므로 전환 검토(`A12`)는 열려 있다(지식 §2.4, §4.7) | D1과 함께 |
 | D3 | 모델 호출 위치 | **데스크톱 앱(main)이 사용자 본인의 Claude 구독으로 앱 안에서 직접 호출(6.5, 트랙 L, 2026-09-10 개정)**. 서버는 검색·근거·게이트·저장. 구독 없음·브라우저 단독은 서버 SSE(B안) 폴백(로드맵 Q22) | G안(사용자 구독 직접 호출, Aside식 Claude Code OAuth — **채택**), B안(백엔드 어댑터, 폴백으로 유지), C안(Workspace BYO 키), F안(로컬 MCP + CLI 에이전트, 선택적 부가 진입점으로 유지 — `S8`~`S10`), D안(Agent SDK 내장), E안(CLI 바이너리 자식 프로세스 — 사용자 거부) | 사용자 지시(2026-09-10 `불변 계약 3번 제거해 … 이렇게 구현하기 위해서 모든 문서를 다 다시 작성해`). "앱에서 질문하면 내 구독으로 답한다"가 제품 목표. Aside가 같은 방식으로 운영 중임을 실측([[aside-claude-subscription-mechanism]]). 정책 금지 조항 해당·재량 허용 구간이며 위험은 사용자 감수(로드맵 R28). 검색·게이트·규칙 문장·저장 검증을 서버에 남겨 검토 문서 5.4의 무결성 문제를 좁힌다 | 필요(로드맵 `L1`, 계약 2 개정·3 삭제 포함) |
-| D4 | 인증 | **1단계: 앱 창 GitHub 로그인 + Bearer JWT(`D11`) → 2단계: 시스템 브라우저 + 디바이스 토큰(패턴 A·B), Device flow(D)는 fallback** | 처음부터 2단계, 1단계에서 멈추기 | 1단계는 로그인 창 위치만 앱 안이고 자격증명 전달은 이미 2단계와 같은 Bearer다. RFC 8252 §8.12·1시간 만료·리프레시 부재가 상시 실행 앱에 부적합하므로(지식 §4.4) 2단계는 유지하되, 남은 차이는 **로그인 창 위치와 리프레시**뿐이다 | 필요(ADR 314 재논의) |
+| D4 | 인증 | **1단계: 앱 창 GitHub 로그인 + Bearer JWT(`D11`) → 2단계: 메인 창 안 로그인 뷰 + 디바이스 토큰(재개정 2026-09-10), Device flow(D)는 fallback** | 시스템 브라우저 로그인(패턴 A·B, 2026-09-09까지의 설계), 처음부터 2단계, 1단계에서 멈추기 | 사용자 지시(2026-09-09 `데탑 앱에서 로그인 버튼 누르면 앱에서 뜨는게 아니라 웹 브라우저로 이동하는데 수정해`, 로드맵 Q68). 2단계가 실제로 더하는 값(리프레시 토큰·기기 세션 폐기·토큰을 renderer 밖 `safeStorage`에 두기)은 로그인 창 위치와 무관하므로 **창만 앱 안으로 되돌리고 나머지 계약은 그대로 둔다**. 앱 창 로그인은 GitHub 2FA까지 종단 통과가 실측돼 있다(로드맵 U1). 대가는 RFC 8252 §8.12 위반이 남는 것(5.1·5.3, 로드맵 R30). **재개정 2026-09-10**(사용자 지시 `깃허브 로그인 부분 누르면 앱 내에서만 떠야 해 새로운 창을 띄우거나 그러면 진짜 죽을 수도 있어`): 자식 `BrowserWindow`도 OS 창이 하나 더 뜨는 것이라 지시에 어긋난다. 로그인 화면은 메인 창 안 `WebContentsView`로 띄우고 **창은 하나도 만들지 않는다**(5.2, 로드맵 Q68·Q69) | 필요(ADR 314 재논의) |
 | D11 | 인증 자격증명 전달·저장 | **`Authorization: Bearer <JWT>` + 클라이언트 저장(웹 `localStorage`, 데스크톱 main `safeStorage`). 쿠키·CSRF 폐기** | 현행 `HttpOnly` 쿠키 유지, 쿠키+Bearer 이중 경로, 메모리 전용 저장 | 쿠키는 저장 위치를 브라우저가 정해 데스크톱이 `safeStorage`를 쓸 수 없고, `app://` 로컬 번들에서 깨진다(지식 §2.4·§4.7). 이중 경로는 필터·CSRF 매처·CORS가 두 경로를 동시에 지탱해야 한다. 메모리 전용은 새로고침마다 재로그인이라 리프레시 토큰(2단계) 없이는 못 쓴다. 대가로 `HttpOnly`의 XSS 격리를 잃는다(5.1·5.3) | 필요(ADR 314 보완) |
 | D5 | 빌드·패키징 도구 | **Electron Forge 7.x** | electron-builder 26, electron-vite | Electron 공식 권장, Fuses·ASAR 무결성·서명·공증·publisher 통합, Squirrel + update.electronjs.org 무료 경로. electron-builder는 NSIS·차등 업데이트·스테이지 롤아웃·프라이빗 업데이트가 필요할 때 유리(지식 §3.2). 상세는 10절 | D1과 함께 |
 | D6 | 자동 업데이트 채널 | **GitHub Releases + `update-electron-app`(update.electronjs.org)** | electron-updater + generic 서버, 자체 서버(Hazel 등) | 저장소가 공개(PUBLIC)라 무료 서비스 조건(공개 저장소 + macOS 서명) 충족. 자체 서버는 2년 이상 정체. 상세는 10절 | D5와 함께 |
@@ -160,9 +160,12 @@ export interface KnotDesktopApi {
     setToken(token: string): Promise<void>; // safeStorage로 암호화해 userData에 저장
     clearToken(): Promise<void>;            // 로그아웃·401
     // 2단계(A7). 2026-09-09 구현: 셸이 셋 다 노출하며 SPA는 로드맵 Q60대로 쓴다
-    startLogin?(): Promise<void>;           // 시스템 브라우저를 연다
+    startLogin?(): Promise<void>;           // 메인 창 안 로그인 뷰를 붙인다(재개정 2026-09-10 — 창을 새로 만들지 않는다)
+    cancelLogin?(): Promise<void>;          // 로그인 뷰 헤더의 "취소"(2026-09-10). 대기 중인 로그인이 없으면 무시
     logout?(): Promise<void>;               // 폐기 API 호출 + 로컬 삭제
     onSessionChanged?(handler: (state: 'signed-in' | 'signed-out') => void): () => void;
+    // 로그인 뷰가 붙고 떨어질 때(2026-09-10). 열려 있는 동안 SPA가 상단 헤더 띠(제목·취소)를 그린다
+    onLoginPromptChanged?(handler: (p: { open: boolean; headerHeight: number }) => void): () => void;
   };
   // 앱 안 구독 탐색(6.5, 2026-09-10, 트랙 L). 데스크톱 셸에서 채팅 화면이 쓴다
   llm?: {
@@ -258,8 +261,9 @@ export interface LlmSettingsView {
 - **GitHub 로그인 폼이 제공하는 소셜 로그인(Google·Apple) 경유 도메인도 목록에 있어야 한다**(추가 2026-09-07, `A1` 실측). GitHub 계정 자체를 Google로 만든 사용자는 `github.com/login`에서 "Sign in with Google"을 누르고, 체인이 `github.com/sessions/social/google/initiate` → `accounts.google.com/o/oauth2/v2/auth`로 나간다. 이 홉을 외부 브라우저로 넘기면 Google 인증만 다른 브라우저에서 끝나고, GitHub이 소셜 로그인 `state`를 심어둔 세션 쿠키는 앱 세션에 남아 있으므로 콜백에서 대조가 실패한다(관측 문구: "We could not validate the response from your social login provider"). **로그인 체인은 한 브라우저 세션 안에서 끝나야 한다** — 중간 홉만 외부로 빼면 흐름이 깨진다.
 - Apple(`https://appleid.apple.com`)은 2026-09-08 Notion 로그인 팝업 실측(`applepopupredirect` → 302 `appleid.apple.com/auth/authorize`)을 근거로 목록에 추가했다. GitHub 로그인 폼의 Apple 경로가 실제로 지나가는지는 아직 미검증이다(2026-09-07 미해소 → 2026-09-08 목록 추가, 검증 대기).
 - **Notion OAuth의 동의 화면은 `app.notion.com`에 있다**(추가 2026-09-08, `A1` 실측, 로드맵 U2). SPA가 `https://api.notion.com/v1/oauth/authorize?…`로 이동하면 Notion이 302로 `https://app.notion.com/install-integration?…`에 보낸다. 이 오리진이 목록에 없으면 `will-redirect`에서 차단돼 외부 브라우저로 빠지고, 동의를 거기서 마치면 백엔드 연결은 성공하지만 결과 화면(`?result=connected`)도 외부 브라우저로 돌아가며, 앱 창의 SPA는 이동 대기 상태에 갇혀 **연결 버튼이 무한 로딩**이 된다(R21). 동의 이후 홉(Notion 로그인·콜백 복귀)은 아직 앱 창 안에서 실측되지 않았다 — 새 도메인이 나오면 같은 근거로 추가한다. **2026-09-08 23:21 재측정**: 추가 뒤 동의 화면까지의 홉(`install-integration` → `api/v3/sessionSync?returnUrl=…` → `api/v3/sessionSyncCallback?status=unauthenticated` → `install-integration?…&session_sync_attempted=1`)은 모두 `app.notion.com`이라 차단 없이 지나간다. 미로그인 사용자에게는 여기서 Notion 로그인 화면이 뜬다(아래 팝업 항목). **2026-09-08 23:41 종단 통과**: 로그인 뒤 동의 → `http://localhost:8080/api/v1/notion/oauth/callback?code=…&state=…` → 302 `http://localhost:3000/workspace/6/notion-connection?result=connected`가 앱 창 안에서 차단 없이 끝났다. 체인 전체 도메인은 `api.notion.com`·`app.notion.com`·IdP(`login.microsoftonline.com`)뿐이다.
+- **loopback 콜백 오리진(`http://127.0.0.1:{port}`)은 로그인 뷰에만 한시로 허용한다**(추가 2026-09-09, 재개정 2026-09-10 — 대상이 자식 창에서 메인 창 안 `WebContentsView`로 바뀌었다). 2단계 로그인을 앱 안에서 진행하므로, 백엔드가 마지막에 302로 보내는 `http://127.0.0.1:{port}/callback`이 그 뷰의 네비게이션을 통과해야 한다. 포트는 로그인마다 새로 잡고 허용은 **그 뷰(webContents)에만** 걸며 뷰를 떼면 사라진다. 빌드 상수 허용 목록(위)에는 넣지 않는다 — 메인 창·퀵 질문 창·자식 창은 이 오리진으로 이동할 수 없다. `localhost` 이름과 다른 포트도 허용하지 않는다.
 - **차단은 `will-navigate`와 `will-redirect` 두 이벤트 모두에 건다**(정정 2026-09-06, `A1`). `will-navigate`는 링크 클릭·`window.location` 변경 같은 네비게이션 *시작*에서 발화하고, 그 네비게이션 도중의 서버 302는 `will-redirect`로 발화한다. OAuth 로그인은 302 체인이므로 `will-navigate`만 막으면 허용 오리진에서 시작한 뒤 목록 밖으로 넘어가는 경로가 통과한다. `did-start-navigation`·`did-redirect-navigation`은 취소할 수 없어 **기록 전용**으로 쓴다(U2 체인 수집).
-- **새 창(`window.open`, `target=_blank`)은 URL 오리진이 허용 목록 안이면 자식 창으로 허용하고, 밖이면 `deny` + 검증된 `https:`만 외부 브라우저**(개정 2026-09-08, 로드맵 Q46). 자식 창은 `overrideBrowserWindowOptions.webPreferences`로 `sandbox: true`·`contextIsolation: true`·`nodeIntegration: false`·`webviewTag: false`를 다시 명시하고 preload를 주지 않는다 — Electron은 보안 관련 webPreferences만 부모에서 상속하고 preload는 상속하지 않는다(`DidCreateWindowDetails.options` 문서). 자식 창은 opener의 세션(`persist:knot`)을 그대로 쓰고(Chromium이 opener의 BrowserContext로 자식 WebContents를 만든다), `web-contents-created`로 같은 네비게이션·리다이렉트 정책을 받아 허용 목록 밖으로는 나가지 못한다. 개정 전 규칙("전부 `deny`")은 로그인 팝업을 깨뜨렸다(아래 항목).
+- **새 창(`window.open`, `target=_blank`)은 URL 오리진이 허용 목록 안이면 자식 창으로 허용하고, 밖이면 `deny` + 검증된 `https:`만 외부 브라우저**(개정 2026-09-08, 로드맵 Q46). 자식 창은 `overrideBrowserWindowOptions.webPreferences`로 `sandbox: true`·`contextIsolation: true`·`nodeIntegration: false`·`webviewTag: false`를 다시 명시하고 preload를 주지 않는다 — Electron은 보안 관련 webPreferences만 부모에서 상속하고 preload는 상속하지 않는다(`DidCreateWindowDetails.options` 문서). 자식 창은 opener의 세션(`persist:knot`)을 그대로 쓰고(Chromium이 opener의 BrowserContext로 자식 WebContents를 만든다), `web-contents-created`로 같은 네비게이션·리다이렉트 정책을 받아 허용 목록 밖으로는 나가지 못한다. 개정 전 규칙("전부 `deny`")은 로그인 팝업을 깨뜨렸다(아래 항목). **이 허용은 메인 창·퀵 질문 창에만 적용하고 2단계 로그인 뷰는 제외한다**(추가 2026-09-10, 로드맵 Q69) — 로그인 뷰에서는 창을 하나도 만들지 않는다. 뷰 안의 `window.open`은 URL이 허용 목록 안이면 **같은 뷰에서 이동**시키고, 밖이면 거부한다. GitHub 로그인 체인의 소셜 로그인 홉은 팝업이 아니라 전체 네비게이션이라(2026-09-07 `A1` 실측) 이 규칙으로 깨지지 않는다. Notion 연결의 IdP 팝업(아래 항목)은 메인 창에서 시작하므로 자식 창 허용을 그대로 받는다.
 - **Notion 로그인 화면은 IdP 인증을 팝업으로 연다**(추가 2026-09-08, `A1` 실측, 로드맵 U27). 미로그인 사용자가 동의 화면에서 "Continue with Microsoft/Google/Apple"을 누르면 `window.open("https://app.notion.com/verifyNoPopupBlockerHtmlAndRedirect?redirectUri=https://app.notion.com/<idp>popupredirect?callbackType=popup&redirectToAuth=true&popupFlowId=…")`이 열린다. 이 검증 페이지는 `window.opener`가 있을 때만 `redirectUri`로 `location.replace`하고 없으면 `window.close()`한다(curl로 본문 확인). 따라서 새 창을 거부하고 외부 브라우저로 넘기면 팝업이 즉시 닫히고 Notion 화면에는 "팝업이 차단됨" 문구가 남는다(2026-09-08 23:21 앱 로그 `새 창 요청 거부` 3건). `<idp>popupredirect`의 302 목적지(curl 실측): microsoft → `https://login.microsoftonline.com/common/oauth2/v2.0/authorize`(redirect_uri `app.notion.com/microsoftpopupcallback`), google → `https://accounts.google.com/o/oauth2/v2/auth`(`googlepopupcallback`), apple → `https://appleid.apple.com/auth/authorize`(`response_mode=form_post`, `applepopupcallback`). **2026-09-08 23:41 실측**: 자식 창으로 연 뒤 Microsoft 경로(`microsoftpopupredirect` → `login.microsoftonline.com/common/oauth2/v2.0/authorize` → `…/common/login` → `app.notion.com/microsoftpopupcallback?code=…`)가 차단·거부 없이 지나갔고 메인 창이 동의 화면으로 이어졌다(U27 해소). Google·Apple 팝업 경로는 미실측.
 - CORS: 원격 로드이므로 백엔드 `AUTH_CORS_ALLOWED_ORIGINS` 변경이 없다. 2단계 Bearer 요청도 renderer 오리진이 웹 오리진이라 동일하다.
 
@@ -299,28 +303,34 @@ export interface LlmSettingsView {
 
 **호환 기간을 두지 않는다.** 쿠키 경로와 Bearer 경로를 동시에 지탱하면 필터가 두 자격증명을 받아들이게 되고, 그 상태에서는 CSRF도 켜 둔 채로 남겨야 한다. 프론트·백엔드를 같은 시점에 배포하고, 배포 순간 살아 있던 세션은 만료된다(재로그인 1회). 배포 순서는 백엔드 먼저이며, 그 사이 구버전 SPA는 401을 받아 `/login`으로 간다(로드맵 `Q17`).
 
-**남는 위험(쿠키 시절과 동일)**: (1) RFC 8252 §8.12 — GitHub 로그인 페이지를 앱 창(embedded user-agent)에 띄운다. GitHub의 차단 정책은 미확인이고 Google은 차단한다(지식 §4.3). (2) 앱 창은 브라우저의 GitHub 세션을 공유하지 못해 매번 로그인한다. (3) WebAuthn(패스키) 로그인이 제한될 수 있다. 이 셋은 2단계에서 로그인 창을 시스템 브라우저로 옮겨야 해소된다.
+**남는 위험(쿠키 시절과 동일)**: (1) RFC 8252 §8.12 — GitHub 로그인 페이지를 앱 창(embedded user-agent)에 띄운다. GitHub은 차단하지 않는다(정정 2026-09-07 `A1` 실측, 로드맵 U1 해소). Google은 임베디드 UA를 차단하므로(지식 §4.3) GitHub 계정을 Google로 만든 사용자의 소셜 로그인 홉은 여전히 미확인이다(로드맵 U21). (2) 앱 창은 브라우저의 GitHub 세션을 공유하지 못한다. (3) WebAuthn(패스키) 로그인이 제한될 수 있다.
 
-### 5.2 2단계: 시스템 브라우저 로그인 + 디바이스 토큰
+**개정 2026-09-09, 재개정 2026-09-10**: 이전 판은 "이 셋은 2단계에서 로그인 창을 시스템 브라우저로 옮겨야 해소된다"였다. 사용자 지시로 2단계도 앱 안에서 로그인하므로(2026-09-10부터는 메인 창 안 뷰다 — 5.2, 로드맵 Q68) (1)은 그대로 남고, (2)는 앱 세션 파티션(`persist:knot`)에 GitHub 세션 쿠키가 남아 재로그인 빈도만 줄며(로그아웃 때 삭제한다), (3)은 `A1` 실측에서 2FA(webauthn 화면 → 모바일 승인)까지 앱 창에서 끝나 실효 문제가 관측되지 않았다(U1).
 
-목표: 앱 안에서 GitHub 자격증명을 입력하지 않고, 1시간마다 재로그인하지 않으며, 기기별로 세션을 관리·폐기할 수 있게 한다. `D11` 이후 1단계도 Bearer이므로 **2단계가 더하는 것은 로그인 창 위치(시스템 브라우저)·리프레시 토큰·기기 세션 폐기 세 가지뿐**이다.
+### 5.2 2단계: 메인 창 안 로그인 뷰 + 디바이스 토큰 (재개정 2026-09-10)
+
+목표: 1시간마다 재로그인하지 않고, 기기별로 세션을 관리·폐기하며, 액세스·리프레시 토큰을 renderer가 읽지 못하는 곳(main `safeStorage`)에 둔다. `D11` 이후 1단계도 Bearer이므로 **2단계가 더하는 것은 리프레시 토큰·기기 세션 폐기·토큰 보관 위치 세 가지**다.
+
+**로그인 화면은 메인 창 안에서만 띄우고 창을 새로 만들지 않는다**(재개정 2026-09-10, 사용자 지시 `깃허브 로그인 부분 누르면 앱 내에서만 떠야 해 새로운 창을 띄우거나 그러면 진짜 죽을 수도 있어` — 로드맵 Q68). 2026-09-09 판은 시스템 브라우저(`shell.openExternal`, RFC 8252 §8.12 권고) 대신 메인 창의 **자식 `BrowserWindow`**를 열었는데, 그것도 OS 창이 하나 더 뜨는 것이라 지시에 어긋난다. 이제 인가 URL은 메인 창 `contentView`에 붙는 `WebContentsView`가 연다.
+
+바뀌는 것은 여전히 **인가 URL을 여는 표면뿐**이며 PKCE·`device_code`·loopback 콜백·토큰 교환·refresh rotation·기기 세션은 그대로다 — 아래 API 계약·토큰 규격·백엔드 변경은 하나도 바뀌지 않는다. 뷰에는 preload를 주지 않고 보안 webPreferences 4종을 다시 명시하며 웹 세션(`persist:knot`)을 공유한다. 콜백을 받거나 실패하면 셸이 뷰를 떼고, 사용자가 취소하면 대기 중인 로그인을 취소한다. 대가(RFC 8252 §8.12 위반 유지·앱 안 자격증명 입력·IdP 임베디드 차단 가능성)는 5.3과 로드맵 R30·U21에 남긴다.
 
 **시퀀스**
 
 ```text
-앱(main)                      시스템 브라우저                 백엔드(api.*)                     GitHub
+앱(main)                      메인 창 안 로그인 뷰            백엔드(api.*)                     GitHub
   │ verifier·state 생성           │                              │                                │
   │ loopback 127.0.0.1:P 열기     │                              │                                │
-  │─ openExternal(API/oauth2/authorization/github?client=desktop │                                │
-  │     &code_challenge=S256(v)&state=s&return=loopback:P) ─────▶│ resolver가 attributes에 보관     │
+  │─ 로그인 뷰 붙이기 → API/oauth2/authorization/github?client=desktop │                      │
+  │     &code_challenge=S256(v)&state=s&return=loopback:P ──────▶│ resolver가 attributes에 보관     │
   │                               │◀──── 302 github.com/login/oauth/authorize ──────────────────▶│
-  │                               │      사용자 로그인·승인(브라우저 세션·패스키 사용 가능)         │
+  │                               │      사용자 로그인·승인(앱 세션 쿠키. 2FA 종단 통과 — U1)      │
   │                               │──── /login/oauth2/code/github?code&state ───▶│               │
   │                               │      성공 핸들러: client=desktop → 프래그먼트 전달 대신       │
   │                               │      일회용 device_code 발급(TTL 120s, S256 challenge 바인딩)  │
-  │◀──── 302 http://127.0.0.1:P/callback?code=dc&state=s ◀───────│                                │
+  │◀ loopback 수신 ◀── 302 http://127.0.0.1:P/callback?code=dc&state=s ◀─────────│                │
   │  (fallback: knot://auth/callback?code=dc&state=s)            │                                │
-  │ state 검증, 포트 닫기         │  "앱으로 돌아가세요" 페이지    │                                │
+  │ state 검증, 포트 닫기         │  뷰는 셸이 바로 뗀다          │                                │
   │─ POST /api/v1/auth/device/token {code: dc, code_verifier: v, device: {name, platform}} ──────▶│
   │◀─ {access_token(JWT 1h), refresh_token(opaque), expires_in} ─│                                │
   │ refresh·access 모두 safeStorage 암호화 후 userData 파일(1단계와 같은 저장소) │                  │
@@ -356,6 +366,11 @@ export interface LlmSettingsView {
 
 **Electron 측**
 
+- **로그인 뷰**(재개정 2026-09-10): 메인 창 `contentView`에 붙이는 `WebContentsView`다. **`BrowserWindow`를 새로 만들지 않는다** — 자식 창·모달·시스템 브라우저 전부 금지다(로드맵 Q68). preload 없음, 웹 세션 `persist:knot` 공유, 보안 webPreferences 4종. 여는 URL은 빌드 상수 API 오리진으로 조립한 인가 URL만이며 다른 오리진은 열지 않는다. 콜백을 받으면 즉시 떼고, 사용자가 취소하면 `LOGIN_CANCELLED`, 5분이 지나면 `LOGIN_TIMEOUT`이다. 로그인이 진행 중일 때 다시 로그인을 부르면 뷰를 새로 만들지 않고 기존 뷰에 포커스만 준다. 메인 창이 없거나 파괴됐으면 `LOGIN_OPEN_FAILED`로 실패한다 — 다른 창을 대신 만들지 않는다.
+- **뷰 크기**: 메인 창 content 영역에서 상단 헤더 띠(`LOGIN_HEADER_HEIGHT` = 44px)만 남기고 나머지를 덮는다. 창 크기·최대화가 바뀌면(`resize`) bounds를 다시 계산한다.
+- **취소 수단은 둘**이다. (1) 헤더 띠는 메인 창의 SPA가 그린다 — 셸이 `knot:auth-login-prompt`(`{open, headerHeight}`)를 보내면 SPA가 제목과 "취소"를 띄우고, 버튼은 `knotDesktop.auth.cancelLogin()`을 부른다. (2) 뷰 안에서 `Esc`를 눌러도 같은 취소가 된다 — 웹이 옛 버전이라 헤더를 그리지 않아도 빠져나올 수 있다(15절 R31).
+- **로그인 뷰는 새 창을 만들지 않는다**(로드맵 Q69). 뷰 안의 `window.open`은 허용 목록 안이면 같은 뷰에서 이동시키고, 밖이면 거부한다. 4.5의 자식 창 허용(Q46)은 Notion 팝업 흐름 전용이라 이 뷰에는 적용하지 않는다.
+- loopback 콜백 오리진은 그 로그인 뷰에만 한시로 허용한다(4.5). 뷰를 떼면 허용도 사라진다.
 - loopback을 1차, 딥링크를 2차로 둔다. loopback은 요청 시작 시 임의 포트에 `127.0.0.1`만 바인딩하고 응답 직후 닫는다(RFC 8252 §8.3). 딥링크 스킴은 `knot`(단순) 또는 `kr.knoted.app`(reverse-domain, OAuth 2.1 권고) 중 하나를 D4 ADR에서 정한다.
 - 토큰 저장: `safeStorage.encryptString` → `userData/auth.bin`. `isEncryptionAvailable()`이 false(Linux `basic_text`)면 저장하지 않고 매 실행 로그인.
 - Bearer 주입: `session.webRequest.onBeforeSendHeaders({urls:[`${API_ORIGIN}/*`]})`에서만. 다른 오리진에는 절대 붙이지 않는다.
@@ -372,7 +387,7 @@ export interface LlmSettingsView {
 | CSRF | `D11`으로 **소멸**. 브라우저가 자동으로 붙이는 인증 자격증명이 없으므로 교차 사이트 요청은 인증되지 않는다 |
 | 토큰이 URL 프래그먼트로 지나감 | 프래그먼트는 서버로 전송되지 않아 로그·`Referer`에 남지 않는다. 브라우저 히스토리에는 남으므로 SPA가 읽는 즉시 `history.replaceState`로 지운다. 확장 경로(일회용 코드 교환)는 2단계 `device_code`와 같은 방식으로 열려 있다 |
 | 토큰 파일 탈취 | macOS Keychain·Windows DPAPI(같은 계정의 다른 앱은 복호화 가능 → 위협 모델에 명시), refresh rotation·재사용 감지·기기 목록 폐기 |
-| 피싱(가짜 로그인 창) | 앱 안에서 자격증명을 받지 않음(2단계), 환경 전환 UI 없음, 서명된 배포본 |
+| 피싱(가짜 로그인 화면) | **개정 2026-09-09, 재개정 2026-09-10**: 2단계도 앱 안에서 자격증명을 받으므로 "앱 안에서 받지 않음"은 더 이상 완화가 아니다(로드맵 Q68·R30). 남는 완화는 (1) 인가 URL을 빌드 상수 API 오리진으로만 조립해 웹 페이지·사용자가 로그인 뷰의 주소를 정하지 못하게 하는 것, (2) 로그인 뷰에도 같은 네비게이션 허용 목록을 거는 것, (3) 환경 전환 UI 없음, (4) 서명된 배포본이다. 2026-09-10 재개정으로 로그인이 메인 창 안에서 끝나 **떠 있는 창이 하나뿐**이라는 점이 완화 하나를 더한다 — 자격증명 폼이 별도 창으로 뜨지 않으므로 "앱이 띄운 창"과 "웹 페이지가 띄운 창"을 구분할 필요 자체가 없다(R24). 주소 표시줄이 없어 사용자가 도메인을 확인할 수 없다는 한계는 메인 창과 같이 남는다 |
 | 백엔드 리다이렉트 오용 | `return` 값 화이트리스트, `state`에 URL 미포함 |
 | 로컬 MCP 서버(같은 PC의 다른 프로세스, DNS 리바인딩) | `127.0.0.1`에만 바인딩, `Origin` 헤더가 있으면 403, `Host` 검사, 연결 토큰 필수(로드맵 Q47·Q48·R25). 토큰 파일 `agent-bridge.json`은 `auth.bin`과 같은 위협 모델(같은 계정의 다른 앱은 읽을 수 있음) |
 | **사용자 Claude 구독 토큰 탈취**(2026-09-10, 트랙 L) | main `safeStorage`(`subscription-auth.bin`)에만 두고 renderer·IPC 응답·로그·크래시 리포트에 싣지 않는다. 같은 계정의 다른 앱은 복호화 가능하다는 점은 `auth.bin`과 같은 위협 모델(6.5). 유출 시 사용자가 claude.ai에서 세션을 폐기해야 하며 앱의 로그아웃은 로컬 삭제만 한다 — 이 한계를 연결 화면(`L3`)에 적는다 |
@@ -655,7 +670,7 @@ desktop/
 │  │  ├─ menu.ts, tray.ts, updater.ts, logging.ts, crash.ts
 │  │  ├─ chat/knotApi.ts   # Bearer 서버 API 클라이언트(워크스페이스 목록·Workspace 검색·세션 생성·턴 저장 — S10 구현 2026-09-09). S3에서 만든 것을 개편
 │  │  ├─ agent/            # CLI 에이전트 연결(6.4, S8 구현 2026-09-09): bridgeConfig(agent-bridge.json)·bridgeCore(MessagePort 왕복·동시 4개)·toolExecutor(도구 입력 검증·서버 호출·결과 조립. S10 show_answer는 세션 생성→턴 저장→presentAnswer 콜백으로 창 앞으로+딥링크)·registration(스니펫 3종+스킬)·instructions·bridge(utilityProcess 기동·클립보드)
-│  │  ├─ auth/             # 2단계: loopback 서버, pkce, tokenStore(safeStorage), bearerInjector
+│  │  ├─ auth/             # 2단계: loopback 서버, pkce, loginView(메인 창 안 로그인 뷰 — 재개정 2026-09-10, 창을 만들지 않는다), tokenStore(safeStorage), bearerInjector
 │  │  └─ llm/              # 앱 안 구독 탐색(6.5, L1 구현 2026-09-09): subscriptionOAuth(claude.ai 인가 URL·platform.claude.com 토큰 교환·갱신)·subscriptionStore(subscription-auth.bin)·llmSettings(subscription-settings.json, Q62)·subscriptionFlow(상태 기계, Electron 미의존)·desktopLlm(접착·스트림 requestId 관리). L2 구현 2026-09-09: sseParser(증분 SSE)·promptAssembler(system = 규칙 + 근거 블록, messages = 히스토리 4개·4,000자)·messagesClient(fetch 직접 호출·Q61 c 헤더·request/stream 단계 오류)·answerFlow(S7 검색 → 히스토리 → 구독 호출 → S2 저장, 폴백 Q66)
 │  ├─ mcp/                 # utilityProcess(S8 구현 2026-09-09): index(parentPort 시작 메시지)·server(무상태 Streamable HTTP + 도구 정의 3개 — list_workspaces·search_documents·show_answer(S10), @modelcontextprotocol/sdk)·guard(Origin/Host/토큰 검사)·portRequester(main 위임·35초 타임아웃)
 │  ├─ preload/index.ts     # contextBridge.exposeInMainWorld('knotDesktop', …)
@@ -691,7 +706,7 @@ desktop/
 | 외부 링크(Notion 페이지 링크 등)를 데스크톱에서 `openExternal`로 | P1 | `target=_blank`는 main이 가로채므로 필수는 아님. UX 통일용 |
 | 로그아웃 액션(`POST /api/v1/auth/logout` → `/login`) | P1 | 웹에도 필요한 누락 기능 |
 | 딥링크 수신 → 라우터 이동 | P2 | 구현됨(2026-09-09, `A8`·U32): 경로 없는 최상위 레이아웃 `shared/routes/DeepLinkListener`가 라우터 안에서 `onDeepLink`를 구독하고 마운트 시 `getPendingDeepLink`를 한 번 소비한다. `resolveDeepLinkPath`가 `invite` → `/invite/:token`, `chat` → `/workspace/:id/chat[/:sessionId]`로 바꾸며 `replace` 이동. `RouterProvider` 상위가 아니라 안쪽에 둔 이유는 `useNavigate`를 쓰기 위해서다 |
-| 로그인 버튼·로그아웃의 데스크톱 2단계 분기 | P2 | 구현됨(2026-09-09, `A7`, 로드맵 Q60): `GithubLoginButton`은 `knotDesktop.auth.startLogin`이 있으면 시스템 브라우저 로그인, `useLogout`은 토큰 삭제 뒤 `auth.logout?.()`로 기기 세션 폐기 |
+| 로그인 버튼·로그아웃의 데스크톱 2단계 분기 | P2 | 구현됨(2026-09-09, `A7`, 로드맵 Q60): `GithubLoginButton`은 `knotDesktop.auth.startLogin`이 있으면 그것을 부르고, 셸은 **메인 창 안 로그인 뷰**를 붙인다(재개정 2026-09-10, Q68 — 2026-09-09 판은 자식 창, 그 전은 시스템 브라우저). `useLogout`은 토큰 삭제 뒤 `auth.logout?.()`로 기기 세션 폐기. 로그인 뷰가 열려 있는 동안 SPA는 `auth.onLoginPromptChanged`로 상단 헤더 띠(제목·취소)를 그린다(2026-09-10, 4.4) |
 | 초대 페이지에 "앱에서 열기"(`knot://invite/<token>`) | P2 | 앱 미설치 시 안내 |
 | **채팅 전송의 데스크톱 구독 분기** | P2 | 2026-09-10, `L2`. `knotDesktop.llm`이 있으면 `llm.streamAnswer`로 보내고, 없거나 `error.fallback === true`면 기존 `streamChatMessageApi`(서버 SSE)로 같은 질문을 재전송한다. 화면이 받는 이벤트 모양은 두 경로가 같다(불변 계약 1번). 구현됨(2026-09-09): `shared/api/desktopLlm`(콜백 → Promise, vitest 4건)·`useSendChatMessageMutation`(데스크톱 분기, 결과에 `answeredBy`)·`useChatStream`(데스크톱에서 `server-sse`면 `notice`로 `이번 답변은 서버 모델로 생성됐어요.`). 실제 셸 경유는 로드맵 U34 |
 | `window.knotDesktop` 사본에 `llm`·`LlmSubscriptionStatus` 추가 | P2 | 2026-09-09, `L1`. `shared/types/desktop.ts`만 갱신(화면 없음, tsc·Prettier 통과) |
@@ -824,7 +839,7 @@ tag desktop-v0.1.0 ─▶ GitHub Actions matrix(macos-latest arm64/x64, windows-
 | I7 | `[BE] 채팅 LLM Anthropic Messages API 어댑터` | be | B안 | `external`, `shared` | 필요 | B안 vs C안(검토 문서 7절), SDK vs HttpClient(→ 로드맵 Q20으로 확정) | provider 분리 |
 | I8 | `[BE] 채팅·임베딩 provider 설정 분리` | be | B안 선행 | `shared` | 필요(짧게) | 없음 | — |
 | I9 | `[BE] 데스크톱 디바이스 토큰 인증 경로(코드 교환·refresh rotation·폐기·기기 목록)` | be | P2 | `security`, `data`, `cross-boundary`, `core-flow` | 필요(인터뷰 6항목 전부) | D4(패턴 A·B vs C vs D), ADR 314 보완 | I2 |
-| I10 | `[FE] 데스크톱 시스템 브라우저 로그인·loopback·딥링크 콜백·토큰 저장` | fe | P2 | `security`, `cross-boundary` | 필요 | I9와 같은 ADR | I9 |
+| I10 | `[FE] 데스크톱 앱 안 로그인 창·loopback·딥링크 콜백·토큰 저장` | fe | P2 | `security`, `cross-boundary` | 필요 | I9와 같은 ADR | I9 |
 | I11 | `[FE] knot:// 딥링크: 초대·채팅 진입` | fe | P2 | `core-flow` | 필요 | 스킴 이름(`knot` vs reverse-domain) | I2 |
 | I12 | `[FE] 트레이·글로벌 단축키 퀵 질문 창` | fe | P2 | `core-flow` | 필요(짧게) | 없음 | I2 |
 | I13 | `[FE] Notion 동기화 완료 알림(폴링)` | fe | P2 | 없음 → Lightweight 가능 | 판정기 결과 따름 | 없음 | I2 |
@@ -875,7 +890,9 @@ Issue 생성은 사용자가 명시적으로 허용하고 판정기가 `pass`·`
 | R26 | 답변 품질·가용성이 사용자의 CLI 에이전트(설치·로그인·모델·구독 한도)에 달려 Knot이 관측·제어할 수 없고, CLI가 없는 팀원은 웹 채팅 UI만 씀 | 지원 창구 분산, 팀원별 경험 차이 | 연결 안내 화면의 서버 상태·마지막 도구 호출 시각으로 연결 여부만 보여 준다(로드맵 R26) |
 | R27 | Workspace 문서 본문(청크 8개)이 사용자의 CLI 에이전트를 거쳐 그 모델 제공자(Anthropic·OpenAI·Google)로 전송됨 | 소유자가 승인한 문서가 사용자 개인 계정의 제3자 모델로 감 | 수용(사용자 결정, 개정 전 "사용자 LLM" 설계와 같은 범위). 연결 안내 화면에 소유자 고지(로드맵 R27) |
 | R28 | MCP 서버 연결 경로의 정책 해석(제3자 MCP 서버 연결은 세 CLI의 문서화된 기능, Knot은 자격증명·바이너리 무접촉)은 공개 문서에 기댄 사용자 결정이며 각 사의 개별 확인은 없음 | 해석이 뒤집히면 경로 자체를 내려야 함 | Knot이 LLM 자격증명·바이너리를 다루지 않는 구조를 코드 검토(GS)로 유지(로드맵 R28) |
-| R24 | 새 창을 허용 목록 한정 자식 창으로 열면서(4.5, 로드맵 Q46) 팝업 창 표면이 생김 — 허용 오리진 페이지의 XSS가 팝업을 띄울 수 있고, 팝업은 주소 표시 없이 IdP 로그인 폼을 보여줌 | 피싱 표면 소폭 확대(2026-09-08) | 자식 창은 목록 안 오리진만 열리고 보안 webPreferences 동일·preload 없음·같은 네비게이션 정책이라 도달 범위가 메인 창과 같다. 메인 창도 주소 표시 없이 IdP 폼을 보여주므로 새 표면은 아니다. 근본 해소는 시스템 브라우저 로그인(5.2, 로드맵 `A7`) |
+| R24 | 새 창을 허용 목록 한정 자식 창으로 열면서(4.5, 로드맵 Q46) 팝업 창 표면이 생김 — 허용 오리진 페이지의 XSS가 팝업을 띄울 수 있고, 팝업은 주소 표시 없이 IdP 로그인 폼을 보여줌 | 피싱 표면 소폭 확대(2026-09-08) | 자식 창은 목록 안 오리진만 열리고 보안 webPreferences 동일·preload 없음·같은 네비게이션 정책이라 도달 범위가 메인 창과 같다. 메인 창도 주소 표시 없이 IdP 폼을 보여주므로 새 표면은 아니다. 근본 해소로 두었던 시스템 브라우저 로그인은 2026-09-09 사용자 지시로 닫혔다 — 2단계 로그인도 앱 안이며, 2026-09-10 재개정으로 그마저 창이 아닌 메인 창 안 뷰가 됐다(5.2, R30). 자식 창이 남는 곳은 Notion 연결의 IdP 팝업뿐이다(Q46) |
+| R30 | 2단계 로그인을 앱 안에 두면서(5.2 개정 2026-09-09, 재개정 2026-09-10, 로드맵 Q68) RFC 8252 §8.12 위반이 영구화됨 — 앱이 GitHub 자격증명 입력 화면을 직접 띄우고, Google처럼 임베디드 UA를 막는 IdP를 지나는 계정은 로그인이 깨질 수 있음 | 피싱 표면 유지, Google 소셜 로그인 계정 로그인 불가 가능성(미확인, 로드맵 U21) | 사용자 결정으로 수용. 완화는 5.3 피싱 행(빌드 상수 인가 URL·허용 목록·환경 전환 UI 없음). **2026-09-10 재개정으로 시스템 브라우저 대체 경로는 되돌릴 수 없다** — 사용자가 창을 새로 띄우는 것 자체를 금지했으므로, IdP가 실제로 차단하면 그 IdP를 지나지 않는 로그인 수단(GitHub 비밀번호·패스키)을 안내하는 쪽으로 대응한다 |
+| R31 | 로그인 뷰의 헤더 띠를 웹 SPA가 그리므로(5.2 재개정 2026-09-10), 셸보다 오래된 SPA가 배포돼 있으면 44px 빈 띠만 보이고 "취소" 버튼이 없음 | 취소 수단 1개 상실 | 뷰 안 `Esc`를 두 번째 취소 수단으로 둔다(5.2). 5분 뒤에는 `LOGIN_TIMEOUT`으로 자동 정리되므로 뷰가 영구히 남지는 않는다 |
 
 ## 16. 참고
 

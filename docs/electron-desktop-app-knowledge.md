@@ -359,6 +359,7 @@ contextBridge.exposeInMainWorld('knotDesktop', {
 - `contextBridge`를 넘는 값은 프로토타입이 제거되고 Structured Clone 호환만 통과. `ipcRenderer` 전체를 노출하면 빈 객체가 되며, `ipcRenderer.on` 콜백을 그대로 노출하면 `event.sender`로 누출되므로 래퍼 필수.
 - `IpcMainInvokeEvent.senderFrame`은 프레임이 이동·파괴되면 `null`일 수 있다. `new URL(frame.url).origin` 비교로 sender 검증.
 - ESM(28+): main은 `.mjs` 또는 `"type": "module"`. **ESM은 비동기 로드라 진입점 import의 side effect만 `ready` 전에 실행**되므로 동적 `import()` 뒤에는 `app.whenReady()`가 이미 지났을 수 있다. **sandboxed preload는 ESM import 불가**(ESM preload는 `sandbox: false` 필요) → preload는 CJS 단일 번들 유지.
+- **`WebContentsView`는 창이 아니라 창 안의 뷰다**(추가 2026-09-10, `A7` 실측). `window.contentView.addChildView(view)`로 붙이고 `view.setBounds({x, y, width, height})`로 자리를 정한다(좌표는 창의 content 영역 기준). 붙어 있는 동안 CDP 페이지 타깃은 하나 늘지만(별도 webContents) **OS 창은 늘지 않는다** — 로그인 뷰가 붙은 상태에서 `System Events`로 조회한 Electron 프로세스의 창 목록이 `Document` 하나 그대로였다(2026-09-10 20:55). `app.on("web-contents-created")`가 이 뷰의 webContents에도 발화하므로 네비게이션 정책이 그대로 걸리고, 그 뒤 `contents.setWindowOpenHandler(...)`를 다시 부르면 뷰 단위로 덮어쓸 수 있다(마지막 등록만 유효). 창 크기 변화는 뷰에 자동으로 전파되지 않아 `window.on("resize")`에서 bounds를 다시 계산해야 한다.
 - 출처: https://www.electronjs.org/docs/latest/tutorial/process-model , /tutorial/ipc , /api/context-bridge , /tutorial/sandbox , /tutorial/esm , /tutorial/message-ports , /api/utility-process
 
 ### 2.3 보안 체크리스트 (공식 Security 문서 20항목) [확인]

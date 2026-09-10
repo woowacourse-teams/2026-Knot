@@ -26,11 +26,11 @@ Claude Code OAuth 흐름으로 받은 구독 토큰으로 `api.anthropic.com`을
 | 있음 | 없음(담당 작업) |
 | --- | --- |
 | 원격 오리진 로드, 보안 기본값, Fuses | 서명·공증·DMG·Squirrel·릴리스 (`A3`) |
-| 네비게이션·리다이렉트 허용 목록, 새 창은 목록 안만 자식 창(밖은 거부·외부 브라우저) | 자동 업데이트의 **실효**(`A4` — 정책·접착은 있으나 미서명·미패키징 빌드에서는 꺼진다, 로드맵 Q59) |
+| 네비게이션·리다이렉트 허용 목록, 새 창은 목록 안만 자식 창(밖은 거부·외부 브라우저. 로그인 뷰는 새 창 자체를 만들지 않는다 — Q69) | 자동 업데이트의 **실효**(`A4` — 정책·접착은 있으나 미서명·미패키징 빌드에서는 꺼진다, 로드맵 Q59) |
 | 세션 권한 정책, IPC sender 검증 | 기기 목록·원격 로그아웃 UI (`A11`) |
 | 메뉴(로그인·로그아웃·업데이트 확인·CLI 에이전트 연결), 외부 링크, 오프라인 화면, 파일 로그 | crashReporter (`A2` 잔여, 로드맵 Q5 미수집) |
 | 액세스 토큰 `safeStorage` 저장(`auth.bin`) + 창 상태 복원(`window-state.json`, `A2`) | 실제 dev 백엔드로의 2단계 로그인 종단(사용자 로그인 필요) |
-| **시스템 브라우저 로그인·loopback·`knot://auth/callback`·리프레시 갱신·Bearer 주입**(`A7`, `auth-session.bin`) | |
+| **메인 창 안 로그인 뷰·loopback·`knot://auth/callback`·리프레시 갱신·Bearer 주입**(`A7`, `auth-session.bin`. 로그인 화면은 2026-09-10 사용자 지시로 자식 창에서 메인 창 안 `WebContentsView`로 옮겼다 — 창을 새로 만들지 않는다, 로드맵 Q68) | |
 | **`knot://` 딥링크**(초대·채팅, 웜·콜드 스타트, `A8`) — SPA 쪽 구독은 `frontend/src/shared/routes/DeepLinkListener` | 패키징 앱에서의 스킴 등록 실측(로드맵 G4) |
 | **트레이·글로벌 단축키(`⌘⇧K`)·퀵 질문 창**(`A9`) | |
 | **Notion 동기화 완료 알림·Dock 배지**(`A10`) + preload `notifications.show` | |
