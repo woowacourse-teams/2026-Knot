@@ -152,6 +152,8 @@ public interface LlmStream extends AutoCloseable { boolean hasNext(); String nex
 >
 > 정정 2026-09-07(`S1` 구현): 데스크톱 경유 탐색용 검색 API `POST /api/v1/conversations/{sessionId}/search`(`chat/presentation/ChatSearchController.java`, `chat/application/ChatSearchService.java`)가 추가됐다. 소유자 검증 → `ActiveChatStreamRegistry` 잠금 → 스냅샷 검사 → DB 기준 진행 중 턴 검사(마지막 메시지가 USER이고 `chat.turn-timeout` 안이면 409 `CHAT_TURN_IN_PROGRESS`) → 검색 → USER 저장(READY가 아니면 안내 ASSISTANT도 `saveFallbackTurn`으로 같은 트랜잭션) 순서이며 LLM을 부르지 않는다. `PublishedDocumentSearchService.selectSources`는 페이지 중복 제거 없이 청크 상위 `top-k`(8)를 돌려주고, `SearchContext.contextReferences()`가 `groundingPrompt()`와 같은 예산(12,000자)으로 본문을 잘라 응답 `chunks`에 싣는다. 검색 질의 조립은 `ChatSearchQueryComposer`로 빠져 SSE 경로와 공유한다. `ChatMessage.generatedBy`는 항상 `SERVER`로 저장된다(`CLIENT`는 `S2`).
 >
+> 정정 2026-09-10(앱 안 구독 탐색 채택): `S1` 엔드포인트의 소비자가 다시 생겼다 — 데스크톱 트랙 L(`L2`)의 main이 이 세션 검색 API로 근거를 받아 사용자 구독으로 모델을 부른다(기획서 6.5). 아래 2026-09-09 기재("소비자가 없다")는 그때의 사실이며 지금은 무효다.
+>
 > 정정 2026-09-09(탐색 경로 MCP 방식 확정): 위 `S1` 엔드포인트의 유일한 소비자였던 데스크톱 `S3`(main의 사용자 LLM 호출)이 폐기돼 현재 소비자가 없다. 데스크톱은 이제 LLM을 호출하지 않고 로컬 MCP 서버(`S8`)의 `search_documents` 도구가 Workspace 기준 검색 API `POST /api/v1/workspaces/{workspaceId}/search`(`S7`, 저장·턴 검사 없음 — 2026-09-09 구현됨: `chat/presentation/WorkspaceSearchController.java`, `chat/application/WorkspaceSearchService.java`. `WorkspaceQueryService.findDetail`로 존재·멤버를 검사하고 `PublishedDocumentSearchService.search(workspaceId, content)`를 이력 없이 호출한다)를 부르며, 에이전트 답변 저장은 `POST /api/v1/conversations/{sessionId}/turns`(`S2`, 미구현)로 한다. `S1`의 검색·선별·예산 로직과 V14는 그대로 재사용한다(로드맵 4.5절).
 
 **설정 키(`llm.*`)**: `provider`(`fake`, 레거시 fallback), `chat.provider`(`${llm.provider}`), `embedding.provider`(`${llm.provider}`), `base-uri`(`http://localhost:1234/v1`), `api-key`(빈값), `model`(`qwen/qwen3.6-27b`), `max-tokens`(1024), `temperature`(0.2), `request-timeout`(PT30S), `embedding.model`(`text-embedding-qwen3-embedding-0.6b:2`), `embedding.dimensions`(1024), `search.chunk-size`(1200), `search.chunk-overlap`(180), `search.candidate-limit`(50), `search.top-k`(8, 정정 2026-09-07 `S1`: 3 → 8), `search.max-context-characters`(12000, 정정 2026-09-07 `S1`: 10000 → 12000), `search.embedding-batch-size`(16, 정정 2026-09-08: 64 → 16 — 로드맵 Q37·U25, 64는 Gemini 429 `RESOURCE_EXHAUSTED`), `search.minimum-relevance-score`(0.35), `anthropic.base-uri`(`https://api.anthropic.com`), `anthropic.api-key`(빈값), `anthropic.model`(`claude-opus-5`), `anthropic.effort`(`medium`), `anthropic.max-tokens`(4096), `anthropic.request-timeout`(PT30S), `gemini.base-uri`(`https://generativelanguage.googleapis.com`), `gemini.api-key`(빈값, `GEMINI_API_KEY`), `gemini.embedding-model`(`gemini-embedding-001`), `gemini.request-timeout`(PT30S), `gemini.retry-max-attempts`(6, 추가 2026-09-08 Q42), `gemini.retry-initial-delay`(PT5S, 추가 2026-09-08 Q42) — `application.properties`의 `llm.*` 블록(정정 2026-09-08 `B5`: `gemini.*` 4개 추가, `embedding.model`은 `openai-compatible` 전용). 바인딩: `LlmProperties`, `AnthropicLlmProperties`, `GeminiEmbeddingProperties`, `EmbeddingProperties`, `SearchProperties`. 채팅 쪽 키는 `chat.turn-timeout`(PT5M, `ChatProperties`, 추가 2026-09-07 `S1`) 하나다.
@@ -840,11 +842,12 @@ GitHub embedded webview 차단 정책 유무, GitHub 콜백에 커스텀 스킴 
 
 | 항목 | 내용 | 기획 반영 |
 | --- | --- | --- |
-| 서드파티 제품의 claude.ai 로그인·구독 한도 제공 | Agent SDK 공식 문서가 "사전 승인 없이는 금지"로 명시 | 데스크톱 앱은 사용자 구독 크리덴셜(`~/.claude`, Keychain)을 **읽지도 요구하지도 않고** `claude` 바이너리를 실행하지도 않는다(2026-09-09, 로드맵 불변 계약 3번). 사용자가 자기 Claude Code에 Knot MCP 서버를 등록하는 것은 이 조항의 대상이 아니다(아래 "제3자 MCP 서버·스킬 등록" 행) |
+| 서드파티 제품의 claude.ai 로그인·구독 한도 제공 | Agent SDK 공식 문서가 "사전 승인 없이는 금지"로 명시. `legal-and-compliance`도 "does not permit third-party developers to offer Claude.ai login into their own applications, or to route requests through Free, Pro, or Max plan credentials on behalf of their users … may not collect, store, or intermediate Claude.ai credentials or session tokens" | **2026-09-10 개정**: 데스크톱 앱이 이 형태를 **의도적으로 채택했다**(로드맵 트랙 L·Q61, 계약 3번 삭제). 앱이 Claude Code OAuth 흐름을 재현해 사용자 구독 토큰을 받아 `safeStorage`에 보관하고 `api.anthropic.com`을 직접 부른다. 금지 조항 해당을 알고 진행하는 것이며 위험은 사용자 감수(R28). 개정 전 기재: "구독 크리덴셜을 읽지도 요구하지도 않는다(계약 3번)" |
+| 서드파티 도구의 구독 사용에 대한 재량 허용·과금 | support.claude.com 13189465: 선호는 API 키이나 "may at its discretion allow paid subscribers who have enabled usage credits to use certain third-party tools … draw … from usage credits rather than subscription limits". 또 "third-party tools that misrepresent their identity to Anthropic's servers … prohibited and such use may be enforced against" | 트랙 L이 운영되는 구간이 이곳이다. 2026-04부터 서드파티 OAuth 사용은 구독 한도가 아니라 **extra usage 크레딧에서 per-token** 차감된다(경고 문구 "anthropic subscription auth is active. Third-party usage now draws from extra usage…"). 연결 화면(`L3`)이 이를 고지하고, 크레딧 소진은 서버 SSE 폴백(Q22)으로 처리한다(R29) |
 | `claude setup-token` / `CLAUDE_CODE_OAUTH_TOKEN` | Claude Code CLI 전용, Agent SDK bare mode는 읽지 않음 | 앱 로그인 폴백으로 쓰지 않는다 |
 | 변경 없는 Claude Code 바이너리를 제품이 실행 + 사용자 각자 로그인 | `legal-and-compliance` "Can customers offer Claude Code in their products?"가 조건부 허용(바이너리 미변경·내장 인증 유지·대납/중개 금지·사용자 각자 자격증명)이고 "unmodified Claude Code binary with their own Claude subscription"을 명시(검토 문서 2.1, 2026-09-07 확인) | 2026-09-08 초안(로드맵 `S6`, `claude -p` 자식 프로세스)의 근거였으나 사용자가 거부해 같은 날 폐기. Knot은 CLI 바이너리를 실행하지 않으므로 이 조항은 적용 대상이 아니다. `claude -p` 실측 표는 §6.8에서 제거했다(2026-09-09, git 이력에만 남는다) |
 | Console API 키(서버 보관) | 허용 경로 | 백엔드 `LlmClient`에 Anthropic 어댑터 추가(B안)는 웹 채팅 UI의 서버 경로(로드맵 Q22)에 쓰인다. Workspace BYO 키(C안)는 후속 |
-| 사용자가 공식 CLI에 제3자 MCP 서버·스킬을 등록 | 세 CLI(Claude Code·Codex CLI·Gemini CLI) 모두 문서화된 정식 기능(§6.8, 2026-09-09 확인). `legal-and-compliance`에 MCP 서버 연결을 제한하는 조항 없음(같은 날 재확인) | **탐색의 데스크톱 경로**(2026-09-09, 로드맵 `S8`·불변 계약 2·3번, 검토 문서 7절 F안). 데스크톱 앱이 `127.0.0.1`에 MCP 서버를 띄우고 사용자가 자기 CLI에 등록한다. Knot은 LLM을 호출하지 않고 자격증명·바이너리를 만지지 않는다. 해석 위험은 로드맵 R28 |
+| 사용자가 공식 CLI에 제3자 MCP 서버·스킬을 등록 (2026-09-10부터 **선택적 부가 진입점**, 기본 경로 아님) | 세 CLI(Claude Code·Codex CLI·Gemini CLI) 모두 문서화된 정식 기능(§6.8, 2026-09-09 확인). `legal-and-compliance`에 MCP 서버 연결을 제한하는 조항 없음(같은 날 재확인) | **탐색의 데스크톱 경로**(2026-09-09, 로드맵 `S8`·불변 계약 2·3번, 검토 문서 7절 F안). 데스크톱 앱이 `127.0.0.1`에 MCP 서버를 띄우고 사용자가 자기 CLI에 등록한다. Knot은 LLM을 호출하지 않고 자격증명·바이너리를 만지지 않는다. 해석 위험은 로드맵 R28 |
 | 원격 MCP 서버(서버 호스팅) | 사용자가 자기 Claude 앱/Claude Code에서 서버를 연결하는 구조라 제품이 구독을 제공하는 것이 아님 | 서버 호스팅 변형은 개발자용 부가 기능 후보(로드맵 `A13`)로만 기록. 로컬 변형이 위 행 |
 
 ### 6.2 현재 모델·가격 (Anthropic 1st-party API 기준, 캐시 2026-06-24)
@@ -947,6 +950,41 @@ Codex CLI·Gemini CLI가 모두 `~/.agents/skills/`를 읽으므로 로드맵 Q5
 
 **정책 문구** [문서, 2026-09-09 재확인]: `legal-and-compliance`(https://code.claude.com/docs/en/legal-and-compliance)에 MCP 서버 연결을 제한하는 조항은 없다. 금지는 claude.ai 로그인 제공·구독 자격증명으로 대리 요청·자격증명/세션 토큰 수집·저장·중개·바이너리 변경·대납/재판매뿐이며, F안(검토 문서 7절)은 이 중 어느 것도 하지 않는다.
 
+### 6.9 사용자 Claude 구독을 앱이 직접 쓰는 방법 (2026-09-09 Aside 설치본 실측, 트랙 L 재료)
+
+로드맵 트랙 L(`L1`·`L2`)의 구현 재료다. 이 PC의 Aside 1.26.908.1846을 실측해 확인한 값이며, Knot이 같은 방식을 채택했다(로드맵 Q61, 기획서 6.5). 판정·위험은 검토 문서 5.1·5.9, 정책은 §6.1.
+
+**OAuth (앱이 Claude Code 흐름을 재현)** [실측]
+
+| 항목 | 값 |
+| --- | --- |
+| client_id | `9d1c250a-e61b-44d9-88ed-5944d1962f5e` (Claude Code 공개 client. Aside는 바이너리에 base64로 저장) |
+| authorize | `https://claude.ai/oauth/authorize` (PKCE, 시스템 브라우저 또는 팝업) |
+| token | `https://platform.claude.com/v1/oauth/token` (code → access·refresh 교환, 갱신도 같은 엔드포인트) |
+| redirect | `http://localhost:<port><path>` loopback. 브라우저가 콜백을 못 여는 환경용으로 authorization code 수동 입력 폴백을 둔다 |
+| scope | `org:create_api_key user:profile user:inference user:sessions:claude_code user:mcp_servers user:file_upload` (Knot에 필요한 최소는 `user:inference` + `user:profile`) |
+| 토큰 형식 | access `sk-ant-oat…`(수 시간 만료), refresh `sk-ant-ort…`. Aside는 `~/.aside/u/<n>/credentials.json`에 `{type, state, access, refresh, expires, source}`로 평문 보관 — Knot은 main `safeStorage`(`subscription-auth.bin`)에 둔다 |
+
+**모델 호출** [실측]
+
+```
+POST https://api.anthropic.com/v1/messages        (stream: true)
+Authorization: Bearer <sk-ant-oat…>
+anthropic-version: 2023-06-01
+anthropic-beta: claude-code-20250219,oauth-2025-04-20
+user-agent: claude-cli/<claudeCodeVersion>
+x-app: cli
+anthropic-dangerous-direct-browser-access: true
+```
+
+- `anthropic-beta`의 두 값이 함께 있어야 구독 OAuth 토큰이 Messages API에서 받아들여진다(Aside가 provider `claude-code`일 때만 이 두 값을 붙이고, API 키 경로에서는 붙이지 않는다).
+- 사용량 조회는 별도 엔드포인트(`CLAUDE_CODE_USAGE_URL`, 헤더 `anthropic-beta: oauth-2025-04-20`)로 한다 — 크레딧 잔량 표시(`L3`)에 쓸 수 있다.
+- 스트리밍 이벤트 파싱은 §6.4(SSE `content_block_delta.text_delta` → `message_stop`)와 같다. 백엔드 어댑터(`B1`)가 이미 같은 파서를 쓴다.
+
+**하지 않는 것** [실측]: Aside는 사용자의 `claude` 바이너리를 자식 프로세스로 실행하지 않는다(`ps`로 확인 — `claude` 프로세스는 전부 사용자 터미널의 자식). 에이전트 루프가 번들 데몬(자체 Node 런타임) 안에 컴파일돼 있다. Knot도 바이너리를 실행하지 않는다(기획서 2.2 비목표에 유지).
+
+**다른 제공자** [실측]: 같은 연결 화면에 `openai-codex`("Sign in with ChatGPT")·`github-copilot`·`xai-grok-oauth`·`kimi-code` 구독 OAuth와 `byok`(자기 API 키)가 함께 있다. Knot 트랙 L은 Claude 구독만 대상이다(기획서 2.2).
+
 ## 7. 참고 링크 총목록
 
 **Knot 저장소**: `docs/llm-electron-subscription-architecture-review.md`, `docs/llm-search-feature-spec.md`, `docs/llm-java-integration.md`, `docs/adr/{212,232,254,271,314,328}-*.md`, `docs/adr/README.md`, `docs/harness/issue-planning.md`, `.agents/skills/knot-issue-planning/references/risk-policy.md`, `.github/knot-conventions.yml`, `CONTRIBUTING.md`, `frontend/webpack.config.js`, `frontend/wrangler.jsonc`, `frontend/src/shared/api/httpClient/index.ts`, `backend/src/main/java/com/knot/backend/global/config/SecurityConfig.java`, `backend/src/main/resources/application.properties`
@@ -992,7 +1030,7 @@ Codex CLI·Gemini CLI가 모두 `~/.agents/skills/`를 읽으므로 로드맵 Q5
 | U15 | Cloudflare Workers 정적 자산의 `_headers` CSP 지원과 Emotion 인라인 스타일 충돌 | 웹 CSP Issue | 실험 |
 | U25 | Gemini `batchEmbedContents` 요청당 최대 건수와 입력 2,048토큰 초과 시 동작 | `B5` 배치 크기(로드맵 Q37) | 부분 해소(2026-09-08): 1,300자 텍스트 32건 이상이면 429 `RESOURCE_EXHAUSTED`, 8·16건은 200 → 배치 16. 토큰 초과 동작은 미확인 |
 | U26 | `gemini-embedding-001`이 REST 최상위 `outputDimensionality`·`taskType`으로 1,024차원 응답을 주는가(레퍼런스 deprecated 표시) | `B5` 차원 계약(로드맵 Q35) | 해소(2026-09-08): 최상위 필드로 1,024차원 응답, norm 0.6165(미정규화) |
-| U24 | Electron main의 전역 `fetch`(undici)가 SSE 응답 본문을 끊김 없이 스트리밍하고 `AbortController`로 취소되는가 | 무효(2026-09-09 — `S3` 폐기, 데스크톱은 LLM을 호출하지 않는다) | 부분 해소 기록만 남긴다(2026-09-08 vitest Node 22.21 실측, `desktop/test/openAiCompatibleClient.test.ts` — `S8`에서 함께 제거). 서버 API 호출의 취소·30초 제한은 `knotApi.ts`가 같은 API로 처리하며 `S8`이 재사용 |
+| U24 | Electron main의 전역 `fetch`(undici)가 SSE 응답 본문을 끊김 없이 스트리밍하고 `AbortController`로 취소되는가 | **되살아남(2026-09-10, 트랙 L `L2`)** — 앱이 다시 main에서 SSE를 스트리밍한다. 2026-09-08 `S3` 구현의 vitest 실측(실제 `http.createServer` SSE 서버로 확인)이 그대로 재사용 가능한 근거다. 개정 전 기재: 무효(2026-09-09 — `S3` 폐기, 데스크톱은 LLM을 호출하지 않는다) | 부분 해소 기록만 남긴다(2026-09-08 vitest Node 22.21 실측, `desktop/test/openAiCompatibleClient.test.ts` — `S8`에서 함께 제거). 서버 API 호출의 취소·30초 제한은 `knotApi.ts`가 같은 API로 처리하며 `S8`이 재사용 |
 | U28 | 세 CLI(Claude Code·Codex CLI·Gemini CLI)가 `http://127.0.0.1:<port>/mcp`의 Streamable HTTP 서버에 실제로 붙는가 — 어느 스펙 개정판(2026-07-28 무세션 vs 2025-06-18 `initialize`·`Mcp-Session-Id`)으로 오는지, `Authorization` 헤더를 그대로 보내는지, `Origin` 헤더를 안 보내는지 | `S8` 전송·인증(로드맵 Q47·Q48) | 부분 해소(2026-09-09 실측, §6.8): Claude Code 2.1.263이 등록 뒤 ✔ Connected, initialize 2025-11-25, `Authorization` 전달, `Origin` 없음, `claude -p` 도구 호출 왕복. Codex CLI·Gemini CLI는 미설치라 미측정(U31). Gemini CLI 문서 예시는 `http://localhost:3000/mcp`다 |
 | U29 | Electron 44 `utilityProcess`에서 `http.createServer`가 `127.0.0.1`에 바인딩되고 `MessagePort` 왕복이 도구 호출 지연(목표 50ms 미만, 서버 API 시간 제외)을 만족하는가, 앱 종료·크래시 시 포트가 풀리는가 | `S8`(로드맵 Q47) | 해소(2026-09-09 실측, §6.8): `127.0.0.1:47871`만 LISTEN, 왕복 3ms, SIGTERM 뒤 포트 해제. 크래시 시 해제는 미측정 |
 | U30 | MCP 서버 `instructions`(2026-07-28 개정판에서는 `server/discover` 응답의 해당 필드)가 세 CLI에서 모델에 노출되는가 | `S9`(로드맵 Q50) | 미확인. Claude Code MCP 문서에 언급이 없다. 노출되지 않으면 스킬 파일만이 안내 경로다 |
