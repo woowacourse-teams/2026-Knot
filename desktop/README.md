@@ -85,6 +85,19 @@ KNOT_DESKTOP_ENV=local pnpm start                                   # frontend p
 KNOT_DESKTOP_ENV=prod KNOT_API_ORIGIN=https://... pnpm make         # 운영 빌드
 ```
 
+`local`은 웹 `http://localhost:3000`·API `http://localhost:8080`으로 **빌드 시점에 고정**된다
+(`src/shared/env.ts`). 그래서 세 개를 각각 띄우는 대신 저장소 루트의 한 명령으로 순서대로 띄운다.
+
+```bash
+../scripts/dev.sh          # postgres → backend(:8080) → frontend(:3000) → 이 셸(local)
+../scripts/dev.sh --help   # --skip-db · --skip-backend · --skip-web · --skip-desktop · --open
+```
+
+이미 떠 있는 것은 다시 띄우지 않고 그대로 쓰고(`:8080` 헬스, `:3000` 번들 태그로 판별), Ctrl+C는
+그 스크립트가 띄운 것만 정리한다. **앱이 이미 실행 중이면 단일 인스턴스 잠금 때문에 새 창 없이 바로
+종료된다** — 먼저 끄거나 `--skip-desktop`으로 서버만 띄운다. 서버 채팅 LLM은 `ANTHROPIC_API_KEY`가
+없으면 `fake`로 뜬다(구독 경로 검증에서는 이게 기본 — 폴백이 일어나면 "테스트 LLM 응답입니다"로 바로 구분된다).
+
 ### 로그
 
 `~/Library/Logs/Knot/main.log` (메뉴 → 도움말 → 로그 파일 열기). 네비게이션·리다이렉트가
