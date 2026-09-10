@@ -3,13 +3,16 @@
  *
  * SDK 없이 Node `fetch`로 `POST https://api.anthropic.com/v1/messages`(`stream: true`)를 부르고 SSE를 직접 판다
  * (`desktop/CLAUDE.md` 코드 절 — 구독 OAuth 헤더를 SDK가 그대로 실어 주지 않는다). 헤더는 Q61 c의 여섯 개다.
+ * `system`은 배열 두 블록이다 — 첫 블록은 Claude Code 식별 문장(`CLAUDE_CODE_SYSTEM_IDENTITY`), 둘째 블록이 호출자가 준
+ * 규칙+근거 문자열. 식별 블록이 없으면 헤더가 다 있어도 Anthropic이 `429 rate_limit_error {message: "Error"}`로 거절한다
+ * (2026-09-10 실측, 로드맵 Q61 c·U33). 실제 한도의 429와 구분하려고 HTTP 오류 본문 `message`·한도 헤더를 로그에 남긴다(Q66).
  * `temperature`·assistant prefill은 넘기지 않고 `output_config.effort`만 준다(Q62, 백엔드 `AnthropicRequestMapper`와 같다).
  *
  * 오류 단계(Q66): 응답 헤더를 받기 전(`request`)의 실패는 구독 쪽 코드(`SUBSCRIPTION_*`)로, 스트림이 열린 뒤(`stream`)의
  * 실패는 서버 SSE 경로와 같은 코드(`LLM_*`)로 낸다. 폴백 여부는 호출자(`answerFlow`)가 "첫 chunk 전인가"로 정한다.
  * 타임아웃: 응답 헤더 30초, 이벤트 사이 60초.
  *
- * 로그에는 모델·상태·지연·토큰 사용량만 남기고 구독 토큰·프롬프트·답변은 남기지 않는다.
+ * 로그에는 모델·상태·지연·토큰 사용량·Anthropic 오류 본문 `message`(200자까지)만 남기고 구독 토큰·프롬프트·답변은 남기지 않는다.
  */
 
 import { logger } from "../logging";
@@ -24,6 +27,10 @@ export const ANTHROPIC_VERSION = "2023-06-01";
 export const ANTHROPIC_BETA = "claude-code-20250219,oauth-2025-04-20";
 /** `user-agent: claude-cli/<ver>`의 버전. 이 PC의 Claude Code 설치본(로드맵 `S8` 실측)을 상수로 둔다(Q66) */
 export const CLAUDE_CLI_VERSION = "2.1.263";
+/** `system` 첫 블록. 이 문장이 첫 블록이 아니면 구독 OAuth 토큰 요청이 `429 Error`로 거절된다(로드맵 Q61 c, 2026-09-10 실측) */
+export const CLAUDE_CODE_SYSTEM_IDENTITY = "You are Claude Code, Anthropic's official CLI for Claude.";
+/** 로그에 남기는 Anthropic 오류 본문 `message`의 길이 상한 */
+export const ERROR_MESSAGE_LOG_LIMIT = 200;
 export const MESSAGES_HEADERS_TIMEOUT_MS = 30_000;
 export const MESSAGES_IDLE_TIMEOUT_MS = 60_000;
 
@@ -147,7 +154,10 @@ export function createMessagesClient(options: MessagesClientOptions = {}): Messa
             model: request.model,
             max_tokens: request.maxTokens,
             stream: true,
-            system: request.system,
+            system: [
+              { type: "text", text: CLAUDE_CODE_SYSTEM_IDENTITY },
+              { type: "text", text: request.system },
+            ],
             messages: request.messages,
             output_config: { effort: request.effort },
           }),
@@ -338,13 +348,25 @@ function streamErrorCode(errorType: string): MessagesErrorCode {
 /** 백엔드 `AnthropicErrorCodes.forStatus`와 같은 분류를 구독 쪽 코드로 낸다(Q66) */
 async function toRequestError(response: Response, model: string): Promise<MessagesApiError> {
   let errorType: string | null = null;
+  let errorMessage: string | null = null;
   try {
-    const body = (await response.json()) as { error?: { type?: unknown } };
+    const body = (await response.json()) as { error?: { type?: unknown; message?: unknown } };
     if (typeof body.error?.type === "string") errorType = body.error.type;
+    if (typeof body.error?.message === "string") errorMessage = body.error.message.slice(0, ERROR_MESSAGE_LOG_LIMIT);
   } catch {
     // 본문이 비었거나 JSON이 아니다
   }
-  logger.warn("[knot] 구독 모델 HTTP 오류", { model, status: response.status, type: errorType });
+  // 429가 어느 한도인지(분당 토큰·5시간·주간)는 Anthropic이 message와 한도 헤더로만 알려 준다. 본문이 `Error`뿐이면
+  // 식별 블록 게이트(Q61 c)다. 사용자 질문·답변이 아니라 Anthropic이 만든 문구라 로그에 남겨도 된다(파일 머리말 로그 정책).
+  logger.warn("[knot] 구독 모델 HTTP 오류", {
+    model,
+    status: response.status,
+    type: errorType,
+    message: errorMessage,
+    retryAfter: response.headers.get("retry-after"),
+    unifiedStatus: response.headers.get("anthropic-ratelimit-unified-status"),
+    unifiedReset: response.headers.get("anthropic-ratelimit-unified-reset"),
+  });
   const { status } = response;
   if (status === 401 || status === 403) return new MessagesApiError(status, "SUBSCRIPTION_UNAUTHORIZED", "request", errorType);
   if (status === 429 || status === 529) return new MessagesApiError(status, "SUBSCRIPTION_RATE_LIMITED", "request", errorType);

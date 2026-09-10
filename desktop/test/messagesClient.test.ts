@@ -3,7 +3,7 @@ import { logMock } from "./helpers/logMock";
 
 vi.mock("electron-log/main", () => ({ default: logMock }));
 
-const { ANTHROPIC_BETA, ANTHROPIC_MESSAGES_URL, ANTHROPIC_VERSION, MessagesApiError, createMessagesClient } =
+const { ANTHROPIC_BETA, ANTHROPIC_MESSAGES_URL, ANTHROPIC_VERSION, CLAUDE_CODE_SYSTEM_IDENTITY, MessagesApiError, createMessagesClient } =
   await import("../src/main/llm/messagesClient");
 
 const REQUEST = {
@@ -97,11 +97,43 @@ describe("stream", () => {
       model: "claude-fable-5-1",
       max_tokens: 4096,
       stream: true,
-      system: "규칙 SECRET-SYSTEM",
+      system: [
+        { type: "text", text: "You are Claude Code, Anthropic's official CLI for Claude." },
+        { type: "text", text: "규칙 SECRET-SYSTEM" },
+      ],
       messages: [{ role: "user", content: "질문 SECRET-QUESTION" }],
       output_config: { effort: "high" },
     });
     expect(body).not.toHaveProperty("temperature");
+    expect(CLAUDE_CODE_SYSTEM_IDENTITY).toBe("You are Claude Code, Anthropic's official CLI for Claude.");
+  });
+
+  it("429 본문 message를 로그에 남겨 식별 블록 게이트(Error)와 실제 한도를 구분한다(Q66)", async () => {
+    fetchMock.mockResolvedValueOnce(
+      new Response(JSON.stringify({ type: "error", error: { type: "rate_limit_error", message: "Error" } }), { status: 429 }),
+    );
+
+    await client()
+      .stream(REQUEST, () => {}, signal())
+      .catch(() => {});
+
+    expect(logMock.warn).toHaveBeenCalledWith(
+      "[knot] 구독 모델 HTTP 오류",
+      expect.objectContaining({ model: "claude-fable-5-1", status: 429, type: "rate_limit_error", message: "Error" }),
+    );
+  });
+
+  it("오류 본문 message는 200자까지만 로그에 남긴다", async () => {
+    fetchMock.mockResolvedValueOnce(
+      new Response(JSON.stringify({ type: "error", error: { type: "api_error", message: "x".repeat(500) } }), { status: 500 }),
+    );
+
+    await client()
+      .stream(REQUEST, () => {}, signal())
+      .catch(() => {});
+
+    const call = logMock.warn.mock.calls.find((args) => args[0] === "[knot] 구독 모델 HTTP 오류");
+    expect((call?.[1] as { message: string }).message).toHaveLength(200);
   });
 
   it("청크 경계가 프레임 중간·한글 바이트 중간에 걸려도 읽는다", async () => {
@@ -245,7 +277,9 @@ describe("stream", () => {
   it("로그에 구독 토큰·프롬프트·답변이 남지 않는다", async () => {
     fetchMock.mockResolvedValueOnce(sseResponse(OK_FRAMES));
     await client().stream(REQUEST, () => {}, signal());
-    fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ error: { type: "x", message: "SECRET" } }), { status: 500 }));
+    fetchMock.mockResolvedValueOnce(
+      new Response(JSON.stringify({ error: { type: "x", message: "anthropic-detail" } }), { status: 500 }),
+    );
     await client()
       .stream(REQUEST, () => {}, signal())
       .catch(() => {});
@@ -254,5 +288,7 @@ describe("stream", () => {
     expect(logged).not.toContain("SECRET");
     expect(logged).not.toContain("안녕");
     expect(logged).toContain("outputTokens");
+    // Anthropic이 쓴 오류 본문 message는 남긴다(Q66)
+    expect(logged).toContain("anthropic-detail");
   });
 });
