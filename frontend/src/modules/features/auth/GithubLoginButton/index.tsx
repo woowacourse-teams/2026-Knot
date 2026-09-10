@@ -26,9 +26,10 @@ const GITHUB_OAUTH_URL = `${process.env.API_BASE_URL}/oauth2/authorization/githu
  * 서버가 허용한 출처에서만 동작하므로 `localhost`에서는 확인할 수 없어요.
  * 배포된 주소에서 확인해야 합니다.
  *
- * 데스크톱 앱이 시스템 브라우저 로그인(`auth.startLogin`)을 열어 주면 그쪽을 써요. 앱 창 안에서
- * GitHub 자격증명을 입력하지 않고, 로그인이 끝나면 셸이 창을 홈으로 옮깁니다(기획서 5.2).
- * 실패·취소는 셸이 로그에 남기고 이 버튼은 다시 누를 수 있게 그대로 둬요.
+ * 데스크톱 앱이 2단계 로그인(`auth.startLogin`)을 열어 주면 그쪽을 써요. 셸은 **창을 새로 띄우지 않고**
+ * 앱 창 안에 로그인 뷰를 붙였다가, 로그인이 끝나면 뷰를 떼고 이 화면을 홈으로 옮깁니다
+ * (재개정 2026-09-10, 기획서 5.2·로드맵 Q68). 뷰가 덮지 않는 위쪽 띠에 "취소"를 그리는 것은
+ * `DesktopLoginPrompt`의 몫이에요. 실패·취소는 셸이 로그에 남기고 이 버튼은 다시 누를 수 있게 둡니다.
  */
 export default function GithubLoginButton() {
   const { desktopApi } = useDesktop();
@@ -37,7 +38,7 @@ export default function GithubLoginButton() {
   const handleClick = () => {
     if (startDesktopLogin !== undefined) {
       startDesktopLogin().catch((error: unknown) => {
-        console.error("데스크톱 브라우저 로그인을 마치지 못했어요.", error);
+        console.error("데스크톱 로그인을 마치지 못했어요.", error);
       });
       return;
     }

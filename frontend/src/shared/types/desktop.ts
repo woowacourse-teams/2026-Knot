@@ -14,6 +14,12 @@
  * @see docs/electron-desktop-app-tech-plan.md 4.4 preload API 계약
  */
 
+/** 데스크톱 로그인 뷰가 열려 있는지와, 뷰가 덮지 않는 상단 띠의 높이(px) */
+export interface LoginPromptState {
+  open: boolean;
+  headerHeight: number;
+}
+
 /** 딥링크(`knot://`)로 들어온 목적지 */
 export type KnotDeepLink =
   | { type: "invite"; token: string }
@@ -46,13 +52,27 @@ export interface KnotDesktopApi {
     setToken(token: string): Promise<void>;
     /** 저장한 액세스 토큰을 지웁니다. 로그아웃·401에서 불러요 */
     clearToken(): Promise<void>;
-    /** 시스템 브라우저 로그인(2단계)이 붙은 셸에만 있어요 */
+    /**
+     * 2단계 로그인이 붙은 셸에만 있어요. 셸은 **메인 창 안에 로그인 뷰를 붙이고** 창을
+     * 새로 띄우지 않아요(재개정 2026-09-10, 기획서 5.2·로드맵 Q68).
+     */
     startLogin?(): Promise<void>;
+    /** 로그인 뷰 헤더 띠의 "취소". 진행 중인 로그인이 없으면 아무 일도 하지 않아요 */
+    cancelLogin?(): Promise<void>;
     /** 서버 세션 폐기까지 하는 로그아웃(2단계) */
     logout?(): Promise<void>;
     /** 셸이 토큰을 갱신하거나 잃었을 때 알려줘요(2단계) */
     onSessionChanged?(
       handler: (state: "signed-in" | "signed-out") => void,
+    ): () => void;
+    /**
+     * 로그인 뷰가 붙고 떨어질 때 알려줘요(2026-09-10).
+     *
+     * 뷰는 창 안쪽에서 위쪽 `headerHeight`(px)만 남기고 화면을 덮어요. 열려 있는 동안
+     * 그 띠에 제목과 "취소"를 그리는 것이 웹의 몫입니다(`DesktopLoginPrompt`).
+     */
+    onLoginPromptChanged?(
+      handler: (prompt: LoginPromptState) => void,
     ): () => void;
   };
   /**
