@@ -15,3 +15,6 @@ __pycache__/
 
 # Local Notion exports and LLM benchmark results
 /.benchmark-data/
+
+# scripts/dev.sh 로컬 기동 로그
+/.dev-logs/
