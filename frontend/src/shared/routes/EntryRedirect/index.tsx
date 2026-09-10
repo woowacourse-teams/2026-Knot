@@ -8,7 +8,8 @@ import { Navigate } from "react-router";
 
 import { getRouterPath, PATH_ROUTE } from "../PATH_ROUTE";
 
-const ENTRY_ERROR_MESSAGE = "화면을 준비하지 못했어요. 잠시 후 다시 시도해 주세요.";
+const ENTRY_ERROR_MESSAGE =
+  "화면을 준비하지 못했어요. 잠시 후 다시 시도해 주세요.";
 
 /**
  * 홈 경로(`/`)에 도착한 사용자를 상태에 맞는 화면으로 보냅니다.
@@ -27,11 +28,7 @@ const ENTRY_ERROR_MESSAGE = "화면을 준비하지 못했어요. 잠시 후 다
  * 잠깐의 문제일 수 있으니 화면을 옮기지 않고 다시 시도하게 둡니다.
  */
 export default function EntryRedirect() {
-  const {
-    data: me,
-    error: meError,
-    refetch: refetchMe,
-  } = useMeQuery();
+  const { data: me, error: meError, refetch: refetchMe } = useMeQuery();
 
   const {
     data: workspaces,

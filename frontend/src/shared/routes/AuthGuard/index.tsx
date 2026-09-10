@@ -6,7 +6,8 @@ import { Navigate, Outlet } from "react-router";
 
 import { PATH_ROUTE } from "../PATH_ROUTE";
 
-const AUTH_ERROR_MESSAGE = "로그인 상태를 확인하지 못했어요. 잠시 후 다시 시도해 주세요.";
+const AUTH_ERROR_MESSAGE =
+  "로그인 상태를 확인하지 못했어요. 잠시 후 다시 시도해 주세요.";
 
 /**
  * 로그인해야 볼 수 있는 화면들을 감싸는 가드.

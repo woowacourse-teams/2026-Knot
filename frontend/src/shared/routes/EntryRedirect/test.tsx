@@ -49,7 +49,10 @@ describe("EntryRedirect", () => {
 
   it("로그인하지 않았으면 로그인 화면으로 보낸다", async () => {
     mockServer.use(
-      http.get(`*${AUTH_ME_API_PATH}`, () => new HttpResponse(null, { status: 401 })),
+      http.get(
+        `*${AUTH_ME_API_PATH}`,
+        () => new HttpResponse(null, { status: 401 }),
+      ),
     );
 
     const { router } = renderEntry();
@@ -100,7 +103,10 @@ describe("EntryRedirect", () => {
 
   it("워크스페이스 목록 조회가 실패하면 화면을 옮기지 않고 다시 시도를 안내한다", async () => {
     mockServer.use(
-      http.get(`*${WORKSPACES_API_PATH}`, () => new HttpResponse(null, { status: 500 })),
+      http.get(
+        `*${WORKSPACES_API_PATH}`,
+        () => new HttpResponse(null, { status: 500 }),
+      ),
     );
 
     const { router } = renderEntry();
