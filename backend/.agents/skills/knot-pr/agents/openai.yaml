@@ -1,0 +1,6 @@
+interface:
+  display_name: "Knot PR"
+  short_description: "백엔드 diff와 Issue로 Knot PR 작성·검증"
+  default_prompt: "$knot-pr로 현재 백엔드 diff와 연결된 Issue를 확인해 PR을 준비해줘."
+policy:
+  allow_implicit_invocation: true

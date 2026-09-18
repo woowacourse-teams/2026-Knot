@@ -1,0 +1,20 @@
+services:
+  benchmark-pgvector:
+    image: pgvector/pgvector:pg18
+    container_name: knot-benchmark-pgvector
+    environment:
+      POSTGRES_DB: knot_benchmark
+      POSTGRES_USER: knot_benchmark
+      POSTGRES_PASSWORD: knot_benchmark
+    ports:
+      - "55432:5432"
+    volumes:
+      - knot-benchmark-pgvector-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U knot_benchmark -d knot_benchmark"]
+      interval: 2s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  knot-benchmark-pgvector-data:

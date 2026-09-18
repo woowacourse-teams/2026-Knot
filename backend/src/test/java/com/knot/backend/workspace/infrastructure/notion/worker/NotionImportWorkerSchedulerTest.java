@@ -1,0 +1,82 @@
+package com.knot.backend.workspace.infrastructure.notion.worker;
+
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import com.knot.backend.workspace.application.ContentImportStaleRecoveryService;
+import com.knot.backend.workspace.application.ContentImportWorker;
+import com.knot.backend.workspace.application.ContentImportWorkerObserver;
+import com.knot.backend.workspace.application.dto.result.ContentImportRecoveryResult;
+import java.time.Duration;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+
+class NotionImportWorkerSchedulerTest {
+    private static final Duration HEARTBEAT_INTERVAL = Duration.ofSeconds(30);
+    private static final Duration RUNNING_TIMEOUT = Duration.ofHours(1);
+    private static final int RECOVERY_BATCH_SIZE = 100;
+
+    private final ContentImportStaleRecoveryService staleRecoveryService = mock(
+            ContentImportStaleRecoveryService.class
+    );
+    private final ContentImportWorker worker = mock(ContentImportWorker.class);
+    private final ContentImportWorkerObserver observer = mock(ContentImportWorkerObserver.class);
+    private final NotionImportWorkerScheduler scheduler = new NotionImportWorkerScheduler(
+            staleRecoveryService,
+            worker,
+            observer,
+            new NotionImportWorkerProperties(
+                    Duration.ofSeconds(1),
+                    HEARTBEAT_INTERVAL,
+                    RUNNING_TIMEOUT,
+                    RECOVERY_BATCH_SIZE
+            )
+    );
+
+    @DisplayName("poll마다 stale Run을 먼저 회수하고 다음 PENDING Run을 처리한다")
+    @Test
+    void poll_success_recoversBeforeProcessing() {
+        // given
+        when(
+                staleRecoveryService.recover(
+                        RUNNING_TIMEOUT,
+                        RECOVERY_BATCH_SIZE
+                )
+        ).thenReturn(new ContentImportRecoveryResult(1));
+
+        // when
+        scheduler.poll();
+
+        // then
+        verify(observer).staleRecovered(1);
+        verify(worker).processNext();
+        verify(
+                observer,
+                never()
+        ).pollingFailed();
+    }
+
+    @DisplayName("polling 경계가 실패하면 raw 예외 없이 실패 관측만 남긴다")
+    @Test
+    void poll_failure_observesWithoutProcessing() {
+        // given
+        when(
+                staleRecoveryService.recover(
+                        RUNNING_TIMEOUT,
+                        RECOVERY_BATCH_SIZE
+                )
+        ).thenThrow(new IllegalStateException("database details"));
+
+        // when
+        scheduler.poll();
+
+        // then
+        verify(observer).pollingFailed();
+        verify(
+                worker,
+                never()
+        ).processNext();
+    }
+}

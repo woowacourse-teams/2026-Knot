@@ -36,6 +36,25 @@ def materializable_snapshot() -> dict:
     return snapshot
 
 
+class FakeRunner:
+    def __init__(self, responses):
+        self.responses = list(responses)
+        self.calls = []
+
+    def __call__(self, argv, **kwargs):
+        self.calls.append((argv, kwargs))
+        if not self.responses:
+            raise AssertionError(f"unexpected command: {argv}")
+        response = self.responses.pop(0)
+        if isinstance(response, Exception):
+            raise response
+        return response
+
+
+def completed(returncode=0, stdout="", stderr=""):
+    return subprocess.CompletedProcess([], returncode, stdout=stdout, stderr=stderr)
+
+
 class IssuePlanningTest(unittest.TestCase):
     def test_low_risk_create_passes_without_heavy_contract(self):
         result = issue_planning.plan(fixture("low-risk-create.json"))
@@ -294,6 +313,201 @@ class IssuePlanningTest(unittest.TestCase):
         self.assertEqual("publish_issue", result["requested_action"])
         self.assertEqual("render_draft", result["action"])
         self.assertFalse(result["remote_write_authorized"])
+
+    def test_publish_requires_create_operation(self):
+        snapshot = fixture("low-risk-create.json")
+        snapshot["operation"] = "draft"
+        runner = FakeRunner([])
+
+        result = issue_planning.publish_issue(
+            snapshot, "woowacourse-teams/2026-Knot", runner=runner
+        )
+
+        self.assertEqual("hold", result["status"])
+        self.assertEqual("report_hold", result["action"])
+        self.assertFalse(result["remote_write_authorized"])
+        self.assertIn("publish requires operation=create", result["errors"][0])
+        self.assertEqual([], runner.calls)
+
+    def test_publish_requires_explicit_repo(self):
+        runner = FakeRunner([])
+
+        result = issue_planning.publish_issue(
+            fixture("low-risk-create.json"), "invalid/repo/path", runner=runner
+        )
+
+        self.assertEqual("hold", result["status"])
+        self.assertEqual("report_hold", result["action"])
+        self.assertFalse(result["remote_write_authorized"])
+        self.assertIn("--repo must be provided as OWNER/REPO", result["errors"][0])
+        self.assertEqual([], runner.calls)
+
+    def test_publish_searches_marker_then_creates_issue(self):
+        runner = FakeRunner(
+            [
+                completed(stdout="[]"),
+                completed(
+                    stdout="https://github.com/woowacourse-teams/2026-Knot/issues/456\n"
+                ),
+            ]
+        )
+
+        result = issue_planning.publish_issue(
+            fixture("low-risk-create.json"),
+            "woowacourse-teams/2026-Knot",
+            runner=runner,
+        )
+
+        self.assertEqual("pass", result["status"])
+        self.assertEqual("publish_issue", result["action"])
+        self.assertTrue(result["remote_write_authorized"])
+        self.assertEqual(456, result["issue_number"])
+        self.assertEqual(
+            "https://github.com/woowacourse-teams/2026-Knot/issues/456",
+            result["issue_url"],
+        )
+        self.assertEqual(2, len(runner.calls))
+        search_command = runner.calls[0][0]
+        self.assertEqual("list", search_command[2])
+        self.assertIn("in:body", search_command[search_command.index("--search") + 1])
+        command, kwargs = runner.calls[1]
+        self.assertEqual(
+            [
+                "gh",
+                "issue",
+                "create",
+                "--repo",
+                "woowacourse-teams/2026-Knot",
+                "--title",
+                "[BE] 로그인 오류 메시지 오탈자 수정",
+                "--body-file",
+                "-",
+            ],
+            command,
+        )
+        self.assertIn("## 구현 기능 설명", kwargs["input"])
+        self.assertIn(result["contract_id"], kwargs["input"])
+        self.assertTrue(kwargs["capture_output"])
+        self.assertFalse(kwargs["check"])
+
+    def test_publish_reuses_exact_contract_marker(self):
+        snapshot = fixture("low-risk-create.json")
+        planned = issue_planning.plan(snapshot)
+        runner = FakeRunner(
+            [
+                completed(
+                    stdout=json.dumps(
+                        [
+                            {
+                                "number": 456,
+                                "url": "https://github.com/example/repo/issues/456",
+                                "body": (
+                                    "<!-- knot-issue-contract:"
+                                    f"{planned['contract_id']} -->"
+                                ),
+                            }
+                        ]
+                    )
+                )
+            ]
+        )
+
+        result = issue_planning.publish_issue(snapshot, "example/repo", runner=runner)
+
+        self.assertEqual("pass", result["status"])
+        self.assertEqual("reuse_existing_issue", result["action"])
+        self.assertTrue(result["remote_write_authorized"])
+        self.assertEqual(456, result["issue_number"])
+        self.assertEqual(1, len(runner.calls))
+
+    def test_publish_holds_when_marker_is_duplicated(self):
+        snapshot = fixture("low-risk-create.json")
+        contract_id = issue_planning.plan(snapshot)["contract_id"]
+        body = f"<!-- knot-issue-contract:{contract_id} -->"
+        runner = FakeRunner(
+            [
+                completed(
+                    stdout=json.dumps(
+                        [
+                            {"number": 1, "url": "https://x/issues/1", "body": body},
+                            {"number": 2, "url": "https://x/issues/2", "body": body},
+                        ]
+                    )
+                )
+            ]
+        )
+
+        result = issue_planning.publish_issue(snapshot, "example/repo", runner=runner)
+
+        self.assertEqual("hold", result["status"])
+        self.assertTrue(result["remote_write_authorized"])
+        self.assertIn("multiple existing issues", result["errors"][0])
+
+    def test_publish_reports_authorized_search_failure(self):
+        runner = FakeRunner([completed(returncode=1, stderr="authentication failed")])
+
+        result = issue_planning.publish_issue(
+            fixture("low-risk-create.json"), "example/repo", runner=runner
+        )
+
+        self.assertEqual("hold", result["status"])
+        self.assertEqual("publish_issue_hold", result["action"])
+        self.assertTrue(result["remote_write_authorized"])
+        self.assertIn("authentication failed", result["errors"][0])
+
+    def test_unparseable_create_output_is_partial_publish(self):
+        runner = FakeRunner(
+            [completed(stdout="[]"), completed(stdout="created without URL")]
+        )
+
+        result = issue_planning.publish_issue(
+            fixture("low-risk-create.json"), "example/repo", runner=runner
+        )
+
+        self.assertEqual("hold", result["status"])
+        self.assertEqual("partial_publish_issue", result["action"])
+        self.assertTrue(result["remote_write_authorized"])
+        self.assertEqual("created without URL", result["issue_url"])
+
+    def test_publish_finalizes_adr_path_and_edits_created_issue(self):
+        runner = FakeRunner(
+            [
+                completed(stdout="[]"),
+                completed(stdout="https://github.com/example/repo/issues/459\n"),
+                completed(),
+            ]
+        )
+
+        result = issue_planning.publish_issue(
+            fixture("high-risk-create.json"), "example/repo", runner=runner
+        )
+
+        self.assertEqual("pass", result["status"])
+        self.assertEqual("finalized", result["adr_path_status"])
+        self.assertEqual("none", result["next_after_issue_created"])
+        self.assertIn("docs/adr/459-auth-account-linking.md", result["issue_body"])
+        edit_command, edit_kwargs = runner.calls[2]
+        self.assertEqual(["gh", "issue", "edit", "459"], edit_command[:4])
+        self.assertIn("docs/adr/459-auth-account-linking.md", edit_kwargs["input"])
+
+    def test_adr_edit_failure_preserves_created_issue_as_partial(self):
+        runner = FakeRunner(
+            [
+                completed(stdout="[]"),
+                completed(stdout="https://github.com/example/repo/issues/460\n"),
+                completed(returncode=1, stderr="edit failed"),
+            ]
+        )
+
+        result = issue_planning.publish_issue(
+            fixture("high-risk-create.json"), "example/repo", runner=runner
+        )
+
+        self.assertEqual("hold", result["status"])
+        self.assertEqual("partial_publish_issue", result["action"])
+        self.assertEqual(460, result["issue_number"])
+        self.assertEqual("finalized", result["adr_path_status"])
+        self.assertIn("edit failed", result["errors"][0])
 
     def test_high_risk_without_adr_uses_plain_issue_template(self):
         snapshot = fixture("high-risk-create.json")

@@ -1,14 +1,16 @@
 #!/usr/bin/env python3
-"""Plan a Knot Issue contract without mutating GitHub or the repository."""
+"""Plan a Knot Issue contract and optionally publish it to GitHub."""
 
 from __future__ import annotations
 
 import argparse
+import copy
 import hashlib
 import json
 import re
+import subprocess
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 import adr_contract
 
@@ -25,6 +27,8 @@ HIGH_RISK_SIGNALS = {
 
 ISSUE_H2_HEADINGS = ("## 구현 기능 설명", "## TODO", "## 메모")
 MARKDOWN_H2_PATTERN = re.compile(r"(?m)^[ \t]{0,3}##(?:[ \t]+|$)")
+REPO_PATTERN = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
+ISSUE_URL_NUMBER_PATTERN = re.compile(r"/issues/([1-9]\d*)(?:$|[?#])")
 
 LIGHTWEIGHT_REQUIRED = (
     "title",
@@ -531,11 +535,295 @@ def plan(snapshot: Any) -> dict[str, Any]:
     return result
 
 
+CommandRunner = Callable[..., subprocess.CompletedProcess[str]]
+
+
+def _run_gh(
+    argv: list[str],
+    *,
+    runner: CommandRunner,
+    body: str | None = None,
+) -> subprocess.CompletedProcess[str]:
+    try:
+        return runner(
+            argv,
+            check=False,
+            capture_output=True,
+            text=True,
+            input=body,
+        )
+    except OSError as error:
+        return subprocess.CompletedProcess(argv, 127, stdout="", stderr=str(error))
+
+
+def _issue_number_from_url(issue_url: str) -> int | None:
+    match = ISSUE_URL_NUMBER_PATTERN.search(issue_url.strip())
+    return int(match.group(1)) if match else None
+
+
+def _issue_number(record: dict[str, Any]) -> int | None:
+    number = record.get("number")
+    if isinstance(number, int) and number > 0:
+        return number
+    if isinstance(number, str) and number.isdigit() and int(number) > 0:
+        return int(number)
+    return None
+
+
+def _issue_url(record: dict[str, Any]) -> str | None:
+    url = record.get("url")
+    return url.strip() if _is_nonblank_string(url) else None
+
+
+def _publish_hold(
+    planned: dict[str, Any],
+    error: str,
+    *,
+    action: str = "publish_issue_hold",
+    issue_url: str | None = None,
+    issue_number: int | None = None,
+    issue_body: str | None = None,
+) -> dict[str, Any]:
+    result = {
+        **planned,
+        "status": "hold",
+        "action": action,
+        "remote_write_authorized": True,
+        "errors": [error],
+    }
+    if issue_url is not None:
+        result["issue_url"] = issue_url
+    if issue_number is not None:
+        result["issue_number"] = issue_number
+    if issue_body is not None:
+        result["issue_body"] = issue_body
+    return result
+
+
+def _gh_failure(command: str, completed: subprocess.CompletedProcess[str]) -> str:
+    detail = completed.stderr.strip() or completed.stdout.strip()
+    suffix = f": {detail}" if detail else ""
+    return f"{command} failed with exit code {completed.returncode}{suffix}"
+
+
+def _finalize_adr_body(
+    snapshot: dict[str, Any],
+    planned: dict[str, Any],
+    issue_number: int,
+) -> tuple[dict[str, Any], str]:
+    finalized_snapshot = copy.deepcopy(snapshot)
+    finalized_snapshot["issue_number"] = issue_number
+    issue_body = render_issue_body(
+        finalized_snapshot,
+        planned["contract_id"],
+        planned["risk_level"],
+    )
+    finalized_plan = {
+        **planned,
+        "issue_body": issue_body,
+        "adr_path_status": "finalized",
+        "next_after_issue_created": "none",
+    }
+    return finalized_plan, issue_body
+
+
+def _edit_issue_body(
+    *,
+    repo: str,
+    issue_number: int,
+    issue_body: str,
+    runner: CommandRunner,
+) -> subprocess.CompletedProcess[str]:
+    return _run_gh(
+        [
+            "gh",
+            "issue",
+            "edit",
+            str(issue_number),
+            "--repo",
+            repo,
+            "--body-file",
+            "-",
+        ],
+        runner=runner,
+        body=issue_body,
+    )
+
+
+def publish_issue(
+    snapshot: Any,
+    repo: str | None,
+    *,
+    runner: CommandRunner = subprocess.run,
+) -> dict[str, Any]:
+    planned = plan(snapshot)
+    if planned["status"] != "pass":
+        return planned
+    if not isinstance(snapshot, dict) or snapshot.get("operation") != "create":
+        return {
+            **planned,
+            "status": "hold",
+            "action": "report_hold",
+            "remote_write_authorized": False,
+            "publish_ready": False,
+            "errors": ["publish requires operation=create"],
+        }
+    if not isinstance(repo, str) or REPO_PATTERN.fullmatch(repo) is None:
+        return {
+            **planned,
+            "status": "hold",
+            "action": "report_hold",
+            "remote_write_authorized": False,
+            "publish_ready": False,
+            "errors": ["--repo must be provided as OWNER/REPO when --publish is used"],
+        }
+
+    marker = f"<!-- knot-issue-contract:{planned['contract_id']} -->"
+    search = _run_gh(
+        [
+            "gh",
+            "issue",
+            "list",
+            "--repo",
+            repo,
+            "--state",
+            "all",
+            "--search",
+            f"knot-issue-contract:{planned['contract_id']} in:body",
+            "--limit",
+            "100",
+            "--json",
+            "number,url,body,title",
+        ],
+        runner=runner,
+    )
+    if search.returncode != 0:
+        return _publish_hold(planned, _gh_failure("gh issue list", search))
+    try:
+        candidates = json.loads(search.stdout or "[]")
+    except json.JSONDecodeError as error:
+        return _publish_hold(planned, f"gh issue list returned invalid JSON: {error}")
+    if not isinstance(candidates, list):
+        return _publish_hold(planned, "gh issue list returned a non-list JSON payload")
+
+    matches = [
+        candidate
+        for candidate in candidates
+        if isinstance(candidate, dict)
+        and isinstance(candidate.get("body"), str)
+        and marker in candidate["body"]
+    ]
+    if len(matches) > 1:
+        return _publish_hold(
+            planned,
+            f"multiple existing issues contain contract marker {planned['contract_id']}",
+        )
+
+    adr_required = (
+        planned["risk_level"] == "high"
+        and isinstance(snapshot.get("adr"), dict)
+        and snapshot["adr"].get("required") is True
+    )
+    if matches:
+        issue_number = _issue_number(matches[0])
+        issue_url = _issue_url(matches[0])
+        if issue_number is None or issue_url is None:
+            return _publish_hold(planned, "existing issue is missing number or url")
+        result_plan = planned
+        if adr_required:
+            result_plan, issue_body = _finalize_adr_body(
+                snapshot, planned, issue_number
+            )
+            edited = _edit_issue_body(
+                repo=repo,
+                issue_number=issue_number,
+                issue_body=issue_body,
+                runner=runner,
+            )
+            if edited.returncode != 0:
+                return _publish_hold(
+                    result_plan,
+                    _gh_failure("gh issue edit", edited),
+                    action="partial_publish_issue",
+                    issue_url=issue_url,
+                    issue_number=issue_number,
+                )
+        return {
+            **result_plan,
+            "action": "reuse_existing_issue",
+            "remote_write_authorized": True,
+            "issue_url": issue_url,
+            "issue_number": issue_number,
+        }
+
+    created = _run_gh(
+        [
+            "gh",
+            "issue",
+            "create",
+            "--repo",
+            repo,
+            "--title",
+            snapshot["title"],
+            "--body-file",
+            "-",
+        ],
+        runner=runner,
+        body=planned["issue_body"],
+    )
+    if created.returncode != 0:
+        return _publish_hold(planned, _gh_failure("gh issue create", created))
+
+    issue_url = created.stdout.strip()
+    issue_number = _issue_number_from_url(issue_url)
+    if issue_number is None:
+        return _publish_hold(
+            planned,
+            "gh issue create did not return a parseable issue URL",
+            action="partial_publish_issue",
+            issue_url=issue_url,
+        )
+
+    result_plan = planned
+    if adr_required:
+        result_plan, issue_body = _finalize_adr_body(snapshot, planned, issue_number)
+        edited = _edit_issue_body(
+            repo=repo,
+            issue_number=issue_number,
+            issue_body=issue_body,
+            runner=runner,
+        )
+        if edited.returncode != 0:
+            return _publish_hold(
+                result_plan,
+                _gh_failure("gh issue edit", edited),
+                action="partial_publish_issue",
+                issue_url=issue_url,
+                issue_number=issue_number,
+            )
+
+    return {
+        **result_plan,
+        "action": "publish_issue",
+        "remote_write_authorized": True,
+        "issue_url": issue_url,
+        "issue_number": issue_number,
+    }
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("snapshot", type=Path, help="Issue contract JSON snapshot")
     parser.add_argument(
         "--pretty", action="store_true", help="Pretty-print JSON output"
+    )
+    parser.add_argument(
+        "--publish",
+        action="store_true",
+        help="Create the GitHub Issue after the contract passes",
+    )
+    parser.add_argument(
+        "--repo", help="GitHub repository in OWNER/REPO form, required with --publish"
     )
     return parser.parse_args()
 
@@ -544,7 +832,7 @@ def main() -> int:
     args = parse_args()
     try:
         snapshot = json.loads(args.snapshot.read_text(encoding="utf-8"))
-        result = plan(snapshot)
+        result = publish_issue(snapshot, args.repo or "") if args.publish else plan(snapshot)
     except (OSError, json.JSONDecodeError) as error:
         result = {
             "status": "hold",

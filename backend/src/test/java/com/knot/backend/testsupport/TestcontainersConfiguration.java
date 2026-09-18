@@ -11,7 +11,7 @@ public class TestcontainersConfiguration {
     @Bean
     @ServiceConnection
     PostgreSQLContainer postgresContainer() {
-        return new PostgreSQLContainer("postgres:18.4").withDatabaseName("knot_test")
+        return new PostgreSQLContainer("pgvector/pgvector:pg18").withDatabaseName("knot_test")
                 .withUsername("knot")
                 .withPassword("knot");
     }

@@ -8,6 +8,7 @@ import jakarta.validation.ElementKind;
 import jakarta.validation.Path;
 import java.util.List;
 import java.util.stream.StreamSupport;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -22,7 +23,17 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(ProjectException.class)
     public ResponseEntity<ErrorResponse> handleProjectException(ProjectException exception) {
-        return respond(exception.getErrorCode());
+        ResponseEntity<ErrorResponse> response = respond(exception.getErrorCode());
+        if (exception instanceof RetryAfterException retryAfterException) {
+            return ResponseEntity.status(response.getStatusCode())
+                    .headers(response.getHeaders())
+                    .header(
+                            HttpHeaders.RETRY_AFTER,
+                            String.valueOf(retryAfterException.getRetryAfterSeconds())
+                    )
+                    .body(response.getBody());
+        }
+        return response;
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -153,6 +164,7 @@ public class GlobalExceptionHandler {
             case FORBIDDEN -> HttpStatus.FORBIDDEN;
             case NOT_FOUND -> HttpStatus.NOT_FOUND;
             case CONFLICT -> HttpStatus.CONFLICT;
+            case TOO_MANY_REQUESTS -> HttpStatus.TOO_MANY_REQUESTS;
             case INTERNAL_SERVER_ERROR -> HttpStatus.INTERNAL_SERVER_ERROR;
         };
     }

@@ -1,0 +1,54 @@
+package com.knot.backend.workspace.application;
+
+import com.knot.backend.workspace.application.dto.result.ContentSourceAuthorizationContext;
+import com.knot.backend.workspace.application.dto.result.AuthorizedContentSource;
+import com.knot.backend.workspace.application.dto.result.ContentSourceCallbackResult;
+import com.knot.backend.workspace.domain.ContentSourceException;
+import com.knot.backend.workspace.domain.ContentSourceProvider;
+import com.knot.backend.workspace.domain.WorkspaceException;
+import lombok.RequiredArgsConstructor;
+
+@RequiredArgsConstructor
+public class ContentSourceCallbackService {
+    private final ContentSourceAuthorizationService authorizationService;
+    private final ContentSourceAuthorizationClient authorizationClient;
+    private final ContentSourceConnectionService connectionService;
+
+    public ContentSourceCallbackResult complete(
+            ContentSourceProvider provider,
+            String code,
+            String state,
+            String error
+    ) {
+        ContentSourceAuthorizationContext authorization;
+        try {
+            authorization = authorizationService.consume(
+                    provider,
+                    state
+            );
+        } catch (ContentSourceException | WorkspaceException exception) {
+            return ContentSourceCallbackResult.failed(null);
+        }
+        if (hasText(error) || !hasText(code)) {
+            return ContentSourceCallbackResult.failed(authorization.workspaceId());
+        }
+        try {
+            AuthorizedContentSource authorizedContentSource = authorizationClient.exchange(
+                    provider,
+                    code,
+                    authorization.callbackUri()
+            );
+            connectionService.connect(
+                    authorization,
+                    authorizedContentSource
+            );
+            return ContentSourceCallbackResult.connected(authorization.workspaceId());
+        } catch (ContentSourceException | WorkspaceException exception) {
+            return ContentSourceCallbackResult.failed(authorization.workspaceId());
+        }
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.isBlank();
+    }
+}

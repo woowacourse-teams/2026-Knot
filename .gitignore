@@ -12,3 +12,6 @@ __pycache__/
 # Codex local evidence
 /backend/.omo/
 /backend/src/main/resources/application-local.properties
+
+# Local Notion exports and LLM benchmark results
+/.benchmark-data/

@@ -1,0 +1,60 @@
+[
+  {
+    "id": "numbered-parent",
+    "type": "numbered_list_item",
+    "numbered_list_item": {
+      "rich_text": [
+        {
+          "plain_text": "Parent"
+        }
+      ]
+    },
+    "children": [
+      {
+        "id": "bullet-child",
+        "type": "bulleted_list_item",
+        "bulleted_list_item": {
+          "rich_text": [
+            {
+              "plain_text": "Bullet"
+            }
+          ]
+        }
+      },
+      {
+        "id": "todo-child",
+        "type": "to_do",
+        "to_do": {
+          "checked": false,
+          "rich_text": [
+            {
+              "plain_text": "Todo"
+            }
+          ]
+        }
+      },
+      {
+        "id": "paragraph-child",
+        "type": "paragraph",
+        "paragraph": {
+          "rich_text": [
+            {
+              "plain_text": "Paragraph"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "id": "paragraph-markers",
+    "type": "paragraph",
+    "paragraph": {
+      "rich_text": [
+        {
+          "plain_text": "- literal bullet\n+ literal plus\n* literal star\n1. literal ordered\n2) literal ordered paren\n---\n___"
+        }
+      ]
+    }
+  }
+]

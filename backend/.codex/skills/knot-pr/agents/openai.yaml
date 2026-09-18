@@ -1,4 +1,0 @@
-interface:
-  display_name: "Knot PR"
-  short_description: "Draft and validate Knot PRs"
-  default_prompt: "Use $knot-pr to draft a Knot PR from the current backend diff and linked Issue."

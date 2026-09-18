@@ -25,6 +25,12 @@ public enum CommonErrorCode implements ErrorCode {
             "필수 요청 파라미터가 누락되었습니다"
     ),
 
+    FORBIDDEN(
+            ErrorCategory.FORBIDDEN,
+            "FORBIDDEN",
+            "요청 권한이 없습니다"
+    ),
+
     INTERNAL_SERVER_ERROR(
             ErrorCategory.INTERNAL_SERVER_ERROR,
             "INTERNAL_SERVER_ERROR",
