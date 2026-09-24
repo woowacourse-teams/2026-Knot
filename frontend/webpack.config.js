@@ -197,6 +197,7 @@ ${exports}
         "@provider": path.resolve(__dirname, "src/shared/provider"),
         "@hooks": path.resolve(__dirname, "src/shared/hooks"),
         "@utils": path.resolve(__dirname, "src/shared/utils"),
+        "@store": path.resolve(__dirname, "src/shared/store"),
       },
     },
     plugins: [
