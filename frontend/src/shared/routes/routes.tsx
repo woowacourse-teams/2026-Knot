@@ -11,6 +11,7 @@ import ChatPage from "@pages/workspace/[workspaceId]/chat";
 import WorkspaceInvitePage from "@pages/workspace/[workspaceId]/invite";
 import WorkspaceJoinPage from "@pages/workspace/[workspaceId]/join";
 import WorkspaceNotionConnectionPage from "@pages/workspace/[workspaceId]/notion-connection";
+import RecordingPage from "@pages/workspace/[workspaceId]/recording";
 import WorkspaceCodePage from "@pages/workspace/code";
 import WorkspaceCreatePage from "@pages/workspace/create";
 import { createBrowserRouter } from "react-router";
@@ -120,6 +121,10 @@ export const router = createBrowserRouter([
       {
         path: PATH_ROUTE.CHAT_SESSION,
         element: <ChatPage />,
+      },
+      {
+        path: PATH_ROUTE.RECORDING,
+        element: <RecordingPage />,
       },
     ],
   },
