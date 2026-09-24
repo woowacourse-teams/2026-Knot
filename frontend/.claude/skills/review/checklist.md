@@ -69,6 +69,10 @@
 - [ ] C-1-9. `ui/` 서브 컴포넌트가 부모의 추상화 레벨 규칙을 어기지 않는가
       (primitives의 서브 컴포넌트가 composites를 임포트 ❌)
 - [ ] C-1-10. **규칙에 없는 불필요한 추상화를 만들지 않았는가**
+- [ ] C-1-11. primitives가 props로 받은 값을 변환하고 있지 않은가
+      (변환은 밖에서 끝내고 결과만 넘김. 어떤 디자인 변형을 그릴지 고르는 계산은 허용)
+- [ ] C-1-12. primitives가 `shared/utils`·도메인 상수를 import하고 있지 않은가
+      (`grep -rn "@utils\|shared/utils" src/shared/components/primitives/`로 확인)
 
 ### C-2. 콜로케이션
 
