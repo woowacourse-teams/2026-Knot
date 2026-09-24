@@ -1,5 +1,6 @@
 import useInterval from "@/shared/hooks/common/useInterval";
 import { useRecordingStore } from "@store/recordingStore";
+import { calculateElapsedSeconds } from "@utils/calculateElapsedSeconds";
 import { useEffect, useState } from "react";
 
 /** 화면의 시간 표시가 초 단위라 1초마다 다시 계산해요. */
@@ -38,10 +39,7 @@ const useRecording = () => {
     start();
   }, [start, status]);
 
-  // 방금 시작|재개해 `now`가 아직 이전 시각이면 흐른 시간을 0으로 봐요
-  const elapsedMs =
-    accumulatedMs + (resumedAt === null ? 0 : Math.max(0, now - resumedAt));
-  const elapsedSeconds = Math.floor(elapsedMs / 1000);
+  const elapsedSeconds = calculateElapsedSeconds(accumulatedMs, resumedAt, now);
 
   return {
     status,
