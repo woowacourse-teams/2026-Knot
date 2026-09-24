@@ -72,7 +72,7 @@
 - [ ] C-1-11. primitives가 props로 받은 값을 변환하고 있지 않은가
       (변환은 밖에서 끝내고 결과만 넘김. 어떤 디자인 변형을 그릴지 고르는 계산은 허용)
 - [ ] C-1-12. primitives가 `shared/utils`·도메인 상수를 import하고 있지 않은가
-      (`grep -rn "@utils\|shared/utils" src/shared/components/primitives/`로 확인)
+      (`grep -rn "@utils\|shared/utils\|@constants\|shared/constants" src/shared/components/primitives/`로 확인)
 
 ### C-2. 콜로케이션
 
@@ -182,6 +182,8 @@
 - [ ] C-7-5. `*.stories.tsx` 등 스토리북 파일을 새로 만들지 않았는가 (보류 상태)
 - [ ] C-7-6. **기대값** — 통합·E2E 테스트의 기대값이 mock 응답(`Raw`)을 `new XxxResponseDto(mockResponse)`로 변환한 값인가.
       mock 값을 그대로 쓰기 ❌, 문자열로 박기 ❌, 변환 로직을 테스트에 되풀이(`mockResponse.name.trim()`) ❌, 테스트에서 요청 DTO `new` ❌
+- [ ] C-7-7. 새로 추가·변경된 유틸 함수(세그먼트 `utils`, `shared/utils`)에 단위 테스트가 있는가
+      (훅은 대상 아님 — C-7-4)
 
 ---
 
@@ -286,4 +288,4 @@
 | 라우팅 규약용 특수 폴더 (`_layout`, `[workspaceId]`)                  | 규약 표기. 지적하지 않음                                                                                   |
 | Tailwind 미사용                                                       | 이 레포는 Emotion을 사용. Tailwind 부재를 위반으로 보지 않음                                               |
 
-> 위 예외가 해소되면(테스트 러너 도입 등) 이 표에서 항목을 제거할 것.
+> 위 예외가 해소되면 이 표에서 항목을 제거할 것.
