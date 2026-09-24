@@ -1,7 +1,7 @@
 ---
 paths:
   - "src/shared/**"
-description: shared 레이어의 최상위 구성(api / components / hooks / provider / routes / utils / constants / types)과 각 폴더의 역할, 네이밍·의존 규칙 가이드라인. shared에 코드 생성·배치·이동 전 필독.
+description: shared 레이어의 최상위 구성(api / components / hooks / provider / store / routes / utils / constants / types)과 각 폴더의 역할, 네이밍·의존 규칙 가이드라인. shared에 코드 생성·배치·이동 전 필독.
 ---
 
 # shared 레이어 가이드라인
@@ -27,6 +27,7 @@ description: shared 레이어의 최상위 구성(api / components / hooks / pro
 | `components` | 도메인 로직을 다루지 않는 공통 컴포넌트. `composites`(ui 로직 포함) / `primitives`(ui만, `ui` · `layout` · `animation`으로 분류). 컴포넌트 폴더 내부는 세그먼트 규칙을 따름                                                              | `.claude/rules/component-abstract-pattern.md`, `.claude/rules/component-colocation-pattern.md`, `.claude/rules/segment-pattern.md` |
 | `hooks`      | 특정 컴포넌트에 강결합되지 않은 훅. `domain`(도메인 로직 O, 도메인별 디렉토리) / `common`(도메인 로직 X). 쿼리·뮤테이션 훅은 여기가 아니라 `api`에서 관리                                                                                | `.claude/rules/hook-guide.md`                                                                                                      |
 | `provider`   | 전역 QueryClient(`queryClient`) · ThemeProvider(디자인 토큰, `themeProvider`) · 전역 컨텍스트(`context/{이름}Context/index.tsx`)                                                                                                         | —                                                                                                                                  |
+| `store`      | 여러 구획이 함께 읽고 쓰는 zustand 전역 상태. `store/{이름}Store/index.ts`에 상태와 동작을 함께 두고, 화면은 `hooks`의 도메인 훅을 거쳐 읽음                                                                                             | —                                                                                                                                  |
 | `routes`     | 라우트 정의 · path 상수 · 가드 · 리다이렉트 로직                                                                                                                                                                                         | —                                                                                                                                  |
 | `utils`      | 전역 공용 유틸 함수. 폴더 + `index.ts`, 단위 테스트는 같은 폴더의 `test.ts`                                                                                                                                                              | `.claude/rules/test-strategy.md`                                                                                                   |
 | `constants`  | 전역 공용 상수                                                                                                                                                                                                                           | —                                                                                                                                  |
