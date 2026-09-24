@@ -10,13 +10,15 @@ const MINUTES_PER_HOUR = 60;
  * 올려서 60분이 되면 `1시간`으로 넘어가고, 정각이면 뒤에 분을 붙이지 않아요.
  * `녹음` 같은 당연한 말은 넣지 않고 길이만 씁니다.
  *
+ * 0, 음수, `NaN`, `Infinity`처럼 유한한 양수가 아니면 `0분`을 돌려줘요.
+ * 브라우저가 녹음 길이를 아직 모를 때 `NaN`이나 `Infinity`를 주기도 해서, 그대로 화면에 찍히지 않게 막아요.
+ *
  * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=2062-7288 Chip/Duration}
  */
 export const formatDurationFromSeconds = (durationSeconds: number) => {
-  const totalMinutes = Math.max(
-    0,
-    Math.ceil(durationSeconds / SECONDS_PER_MINUTE),
-  );
+  if (!Number.isFinite(durationSeconds) || durationSeconds <= 0) return "0분";
+
+  const totalMinutes = Math.ceil(durationSeconds / SECONDS_PER_MINUTE);
 
   if (totalMinutes < MINUTES_PER_HOUR) return `${totalMinutes}분`;
 

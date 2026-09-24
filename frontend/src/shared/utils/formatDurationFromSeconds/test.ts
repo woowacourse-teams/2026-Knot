@@ -36,5 +36,7 @@ describe("formatDurationFromSeconds", () => {
   it("녹음이 없거나 값이 이상하면 0분으로 보여준다", () => {
     expect(formatDurationFromSeconds(0)).toBe("0분");
     expect(formatDurationFromSeconds(-1)).toBe("0분");
+    expect(formatDurationFromSeconds(Number.NaN)).toBe("0분");
+    expect(formatDurationFromSeconds(Number.POSITIVE_INFINITY)).toBe("0분");
   });
 });
