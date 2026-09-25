@@ -19,7 +19,8 @@ interface UsePopoverParams {
  * {@link CLOSE_DELAY_MS}만큼 기다려요. 그 사이 다른 쪽에 들어오면 닫기를 취소해요.
  *
  * 위치는 팝오버를 그린 뒤 크기를 재서 정해요. 크기를 알아야 위로 뒤집을지 정할 수 있어서예요.
- * 열려 있는 동안 스크롤하거나 창 크기가 바뀌면 트리거와 자리가 어긋나므로 닫아요.
+ * 열려 있는 동안 트리거를 품은 영역이 스크롤되거나 창 크기가 바뀌면 트리거와 자리가 어긋나므로 닫아요.
+ * 카드 안이나 트리거와 관계없는 영역이 스크롤될 때는 닫지 않아요.
  */
 const usePopover = ({ placement }: UsePopoverParams) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -76,12 +77,20 @@ const usePopover = ({ placement }: UsePopoverParams) => {
   useEffect(() => {
     if (!isOpen) return;
 
+    const handleScroll = (event: Event) => {
+      // 트리거를 품은 영역이 스크롤될 때만 트리거가 움직여요. 페이지 스크롤이면 대상이 document예요
+      if (!(event.target instanceof Node)) return;
+      if (!event.target.contains(triggerRef.current)) return;
+
+      close();
+    };
+
     // 캡처 단계에서 들어야 페이지뿐 아니라 안쪽 스크롤 영역의 스크롤도 잡혀요
-    window.addEventListener("scroll", close, true);
+    window.addEventListener("scroll", handleScroll, true);
     window.addEventListener("resize", close);
 
     return () => {
-      window.removeEventListener("scroll", close, true);
+      window.removeEventListener("scroll", handleScroll, true);
       window.removeEventListener("resize", close);
     };
   }, [isOpen]);
