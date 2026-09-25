@@ -25,7 +25,8 @@ interface GetPopoverPositionParams {
  * - 아래에 띄웠을 때 화면 아래 끝까지 16px이 남지 않으면 트리거 위로 뒤집어요.
  *   피그마 문장은 "아래 공간 < 팝오버 높이 + 16"이지만, 그러면 간격 8px만큼 가장자리에 붙어
  *   "가장자리에서 16px 안쪽" 규칙과 어긋나서 간격까지 더해 비교해요.
- * - 화면 가장자리에서 16px 안쪽에 머물러요. 넘치면 정렬은 두고 안쪽으로만 밀어요.
+ *   다만 위쪽이 아래쪽보다 좁으면 뒤집을수록 더 많이 잘리므로 아래에 그대로 둬요.
+ * - 가로는 화면 가장자리에서 16px 안쪽에 머물러요. 넘치면 정렬은 두고 안쪽으로만 밀어요.
  */
 export const getPopoverPosition = ({
   triggerRect,
@@ -34,8 +35,10 @@ export const getPopoverPosition = ({
   placement,
 }: GetPopoverPositionParams) => {
   const spaceBelow = viewport.height - triggerRect.bottom;
+  const spaceAbove = triggerRect.top;
   const shouldFlip =
-    spaceBelow < TRIGGER_GAP + popoverSize.height + VIEWPORT_MARGIN;
+    spaceBelow < TRIGGER_GAP + popoverSize.height + VIEWPORT_MARGIN &&
+    spaceAbove > spaceBelow;
 
   const top = shouldFlip
     ? triggerRect.top - TRIGGER_GAP - popoverSize.height

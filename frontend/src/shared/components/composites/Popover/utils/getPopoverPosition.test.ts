@@ -60,6 +60,21 @@ describe("getPopoverPosition", () => {
     ).toEqual({ top: 609, left: 900 });
   });
 
+  it("아래 공간이 모자라도 위쪽이 더 좁으면 뒤집지 않는다", () => {
+    // 높이 500: 아래 공간 480은 기준 524보다 작지만, 위쪽 400은 그보다 더 좁음
+    const tallPopoverSize = { width: 200, height: 500 };
+    const triggerRect = { top: 400, right: 1100, bottom: 420, left: 1000 };
+
+    expect(
+      getPopoverPosition({
+        triggerRect,
+        popoverSize: tallPopoverSize,
+        viewport,
+        placement: "bottom-end",
+      }),
+    ).toEqual({ top: 428, left: 900 });
+  });
+
   it("오른쪽 가장자리를 넘으면 정렬은 두고 16px 안쪽으로 민다", () => {
     const triggerRect = { top: 100, right: 1400, bottom: 120, left: 1300 };
 

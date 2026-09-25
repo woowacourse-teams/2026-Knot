@@ -24,7 +24,7 @@ interface PopoverProps {
  * 확인한 사람 목록이라면 쓰는 쪽이 아바타와 이름 행을 `content`로 넘겨요.
  *
  * 카드(너비·여백·간격·테두리·그림자)는 팝오버가 가져요. 부모에 가려 잘리지 않도록 `body`에 그리고,
- * 트리거 8px 아래에 띄우되 아래 공간이 모자라면 위로 뒤집고, 화면 가장자리에서 16px 안쪽에 머물러요.
+ * 트리거 8px 아래에 띄우되 아래 공간이 모자라고 위쪽이 더 넓으면 위로 뒤집고, 가로는 화면 가장자리에서 16px 안쪽에 머물러요.
  * 포인터로만 열려요. 키보드로 여는 동작은 아직 없어요.
  *
  * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=1909-5316 Popover/PeopleList}
