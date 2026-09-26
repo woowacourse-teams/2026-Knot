@@ -28,7 +28,7 @@ export default function Breadcrumb({ parent, current }: BreadcrumbProps) {
   );
 }
 
-const Container = styled.nav`
+const Container = styled.div`
   display: inline-flex;
   align-items: center;
   gap: 0.375rem; /* 6px */
