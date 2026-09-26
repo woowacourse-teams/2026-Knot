@@ -35,14 +35,14 @@ export default function Stepper({
   return (
     <Container>
       <StepButton type="button" disabled={isFirst} onClick={onPrev}>
-        <ChevronLeftIcon size={12} />
+        <ChevronLeftIcon size={14} />
       </StepButton>
       <Count>
         <CurrentNumber>{current}</CurrentNumber>
         <Total>{` / ${total}`}</Total>
       </Count>
       <StepButton type="button" disabled={isLast} onClick={onNext}>
-        <ChevronRightIcon size={12} />
+        <ChevronRightIcon size={14} />
       </StepButton>
     </Container>
   );
