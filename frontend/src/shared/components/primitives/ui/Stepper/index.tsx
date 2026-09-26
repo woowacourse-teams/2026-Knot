@@ -80,6 +80,8 @@ const Count = styled.div`
   background-color: ${({ theme }) => theme.neutral[0]};
 
   ${({ theme }) => theme.text.label01};
+  /* 숫자마다 폭이 달라 넘길 때마다 전체 폭이 흔들리므로 모든 숫자를 같은 폭으로 그려요 */
+  font-variant-numeric: tabular-nums;
 `;
 
 const CurrentNumber = styled.span`
