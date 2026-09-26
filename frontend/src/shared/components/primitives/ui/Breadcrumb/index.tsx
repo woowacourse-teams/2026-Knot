@@ -46,11 +46,9 @@ const Container = styled.div`
 const Parent = styled.span`
   flex-shrink: 0;
   color: ${({ theme }) => theme.neutral[500]};
-  white-space: nowrap;
 `;
 
 const Current = styled.span`
-  min-width: 0;
   overflow: hidden;
   color: ${({ theme }) => theme.neutral[700]};
   white-space: nowrap;
