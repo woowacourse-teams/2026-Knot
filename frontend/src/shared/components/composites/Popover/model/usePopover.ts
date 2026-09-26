@@ -29,7 +29,7 @@ const usePopover = ({ placement }: UsePopoverParams) => {
   const [position, setPosition] = useState({ top: 0, left: 0 });
 
   const triggerRef = useRef<HTMLElement | null>(null);
-  const popoverRef = useRef<HTMLDivElement>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
 
   const { start: startCloseTimer, clear: clearCloseTimer } = useTimeout({
     timeout: CLOSE_DELAY_MS,
@@ -57,7 +57,7 @@ const usePopover = ({ placement }: UsePopoverParams) => {
 
   // 여기서 바꾼 좌표는 브라우저가 그리기 전에 반영돼요. 그래서 이전 좌표나 (0, 0)에 잠깐 보이지 않아요
   useLayoutEffect(() => {
-    if (!isOpen || triggerRef.current === null || popoverRef.current === null) {
+    if (!isOpen || triggerRef.current === null || cardRef.current === null) {
       return;
     }
 
@@ -66,7 +66,7 @@ const usePopover = ({ placement }: UsePopoverParams) => {
     setPosition(
       getPopoverPosition({
         triggerRect: triggerRef.current.getBoundingClientRect(),
-        popoverSize: popoverRef.current.getBoundingClientRect(),
+        popoverSize: cardRef.current.getBoundingClientRect(),
         // 스크롤바를 뺀, 실제로 보이는 영역 기준으로 가장자리를 재요
         viewport: { width: clientWidth, height: clientHeight },
         placement,
@@ -102,7 +102,7 @@ const usePopover = ({ placement }: UsePopoverParams) => {
   };
 
   const triggerProps: PopoverTriggerProps = { ref: setTriggerRef, ...hoverProps };
-  const cardProps = { ref: popoverRef, ...hoverProps };
+  const cardProps = { ref: cardRef, ...hoverProps };
 
   return { isOpen, position, triggerProps, cardProps };
 };
