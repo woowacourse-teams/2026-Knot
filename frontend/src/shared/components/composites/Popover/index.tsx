@@ -70,7 +70,7 @@ const Card = styled.div`
   width: 12.5rem; /* 200px */
   padding: 0.625rem 0.75rem; /* 10px 12px */
   border: 1px solid ${({ theme }) => theme.neutral[200]};
-  border-radius: 0.75rem; /* 12px */
+  border-radius: 1rem; /* 16px */
   background-color: ${({ theme }) => theme.neutral[0]};
   box-shadow: ${({ theme }) => theme.shadow03};
 `;
