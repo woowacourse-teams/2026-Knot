@@ -81,7 +81,7 @@ const TextContainer = styled.div`
   overflow-wrap: break-word;
 `;
 
-const Title = styled.p`
+const Title = styled.h2`
   ${({ theme }) => theme.text.heading02};
   color: ${({ theme }) => theme.primary};
 `;
