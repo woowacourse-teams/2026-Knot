@@ -42,6 +42,7 @@ ${exports}
       "@provider": fromRoot("./src/shared/provider"),
       "@hooks": fromRoot("./src/shared/hooks"),
       "@utils": fromRoot("./src/shared/utils"),
+      "@store": fromRoot("./src/shared/store"),
     },
   },
   oxc: {
