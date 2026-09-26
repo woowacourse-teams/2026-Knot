@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
+import useTimeout from "@hooks/common/useTimeout";
+
 import type { PopoverPlacement, PopoverTriggerProps } from "../types/popover";
 import { getPopoverPosition } from "../utils/getPopoverPosition";
 
@@ -28,22 +30,16 @@ const usePopover = ({ placement }: UsePopoverParams) => {
 
   const triggerRef = useRef<HTMLElement | null>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
-  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const { start: startCloseTimer, clear: clearCloseTimer } = useTimeout({
+    timeout: CLOSE_DELAY_MS,
+    callback: () => setIsOpen(false),
+  });
 
   // 렌더링마다 새 함수가 되면 React가 ref를 떼었다 다시 붙이므로 한 번만 만들어요
   const setTriggerRef = useCallback((node: HTMLElement | null) => {
     triggerRef.current = node;
   }, []);
-
-  const clearCloseTimer = () => {
-    if (closeTimerRef.current === null) return;
-
-    clearTimeout(closeTimerRef.current);
-    closeTimerRef.current = null;
-  };
-
-  // 사라질 때 걸려 있는 닫기 타이머를 지워요
-  useEffect(() => clearCloseTimer, []);
 
   const close = () => {
     clearCloseTimer();
@@ -56,8 +52,7 @@ const usePopover = ({ placement }: UsePopoverParams) => {
   };
 
   const handlePointerLeave = () => {
-    clearCloseTimer();
-    closeTimerRef.current = setTimeout(close, CLOSE_DELAY_MS);
+    startCloseTimer();
   };
 
   // 여기서 바꾼 좌표는 브라우저가 그리기 전에 반영돼요. 그래서 이전 좌표나 (0, 0)에 잠깐 보이지 않아요
