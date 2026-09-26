@@ -9,7 +9,7 @@ interface IllustratedMessageProps {
   /** 제목 아래 설명. 한 줄씩 나눠 넘기면 그 자리에서 줄을 바꿔요 */
   description: string[];
   /** 설명 아래 놓을 버튼. 문구와 동작은 쓰는 쪽이 정해요 */
-  action?: ReactNode;
+  button?: ReactNode;
 }
 
 /**
@@ -29,7 +29,7 @@ interface IllustratedMessageProps {
  *     "녹음은 보관해 두었어요.",
  *     "다시 시도하거나, 홈의 진행 중인 녹음에서 나중에 다시 시도할 수 있어요.",
  *   ]}
- *   action={<Button onClick={retry}>다시 시도</Button>}
+ *   button={<Button onClick={retry}>다시 시도</Button>}
  * />
  *
  * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=1814-16290 State/Drafting}
@@ -39,7 +39,7 @@ export default function IllustratedMessage({
   illustration,
   title,
   description,
-  action,
+  button,
 }: IllustratedMessageProps) {
   return (
     <Container>
@@ -54,7 +54,7 @@ export default function IllustratedMessage({
         </Description>
       </TextContainer>
 
-      {action}
+      {button}
     </Container>
   );
 }
