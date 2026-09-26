@@ -91,6 +91,11 @@ description: react 컴포넌트가 지켜야 하는 추상화 레벨을 정의�
 #### shared/components/primitives
 
 - 내부 로직 및 도메인 로직을 다루지 않는 컴포넌트
+- props를 그리는 방법만 정하고, props로 받은 값 자체는 바꾸지 않음. 숫자를 문구로, 날짜를 형식으로, 단위를 환산하는 일은 primitives 밖에서 끝내고 결과만 넘김
+  - e.g. `<Chip>{formatDurationFromSeconds(seconds)}</Chip>` ⭕ / `<Chip durationSeconds={seconds} />` ❌
+- 파생값 계산이 허용되는 경우는 어떤 디자인 변형을 그릴지 고르는 계산뿐
+  - e.g. Button이 `isLoading`·`disabled`로 `status`를 정하는 것 ⭕
+- `shared/utils`와 도메인 상수를 import하지 않음
 - ui만 다루며, primitives끼리 조합한 결과도 primitives로 둠
 - 종류에 따라 `ui`, `layout`, `animation`으로 나뉨
   - `ui` : 색상이나 모형 등 실체가 있는 컴포넌트
