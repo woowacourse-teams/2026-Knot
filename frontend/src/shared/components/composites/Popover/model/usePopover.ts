@@ -15,7 +15,7 @@ interface UsePopoverParams {
  * 트리거에 포인터를 올리면 팝오버를 열고, 트리거와 팝오버 밖으로 나가면 닫는 상태.
  *
  * 팝오버는 `body`에 따로 그려져서 DOM으로는 트리거 밖에 있어요.
- * 그래서 트리거(`triggerProps`)와 팝오버(`hoverProps`) 양쪽에 같은 여닫기 함수를 붙이고, 벗어나면 바로 닫지 않고
+ * 그래서 트리거(`triggerProps`)와 카드(`cardProps`) 양쪽에 같은 여닫기 함수를 붙이고, 벗어나면 바로 닫지 않고
  * {@link CLOSE_DELAY_MS}만큼 기다려요. 그 사이 다른 쪽에 들어오면 닫기를 취소해요.
  *
  * 위치는 팝오버를 그린 뒤 크기를 재서 정해요. 크기를 알아야 위로 뒤집을지 정할 수 있어서예요.
@@ -100,15 +100,16 @@ const usePopover = ({ placement }: UsePopoverParams) => {
     };
   }, [isOpen]);
 
-  /** 트리거와 팝오버 양쪽에 붙여요. 둘 사이를 오가는 동안에는 닫히지 않아요 */
+  /** 트리거와 카드 양쪽에 붙여요. 둘 사이를 오가는 동안에는 닫히지 않아요 */
   const hoverProps = {
     onPointerEnter: handlePointerEnter,
     onPointerLeave: handlePointerLeave,
   };
 
   const triggerProps: PopoverTriggerProps = { ref: setTriggerRef, ...hoverProps };
+  const cardProps = { ref: popoverRef, ...hoverProps };
 
-  return { isOpen, position, popoverRef, triggerProps, hoverProps };
+  return { isOpen, position, triggerProps, cardProps };
 };
 
 export default usePopover;

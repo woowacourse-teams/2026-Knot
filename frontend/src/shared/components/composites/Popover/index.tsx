@@ -45,7 +45,7 @@ export default function Popover({
   placement,
   children,
 }: PopoverProps) {
-  const { isOpen, position, popoverRef, triggerProps, hoverProps } = usePopover({
+  const { isOpen, position, triggerProps, cardProps } = usePopover({
     placement,
   });
 
@@ -57,7 +57,7 @@ export default function Popover({
       {isOpen &&
         createPortal(
           // 좌표는 열 때마다 달라져서 style로 넘겨요. Emotion prop으로 넘기면 좌표마다 CSS 클래스가 새로 쌓여요
-          <Card ref={popoverRef} style={position} {...hoverProps}>
+          <Card {...cardProps} style={position}>
             {content}
           </Card>,
           document.body,
