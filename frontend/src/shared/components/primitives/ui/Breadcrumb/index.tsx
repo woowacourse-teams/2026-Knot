@@ -34,6 +34,8 @@ const Container = styled.div`
   gap: 0.375rem; /* 6px */
   /* 놓인 자리보다 넓어지지 않아야 지금 항목이 줄어들며 말줄임돼요 */
   max-width: 100%;
+  /* 가로 flex 줄에 다른 요소와 함께 놓여도 제목 전체 폭만큼 버티지 않고 줄어들어요 */
+  min-width: 0;
 
   ${({ theme }) => theme.text.caption02};
 
