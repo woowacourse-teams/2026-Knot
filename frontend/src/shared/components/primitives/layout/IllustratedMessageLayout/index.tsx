@@ -19,9 +19,6 @@ interface IllustratedMessageLayoutProps {
  * 간격(그림과 글 사이 20, 제목과 설명 사이 16, 글과 버튼 사이 20)과 가운데 정렬만 가져요.
  * 글꼴 · 색 · 제목 태그는 쓰는 쪽이 정해서 넘기므로, 같은 배치를 다른 글꼴로도 쓸 수 있어요.
  *
- * 칸 구성은 같고 간격만 큰 곳(예: 에러 화면)에 쓰게 되면 `size` prop을 더해요.
- * 지금 간격을 기본값으로 두면 이미 쓰고 있는 곳은 고치지 않아도 돼요.
- *
  * @example
  * <IllustratedMessageLayout
  *   illustration={<FailedIllustration />}
@@ -44,6 +41,8 @@ export default function IllustratedMessageLayout({
   description,
   button,
 }: IllustratedMessageLayoutProps) {
+  // 칸 구성은 같고 간격만 큰 곳(예: 에러 화면)에 쓰게 되면 컴포넌트를 새로 만들지 않고 `size` prop으로 나눠요.
+  // 지금 간격을 기본값으로 두면 이미 쓰고 있는 곳은 고치지 않아도 돼요.
   return (
     <Stack align="center" gap={1.25} /* 20px */>
       <IllustrationWrapper>{illustration}</IllustrationWrapper>
