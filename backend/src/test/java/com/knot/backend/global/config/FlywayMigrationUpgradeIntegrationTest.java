@@ -33,9 +33,9 @@ class FlywayMigrationUpgradeIntegrationTest {
             .withUsername("knot")
             .withPassword("knot");
 
-    @DisplayName("V9 스키마를 V13 검색 스키마로 업그레이드한다")
+    @DisplayName("V9 스키마를 V14 유지 스키마로 업그레이드하고 빈 스키마도 V14까지 생성한다")
     @Test
-    void migrate_success_v9ToContentImportSchema() throws SQLException {
+    void migrate_success_v9AndFreshSchemaToV14() throws SQLException {
         // given
         Flyway v9Flyway = configureFlyway(MigrationVersion.fromVersion("9"));
         v9Flyway.migrate();
@@ -56,7 +56,7 @@ class FlywayMigrationUpgradeIntegrationTest {
                 "migration-pending",
                 "PENDING"
         );
-        Flyway latestFlyway = configureFlyway();
+        Flyway latestFlyway = configureFlyway(MigrationVersion.fromVersion("13"));
 
         // when
         MigrateResult result = latestFlyway.migrate();
@@ -244,6 +244,121 @@ class FlywayMigrationUpgradeIntegrationTest {
                 FROM content_import_runs
                 WHERE status = 'RUNNING'
                 """)).isTrue();
+
+        // when
+        Flyway currentFlyway = configureFlyway();
+        MigrateResult cleanupResult = currentFlyway.migrate();
+
+        // then
+        assertThat(cleanupResult.success).isTrue();
+        assertThat(cleanupResult.migrationsExecuted).isEqualTo(1);
+        assertThat(appliedVersions(currentFlyway)).containsExactly(
+                "1",
+                "2",
+                "3",
+                "4",
+                "5",
+                "6",
+                "9",
+                "10",
+                "11",
+                "12",
+                "13",
+                "14"
+        );
+        List<String> tablesAfterCleanup = schemaObjectNames("""
+                SELECT table_name
+                FROM information_schema.tables
+                WHERE table_schema = 'public'
+                ORDER BY table_name
+                """);
+        assertThat(tablesAfterCleanup).contains(
+                "members",
+                "oauth_identities",
+                "workspaces",
+                "workspace_members",
+                "workspace_invitations"
+        );
+        assertThat(tablesAfterCleanup).doesNotContain(
+                "search_references",
+                "search_document_chunks",
+                "chat_feedback",
+                "imported_page_publications",
+                "chat_messages",
+                "imported_pages",
+                "chat_sessions",
+                "content_import_runs",
+                "content_source_authorizations",
+                "content_source_connections"
+        );
+        assertThat(queryBoolean("""
+                SELECT EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'vector')
+                """)).isFalse();
+        assertThat(queryBoolean("SELECT EXISTS (SELECT 1 FROM members)")).isTrue();
+        assertThat(queryBoolean("SELECT EXISTS (SELECT 1 FROM workspaces)")).isTrue();
+        assertThat(queryBoolean("SELECT EXISTS (SELECT 1 FROM workspace_members)")).isTrue();
+
+        // given
+        Flyway cleanableFlyway = Flyway.configure()
+                .dataSource(
+                        POSTGRESQL.getJdbcUrl(),
+                        POSTGRESQL.getUsername(),
+                        POSTGRESQL.getPassword()
+                )
+                .locations(MIGRATION_LOCATION)
+                .cleanDisabled(false)
+                .load();
+        cleanableFlyway.clean();
+        Flyway freshFlyway = configureFlyway();
+
+        // when
+        MigrateResult freshResult = freshFlyway.migrate();
+
+        // then
+        assertThat(freshResult.success).isTrue();
+        assertThat(freshResult.migrationsExecuted).isEqualTo(12);
+        assertThat(appliedVersions(freshFlyway)).containsExactly(
+                "1",
+                "2",
+                "3",
+                "4",
+                "5",
+                "6",
+                "9",
+                "10",
+                "11",
+                "12",
+                "13",
+                "14"
+        );
+        List<String> freshTables = schemaObjectNames("""
+                SELECT table_name
+                FROM information_schema.tables
+                WHERE table_schema = 'public'
+                ORDER BY table_name
+                """);
+        assertThat(freshTables).contains(
+                "members",
+                "oauth_identities",
+                "workspaces",
+                "workspace_members",
+                "workspace_invitations"
+        );
+        assertThat(freshTables).doesNotContain(
+                "search_references",
+                "search_document_chunks",
+                "chat_feedback",
+                "imported_page_publications",
+                "chat_messages",
+                "imported_pages",
+                "chat_sessions",
+                "content_import_runs",
+                "content_source_authorizations",
+                "content_source_connections"
+        );
+        assertThat(queryBoolean("""
+                SELECT EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'vector')
+                """)).isFalse();
     }
 
     private void insertImportRun(
