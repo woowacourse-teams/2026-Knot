@@ -93,7 +93,7 @@ public enum WorkspaceErrorCode implements ErrorCode {
     WORKSPACE_CREATION_LIMIT_EXCEEDED(
             ErrorCategory.CONFLICT,
             "WORKSPACE_CREATION_LIMIT_EXCEEDED",
-            "워크스페이스는 3개까지 만들 수 있어요"
+            "워크스페이스는 최대 3개까지 만들 수 있습니다"
     ),
 
     WORKSPACE_ACCESS_DENIED(
