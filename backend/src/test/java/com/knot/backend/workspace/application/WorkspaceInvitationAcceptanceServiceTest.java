@@ -303,6 +303,7 @@ class WorkspaceInvitationAcceptanceServiceTest {
     private Workspace workspace() {
         return Workspace.create(
                 WORKSPACE_NAME,
+                1L,
                 NOW
         );
     }

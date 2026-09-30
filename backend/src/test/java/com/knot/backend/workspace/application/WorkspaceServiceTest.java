@@ -9,6 +9,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.knot.backend.workspace.application.dto.result.WorkspaceCreateResult;
+import com.knot.backend.member.domain.Member;
+import com.knot.backend.member.domain.MemberRepository;
 import com.knot.backend.workspace.domain.Workspace;
 import com.knot.backend.workspace.domain.WorkspaceErrorCode;
 import com.knot.backend.workspace.domain.WorkspaceException;
@@ -19,6 +21,7 @@ import com.knot.backend.workspace.domain.WorkspaceRepository;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -54,10 +57,12 @@ class WorkspaceServiceTest {
         assertThat(result.id()).isEqualTo(7L);
         assertThat(workspaceCaptor.getValue()).extracting(
                 Workspace::getName,
+                Workspace::getCreatedByMemberId,
                 Workspace::getCreatedAt
         )
                 .containsExactly(
                         "Knot 팀",
+                        3L,
                         CREATED_AT
                 );
         assertThat(memberCaptor.getValue()).extracting(
@@ -108,11 +113,50 @@ class WorkspaceServiceTest {
         ).save(any(WorkspaceMember.class));
     }
 
+    @Test
+    @DisplayName("이미 세 개를 직접 만들었다면 새 워크스페이스를 저장하지 않는다")
+    void create_failure_creationLimitExceeded() {
+        // given
+        WorkspaceRepository workspaceRepository = mock(WorkspaceRepository.class);
+        WorkspaceMemberRepository workspaceMemberRepository = mock(WorkspaceMemberRepository.class);
+        WorkspaceService service = service(
+                workspaceRepository,
+                workspaceMemberRepository
+        );
+        when(workspaceRepository.countActiveByCreatorId(3L)).thenReturn(3L);
+
+        // when
+        Throwable thrown = catchThrowable(
+                () -> service.create(
+                        3L,
+                        "Knot 팀"
+                )
+        );
+
+        // then
+        assertThat(thrown).isInstanceOfSatisfying(
+                WorkspaceException.class,
+                exception -> assertThat(exception.getErrorCode())
+                        .isEqualTo(WorkspaceErrorCode.WORKSPACE_CREATION_LIMIT_EXCEEDED)
+        );
+        verify(
+                workspaceRepository,
+                never()
+        ).save(any(Workspace.class));
+        verify(
+                workspaceMemberRepository,
+                never()
+        ).save(any(WorkspaceMember.class));
+    }
+
     private WorkspaceService service(
             WorkspaceRepository workspaceRepository,
             WorkspaceMemberRepository workspaceMemberRepository
     ) {
+        MemberRepository memberRepository = mock(MemberRepository.class);
+        when(memberRepository.findByIdForUpdate(3L)).thenReturn(Optional.of(mock(Member.class)));
         return new WorkspaceService(
+                memberRepository,
                 workspaceRepository,
                 workspaceMemberRepository,
                 Clock.fixed(

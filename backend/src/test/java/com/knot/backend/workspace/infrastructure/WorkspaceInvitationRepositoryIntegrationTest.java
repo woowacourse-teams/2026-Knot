@@ -61,7 +61,7 @@ class WorkspaceInvitationRepositoryIntegrationTest {
     void saveAndFindByHashes_success() {
         // given
         Workspace workspace = saveAndFlush(
-                Workspace.create(
+                createWorkspaceFixture(
                         "Knot 팀",
                         CREATED_AT
                 )
@@ -94,7 +94,7 @@ class WorkspaceInvitationRepositoryIntegrationTest {
     void saveAndFind_success_secretEnvelopes() {
         // given
         Workspace workspace = saveAndFlush(
-                Workspace.create(
+                createWorkspaceFixture(
                         "Knot 팀",
                         CREATED_AT
                 )
@@ -122,7 +122,7 @@ class WorkspaceInvitationRepositoryIntegrationTest {
     void save_failure_incompleteSecretEnvelopes() {
         // given
         Workspace workspace = saveAndFlush(
-                Workspace.create(
+                createWorkspaceFixture(
                         "Knot 팀",
                         CREATED_AT
                 )
@@ -148,13 +148,13 @@ class WorkspaceInvitationRepositoryIntegrationTest {
     void save_failure_duplicateLinkTokenHash() {
         // given
         Workspace firstWorkspace = saveAndFlush(
-                Workspace.create(
+                createWorkspaceFixture(
                         "첫 팀",
                         CREATED_AT
                 )
         );
         Workspace secondWorkspace = saveAndFlush(
-                Workspace.create(
+                createWorkspaceFixture(
                         "둘째 팀",
                         CREATED_AT
                 )
@@ -186,13 +186,13 @@ class WorkspaceInvitationRepositoryIntegrationTest {
     void save_failure_duplicateInviteCodeHash() {
         // given
         Workspace firstWorkspace = saveAndFlush(
-                Workspace.create(
+                createWorkspaceFixture(
                         "첫 팀",
                         CREATED_AT
                 )
         );
         Workspace secondWorkspace = saveAndFlush(
-                Workspace.create(
+                createWorkspaceFixture(
                         "둘째 팀",
                         CREATED_AT
                 )
@@ -224,7 +224,7 @@ class WorkspaceInvitationRepositoryIntegrationTest {
     void save_failure_duplicateUninvalidatedInvitation() {
         // given
         Workspace workspace = saveAndFlush(
-                Workspace.create(
+                createWorkspaceFixture(
                         "Knot 팀",
                         CREATED_AT
                 )
@@ -258,7 +258,7 @@ class WorkspaceInvitationRepositoryIntegrationTest {
         Instant previousCreatedAt = CREATED_AT.minus(WorkspaceInvitation.VALIDITY_PERIOD)
                 .minusSeconds(1);
         Workspace workspace = saveAndFlush(
-                Workspace.create(
+                createWorkspaceFixture(
                         "Knot 팀",
                         previousCreatedAt
                 )
@@ -308,7 +308,7 @@ class WorkspaceInvitationRepositoryIntegrationTest {
     void save_failure_expirationLessThanTwentyFourHours() {
         // given
         Workspace workspace = saveAndFlush(
-                Workspace.create(
+                createWorkspaceFixture(
                         "Knot 팀",
                         CREATED_AT
                 )
@@ -334,7 +334,7 @@ class WorkspaceInvitationRepositoryIntegrationTest {
     void save_failure_expirationGreaterThanTwentyFourHours() {
         // given
         Workspace workspace = saveAndFlush(
-                Workspace.create(
+                createWorkspaceFixture(
                         "Knot 팀",
                         CREATED_AT
                 )
@@ -360,7 +360,7 @@ class WorkspaceInvitationRepositoryIntegrationTest {
     void save_failure_invalidInvalidation() {
         // given
         Workspace workspace = saveAndFlush(
-                Workspace.create(
+                createWorkspaceFixture(
                         "Knot 팀",
                         CREATED_AT
                 )
@@ -385,7 +385,7 @@ class WorkspaceInvitationRepositoryIntegrationTest {
     void save_success_afterInvalidation() {
         // given
         Workspace workspace = saveAndFlush(
-                Workspace.create(
+                createWorkspaceFixture(
                         "Knot 팀",
                         CREATED_AT
                 )
@@ -427,7 +427,7 @@ class WorkspaceInvitationRepositoryIntegrationTest {
     void saveAndFind_success_preservesMicrosecondPrecision() {
         // given
         Workspace workspace = saveAndFlush(
-                Workspace.create(
+                createWorkspaceFixture(
                         "Knot 팀",
                         CREATED_AT_WITH_NANOS
                 )
@@ -452,7 +452,7 @@ class WorkspaceInvitationRepositoryIntegrationTest {
     void saveAndFind_success_preservesInvalidatedAtMicrosecondPrecision() {
         // given
         Workspace workspace = saveAndFlush(
-                Workspace.create(
+                createWorkspaceFixture(
                         "Knot 팀",
                         CREATED_AT
                 )
@@ -480,7 +480,7 @@ class WorkspaceInvitationRepositoryIntegrationTest {
     void save_failure_staleEntityRestoresInvalidation() {
         // given
         Workspace workspace = saveAndFlush(
-                Workspace.create(
+                createWorkspaceFixture(
                         "Knot 팀",
                         CREATED_AT
                 )
@@ -516,7 +516,7 @@ class WorkspaceInvitationRepositoryIntegrationTest {
     void save_failure_concurrentUninvalidatedInvitation() throws Exception {
         // given
         Workspace workspace = workspaceRepository.save(
-                Workspace.create(
+                createWorkspaceFixture(
                         "동시성 팀",
                         CREATED_AT
                 )
@@ -758,9 +758,16 @@ class WorkspaceInvitationRepositoryIntegrationTest {
     }
 
     private Long insertWorkspace(String name) {
+        long creatorMemberId = jdbcClient.sql("""
+                INSERT INTO members (nickname, profile_image_url)
+                VALUES ('초대 저장 테스트', NULL)
+                RETURNING id
+                """)
+                .query(Long.class)
+                .single();
         return jdbcClient.sql("""
-                INSERT INTO workspaces (name, created_at)
-                VALUES (:name, :createdAt)
+                INSERT INTO workspaces (name, created_by_member_id, created_at)
+                VALUES (:name, :creatorMemberId, :createdAt)
                 RETURNING id
                 """)
                 .param(
@@ -768,11 +775,33 @@ class WorkspaceInvitationRepositoryIntegrationTest {
                         name
                 )
                 .param(
+                        "creatorMemberId",
+                        creatorMemberId
+                )
+                .param(
                         "createdAt",
                         toOffsetDateTime(CREATED_AT)
                 )
                 .query(Long.class)
                 .single();
+    }
+
+    private Workspace createWorkspaceFixture(
+            String name,
+            Instant createdAt
+    ) {
+        long creatorMemberId = jdbcClient.sql("""
+                INSERT INTO members (nickname, profile_image_url)
+                VALUES ('초대 저장 테스트', NULL)
+                RETURNING id
+                """)
+                .query(Long.class)
+                .single();
+        return Workspace.create(
+                name,
+                creatorMemberId,
+                createdAt
+        );
     }
 
     private OffsetDateTime toOffsetDateTime(Instant instant) {

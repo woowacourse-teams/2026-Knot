@@ -39,6 +39,7 @@ class WorkspaceQueryServiceTest {
         );
         Workspace workspace = Workspace.create(
                 "Knot 팀",
+                1L,
                 CREATED_AT
         );
         when(workspaceRepository.findById(1L)).thenReturn(Optional.of(workspace));
@@ -125,6 +126,7 @@ class WorkspaceQueryServiceTest {
                 Optional.of(
                         Workspace.create(
                                 "Knot 팀",
+                                1L,
                                 CREATED_AT
                         )
                 )

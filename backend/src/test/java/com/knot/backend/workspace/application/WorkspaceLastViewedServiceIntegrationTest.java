@@ -129,8 +129,8 @@ class WorkspaceLastViewedServiceIntegrationTest {
 
     private long saveWorkspace(String name) {
         return jdbcClient.sql("""
-                INSERT INTO workspaces (name, created_at)
-                VALUES (:name, CAST(:createdAt AS TIMESTAMPTZ))
+                INSERT INTO workspaces (name, created_by_member_id, created_at)
+                VALUES (:name, (SELECT MIN(id) FROM members), CAST(:createdAt AS TIMESTAMPTZ))
                 RETURNING id
                 """)
                 .param(

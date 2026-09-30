@@ -245,11 +245,11 @@ class FlywayMigrationUpgradeIntegrationTest {
                 WHERE status = 'RUNNING'
                 """)).isTrue();
 
-        // when
-        Flyway currentFlyway = configureFlyway();
+        // V14 정리 마이그레이션 검증
+        Flyway currentFlyway = configureFlyway(MigrationVersion.fromVersion("14"));
         MigrateResult cleanupResult = currentFlyway.migrate();
 
-        // then
+        // 기존 데이터와 핵심 테이블 보존 확인
         assertThat(cleanupResult.success).isTrue();
         assertThat(cleanupResult.migrationsExecuted).isEqualTo(1);
         assertThat(appliedVersions(currentFlyway)).containsExactly(
@@ -298,7 +298,7 @@ class FlywayMigrationUpgradeIntegrationTest {
         assertThat(queryBoolean("SELECT EXISTS (SELECT 1 FROM workspaces)")).isTrue();
         assertThat(queryBoolean("SELECT EXISTS (SELECT 1 FROM workspace_members)")).isTrue();
 
-        // given
+        // 빈 스키마에서 V14까지 신규 설치 검증
         Flyway cleanableFlyway = Flyway.configure()
                 .dataSource(
                         POSTGRESQL.getJdbcUrl(),
@@ -309,12 +309,10 @@ class FlywayMigrationUpgradeIntegrationTest {
                 .cleanDisabled(false)
                 .load();
         cleanableFlyway.clean();
-        Flyway freshFlyway = configureFlyway();
+        Flyway freshFlyway = configureFlyway(MigrationVersion.fromVersion("14"));
 
-        // when
         MigrateResult freshResult = freshFlyway.migrate();
 
-        // then
         assertThat(freshResult.success).isTrue();
         assertThat(freshResult.migrationsExecuted).isEqualTo(12);
         assertThat(appliedVersions(freshFlyway)).containsExactly(

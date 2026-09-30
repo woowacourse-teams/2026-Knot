@@ -421,6 +421,7 @@ class WorkspaceInvitationServiceTest {
                 Optional.of(
                         Workspace.create(
                                 "Knot 팀",
+                                1L,
                                 NOW
                         )
                 )
@@ -456,6 +457,7 @@ class WorkspaceInvitationServiceTest {
                 Optional.of(
                         Workspace.create(
                                 "Knot 팀",
+                                1L,
                                 NOW
                         )
                 )
@@ -468,6 +470,7 @@ class WorkspaceInvitationServiceTest {
                 Optional.of(
                         Workspace.create(
                                 "Knot 팀",
+                                1L,
                                 NOW
                         )
                 )

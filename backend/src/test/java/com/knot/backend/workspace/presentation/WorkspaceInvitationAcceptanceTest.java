@@ -1074,6 +1074,7 @@ class WorkspaceInvitationAcceptanceTest {
         Workspace workspace = workspaceRepository.save(
                 Workspace.create(
                         "초대 테스트 팀",
+                        member.getId(),
                         now
                 )
         );

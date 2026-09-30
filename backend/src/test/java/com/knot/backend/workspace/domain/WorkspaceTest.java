@@ -20,12 +20,15 @@ class WorkspaceTest {
         // when
         Workspace workspace = Workspace.create(
                 name,
+                1L,
                 CREATED_AT
         );
 
         // then
         assertThat(workspace.getName()).isEqualTo(name);
+        assertThat(workspace.getCreatedByMemberId()).isEqualTo(1L);
         assertThat(workspace.getCreatedAt()).isEqualTo(CREATED_AT);
+        assertThat(workspace.getDeletedAt()).isNull();
     }
 
     @DisplayName("워크스페이스 이름은 최대 20자까지 허용한다")
@@ -37,6 +40,7 @@ class WorkspaceTest {
         // when
         Workspace workspace = Workspace.create(
                 maximumLengthName,
+                1L,
                 CREATED_AT
         );
 
@@ -53,6 +57,7 @@ class WorkspaceTest {
         // when
         ThrowingCallable action = () -> Workspace.create(
                 blankName,
+                1L,
                 CREATED_AT
         );
 
@@ -71,6 +76,7 @@ class WorkspaceTest {
         // when
         ThrowingCallable action = () -> Workspace.create(
                 tooLongName,
+                1L,
                 CREATED_AT
         );
 
@@ -89,6 +95,7 @@ class WorkspaceTest {
         // when
         ThrowingCallable action = () -> Workspace.create(
                 nameContainingSpecialCharacter,
+                1L,
                 CREATED_AT
         );
 
@@ -107,6 +114,7 @@ class WorkspaceTest {
         // when
         ThrowingCallable action = () -> Workspace.create(
                 "Knot 팀",
+                1L,
                 missingCreatedAt
         );
 
@@ -114,5 +122,24 @@ class WorkspaceTest {
         assertThatThrownBy(action).isInstanceOf(WorkspaceException.class)
                 .extracting(exception -> ((WorkspaceException) exception).getErrorCode())
                 .isEqualTo(WorkspaceErrorCode.INVALID_WORKSPACE_CREATED_AT);
+    }
+
+    @DisplayName("생성자 ID가 없으면 워크스페이스 생성을 거부한다")
+    @Test
+    void create_failure_missingCreator() {
+        // given
+        Long creatorMemberId = null;
+
+        // when
+        ThrowingCallable action = () -> Workspace.create(
+                "Knot 팀",
+                creatorMemberId,
+                CREATED_AT
+        );
+
+        // then
+        assertThatThrownBy(action).isInstanceOf(WorkspaceException.class)
+                .extracting(exception -> ((WorkspaceException) exception).getErrorCode())
+                .isEqualTo(WorkspaceErrorCode.INVALID_MEMBER_ID);
     }
 }

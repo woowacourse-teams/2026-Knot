@@ -138,6 +138,53 @@ class WorkspaceAcceptanceTest {
     }
 
     @Test
+    @DisplayName("직접 만든 워크스페이스가 세 개이면 네 번째 HTTP 요청은 409로 거절한다")
+    void create_failure_creationLimitExceeded() throws Exception {
+        // given
+        long memberId = saveMember("octocat");
+        Cookie accessTokenCookie = accessTokenCookie(memberId);
+        CsrfCredentials csrfCredentials = csrfCredentials();
+        for (String name : new String[]{"첫 팀", "두 번째 팀", "세 번째 팀"}) {
+            mockMvc.perform(
+                    post("/api/v1/workspaces").cookie(
+                            accessTokenCookie,
+                            csrfCredentials.cookie()
+                    )
+                            .header(
+                                    "X-XSRF-TOKEN",
+                                    csrfCredentials.token()
+                            )
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"name\":\"" + name + "\"}")
+            )
+                    .andExpect(status().isCreated());
+        }
+
+        // when
+        ResultActions result = mockMvc.perform(
+                post("/api/v1/workspaces").cookie(
+                        accessTokenCookie,
+                        csrfCredentials.cookie()
+                )
+                        .header(
+                                "X-XSRF-TOKEN",
+                                csrfCredentials.token()
+                        )
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"name":"네 번째 팀"}
+                                """)
+        );
+
+        // then
+        result.andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("WORKSPACE_CREATION_LIMIT_EXCEEDED"))
+                .andExpect(jsonPath("$.message").value("워크스페이스는 3개까지 만들 수 있어요"));
+        assertThat(count("workspaces")).isEqualTo(3);
+        assertThat(count("workspace_members")).isEqualTo(3);
+    }
+
+    @Test
     @DisplayName("인증되지 않은 워크스페이스 생성 요청은 401로 거부한다")
     void create_failure_unauthorizedWithCsrfToken() throws Exception {
         // given

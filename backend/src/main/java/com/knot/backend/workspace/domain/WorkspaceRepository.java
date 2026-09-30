@@ -12,4 +12,6 @@ public interface WorkspaceRepository {
     Optional<Workspace> findByIdForUpdate(Long workspaceId);
 
     List<Workspace> findAllByMemberId(Long memberId);
+
+    long countActiveByCreatorId(long creatorMemberId);
 }

@@ -112,6 +112,20 @@ public class OpenApiConfig {
                                 "CSRF 토큰 누락 또는 권한 없음",
                                 "ErrorResponse"
                         )
+                )
+                .addApiResponse(
+                        "404",
+                        jsonResponse(
+                                "생성 회원을 찾을 수 없음",
+                                "ErrorResponse"
+                        )
+                )
+                .addApiResponse(
+                        "409",
+                        jsonResponse(
+                                "직접 생성한 워크스페이스 3개 초과",
+                                "ErrorResponse"
+                        )
                 );
     }
 

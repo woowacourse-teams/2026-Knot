@@ -299,6 +299,7 @@ class WorkspaceInvitationServiceIntegrationTest {
         Workspace workspace = workspaceRepository.save(
                 Workspace.create(
                         workspaceName,
+                        member.getId(),
                         now
                 )
         );

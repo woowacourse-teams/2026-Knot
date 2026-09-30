@@ -21,4 +21,6 @@ interface WorkspaceJpaRepository extends JpaRepository<Workspace, Long> {
             ORDER BY wm.joined_at DESC, w.id DESC
             """, nativeQuery = true)
     List<Workspace> findAllByMemberId(Long memberId);
+
+    long countByCreatedByMemberIdAndDeletedAtIsNull(Long createdByMemberId);
 }

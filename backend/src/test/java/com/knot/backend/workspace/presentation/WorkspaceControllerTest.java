@@ -102,6 +102,33 @@ class WorkspaceControllerTest {
                 .andExpect(jsonPath("$.message").value("워크스페이스 이름이 올바르지 않습니다"));
     }
 
+    @Test
+    @DisplayName("워크스페이스 생성 한도에 도달하면 409와 한글 안내를 반환한다")
+    void create_failure_creationLimitExceeded() throws Exception {
+        // given
+        SecurityContextHolder.getContext()
+                .setAuthentication(memberAuthentication());
+        when(
+                workspaceService.create(
+                        1L,
+                        "Knot 팀"
+                )
+        ).thenThrow(new WorkspaceException(WorkspaceErrorCode.WORKSPACE_CREATION_LIMIT_EXCEEDED));
+
+        // when
+        ResultActions result = mockMvc.perform(
+                post("/api/v1/workspaces").contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"name":"Knot 팀"}
+                                """)
+        );
+
+        // then
+        result.andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("WORKSPACE_CREATION_LIMIT_EXCEEDED"))
+                .andExpect(jsonPath("$.message").value("워크스페이스는 3개까지 만들 수 있어요"));
+    }
+
     private UsernamePasswordAuthenticationToken memberAuthentication() {
         return new UsernamePasswordAuthenticationToken(
                 AuthenticatedMember.of(

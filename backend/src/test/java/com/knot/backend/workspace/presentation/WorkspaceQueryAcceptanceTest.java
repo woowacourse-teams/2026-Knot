@@ -132,6 +132,7 @@ class WorkspaceQueryAcceptanceTest {
     @DisplayName("인증되지 않은 워크스페이스 단건 조회 요청은 401을 반환한다")
     void detail_failure_unauthenticated() throws Exception {
         // given
+        saveMember();
         long workspaceId = saveWorkspace("Knot 팀");
 
         // when
@@ -334,8 +335,8 @@ class WorkspaceQueryAcceptanceTest {
 
     private long saveWorkspace(String name) {
         return jdbcClient.sql("""
-                INSERT INTO workspaces (name, created_at)
-                VALUES (:name, CAST(:createdAt AS TIMESTAMPTZ))
+                INSERT INTO workspaces (name, created_by_member_id, created_at)
+                VALUES (:name, (SELECT MIN(id) FROM members), CAST(:createdAt AS TIMESTAMPTZ))
                 RETURNING id
                 """)
                 .param(

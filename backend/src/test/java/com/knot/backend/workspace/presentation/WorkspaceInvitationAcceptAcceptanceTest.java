@@ -776,6 +776,7 @@ class WorkspaceInvitationAcceptAcceptanceTest {
         Workspace workspace = workspaceRepository.save(
                 Workspace.create(
                         workspaceName,
+                        ownerMember.getId(),
                         clock.instant()
                                 .minusSeconds(1)
                 )

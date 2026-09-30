@@ -46,12 +46,14 @@ class WorkspaceMemberRepositoryIntegrationTest {
         Workspace firstWorkspace = saveAndFlush(
                 Workspace.create(
                         "첫 팀",
+                        memberId,
                         CREATED_AT
                 )
         );
         Workspace secondWorkspace = saveAndFlush(
                 Workspace.create(
                         "두 번째 팀",
+                        memberId,
                         CREATED_AT
                 )
         );
@@ -86,12 +88,14 @@ class WorkspaceMemberRepositoryIntegrationTest {
         Workspace firstWorkspace = saveAndFlush(
                 Workspace.create(
                         "첫 팀",
+                        memberId,
                         CREATED_AT
                 )
         );
         Workspace secondWorkspace = saveAndFlush(
                 Workspace.create(
                         "마지막 팀",
+                        memberId,
                         CREATED_AT
                 )
         );
@@ -130,6 +134,7 @@ class WorkspaceMemberRepositoryIntegrationTest {
         Workspace workspace = saveAndFlush(
                 Workspace.create(
                         "삭제 팀",
+                        memberId,
                         CREATED_AT
                 )
         );
@@ -165,12 +170,14 @@ class WorkspaceMemberRepositoryIntegrationTest {
         Workspace firstWorkspace = saveAndFlush(
                 Workspace.create(
                         "첫 팀",
+                        memberId,
                         CREATED_AT
                 )
         );
         Workspace secondWorkspace = saveAndFlush(
                 Workspace.create(
                         "두 번째 팀",
+                        memberId,
                         CREATED_AT
                 )
         );

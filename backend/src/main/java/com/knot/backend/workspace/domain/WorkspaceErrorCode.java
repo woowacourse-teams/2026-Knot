@@ -84,6 +84,18 @@ public enum WorkspaceErrorCode implements ErrorCode {
             "워크스페이스를 찾을 수 없습니다"
     ),
 
+    WORKSPACE_CREATOR_NOT_FOUND(
+            ErrorCategory.NOT_FOUND,
+            "WORKSPACE_CREATOR_NOT_FOUND",
+            "워크스페이스 생성 회원을 찾을 수 없습니다"
+    ),
+
+    WORKSPACE_CREATION_LIMIT_EXCEEDED(
+            ErrorCategory.CONFLICT,
+            "WORKSPACE_CREATION_LIMIT_EXCEEDED",
+            "워크스페이스는 3개까지 만들 수 있어요"
+    ),
+
     WORKSPACE_ACCESS_DENIED(
             ErrorCategory.FORBIDDEN,
             "WORKSPACE_ACCESS_DENIED",

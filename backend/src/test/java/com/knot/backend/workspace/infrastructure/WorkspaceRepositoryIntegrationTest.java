@@ -55,6 +55,7 @@ class WorkspaceRepositoryIntegrationTest {
         Workspace workspace = saveAndFlush(
                 Workspace.create(
                         "Knot 팀",
+                        memberId,
                         CREATED_AT
                 )
         );
@@ -118,24 +119,28 @@ class WorkspaceRepositoryIntegrationTest {
         Workspace olderWorkspace = saveAndFlush(
                 Workspace.create(
                         "이전 팀",
+                        memberId,
                         CREATED_AT
                 )
         );
         Workspace tiedLowerWorkspace = saveAndFlush(
                 Workspace.create(
                         "최근 한 팀",
+                        memberId,
                         CREATED_AT
                 )
         );
         Workspace tiedHigherWorkspace = saveAndFlush(
                 Workspace.create(
                         "최근 두 팀",
+                        memberId,
                         CREATED_AT
                 )
         );
         Workspace otherWorkspace = saveAndFlush(
                 Workspace.create(
                         "다른 팀",
+                        memberId,
                         CREATED_AT
                 )
         );
@@ -217,6 +222,7 @@ class WorkspaceRepositoryIntegrationTest {
         Workspace workspace = saveAndFlush(
                 Workspace.create(
                         "Knot 팀",
+                        memberId,
                         CREATED_AT
                 )
         );
@@ -251,6 +257,7 @@ class WorkspaceRepositoryIntegrationTest {
         Workspace workspace = workspaceRepository.save(
                 Workspace.create(
                         "Knot 동시성 팀",
+                        memberId,
                         CREATED_AT
                 )
         );
@@ -315,9 +322,11 @@ class WorkspaceRepositoryIntegrationTest {
     @Test
     void save_failure_missingMemberReference() {
         // given
+        long memberId = saveMember(5L);
         Workspace workspace = saveAndFlush(
                 Workspace.create(
                         "Knot 팀",
+                        memberId,
                         CREATED_AT
                 )
         );

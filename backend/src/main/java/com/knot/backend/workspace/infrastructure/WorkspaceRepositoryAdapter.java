@@ -33,4 +33,9 @@ public class WorkspaceRepositoryAdapter implements WorkspaceRepository {
     public List<Workspace> findAllByMemberId(Long memberId) {
         return workspaceJpaRepository.findAllByMemberId(memberId);
     }
+
+    @Override
+    public long countActiveByCreatorId(long creatorMemberId) {
+        return workspaceJpaRepository.countByCreatedByMemberIdAndDeletedAtIsNull(creatorMemberId);
+    }
 }
