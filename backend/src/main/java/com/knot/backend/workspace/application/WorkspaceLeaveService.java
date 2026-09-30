@@ -43,11 +43,15 @@ public class WorkspaceLeaveService {
                 leftAt,
                 activeMemberCount
         );
-        if (activeMemberCount == 1) {
+        if (isLastActiveMember(activeMemberCount)) {
             workspace.delete(leftAt);
             workspaceRepository.save(workspace);
         }
         workspaceMemberRepository.save(actor);
+    }
+
+    private boolean isLastActiveMember(long activeMemberCount) {
+        return activeMemberCount == 1;
     }
 
     private Instant currentTime() {
