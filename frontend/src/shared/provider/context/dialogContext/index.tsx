@@ -1,10 +1,9 @@
+import useReturnFocus from "@hooks/common/useReturnFocus";
 import {
   createContext,
   useCallback,
   useContext,
-  useEffect,
   useMemo,
-  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -29,44 +28,55 @@ export interface DialogControls {
 const DialogContext = createContext<DialogControls | null>(null);
 
 /**
+ * 지금 떠 있는 모달 하나를 들고 있어요.
+ *
+ * - `dialog`: 지금 떠 있는 모달 컴포넌트(예: `<ConfirmDialog />`)를 돌려주는 함수. 떠 있는 모달이 없으면 `null`이에요
+ * - `show`: 넘긴 모달을 띄워요. 이미 떠 있으면 그 자리의 모달이 새 모달로 바뀌어요
+ * - `hide`: 떠 있는 모달을 없애요
+ *
+ * 모달을 하나만 들고 있어서, 떠 있는 동안 `show`를 부르면 두 모달이 겹치지 않고
+ * 원래 모달 자리에 새 모달이 대신 들어가요.
+ */
+const useOpenedDialog = () => {
+  const [currentDialog, setCurrentDialog] = useState<DialogRender | null>(null);
+
+  // 함수를 그대로 넘기면 상태 갱신 함수로 불리므로 한 번 감싸요
+  const show = useCallback((nextRender: DialogRender) => {
+    setCurrentDialog(() => nextRender);
+  }, []);
+
+  const hide = useCallback(() => setCurrentDialog(null), []);
+
+  return { dialog: currentDialog, show, hide };
+};
+
+/**
  * 어느 화면에서든 `useDialog`로 모달을 띄울 수 있게 해 주는 프로바이더.
  *
  * 지금 떠 있는 모달 하나만 들고 있고, 무엇을 어떻게 그릴지는 모르므로
  * 모달의 종류나 겉모양이 바뀌어도 이 파일은 바뀌지 않아요.
- * 모달이 모두 닫히면 처음 모달을 열기 전 포커스 자리로 돌아가요.
+ * 어떤 모달이 떠 있는지는 `useOpenedDialog`가, 모두 닫히면 처음 모달을 열기 전
+ * 포커스 자리로 돌려주는 일은 `useReturnFocus`가 맡고, 여기서는 둘을 이어 주기만 해요.
  */
 export function DialogProvider({ children }: { children: ReactNode }) {
-  const [render, setRender] = useState<DialogRender | null>(null);
-  const returnFocusRef = useRef<HTMLElement | null>(null);
+  const { dialog, show, hide } = useOpenedDialog();
+  const { remember } = useReturnFocus({ isActive: dialog !== null });
 
-  const open = useCallback((nextRender: DialogRender) => {
-    // 모달에서 다음 모달로 이어질 때는 처음 연 자리를 그대로 기억해요
-    if (
-      returnFocusRef.current === null &&
-      document.activeElement instanceof HTMLElement
-    ) {
-      returnFocusRef.current = document.activeElement;
-    }
-
-    // 함수를 그대로 넘기면 상태 갱신 함수로 불리므로 한 번 감싸요
-    setRender(() => nextRender);
-  }, []);
-
-  const close = useCallback(() => setRender(null), []);
-
-  useEffect(() => {
-    if (render !== null) return;
-
-    returnFocusRef.current?.focus();
-    returnFocusRef.current = null;
-  }, [render]);
-
-  const controls = useMemo(() => ({ open, close }), [open, close]);
+  const controlsValue = useMemo<DialogControls>(
+    () => ({
+      open: (nextRender) => {
+        remember();
+        show(nextRender);
+      },
+      close: hide,
+    }),
+    [remember, show, hide],
+  );
 
   return (
-    <DialogContext.Provider value={controls}>
+    <DialogContext.Provider value={controlsValue}>
       {children}
-      {render?.({ close })}
+      {dialog?.({ close: hide })}
     </DialogContext.Provider>
   );
 }
