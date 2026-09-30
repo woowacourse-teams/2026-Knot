@@ -179,7 +179,7 @@ class WorkspaceAcceptanceTest {
         // then
         result.andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("WORKSPACE_CREATION_LIMIT_EXCEEDED"))
-                .andExpect(jsonPath("$.message").value("워크스페이스는 3개까지 만들 수 있어요"));
+                .andExpect(jsonPath("$.message").value("워크스페이스는 최대 3개까지 만들 수 있습니다"));
         assertThat(count("workspaces")).isEqualTo(3);
         assertThat(count("workspace_members")).isEqualTo(3);
     }
