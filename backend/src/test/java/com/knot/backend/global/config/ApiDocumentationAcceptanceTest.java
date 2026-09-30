@@ -286,6 +286,50 @@ class ApiDocumentationAcceptanceTest {
     }
 
     @Test
+    @DisplayName("OpenAPI JSON에 워크스페이스 탈퇴 계약을 공개한다")
+    void openApi_success_workspaceLeaveContract() throws Exception {
+        // given
+        String openApiPath = "/v3/api-docs";
+        String leavePath = "$.paths['/api/v1/workspaces/{workspaceId}/members/me'].delete";
+        String errorResponseRef = "#/components/schemas/ErrorResponse";
+
+        // when
+        ResultActions result = mockMvc.perform(get(openApiPath));
+
+        // then
+        result.andExpect(status().isOk())
+                .andExpect(jsonPath(leavePath).exists())
+                .andExpect(jsonPath(leavePath + ".summary").value("워크스페이스 탈퇴"))
+                .andExpect(jsonPath(leavePath + ".security[*].accessTokenCookie").exists())
+                .andExpect(jsonPath(leavePath + ".parameters[?(@.name == 'X-XSRF-TOKEN')]").exists())
+                .andExpect(
+                        jsonPath(leavePath + ".parameters[?(@.name == 'X-XSRF-TOKEN')].required").value(hasItem(true))
+                )
+                .andExpect(jsonPath(leavePath + ".responses['204']").exists())
+                .andExpect(jsonPath(leavePath + ".responses['204'].content").doesNotExist())
+                .andExpect(
+                        jsonPath(leavePath + ".responses['400'].content['application/json'].schema['$ref']")
+                                .value(errorResponseRef)
+                )
+                .andExpect(
+                        jsonPath(leavePath + ".responses['401'].content['application/json'].schema['$ref']")
+                                .value(errorResponseRef)
+                )
+                .andExpect(
+                        jsonPath(leavePath + ".responses['403'].content['application/json'].schema['$ref']")
+                                .value(errorResponseRef)
+                )
+                .andExpect(
+                        jsonPath(leavePath + ".responses['404'].content['application/json'].schema['$ref']")
+                                .value(errorResponseRef)
+                )
+                .andExpect(
+                        jsonPath(leavePath + ".responses['409'].content['application/json'].schema['$ref']")
+                                .value(errorResponseRef)
+                );
+    }
+
+    @Test
     @DisplayName("OpenAPI JSON에 워크스페이스 초대 발급·조회·재발급·미리보기·참여 계약을 공개한다")
     void openApi_success_workspaceInvitationContract() throws Exception {
         // given

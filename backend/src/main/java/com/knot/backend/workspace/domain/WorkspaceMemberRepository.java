@@ -13,6 +13,13 @@ public interface WorkspaceMemberRepository {
 
     Optional<WorkspaceMember> findLastViewedByMemberId(Long memberId);
 
+    Optional<WorkspaceMember> findLatestByWorkspaceIdAndMemberIdForUpdate(
+            Long workspaceId,
+            Long memberId
+    );
+
+    long countActiveByWorkspaceId(Long workspaceId);
+
     List<WorkspaceMember> saveAll(List<WorkspaceMember> workspaceMembers);
 
     void flush();

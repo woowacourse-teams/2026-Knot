@@ -71,6 +71,154 @@ class WorkspaceMemberTest {
         assertThat(workspaceMember.isLastViewed()).isFalse();
     }
 
+    @DisplayName("멤버십을 탈퇴 상태로 바꾸면 마지막 조회 상태도 해제한다")
+    @Test
+    void leave_success() {
+        // given
+        WorkspaceMember workspaceMember = WorkspaceMember.create(
+                1L,
+                2L,
+                WorkspaceMemberRole.MEMBER,
+                JOINED_AT
+        );
+        workspaceMember.markLastViewed();
+        Instant leftAt = JOINED_AT.plusSeconds(1);
+
+        // when
+        workspaceMember.leave(
+                leftAt,
+                2L
+        );
+
+        // then
+        assertThat(workspaceMember.isActive()).isFalse();
+        assertThat(workspaceMember.getLeftAt()).isEqualTo(leftAt);
+        assertThat(workspaceMember.isLastViewed()).isFalse();
+    }
+
+    @DisplayName("이미 탈퇴한 멤버십에 다시 탈퇴를 요청하면 기존 탈퇴 시각을 유지한다")
+    @Test
+    void leave_success_alreadyLeft() {
+        // given
+        WorkspaceMember workspaceMember = WorkspaceMember.create(
+                1L,
+                2L,
+                WorkspaceMemberRole.MEMBER,
+                JOINED_AT
+        );
+        Instant firstLeftAt = JOINED_AT.plusSeconds(1);
+        Instant secondLeftAt = JOINED_AT.plusSeconds(2);
+        workspaceMember.leave(
+                firstLeftAt,
+                2L
+        );
+
+        // when
+        workspaceMember.leave(
+                secondLeftAt,
+                2L
+        );
+
+        // then
+        assertThat(workspaceMember.getLeftAt()).isEqualTo(firstLeftAt);
+    }
+
+    @DisplayName("다른 활성 멤버가 있는 OWNER는 일반 탈퇴할 수 없다")
+    @Test
+    void leave_failure_ownerWithOtherActiveMember() {
+        // given
+        WorkspaceMember workspaceMember = WorkspaceMember.create(
+                1L,
+                2L,
+                WorkspaceMemberRole.OWNER,
+                JOINED_AT
+        );
+        Instant leftAt = JOINED_AT.plusSeconds(1);
+
+        // when
+        ThrowingCallable action = () -> workspaceMember.leave(
+                leftAt,
+                2L
+        );
+
+        // then
+        assertThatThrownBy(action).isInstanceOf(WorkspaceException.class)
+                .extracting(exception -> ((WorkspaceException) exception).getErrorCode())
+                .isEqualTo(WorkspaceErrorCode.WORKSPACE_OWNER_TRANSFER_REQUIRED);
+    }
+
+    @DisplayName("탈퇴 시각이 참여 시각보다 빠르면 멤버십 탈퇴를 거부한다")
+    @Test
+    void leave_failure_leftAtBeforeJoinedAt() {
+        // given
+        WorkspaceMember workspaceMember = WorkspaceMember.create(
+                1L,
+                2L,
+                WorkspaceMemberRole.MEMBER,
+                JOINED_AT
+        );
+        Instant leftAtBeforeJoinedAt = JOINED_AT.minusSeconds(1);
+
+        // when
+        ThrowingCallable action = () -> workspaceMember.leave(
+                leftAtBeforeJoinedAt,
+                1L
+        );
+
+        // then
+        assertThatThrownBy(action).isInstanceOf(WorkspaceException.class)
+                .extracting(exception -> ((WorkspaceException) exception).getErrorCode())
+                .isEqualTo(WorkspaceErrorCode.INVALID_WORKSPACE_MEMBER_LEFT_AT);
+    }
+
+    @DisplayName("활성 멤버 수가 양수가 아니면 멤버십 탈퇴를 거부한다")
+    @Test
+    void leave_failure_invalidActiveMemberCount() {
+        // given
+        WorkspaceMember workspaceMember = WorkspaceMember.create(
+                1L,
+                2L,
+                WorkspaceMemberRole.MEMBER,
+                JOINED_AT
+        );
+        Instant leftAt = JOINED_AT.plusSeconds(1);
+
+        // when
+        ThrowingCallable action = () -> workspaceMember.leave(
+                leftAt,
+                0L
+        );
+
+        // then
+        assertThatThrownBy(action).isInstanceOf(WorkspaceException.class)
+                .extracting(exception -> ((WorkspaceException) exception).getErrorCode())
+                .isEqualTo(WorkspaceErrorCode.INVALID_WORKSPACE_MEMBER_ACTIVE_COUNT);
+    }
+
+    @DisplayName("탈퇴한 멤버십은 마지막 조회 상태로 표시할 수 없다")
+    @Test
+    void markLastViewed_failure_leftMembership() {
+        // given
+        WorkspaceMember workspaceMember = WorkspaceMember.create(
+                1L,
+                2L,
+                WorkspaceMemberRole.MEMBER,
+                JOINED_AT
+        );
+        workspaceMember.leave(
+                JOINED_AT.plusSeconds(1),
+                2L
+        );
+
+        // when
+        ThrowingCallable action = workspaceMember::markLastViewed;
+
+        // then
+        assertThatThrownBy(action).isInstanceOf(WorkspaceException.class)
+                .extracting(exception -> ((WorkspaceException) exception).getErrorCode())
+                .isEqualTo(WorkspaceErrorCode.WORKSPACE_MEMBER_ALREADY_LEFT);
+    }
+
     @DisplayName("워크스페이스 ID가 양수가 아니면 멤버십 생성을 거부한다")
     @Test
     void create_failure_invalidWorkspaceId() {

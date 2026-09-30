@@ -15,6 +15,7 @@ import org.flywaydb.core.Flyway;
 import org.flywaydb.core.api.MigrationInfo;
 import org.flywaydb.core.api.MigrationVersion;
 import org.flywaydb.core.api.output.MigrateResult;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -33,9 +34,9 @@ class FlywayMigrationUpgradeIntegrationTest {
             .withUsername("knot")
             .withPassword("knot");
 
-    @DisplayName("V9 스키마를 V14 유지 스키마로 업그레이드하고 빈 스키마도 V14까지 생성한다")
+    @DisplayName("V9 스키마를 V13으로 업그레이드하고 진행 중 가져오기 데이터를 보존한다")
     @Test
-    void migrate_success_v9AndFreshSchemaToV14() throws SQLException {
+    void migrate_success_v9ToV13() throws SQLException {
         // given
         Flyway v9Flyway = configureFlyway(MigrationVersion.fromVersion("9"));
         v9Flyway.migrate();
@@ -245,13 +246,39 @@ class FlywayMigrationUpgradeIntegrationTest {
                 WHERE status = 'RUNNING'
                 """)).isTrue();
 
+    }
+
+    @BeforeEach
+    void clearSchema() {
+        Flyway.configure()
+                .dataSource(
+                        POSTGRESQL.getJdbcUrl(),
+                        POSTGRESQL.getUsername(),
+                        POSTGRESQL.getPassword()
+                )
+                .locations(MIGRATION_LOCATION)
+                .cleanDisabled(false)
+                .load()
+                .clean();
+    }
+
+    @Test
+    @DisplayName("V13 기존 데이터를 보존하며 V15로 업그레이드한다")
+    void migrate_success_preservesRetainedDataThroughV15() throws SQLException {
+        // given
+        configureFlyway(MigrationVersion.fromVersion("13")).migrate();
+        insertImportRun(
+                "existing-data",
+                "PENDING"
+        );
+
         // when
         Flyway currentFlyway = configureFlyway();
         MigrateResult cleanupResult = currentFlyway.migrate();
 
         // then
         assertThat(cleanupResult.success).isTrue();
-        assertThat(cleanupResult.migrationsExecuted).isEqualTo(1);
+        assertThat(cleanupResult.migrationsExecuted).isEqualTo(2);
         assertThat(appliedVersions(currentFlyway)).containsExactly(
                 "1",
                 "2",
@@ -264,7 +291,8 @@ class FlywayMigrationUpgradeIntegrationTest {
                 "11",
                 "12",
                 "13",
-                "14"
+                "14",
+                "15"
         );
         List<String> tablesAfterCleanup = schemaObjectNames("""
                 SELECT table_name
@@ -297,7 +325,35 @@ class FlywayMigrationUpgradeIntegrationTest {
         assertThat(queryBoolean("SELECT EXISTS (SELECT 1 FROM members)")).isTrue();
         assertThat(queryBoolean("SELECT EXISTS (SELECT 1 FROM workspaces)")).isTrue();
         assertThat(queryBoolean("SELECT EXISTS (SELECT 1 FROM workspace_members)")).isTrue();
+        assertThat(schemaObjectNames("""
+                SELECT column_name
+                FROM information_schema.columns
+                WHERE table_schema = 'public'
+                    AND table_name = 'workspaces'
+                ORDER BY ordinal_position
+                """)).contains("deleted_at");
+        assertThat(schemaObjectNames("""
+                SELECT column_name
+                FROM information_schema.columns
+                WHERE table_schema = 'public'
+                    AND table_name = 'workspace_members'
+                ORDER BY ordinal_position
+                """)).contains("left_at");
+        assertThat(schemaObjectNames("""
+                SELECT indexname
+                FROM pg_indexes
+                WHERE schemaname = 'public'
+                ORDER BY indexname
+                """)).contains(
+                "uk_workspace_members_active_workspace_member",
+                "uk_workspace_members_member_last_viewed"
+        );
 
+    }
+
+    @Test
+    @DisplayName("빈 스키마에 V15까지 전체 마이그레이션을 적용한다")
+    void migrate_success_freshSchemaToV15() throws SQLException {
         // given
         Flyway cleanableFlyway = Flyway.configure()
                 .dataSource(
@@ -316,7 +372,7 @@ class FlywayMigrationUpgradeIntegrationTest {
 
         // then
         assertThat(freshResult.success).isTrue();
-        assertThat(freshResult.migrationsExecuted).isEqualTo(12);
+        assertThat(freshResult.migrationsExecuted).isEqualTo(13);
         assertThat(appliedVersions(freshFlyway)).containsExactly(
                 "1",
                 "2",
@@ -329,7 +385,8 @@ class FlywayMigrationUpgradeIntegrationTest {
                 "11",
                 "12",
                 "13",
-                "14"
+                "14",
+                "15"
         );
         List<String> freshTables = schemaObjectNames("""
                 SELECT table_name
