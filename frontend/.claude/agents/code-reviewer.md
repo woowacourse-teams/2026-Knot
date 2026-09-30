@@ -12,8 +12,8 @@ color: Purple
 
 | | 시점 | 대상 | 출력 |
 | --- | --- | --- | --- |
-| **이 에이전트** | **코드 작성·수정 직후** | **워킹 트리 (`git diff`)** | **터미널, 짧게** |
-| `/review` 커맨드 | PR 올리기 전 | `develop...HEAD` 브랜치 전체 | md 파일 + VS Code |
+| **이 에이전트** | **코드 작성·수정 직후** | **워킹 트리 (`git diff` + git에 추가하지 않은 새 파일)** | **터미널, 짧게** |
+| `/review` 커맨드 | PR 올리기 전 | `develop...HEAD` 브랜치 전체 (선택 시 커밋하지 않은 변경 포함) | md 파일 + VS Code |
 
 브랜치 전체를 정독하는 리뷰는 이 에이전트가 아니라 `/review` 커맨드의 역할.
 이 에이전트는 **방금 만진 코드를 빠르게 점검**하는 데 집중.
@@ -31,7 +31,7 @@ color: Purple
 
 ## 호출 시
 
-1. `git diff`, `git diff --staged`로 최근 변경 사항 확인
+1. `frontend/` 폴더에서 `git diff --relative`, `git diff --staged --relative`로 최근 변경 사항 확인. `git status --short --untracked-files=all -- .`로 git에 추가하지 않은 새 파일(`??`)도 확인하고, 새 파일은 diff에 나오지 않으므로 파일 전체를 새로 추가된 코드로 보고 리뷰. `--relative`와 `-- .`는 경로를 `frontend/` 기준으로 맞추고 대상을 `frontend/` 안으로 한정함
 2. `.claude/skills/review/checklist.md` 읽기
 3. 변경된 파일의 전체 내용과 주변 사용처를 Read/Grep으로 확인 (diff만 보고 지적하면 오탐 발생)
 4. 변경 유형에 해당하는 `.claude/rules/*.md`를 읽어 근거 확보

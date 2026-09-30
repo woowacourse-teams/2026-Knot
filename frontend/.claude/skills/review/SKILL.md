@@ -19,8 +19,8 @@ allowed-tools: Agent, Bash(git diff:*), Bash(git log:*), Bash(git branch:*), Bas
 
 | | 시점 | 대상 | 출력 |
 | --- | --- | --- | --- |
-| `code-reviewer` 에이전트 | 코드 작성·수정 직후 | 워킹 트리 (`git diff`) | 터미널, 짧게 |
-| **`/review` (이 커맨드)** | **PR 올리기 전** | **`develop...HEAD` 브랜치 전체** | **md 파일 + VS Code** |
+| `code-reviewer` 에이전트 | 코드 작성·수정 직후 | 워킹 트리 (`git diff` + git에 추가하지 않은 새 파일) | 터미널, 짧게 |
+| **`/review` (이 커맨드)** | **PR 올리기 전** | **`develop...HEAD` 브랜치 전체 (선택 시 커밋하지 않은 변경 포함)** | **md 파일 + VS Code** |
 
 - 이 커맨드는 `code-reviewer` 에이전트를 호출하지 않음. **자체 프롬프트로 파일별 리뷰 에이전트를 띄움.** (3단계 참고)
 - 심각도·판정 기준은 양쪽 모두 `checklist.md`를 따르므로 결과가 갈리지 않음.
@@ -40,19 +40,25 @@ allowed-tools: Agent, Bash(git diff:*), Bash(git log:*), Bash(git branch:*), Bas
 
 아래를 **모두** 수행하여 변경사항을 명확하고 정확하게 파악.
 
+이 커맨드의 모든 명령은 **`frontend/` 폴더에서** 실행. 저장소 루트에서 실행하면 백엔드 변경이 섞이고, 파일별 에이전트가 받는 경로와 체크리스트 경로(`.claude/skills/review/checklist.md`)도 맞지 않음.
+
 ```bash
 git branch --show-current                          # 현재 브랜치 확인
 git merge-base develop HEAD                        # 분기 지점 확인
 git log develop..HEAD --oneline                    # 쌓인 커밋 목록
-git diff develop...HEAD --stat                     # 변경 파일 개괄
-git diff develop...HEAD --name-status              # 파일별 변경 유형 (A/M/D/R)
-git status --short                                 # 커밋되지 않은 변경사항
+git diff develop...HEAD --stat --relative          # 변경 파일 개괄
+git diff develop...HEAD --name-status --relative   # 파일별 변경 유형 (A/M/D/R)
+git status --short --untracked-files=all -- .      # 커밋되지 않은 변경사항 (미추적 파일 포함)
 ```
 
+- **경로는 모두 `frontend/` 기준.** `git diff`는 기본으로 저장소 루트 기준 경로(`frontend/src/...`)를, `git status`는 현재 폴더 기준 경로(`src/...`)를 출력하므로 `--relative`와 `-- .`로 맞춤. 대상도 `frontend/` 아래로 한정됨.
 - **반드시 3점 diff(`develop...HEAD`)를 사용.** 2점 diff(`develop..HEAD`)는 develop에 새로 들어온 커밋까지 섞여 들어와 리뷰 대상이 오염됨.
-- 커밋되지 않은 워킹 트리 변경사항이 있으면 사용자에게 **리뷰 대상에 포함할지 질문**하고, 답변에 따라 기준을 `develop...HEAD` 또는 `develop`으로 정함. **이후 모든 단계에서 동일한 기준을 사용.**
+- 커밋되지 않은 워킹 트리 변경사항이 있으면 사용자에게 **리뷰 대상에 포함할지 질문**하고, 답변에 따라 기준을 정함. **이후 모든 단계에서 동일한 기준을 사용.**
+  - 포함하지 않음 → `develop...HEAD`
+  - 포함함 → 위에서 확인한 **분기 지점 커밋(`<merge-base>`)**. `git diff <merge-base>`는 분기 지점과 워킹 트리를 비교하므로 커밋한 변경과 커밋하지 않은 변경이 함께 나옴. `develop`을 기준으로 쓰면 develop에 새로 들어온 다른 사람의 변경이 거꾸로 섞이므로 쓰지 않음.
+  - 포함할 때 `git status`의 미추적 파일(`??`)은 diff에 나오지 않으므로 **신규 파일(`A`)로 취급**해 리뷰 대상에 넣음.
 - 현재 브랜치가 `develop`이면 리뷰할 대상이 없으므로 **작업을 멈추고 사용자에게 알림.**
-- `develop` 브랜치가 로컬에 없거나 뒤처져 있으면, `git fetch origin develop` 후 `origin/develop` 기준으로 비교할지 사용자에게 확인.
+- `develop` 브랜치가 로컬에 없거나 뒤처져 있으면, `git fetch origin develop` 후 `origin/develop` 기준으로 비교할지 사용자에게 확인. 그렇게 하기로 했다면 위 명령과 분기 지점 계산(`git merge-base origin/develop HEAD`)의 `develop`을 모두 `origin/develop`으로 바꿈.
 
 ## 2단계: 체크리스트 로드
 
@@ -90,7 +96,7 @@ git status --short                                 # 커밋되지 않은 변경�
 
 ### 3-1. 리뷰 대상 선정
 
-`git diff <기준> --name-status`의 결과에서 아래를 **제외**하고 대상 목록을 만듦.
+`git diff <기준> --name-status --relative`의 결과에서 아래를 **제외**하고 대상 목록을 만듦. 커밋되지 않은 변경을 포함했다면 미추적 파일도 신규 파일(`A`)로 대상에 추가. 모든 경로는 `frontend/` 기준으로 통일하며, 넘겨받은 목록에 `frontend/`로 시작하는 경로가 섞여 있으면 앞의 `frontend/`를 떼어 맞춤.
 
 - 삭제된 파일 (`D`) — 삭제 자체의 타당성은 4단계 교차 검토에서 확인
 - 잠금 파일·빌드 산출물 — `pnpm-lock.yaml`, `dist/`, `node_modules/`
@@ -118,15 +124,23 @@ git status --short                                 # 커밋되지 않은 변경�
 
 <파일 경로>
 
+작업 폴더는 `frontend/`입니다. 아래 경로와 명령은 모두 이 폴더 기준입니다.
+
 ## 비교 기준
 
-<1단계에서 확정한 기준, 예: develop...HEAD>
+<1단계에서 확정한 기준, 예: develop...HEAD 또는 분기 지점 커밋 해시>
 
 ## 수행 절차
 
 1. 아래 명령으로 담당 파일의 변경 내용을 확인합니다.
 
-   git diff <비교 기준> -- <파일 경로>
+   git diff <비교 기준> -- '<파일 경로>'
+
+   경로는 작은따옴표로 감쌉니다. `[workspaceId]`처럼 대괄호가 든 경로는 따옴표가 없으면 zsh에서 명령 자체가 실패합니다.
+
+   diff가 비어 있으면 `git status --short -- '<파일 경로>'`로 상태를 확인합니다.
+   - `??`로 나오면 아직 git에 추적되지 않은 신규 파일입니다. 파일 전체를 새로 추가된 코드로 보고 리뷰합니다.
+   - 아무것도 나오지 않으면 경로가 잘못 전달된 것입니다. 리뷰하지 말고 `ERROR 경로 확인 실패: <파일 경로>` 한 줄만 반환합니다.
 
 2. `.claude/skills/review/checklist.md`를 읽습니다. 이 파일이 심각도·판정·검사 항목의 유일한 기준입니다.
 
@@ -225,7 +239,9 @@ const isValid = name.length > 0;
 - 각 에이전트의 반환값에서 **첫 줄 요약 라인**으로 심각도 개수를 집계.
 - 본문은 최종 문서의 "파일별 리뷰" 섹션에 **그대로 이어붙임.** 임의로 다시 쓰지 않음.
 - 에이전트가 형식을 어겼거나 빈 값을 반환하면, **그 파일만 메인이 직접 리뷰**하여 채움. 누락된 채로 넘어가지 않음.
-- 파일 순서는 `git diff --stat` 출력 순서를 따름.
+- `ERROR 경로 확인 실패`를 반환하면 경로를 `frontend/` 기준으로 고쳐 변경 내용을 다시 확인한 뒤, 그 파일만 메인이 직접 리뷰함.
+- 파일 순서는 `git diff <기준> --stat --relative` 출력 순서를 따르고, 미추적 신규 파일은 그 뒤에 이어붙임.
+- 문서의 "변경 파일" 개수와 추가·삭제 라인도 같은 `--stat` 결과로 셈. 미추적 신규 파일은 파일 수에 더하고, 전체 줄 수를 추가 라인에 더함.
 
 ---
 
@@ -284,7 +300,7 @@ mkdir -p /tmp/knot-review
 ````md
 # 코드 리뷰 — <브랜치명>
 
-- **비교 대상**: `develop...HEAD`
+- **비교 대상**: `<1단계에서 확정한 기준>` (커밋되지 않은 변경 포함 여부)
 - **변경 파일**: N개 (+추가 라인 / -삭제 라인)
 - **커밋**: N개
 - **판정**: 승인 | 주의 | 차단
