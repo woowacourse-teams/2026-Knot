@@ -88,8 +88,12 @@ export function DialogProvider({ children }: { children: ReactNode }) {
  * const { open } = useDialog();
  *
  * open(({ close }) => (
- *   <Dialog label="녹음을 끝낼까요?" onEscape={close} onDimClick={close}>
+ *   <Dim onClick={close}>
  *     <ConfirmDialog
+ *       role="dialog"
+ *       aria-modal="true"
+ *       aria-label="녹음을 끝낼까요?"
+ *       onClick={(e) => e.stopPropagation()}
  *       title="녹음을 끝낼까요?"
  *       description="끝낸 녹음은 다시 이어 갈 수 없어요."
  *       cancelLabel="계속 녹음"
@@ -100,7 +104,7 @@ export function DialogProvider({ children }: { children: ReactNode }) {
  *         endRecording();
  *       }}
  *     />
- *   </Dialog>
+ *   </Dim>
  * ));
  */
 export const useDialog = () => {
