@@ -23,6 +23,7 @@ import jakarta.servlet.http.Cookie;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.Arrays;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -89,7 +90,7 @@ class OAuth2AuthenticationSuccessHandlerTest {
 
         // then
         assertThat(response.getRedirectedUrl()).isEqualTo("/api/v1/auth/me");
-        Cookie cookie = response.getCookie("KNOT_ACCESS_TOKEN");
+        Cookie cookie = lastCookie(response, "KNOT_ACCESS_TOKEN");
         assertThat(cookie).isNotNull();
         assertThat(cookie.getValue()).isEqualTo("jwt-token");
         assertThat(cookie.isHttpOnly()).isTrue();
@@ -97,6 +98,11 @@ class OAuth2AuthenticationSuccessHandlerTest {
         assertThat(cookie.getPath()).isEqualTo("/");
         assertThat(cookie.getMaxAge()).isEqualTo(3600);
         assertThat(response.getHeader("Set-Cookie")).contains("SameSite=Lax");
+        Cookie refreshCookie = lastCookie(response, "KNOT_REFRESH_TOKEN");
+        assertThat(refreshCookie).isNotNull();
+        assertThat(refreshCookie.getValue()).isEqualTo("refresh-token");
+        assertThat(refreshCookie.getMaxAge()).isEqualTo(7 * 86400);
+        assertThat(lastCookie(response, "KNOT_NICKNAME_TOKEN").getMaxAge()).isZero();
         assertThat(request.getSession(false)).isNull();
         assertThat(
                 SecurityContextHolder.getContext()
@@ -149,10 +155,11 @@ class OAuth2AuthenticationSuccessHandlerTest {
 
         // then
         assertThat(response.getRedirectedUrl()).isEqualTo("/nickname");
-        Cookie cookie = response.getCookie("KNOT_NICKNAME_TOKEN");
+        Cookie cookie = lastCookie(response, "KNOT_NICKNAME_TOKEN");
         assertThat(cookie).isNotNull();
         assertThat(cookie.getValue()).isEqualTo("nickname-token");
-        assertThat(response.getCookie("KNOT_ACCESS_TOKEN")).isNull();
+        assertThat(lastCookie(response, "KNOT_ACCESS_TOKEN").getMaxAge()).isZero();
+        assertThat(lastCookie(response, "KNOT_REFRESH_TOKEN").getMaxAge()).isZero();
     }
 
     @Test
@@ -180,6 +187,7 @@ class OAuth2AuthenticationSuccessHandlerTest {
 
         // then
         assertThat(response.getRedirectedUrl()).isEqualTo("/login?error=oauth2");
+        assertThat(response.getCookies()).isNotEmpty().allSatisfy(cookie -> assertThat(cookie.getMaxAge()).isZero());
         verify(
                 authService,
                 never()
@@ -285,8 +293,14 @@ class OAuth2AuthenticationSuccessHandlerTest {
     private JwtProperties jwtProperties() {
         JwtProperties properties = new JwtProperties();
         properties.setCookieName("KNOT_ACCESS_TOKEN");
+        properties.setRefreshCookieName("KNOT_REFRESH_TOKEN");
         properties.setExpiration(Duration.ofHours(1));
         properties.setSecure(false);
         return properties;
+    }
+
+    private Cookie lastCookie(MockHttpServletResponse response, String name) {
+        return Arrays.stream(response.getCookies()).filter(cookie -> name.equals(cookie.getName()))
+                .reduce((previous, current) -> current).orElseThrow();
     }
 }
