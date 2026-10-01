@@ -69,7 +69,7 @@ class WorkspaceLeaveServiceTest {
         verify(workspaceMemberRepository).save(actor);
     }
 
-    @DisplayName("마지막 활성 멤버가 탈퇴하면 워크스페이스도 같은 시각으로 논리 삭제한다")
+    @DisplayName("마지막 멤버가 탈퇴하면 워크스페이스도 삭제된다")
     @Test
     void leave_success_lastActiveMemberDeletesWorkspace() {
         // given
