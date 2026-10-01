@@ -73,4 +73,21 @@ interface WorkspaceMemberJpaRepository extends JpaRepository<WorkspaceMember, Lo
             Long memberId,
             WorkspaceMemberRole role
     );
+
+    @Query(value = """
+            SELECT wm.member_id, m.nickname
+            FROM workspace_members wm
+            JOIN members m ON m.id = wm.member_id
+            JOIN workspaces w ON w.id = wm.workspace_id
+            WHERE wm.workspace_id = :workspaceId
+              AND wm.member_id <> :ownerMemberId
+              AND wm.role = 'MEMBER'
+              AND wm.left_at IS NULL
+              AND w.deleted_at IS NULL
+            ORDER BY wm.member_id ASC
+            """, nativeQuery = true)
+    List<WorkspaceOwnershipTransferCandidateRow> findActiveOwnershipTransferCandidates(
+            Long workspaceId,
+            long ownerMemberId
+    );
 }
