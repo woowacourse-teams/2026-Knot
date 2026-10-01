@@ -61,4 +61,12 @@ public class AuthSession {
         return now != null && !now.isBefore(createdAt) && revokedAt == null
                 && now.isBefore(expiresAt) && now.isBefore(absoluteExpiresAt);
     }
+
+    public Duration remainingRefreshLifetime(Instant now) {
+        if (!isActive(now)) {
+            return Duration.ZERO;
+        }
+        Instant refreshExpiresAt = expiresAt.isBefore(absoluteExpiresAt) ? expiresAt : absoluteExpiresAt;
+        return Duration.between(now, refreshExpiresAt);
+    }
 }

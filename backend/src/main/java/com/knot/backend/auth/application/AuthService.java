@@ -18,7 +18,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.Clock;
-import java.time.Duration;
 import java.time.Instant;
 
 @Service
@@ -78,7 +77,7 @@ public class AuthService {
         AuthSession session = AuthSession.create(member.getId(), refreshToken.getHash(), now);
         sessionRepository.save(session);
 
-        return AuthLoginResult.authenticated(accessToken, refreshToken.getValue(), Duration.between(now, session.getExpiresAt()));
+        return AuthLoginResult.authenticated(accessToken, refreshToken.getValue(), session.remainingRefreshLifetime(now));
     }
 
     private AuthLoginResult issueNicknameToken(OAuthUser oauthUser) {
