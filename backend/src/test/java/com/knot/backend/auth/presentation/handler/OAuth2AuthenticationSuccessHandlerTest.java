@@ -27,6 +27,9 @@ import java.util.Arrays;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.core.Authentication;
@@ -302,5 +305,31 @@ class OAuth2AuthenticationSuccessHandlerTest {
     private Cookie lastCookie(MockHttpServletResponse response, String name) {
         return Arrays.stream(response.getCookies()).filter(cookie -> name.equals(cookie.getName()))
                 .reduce((previous, current) -> current).orElseThrow();
+    }
+
+    @Test
+    @ExtendWith(OutputCaptureExtension.class)
+    @DisplayName("예상하지 못한 저장 오류도 credential 없이 로그를 남기고 실패 화면으로 이동한다")
+    void onAuthenticationSuccess_failure_redactsInternalError(CapturedOutput output) throws Exception {
+        // given
+        AuthService authService = mock(AuthService.class);
+        OAuthUser user = OAuthUser.of(OAuthProvider.GITHUB, "42", null);
+        OAuth2User delegate = mock(OAuth2User.class);
+        GithubOAuth2User githubUser = GithubOAuth2User.of(user, delegate);
+        Authentication authentication = mock(Authentication.class);
+        when(authentication.getPrincipal()).thenReturn(githubUser);
+        when(authService.login(user)).thenThrow(new RuntimeException("private-refresh-secret"));
+        OAuth2AuthenticationSuccessHandler handler = new OAuth2AuthenticationSuccessHandler(authService,
+                new OAuth2LoginProperties(), new AuthCookieManager(jwtProperties()));
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        // when
+        handler.onAuthenticationSuccess(new MockHttpServletRequest(), response, authentication);
+
+        // then
+        assertThat(response.getRedirectedUrl()).isEqualTo("/login?error=oauth2");
+        assertThat(response.getCookies()).allSatisfy(cookie -> assertThat(cookie.getValue()).isEmpty());
+        assertThat(response.getContentAsString()).isEmpty();
+        assertThat(output.getAll()).doesNotContain("private-refresh-secret");
     }
 }
