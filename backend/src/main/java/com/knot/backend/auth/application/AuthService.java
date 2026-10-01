@@ -63,6 +63,9 @@ public class AuthService {
     private AuthLoginResult createMemberLogin(OAuthIdentity identity) {
         Member member = memberService.findById(identity.getMemberId())
                 .orElseThrow(() -> new AuthException(AuthErrorCode.MEMBER_NOT_FOUND_FOR_OAUTH_IDENTITY));
+        if (member.isDeleted()) {
+            throw new AuthException(AuthErrorCode.MEMBER_WITHDRAWN);
+        }
         AuthenticatedMember authenticatedMember = AuthenticatedMember.of(
                 member.getId(),
                 member.getNickname(),
