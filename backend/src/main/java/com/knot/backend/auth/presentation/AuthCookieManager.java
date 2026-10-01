@@ -1,6 +1,8 @@
 package com.knot.backend.auth.presentation;
 
 import com.knot.backend.global.config.JwtProperties;
+import com.knot.backend.auth.domain.AuthErrorCode;
+import com.knot.backend.auth.domain.AuthException;
 import jakarta.servlet.http.HttpServletResponse;
 import java.time.Duration;
 import org.springframework.http.HttpHeaders;
@@ -25,6 +27,17 @@ public class AuthCookieManager {
                 token,
                 jwtProperties.getExpiration()
         );
+    }
+
+    public void addRefreshToken(HttpServletResponse response, String token, Duration maxAge) {
+        String name = jwtProperties.getRefreshCookieName();
+        if (token == null || token.isBlank() || maxAge == null || maxAge.isZero() || maxAge.isNegative()) {
+            throw new AuthException(AuthErrorCode.AUTHENTICATION_INTERNAL_ERROR);
+        }
+        if (name == null || name.isBlank() || (name.startsWith("__Host-") && !jwtProperties.isSecure())) {
+            throw new AuthException(AuthErrorCode.JWT_CONFIGURATION_INVALID);
+        }
+        addCookie(response, name, token, maxAge);
     }
 
     public void addNicknameToken(
