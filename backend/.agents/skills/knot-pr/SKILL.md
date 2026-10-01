@@ -162,7 +162,7 @@ Run the smallest relevant checks and report the actual result:
 
 - governance tests from `backend`: `python3 -m unittest discover ../.github/scripts -p 'test_*.py' -v`;
 - Java backend changes: `./gradlew test` and `./gradlew spotlessCheck`;
-- existing PR governance check when a PR exists: `python3 ../.github/scripts/validate_governance.py --repo OWNER/REPO --pr PR_NUMBER`.
+- existing PR governance check when a PR exists: `python3 ../.github/scripts/validate_governance.py --config ../.github/knot-conventions.yml --repo OWNER/REPO --pr PR_NUMBER`. The script resolves its default config relative to the current directory, so keep `--config` when running from `backend`.
 
 If no PR exists, manually validate the draft against the configured branch pattern, title pattern, exact headings, Issue reference, diff scope, and Issue-to-diff evidence table. A successful test task may still have zero relevant tests; inspect the test scope before claiming behavioral coverage.
 
