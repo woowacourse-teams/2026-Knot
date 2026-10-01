@@ -154,4 +154,23 @@ class AuthCookieManagerTest {
         assertThatThrownBy(() -> new AuthCookieManager(properties).addRefreshToken(
                 new MockHttpServletResponse(), "refresh", Duration.ofDays(7))).isInstanceOf(AuthException.class);
     }
+
+    @Test
+    @DisplayName("새 로그인 전에 현재·이전 인증 쿠키를 모두 만료한다")
+    void expireLoginCookies_success() {
+        // given
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        // when
+        new AuthCookieManager(new JwtProperties()).expireLoginCookies(response);
+
+        // then
+        assertThat(response.getCookies()).extracting(Cookie::getName)
+                .contains("__Host-KNOT_ACCESS_TOKEN", "__Host-KNOT_REFRESH_TOKEN", "KNOT_NICKNAME_TOKEN",
+                        "KNOT_ACCESS_TOKEN", "KNOT_REFRESH_TOKEN");
+        assertThat(response.getCookies()).allSatisfy(cookie -> {
+            assertThat(cookie.getMaxAge()).isZero();
+            assertThat(cookie.getValue()).isEmpty();
+        });
+    }
 }
