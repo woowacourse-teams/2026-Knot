@@ -7,6 +7,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import lombok.Getter;
+import java.time.Instant;
 
 @Getter
 @Entity
@@ -24,6 +25,9 @@ public class Member {
 
     @Column(name = "profile_image_url", length = 500)
     private String profileImageUrl;
+
+    @Column(name = "deleted_at")
+    private Instant deletedAt;
 
     protected Member() {}
 
@@ -61,6 +65,10 @@ public class Member {
 
         this.nickname = nickname;
         this.profileImageUrl = profileImageUrl;
+    }
+
+    public boolean isDeleted() {
+        return deletedAt != null;
     }
 
     private static void validate(
