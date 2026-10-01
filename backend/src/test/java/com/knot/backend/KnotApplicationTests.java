@@ -39,6 +39,8 @@ import org.springframework.test.context.TestConstructor.AutowireMode;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
+import org.springframework.mock.web.MockHttpSession;
+import org.springframework.web.util.UriComponentsBuilder;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
@@ -96,6 +98,47 @@ class KnotApplicationTests {
                                 startsWith("https://github.com/login/oauth/authorize")
                         )
                 );
+    }
+
+    @Test
+    @DisplayName("GitHub callback의 state가 다르면 외부 토큰 교환 없이 실패 화면으로 이동한다")
+    void githubOAuthCallback_failure_invalidState() throws Exception {
+        // given
+        MvcResult start = mockMvc.perform(get("/oauth2/authorization/github")).andReturn();
+        MockHttpSession session = (MockHttpSession) start.getRequest().getSession(false);
+
+        // when
+        MvcResult result = mockMvc.perform(get("/login/oauth2/code/github").session(session)
+                .param("code", "unused-code").param("state", "incorrect-state"))
+                .andExpect(status().isFound())
+                .andExpect(header().string("Location", "/login?error=oauth2")).andReturn();
+
+        // then
+        assertThat(result.getResponse().getContentAsString()).isEmpty();
+        assertThat(result.getResponse().getCookie(JWT_COOKIE_NAME).getMaxAge()).isZero();
+        assertThat(result.getResponse().getCookie("__Host-KNOT_REFRESH_TOKEN").getMaxAge()).isZero();
+        assertThat(session.isInvalid()).isTrue();
+    }
+
+    @Test
+    @DisplayName("GitHub 승인을 취소하면 JSON 없이 실패 화면으로 이동하고 인증 쿠키를 만료한다")
+    void githubOAuthCallback_failure_accessDenied() throws Exception {
+        // given
+        MvcResult start = mockMvc.perform(get("/oauth2/authorization/github")).andReturn();
+        MockHttpSession session = (MockHttpSession) start.getRequest().getSession(false);
+        String state = UriComponentsBuilder.fromUriString(start.getResponse().getHeader("Location"))
+                .build().getQueryParams().getFirst("state");
+
+        // when
+        MvcResult result = mockMvc.perform(get("/login/oauth2/code/github").session(session)
+                .param("error", "access_denied").param("state", state))
+                .andExpect(status().isFound())
+                .andExpect(header().string("Location", "/login?error=oauth2")).andReturn();
+
+        // then
+        assertThat(result.getResponse().getContentAsString()).isEmpty();
+        assertThat(result.getResponse().getCookie(NICKNAME_COOKIE_NAME).getMaxAge()).isZero();
+        assertThat(session.isInvalid()).isTrue();
     }
 
     @Test
