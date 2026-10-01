@@ -60,11 +60,7 @@ public class AuthService {
     }
 
     private AuthLoginResult createMemberLogin(OAuthIdentity identity) {
-        Member member = memberService.findById(identity.getMemberId())
-                .orElseThrow(() -> new AuthException(AuthErrorCode.MEMBER_NOT_FOUND_FOR_OAUTH_IDENTITY));
-        if (member.isDeleted()) {
-            throw new AuthException(AuthErrorCode.MEMBER_WITHDRAWN);
-        }
+        Member member = getActiveMember(identity.getMemberId());
         AuthenticatedMember authenticatedMember = AuthenticatedMember.of(
                 member.getId(),
                 member.getNickname(),
@@ -74,18 +70,40 @@ public class AuthService {
         String accessToken = authTokenProvider.issue(authenticatedMember);
         RefreshToken refreshToken = refreshTokenProvider.issue();
         Instant now = clock.instant();
-        AuthSession session = AuthSession.create(
+        AuthSession session = createLoginSession(
                 member.getId(),
                 refreshToken.getHash(),
                 now
         );
-        sessionRepository.save(session);
 
         return AuthLoginResult.authenticated(
                 accessToken,
                 refreshToken.getValue(),
                 session.remainingRefreshLifetime(now)
         );
+    }
+
+    private Member getActiveMember(long memberId) {
+        Member member = memberService.findById(memberId)
+                .orElseThrow(() -> new AuthException(AuthErrorCode.MEMBER_NOT_FOUND_FOR_OAUTH_IDENTITY));
+        if (member.isDeleted()) {
+            throw new AuthException(AuthErrorCode.MEMBER_WITHDRAWN);
+        }
+        return member;
+    }
+
+    private AuthSession createLoginSession(
+            long memberId,
+            String refreshTokenHash,
+            Instant loginAt
+    ) {
+        AuthSession session = AuthSession.create(
+                memberId,
+                refreshTokenHash,
+                loginAt
+        );
+        sessionRepository.save(session);
+        return session;
     }
 
     private AuthLoginResult issueNicknameToken(OAuthUser oauthUser) {
