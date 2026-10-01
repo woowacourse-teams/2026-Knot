@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "defaultMode": "auto",
+    "allow": [
+      "mcp__Notion__*"
+    ]
+  }
+}
