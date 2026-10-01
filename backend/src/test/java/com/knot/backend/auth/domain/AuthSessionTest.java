@@ -84,4 +84,26 @@ class AuthSessionTest {
         assertThat(session.isActive(NOW.minusSeconds(1))).isFalse();
         assertThat(session.isActive(null)).isFalse();
     }
+
+    @Test
+    @DisplayName("refresh 쿠키 수명은 로그인 세션에서 남은 시간만 반환한다")
+    void remainingRefreshLifetime_success() {
+        // given
+        AuthSession session = AuthSession.create(1L, HASH, NOW);
+
+        // when & then
+        assertThat(session.remainingRefreshLifetime(NOW)).isEqualTo(Duration.ofDays(7));
+        assertThat(session.remainingRefreshLifetime(NOW.plus(Duration.ofDays(6)))).isEqualTo(Duration.ofDays(1));
+    }
+
+    @Test
+    @DisplayName("이미 만료되거나 유효하지 않은 시각에는 refresh 쿠키 수명이 없다")
+    void remainingRefreshLifetime_failure_expired() {
+        // given
+        AuthSession session = AuthSession.create(1L, HASH, NOW);
+
+        // when & then
+        assertThat(session.remainingRefreshLifetime(NOW.plus(Duration.ofDays(7)))).isEqualTo(Duration.ZERO);
+        assertThat(session.remainingRefreshLifetime(null)).isEqualTo(Duration.ZERO);
+    }
 }
