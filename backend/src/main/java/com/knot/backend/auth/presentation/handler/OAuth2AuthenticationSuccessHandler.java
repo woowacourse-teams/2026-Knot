@@ -55,6 +55,7 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
         try {
             GithubOAuth2User githubUser = getGithubUser(authentication);
             AuthLoginResult result = authService.login(githubUser.getOAuthUser());
+            authCookieManager.expireLoginCookies(response);
 
             if (result.requiresNickname()) {
                 authCookieManager.addNicknameToken(
@@ -66,6 +67,7 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
                 return;
             }
 
+            authCookieManager.addRefreshToken(response, result.refreshToken(), result.refreshMaxAge());
             authCookieManager.addAccessToken(
                     response,
                     result.token()
@@ -98,6 +100,7 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
             HttpServletResponse response
     ) throws IOException {
         clearAuthentication(request);
+        authCookieManager.expireLoginCookies(response);
         response.sendRedirect(loginProperties.getFailureRedirectUri());
     }
 
