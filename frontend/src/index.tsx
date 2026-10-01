@@ -1,5 +1,6 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
+import { BrowserRouter } from "react-router";
 import { ThemeProvider } from "@emotion/react";
 
 import App from "./App";
@@ -23,9 +24,11 @@ const renderApp = () => {
       <ThemeProvider theme={theme}>
         <GlobalStyle />
         <QueryClientProvider client={queryClient}>
-          <DialogProvider>
-            <App />
-          </DialogProvider>
+          <BrowserRouter>
+            <DialogProvider>
+              <App />
+            </DialogProvider>
+          </BrowserRouter>
           <ReactQueryDevtools initialIsOpen={false} />
         </QueryClientProvider>
       </ThemeProvider>
