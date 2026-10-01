@@ -3,6 +3,7 @@ package com.knot.backend.auth.presentation.handler;
 import com.knot.backend.auth.domain.AuthErrorCode;
 import com.knot.backend.auth.domain.AuthException;
 import com.knot.backend.global.config.OAuth2LoginProperties;
+import com.knot.backend.auth.presentation.AuthCookieManager;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -20,14 +21,16 @@ public class OAuth2AuthenticationFailureHandler implements AuthenticationFailure
     private static final Logger log = LoggerFactory.getLogger(OAuth2AuthenticationFailureHandler.class);
 
     private final OAuth2LoginProperties loginProperties;
+    private final AuthCookieManager cookieManager;
 
-    public OAuth2AuthenticationFailureHandler(OAuth2LoginProperties loginProperties) {
+    public OAuth2AuthenticationFailureHandler(OAuth2LoginProperties loginProperties, AuthCookieManager cookieManager) {
         if (loginProperties == null || loginProperties.getFailureRedirectUri() == null
                 || loginProperties.getFailureRedirectUri()
                         .isBlank()) {
             throw new AuthException(AuthErrorCode.OAUTH_CONFIGURATION_INVALID);
         }
         this.loginProperties = loginProperties;
+        this.cookieManager = cookieManager;
     }
 
     @Override
@@ -55,6 +58,7 @@ public class OAuth2AuthenticationFailureHandler implements AuthenticationFailure
             HttpServletResponse response
     ) throws IOException {
         clearAuthentication(request);
+        cookieManager.expireLoginCookies(response);
         response.sendRedirect(loginProperties.getFailureRedirectUri());
     }
 
