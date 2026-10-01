@@ -7,6 +7,7 @@ import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.ElementKind;
 import jakarta.validation.Path;
 import java.util.List;
+import java.util.ArrayList;
 import java.util.stream.StreamSupport;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -17,6 +18,9 @@ import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
+import org.springframework.validation.method.ParameterErrors;
+import org.springframework.validation.method.ParameterValidationResult;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -62,6 +66,43 @@ public class GlobalExceptionHandler {
                 .map(this::toFieldErrorResponse)
                 .toList();
 
+        return respond(
+                CommonErrorCode.VALIDATION_ERROR,
+                fieldErrors
+        );
+    }
+
+    @ExceptionHandler(HandlerMethodValidationException.class)
+    public ResponseEntity<ErrorResponse> handleMethodValidationException(HandlerMethodValidationException exception) {
+        if (exception.isForReturnValue()) {
+            return respond(CommonErrorCode.INTERNAL_SERVER_ERROR);
+        }
+        List<FieldErrorResponse> fieldErrors = new ArrayList<>();
+        for (ParameterValidationResult result : exception.getParameterValidationResults()) {
+            if (result instanceof ParameterErrors errors) {
+                errors.getFieldErrors()
+                        .forEach(
+                                error -> fieldErrors.add(
+                                        new FieldErrorResponse(
+                                                error.getField(),
+                                                error.getDefaultMessage()
+                                        )
+                                )
+                        );
+            } else {
+                String parameterName = result.getMethodParameter()
+                        .getParameterName();
+                result.getResolvableErrors()
+                        .forEach(
+                                error -> fieldErrors.add(
+                                        new FieldErrorResponse(
+                                                parameterName == null ? "request" : parameterName,
+                                                error.getDefaultMessage()
+                                        )
+                                )
+                        );
+            }
+        }
         return respond(
                 CommonErrorCode.VALIDATION_ERROR,
                 fieldErrors
