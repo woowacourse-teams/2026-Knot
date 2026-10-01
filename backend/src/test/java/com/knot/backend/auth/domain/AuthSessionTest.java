@@ -53,4 +53,35 @@ class AuthSessionTest {
         // when & then
         assertThatThrownBy(() -> AuthSession.create(1L, HASH, null)).isInstanceOf(AuthException.class);
     }
+
+    @Test
+    @DisplayName("로그인 세션은 만료 직전까지 활성 상태다")
+    void isActive_success_beforeExpiry() {
+        // given
+        AuthSession session = AuthSession.create(1L, HASH, NOW);
+
+        // when & then
+        assertThat(session.isActive(NOW.plus(Duration.ofDays(7)).minusSeconds(1))).isTrue();
+    }
+
+    @Test
+    @DisplayName("만료 시각에 도달한 로그인 세션은 사용할 수 없다")
+    void isActive_failure_expired() {
+        // given
+        AuthSession session = AuthSession.create(1L, HASH, NOW);
+
+        // when & then
+        assertThat(session.isActive(NOW.plus(Duration.ofDays(7)))).isFalse();
+    }
+
+    @Test
+    @DisplayName("발급 이전 시각이나 시각 누락은 활성 세션으로 판단하지 않는다")
+    void isActive_failure_invalidTime() {
+        // given
+        AuthSession session = AuthSession.create(1L, HASH, NOW);
+
+        // when & then
+        assertThat(session.isActive(NOW.minusSeconds(1))).isFalse();
+        assertThat(session.isActive(null)).isFalse();
+    }
 }
