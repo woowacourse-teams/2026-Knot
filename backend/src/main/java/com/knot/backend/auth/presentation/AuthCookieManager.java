@@ -5,6 +5,9 @@ import com.knot.backend.auth.domain.AuthErrorCode;
 import com.knot.backend.auth.domain.AuthException;
 import jakarta.servlet.http.HttpServletResponse;
 import java.time.Duration;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Set;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
 import org.springframework.stereotype.Component;
@@ -50,6 +53,16 @@ public class AuthCookieManager {
                 token,
                 jwtProperties.getNicknameTokenExpiration()
         );
+    }
+
+    public void expireLoginCookies(HttpServletResponse response) {
+        Set<String> names = new LinkedHashSet<>(List.of(jwtProperties.getCookieName(),
+                jwtProperties.getRefreshCookieName(), jwtProperties.getNicknameCookieName(),
+                "KNOT_ACCESS_TOKEN", "KNOT_REFRESH_TOKEN", "KNOT_NICKNAME_TOKEN",
+                "__Host-KNOT_ACCESS_TOKEN", "__Host-KNOT_REFRESH_TOKEN"));
+        for (String name : names) {
+            expireCookie(response, name);
+        }
     }
 
     public void expireAccessToken(HttpServletResponse response) {
