@@ -17,7 +17,11 @@ class AuthLoginResultTest {
         // given
 
         // when
-        AuthLoginResult result = AuthLoginResult.authenticated("access-token", "refresh-token", Duration.ofDays(7));
+        AuthLoginResult result = AuthLoginResult.authenticated(
+                "access-token",
+                "refresh-token",
+                Duration.ofDays(7)
+        );
 
         // then
         assertThat(result.token()).isEqualTo("access-token");
@@ -43,7 +47,13 @@ class AuthLoginResultTest {
         // given
 
         // when
-        Throwable thrown = catchThrowable(() -> AuthLoginResult.authenticated(" ", "refresh-token", Duration.ofDays(7)));
+        Throwable thrown = catchThrowable(
+                () -> AuthLoginResult.authenticated(
+                        " ",
+                        "refresh-token",
+                        Duration.ofDays(7)
+                )
+        );
 
         // then
         assertThat(thrown).isInstanceOfSatisfying(
@@ -71,11 +81,26 @@ class AuthLoginResultTest {
     @DisplayName("기존 회원 로그인 결과에는 유효한 refresh와 만료 시간이 필요하다")
     void authenticated_failure_invalidRefresh() {
         // when & then
-        assertThatThrownBy(() -> AuthLoginResult.authenticated("access", null, Duration.ofDays(7)))
-                .isInstanceOf(AuthException.class);
-        assertThatThrownBy(() -> AuthLoginResult.authenticated("access", "refresh", Duration.ZERO))
-                .isInstanceOf(AuthException.class);
-        assertThatThrownBy(() -> AuthLoginResult.authenticated("access", "refresh", null))
-                .isInstanceOf(AuthException.class);
+        assertThatThrownBy(
+                () -> AuthLoginResult.authenticated(
+                        "access",
+                        null,
+                        Duration.ofDays(7)
+                )
+        ).isInstanceOf(AuthException.class);
+        assertThatThrownBy(
+                () -> AuthLoginResult.authenticated(
+                        "access",
+                        "refresh",
+                        Duration.ZERO
+                )
+        ).isInstanceOf(AuthException.class);
+        assertThatThrownBy(
+                () -> AuthLoginResult.authenticated(
+                        "access",
+                        "refresh",
+                        null
+                )
+        ).isInstanceOf(AuthException.class);
     }
 }

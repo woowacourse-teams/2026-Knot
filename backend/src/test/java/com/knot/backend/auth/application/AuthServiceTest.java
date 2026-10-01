@@ -3,6 +3,8 @@ package com.knot.backend.auth.application;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -28,15 +30,16 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.verifyNoInteractions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 class AuthServiceTest {
     private final AuthSessionRepository sessionRepository = mock(AuthSessionRepository.class);
     private final RefreshTokenProvider refreshTokenProvider = mock(RefreshTokenProvider.class);
-    private final Clock clock = Clock.fixed(Instant.parse("2026-10-01T00:00:00Z"), ZoneOffset.UTC);
+    private final Clock clock = Clock.fixed(
+            Instant.parse("2026-10-01T00:00:00Z"),
+            ZoneOffset.UTC
+    );
 
     @Test
     @DisplayName("등록된 OAuth identity가 있으면 일반 access token을 발급한다")
@@ -50,7 +53,10 @@ class AuthServiceTest {
                 memberService,
                 oauthIdentityService,
                 memberNicknameService,
-                authTokenProvider, sessionRepository, refreshTokenProvider, clock
+                authTokenProvider,
+                sessionRepository,
+                refreshTokenProvider,
+                clock
         );
         OAuthUser oauthUser = oauthUser();
         OAuthIdentity identity = OAuthIdentity.create(
@@ -74,7 +80,12 @@ class AuthServiceTest {
                 null
         );
         when(authTokenProvider.issue(authenticatedMember)).thenReturn("access-token");
-        when(refreshTokenProvider.issue()).thenReturn(RefreshToken.of("refresh-token", "a".repeat(64)));
+        when(refreshTokenProvider.issue()).thenReturn(
+                RefreshToken.of(
+                        "refresh-token",
+                        "a".repeat(64)
+                )
+        );
 
         // when
         AuthLoginResult result = service.login(oauthUser);
@@ -104,7 +115,10 @@ class AuthServiceTest {
                 memberService,
                 oauthIdentityService,
                 memberNicknameService,
-                authTokenProvider, sessionRepository, refreshTokenProvider, clock
+                authTokenProvider,
+                sessionRepository,
+                refreshTokenProvider,
+                clock
         );
         OAuthUser oauthUser = oauthUser();
         when(
@@ -122,7 +136,10 @@ class AuthServiceTest {
         assertThat(result.token()).isEqualTo("nickname-token");
         assertThat(result.requiresNickname()).isTrue();
         assertThat(result.refreshToken()).isNull();
-        verifyNoInteractions(sessionRepository, refreshTokenProvider);
+        verifyNoInteractions(
+                sessionRepository,
+                refreshTokenProvider
+        );
         verify(
                 memberService,
                 never()
@@ -137,7 +154,10 @@ class AuthServiceTest {
                 mock(MemberService.class),
                 mock(OAuthIdentityService.class),
                 mock(MemberNicknameService.class),
-                mock(AuthTokenProvider.class), sessionRepository, refreshTokenProvider, clock
+                mock(AuthTokenProvider.class),
+                sessionRepository,
+                refreshTokenProvider,
+                clock
         );
 
         // when
@@ -160,7 +180,10 @@ class AuthServiceTest {
                 memberService,
                 oauthIdentityService,
                 mock(MemberNicknameService.class),
-                mock(AuthTokenProvider.class), sessionRepository, refreshTokenProvider, clock
+                mock(AuthTokenProvider.class),
+                sessionRepository,
+                refreshTokenProvider,
+                clock
         );
         OAuthUser oauthUser = oauthUser();
         OAuthIdentity identity = OAuthIdentity.create(
@@ -196,7 +219,10 @@ class AuthServiceTest {
                 mock(MemberService.class),
                 mock(OAuthIdentityService.class),
                 memberNicknameService,
-                authTokenProvider, sessionRepository, refreshTokenProvider, clock
+                authTokenProvider,
+                sessionRepository,
+                refreshTokenProvider,
+                clock
         );
         OAuthUser oauthUser = oauthUser();
         Member member = mock(Member.class);
@@ -240,7 +266,10 @@ class AuthServiceTest {
 
         // when & then
         assertThatThrownBy(() -> service.login(oauthUser())).isInstanceOf(AuthException.class);
-        verifyNoInteractions(refreshTokenProvider, sessionRepository);
+        verifyNoInteractions(
+                refreshTokenProvider,
+                sessionRepository
+        );
     }
 
     @Test
@@ -262,7 +291,12 @@ class AuthServiceTest {
         AuthTokenProvider tokens = mock(AuthTokenProvider.class);
         AuthService service = registeredLoginService(tokens);
         when(tokens.issue(any())).thenReturn("access-token");
-        when(refreshTokenProvider.issue()).thenReturn(RefreshToken.of("refresh-token", "a".repeat(64)));
+        when(refreshTokenProvider.issue()).thenReturn(
+                RefreshToken.of(
+                        "refresh-token",
+                        "a".repeat(64)
+                )
+        );
         when(sessionRepository.save(any())).thenThrow(new AuthException(AuthErrorCode.AUTHENTICATION_INTERNAL_ERROR));
 
         // when & then
@@ -276,10 +310,28 @@ class AuthServiceTest {
         when(member.getId()).thenReturn(1L);
         when(member.getNickname()).thenReturn("흑곰");
         when(members.findById(1L)).thenReturn(Optional.of(member));
-        when(identities.findByProviderAndProviderUserId(OAuthProvider.GITHUB, "42"))
-                .thenReturn(Optional.of(OAuthIdentity.create(oauthUser(), 1L)));
-        return new AuthService(members, identities, mock(MemberNicknameService.class), tokens,
-                sessionRepository, refreshTokenProvider, clock);
+        when(
+                identities.findByProviderAndProviderUserId(
+                        OAuthProvider.GITHUB,
+                        "42"
+                )
+        ).thenReturn(
+                Optional.of(
+                        OAuthIdentity.create(
+                                oauthUser(),
+                                1L
+                        )
+                )
+        );
+        return new AuthService(
+                members,
+                identities,
+                mock(MemberNicknameService.class),
+                tokens,
+                sessionRepository,
+                refreshTokenProvider,
+                clock
+        );
     }
 
     @Test
@@ -294,16 +346,43 @@ class AuthServiceTest {
         when(member.getId()).thenReturn(1L);
         when(member.getNickname()).thenReturn("흑곰");
         when(tokens.issue(any())).thenReturn("access-token");
-        when(refreshTokenProvider.issue()).thenReturn(RefreshToken.of("refresh-token", "a".repeat(64)));
+        when(refreshTokenProvider.issue()).thenReturn(
+                RefreshToken.of(
+                        "refresh-token",
+                        "a".repeat(64)
+                )
+        );
         when(members.findById(1L)).thenReturn(Optional.of(member));
-        when(identities.findByProviderAndProviderUserId(OAuthProvider.GITHUB, "42"))
-                .thenReturn(Optional.of(OAuthIdentity.create(oauthUser(), 1L)));
-        AuthService service = new AuthService(members, identities, mock(MemberNicknameService.class), tokens,
-                sessionRepository, refreshTokenProvider, clock);
+        when(
+                identities.findByProviderAndProviderUserId(
+                        OAuthProvider.GITHUB,
+                        "42"
+                )
+        ).thenReturn(
+                Optional.of(
+                        OAuthIdentity.create(
+                                oauthUser(),
+                                1L
+                        )
+                )
+        );
+        AuthService service = new AuthService(
+                members,
+                identities,
+                mock(MemberNicknameService.class),
+                tokens,
+                sessionRepository,
+                refreshTokenProvider,
+                clock
+        );
 
         // when & then
         assertThatThrownBy(() -> service.login(oauthUser())).isInstanceOf(AuthException.class);
-        verifyNoInteractions(tokens, refreshTokenProvider, sessionRepository);
+        verifyNoInteractions(
+                tokens,
+                refreshTokenProvider,
+                sessionRepository
+        );
     }
 
     private OAuthUser oauthUser() {

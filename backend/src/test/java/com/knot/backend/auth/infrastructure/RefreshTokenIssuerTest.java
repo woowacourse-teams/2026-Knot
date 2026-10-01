@@ -23,10 +23,18 @@ class RefreshTokenIssuerTest {
         RefreshToken second = issuer.issue();
 
         // then
-        assertThat(first.getValue()).matches("[A-Za-z0-9_-]{43}").isNotEqualTo(second.getValue());
-        String expectedHash = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
-                .digest(first.getValue().getBytes(StandardCharsets.UTF_8)));
-        assertThat(first.getHash()).isEqualTo(expectedHash).isNotEqualTo(first.getValue());
+        assertThat(first.getValue()).matches("[A-Za-z0-9_-]{43}")
+                .isNotEqualTo(second.getValue());
+        String expectedHash = HexFormat.of()
+                .formatHex(
+                        MessageDigest.getInstance("SHA-256")
+                                .digest(
+                                        first.getValue()
+                                                .getBytes(StandardCharsets.UTF_8)
+                                )
+                );
+        assertThat(first.getHash()).isEqualTo(expectedHash)
+                .isNotEqualTo(first.getValue());
         assertThat(first.toString()).doesNotContain(first.getValue());
     }
 
@@ -34,8 +42,23 @@ class RefreshTokenIssuerTest {
     @DisplayName("값이나 해시가 없는 refresh 토큰은 생성할 수 없다")
     void create_failure_missingCredential() {
         // when & then
-        assertThatThrownBy(() -> RefreshToken.of(null, "a".repeat(64))).isInstanceOf(AuthException.class);
-        assertThatThrownBy(() -> RefreshToken.of(" ", "a".repeat(64))).isInstanceOf(AuthException.class);
-        assertThatThrownBy(() -> RefreshToken.of("token", " ")).isInstanceOf(AuthException.class);
+        assertThatThrownBy(
+                () -> RefreshToken.of(
+                        null,
+                        "a".repeat(64)
+                )
+        ).isInstanceOf(AuthException.class);
+        assertThatThrownBy(
+                () -> RefreshToken.of(
+                        " ",
+                        "a".repeat(64)
+                )
+        ).isInstanceOf(AuthException.class);
+        assertThatThrownBy(
+                () -> RefreshToken.of(
+                        "token",
+                        " "
+                )
+        ).isInstanceOf(AuthException.class);
     }
 }

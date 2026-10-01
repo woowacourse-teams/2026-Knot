@@ -113,7 +113,11 @@ class AuthCookieManagerTest {
         MockHttpServletResponse response = new MockHttpServletResponse();
 
         // when
-        new AuthCookieManager(properties).addRefreshToken(response, "refresh-token", Duration.ofHours(2));
+        new AuthCookieManager(properties).addRefreshToken(
+                response,
+                "refresh-token",
+                Duration.ofHours(2)
+        );
 
         // then
         Cookie cookie = response.getCookie("__Host-KNOT_REFRESH_TOKEN");
@@ -134,12 +138,27 @@ class AuthCookieManagerTest {
         MockHttpServletResponse response = new MockHttpServletResponse();
 
         // when & then
-        assertThatThrownBy(() -> manager.addRefreshToken(response, " ", Duration.ofDays(7)))
-                .isInstanceOf(AuthException.class);
-        assertThatThrownBy(() -> manager.addRefreshToken(response, "refresh", Duration.ZERO))
-                .isInstanceOf(AuthException.class);
-        assertThatThrownBy(() -> manager.addRefreshToken(response, "refresh", null))
-                .isInstanceOf(AuthException.class);
+        assertThatThrownBy(
+                () -> manager.addRefreshToken(
+                        response,
+                        " ",
+                        Duration.ofDays(7)
+                )
+        ).isInstanceOf(AuthException.class);
+        assertThatThrownBy(
+                () -> manager.addRefreshToken(
+                        response,
+                        "refresh",
+                        Duration.ZERO
+                )
+        ).isInstanceOf(AuthException.class);
+        assertThatThrownBy(
+                () -> manager.addRefreshToken(
+                        response,
+                        "refresh",
+                        null
+                )
+        ).isInstanceOf(AuthException.class);
         assertThat(response.getHeaders("Set-Cookie")).isEmpty();
     }
 
@@ -151,8 +170,13 @@ class AuthCookieManagerTest {
         properties.setRefreshCookieName("__Host-KNOT_REFRESH_TOKEN");
 
         // when & then
-        assertThatThrownBy(() -> new AuthCookieManager(properties).addRefreshToken(
-                new MockHttpServletResponse(), "refresh", Duration.ofDays(7))).isInstanceOf(AuthException.class);
+        assertThatThrownBy(
+                () -> new AuthCookieManager(properties).addRefreshToken(
+                        new MockHttpServletResponse(),
+                        "refresh",
+                        Duration.ofDays(7)
+                )
+        ).isInstanceOf(AuthException.class);
     }
 
     @Test
@@ -166,8 +190,13 @@ class AuthCookieManagerTest {
 
         // then
         assertThat(response.getCookies()).extracting(Cookie::getName)
-                .contains("__Host-KNOT_ACCESS_TOKEN", "__Host-KNOT_REFRESH_TOKEN", "KNOT_NICKNAME_TOKEN",
-                        "KNOT_ACCESS_TOKEN", "KNOT_REFRESH_TOKEN");
+                .contains(
+                        "__Host-KNOT_ACCESS_TOKEN",
+                        "__Host-KNOT_REFRESH_TOKEN",
+                        "KNOT_NICKNAME_TOKEN",
+                        "KNOT_ACCESS_TOKEN",
+                        "KNOT_REFRESH_TOKEN"
+                );
         assertThat(response.getCookies()).allSatisfy(cookie -> {
             assertThat(cookie.getMaxAge()).isZero();
             assertThat(cookie.getValue()).isEmpty();

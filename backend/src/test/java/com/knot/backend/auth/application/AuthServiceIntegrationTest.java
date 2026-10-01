@@ -59,7 +59,10 @@ class AuthServiceIntegrationTest {
     private final AuthService service;
     private final JdbcTemplate jdbc;
 
-    AuthServiceIntegrationTest(AuthService service, JdbcTemplate jdbc) {
+    AuthServiceIntegrationTest(
+            AuthService service,
+            JdbcTemplate jdbc
+    ) {
         this.service = service;
         this.jdbc = jdbc;
     }
@@ -76,22 +79,37 @@ class AuthServiceIntegrationTest {
         // given
         registerMember();
         when(tokens.issue(any())).thenReturn("access-token");
-        when(refreshTokens.issue()).thenReturn(RefreshToken.of("private-refresh", "a".repeat(64)));
+        when(refreshTokens.issue()).thenReturn(
+                RefreshToken.of(
+                        "private-refresh",
+                        "a".repeat(64)
+                )
+        );
 
         // when
         service.login(oauthUser());
 
         // then
         assertThat(count("auth_sessions")).isEqualTo(1);
-        assertThat(jdbc.queryForObject("SELECT refresh_token_hash FROM auth_sessions", String.class))
-                .isEqualTo("a".repeat(64)).isNotEqualTo("private-refresh");
+        assertThat(
+                jdbc.queryForObject(
+                        "SELECT refresh_token_hash FROM auth_sessions",
+                        String.class
+                )
+        ).isEqualTo("a".repeat(64))
+                .isNotEqualTo("private-refresh");
     }
 
     @Test
     @DisplayName("신규 OAuth 로그인은 회원·identity·인증 세션을 저장하지 않는다")
     void login_success_newUserWithoutPersistence() {
         // given
-        when(identities.findByProviderAndProviderUserId(OAuthProvider.GITHUB, "42")).thenReturn(Optional.empty());
+        when(
+                identities.findByProviderAndProviderUserId(
+                        OAuthProvider.GITHUB,
+                        "42"
+                )
+        ).thenReturn(Optional.empty());
         when(tokens.issueNickname(any())).thenReturn("nickname-token");
 
         // when
@@ -101,7 +119,11 @@ class AuthServiceIntegrationTest {
         assertThat(count("members")).isZero();
         assertThat(count("oauth_identities")).isZero();
         assertThat(count("auth_sessions")).isZero();
-        verifyNoInteractions(memberService, nicknameService, refreshTokens);
+        verifyNoInteractions(
+                memberService,
+                nicknameService,
+                refreshTokens
+        );
     }
 
     @Test
@@ -110,7 +132,12 @@ class AuthServiceIntegrationTest {
         // given
         registerMember();
         when(tokens.issue(any())).thenReturn(" ");
-        when(refreshTokens.issue()).thenReturn(RefreshToken.of("refresh", "a".repeat(64)));
+        when(refreshTokens.issue()).thenReturn(
+                RefreshToken.of(
+                        "refresh",
+                        "a".repeat(64)
+                )
+        );
 
         // when & then
         assertThatThrownBy(() -> service.login(oauthUser())).isInstanceOf(AuthException.class);
@@ -124,7 +151,12 @@ class AuthServiceIntegrationTest {
         // given
         registerMember();
         when(tokens.issue(any())).thenReturn("access");
-        when(refreshTokens.issue()).thenReturn(RefreshToken.of("refresh", "a".repeat(64)));
+        when(refreshTokens.issue()).thenReturn(
+                RefreshToken.of(
+                        "refresh",
+                        "a".repeat(64)
+                )
+        );
         service.login(oauthUser());
 
         // when & then
@@ -133,20 +165,41 @@ class AuthServiceIntegrationTest {
     }
 
     private void registerMember() {
-        Long memberId = jdbc.queryForObject("INSERT INTO members (nickname) VALUES ('흑곰') RETURNING id", Long.class);
+        Long memberId = jdbc.queryForObject(
+                "INSERT INTO members (nickname) VALUES ('흑곰') RETURNING id",
+                Long.class
+        );
         Member member = mock(Member.class);
         when(member.getId()).thenReturn(memberId);
         when(member.getNickname()).thenReturn("흑곰");
         when(memberService.findById(memberId)).thenReturn(Optional.of(member));
-        when(identities.findByProviderAndProviderUserId(OAuthProvider.GITHUB, "42"))
-                .thenReturn(Optional.of(OAuthIdentity.create(oauthUser(), memberId)));
+        when(
+                identities.findByProviderAndProviderUserId(
+                        OAuthProvider.GITHUB,
+                        "42"
+                )
+        ).thenReturn(
+                Optional.of(
+                        OAuthIdentity.create(
+                                oauthUser(),
+                                memberId
+                        )
+                )
+        );
     }
 
     private OAuthUser oauthUser() {
-        return OAuthUser.of(OAuthProvider.GITHUB, "42", null);
+        return OAuthUser.of(
+                OAuthProvider.GITHUB,
+                "42",
+                null
+        );
     }
 
     private int count(String tableName) {
-        return jdbc.queryForObject("SELECT COUNT(*) FROM " + tableName, Integer.class);
+        return jdbc.queryForObject(
+                "SELECT COUNT(*) FROM " + tableName,
+                Integer.class
+        );
     }
 }

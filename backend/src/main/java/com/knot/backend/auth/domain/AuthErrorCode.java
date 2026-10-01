@@ -6,9 +6,17 @@ import lombok.Getter;
 
 @Getter
 public enum AuthErrorCode implements ErrorCode {
-    INVALID_AUTH_SESSION(ErrorCategory.UNAUTHORIZED, "INVALID_AUTH_SESSION", "인증 세션 정보가 올바르지 않습니다"),
+    INVALID_AUTH_SESSION(
+            ErrorCategory.UNAUTHORIZED,
+            "INVALID_AUTH_SESSION",
+            "인증 세션 정보가 올바르지 않습니다"
+    ),
 
-    MEMBER_WITHDRAWN(ErrorCategory.UNAUTHORIZED, "MEMBER_WITHDRAWN", "탈퇴한 회원은 로그인할 수 없습니다"),
+    MEMBER_WITHDRAWN(
+            ErrorCategory.UNAUTHORIZED,
+            "MEMBER_WITHDRAWN",
+            "탈퇴한 회원은 로그인할 수 없습니다"
+    ),
 
     UNAUTHENTICATED(
             ErrorCategory.UNAUTHORIZED,

@@ -41,7 +41,11 @@ public class AuthSession {
 
     protected AuthSession() {}
 
-    private AuthSession(long memberId, String refreshTokenHash, Instant createdAt) {
+    private AuthSession(
+            long memberId,
+            String refreshTokenHash,
+            Instant createdAt
+    ) {
         if (memberId <= 0 || refreshTokenHash == null || !refreshTokenHash.matches("[0-9a-f]{64}")
                 || createdAt == null) {
             throw new AuthException(AuthErrorCode.INVALID_AUTH_SESSION);
@@ -53,13 +57,21 @@ public class AuthSession {
         this.absoluteExpiresAt = createdAt.plus(ABSOLUTE_LIFETIME);
     }
 
-    public static AuthSession create(long memberId, String refreshTokenHash, Instant createdAt) {
-        return new AuthSession(memberId, refreshTokenHash, createdAt);
+    public static AuthSession create(
+            long memberId,
+            String refreshTokenHash,
+            Instant createdAt
+    ) {
+        return new AuthSession(
+                memberId,
+                refreshTokenHash,
+                createdAt
+        );
     }
 
     public boolean isActive(Instant now) {
-        return now != null && !now.isBefore(createdAt) && revokedAt == null
-                && now.isBefore(expiresAt) && now.isBefore(absoluteExpiresAt);
+        return now != null && !now.isBefore(createdAt) && revokedAt == null && now.isBefore(expiresAt)
+                && now.isBefore(absoluteExpiresAt);
     }
 
     public Duration remainingRefreshLifetime(Instant now) {
@@ -67,6 +79,9 @@ public class AuthSession {
             return Duration.ZERO;
         }
         Instant refreshExpiresAt = expiresAt.isBefore(absoluteExpiresAt) ? expiresAt : absoluteExpiresAt;
-        return Duration.between(now, refreshExpiresAt);
+        return Duration.between(
+                now,
+                refreshExpiresAt
+        );
     }
 }

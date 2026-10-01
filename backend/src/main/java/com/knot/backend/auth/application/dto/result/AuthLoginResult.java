@@ -23,7 +23,11 @@ public record AuthLoginResult(
         }
     }
 
-    public static AuthLoginResult authenticated(String accessToken, String refreshToken, Duration refreshMaxAge) {
+    public static AuthLoginResult authenticated(
+            String accessToken,
+            String refreshToken,
+            Duration refreshMaxAge
+    ) {
         return new AuthLoginResult(
                 accessToken,
                 refreshToken,

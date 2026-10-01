@@ -8,7 +8,6 @@ import com.knot.backend.auth.domain.AuthException;
 import com.knot.backend.global.config.OAuth2LoginProperties;
 import com.knot.backend.global.config.JwtProperties;
 import com.knot.backend.auth.presentation.AuthCookieManager;
-import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpServletRequest;
@@ -24,7 +23,10 @@ class OAuth2AuthenticationFailureHandlerTest {
         // given
         OAuth2LoginProperties loginProperties = new OAuth2LoginProperties();
         loginProperties.setFailureRedirectUri("/login?error=oauth2");
-        OAuth2AuthenticationFailureHandler handler = new OAuth2AuthenticationFailureHandler(loginProperties, new AuthCookieManager(new JwtProperties()));
+        OAuth2AuthenticationFailureHandler handler = new OAuth2AuthenticationFailureHandler(
+                loginProperties,
+                new AuthCookieManager(new JwtProperties())
+        );
         MockHttpServletRequest request = new MockHttpServletRequest();
         request.getSession();
         MockHttpServletResponse response = new MockHttpServletResponse();
@@ -42,10 +44,11 @@ class OAuth2AuthenticationFailureHandlerTest {
         assertThat(request.getSession(false)).isNull();
         assertThat(response.getStatus()).isEqualTo(302);
         assertThat(response.getContentAsString()).isEmpty();
-        assertThat(response.getCookies()).isNotEmpty().allSatisfy(cookie -> {
-            assertThat(cookie.getMaxAge()).isZero();
-            assertThat(cookie.getValue()).isEmpty();
-        });
+        assertThat(response.getCookies()).isNotEmpty()
+                .allSatisfy(cookie -> {
+                    assertThat(cookie.getMaxAge()).isZero();
+                    assertThat(cookie.getValue()).isEmpty();
+                });
     }
 
     @Test
@@ -56,7 +59,12 @@ class OAuth2AuthenticationFailureHandlerTest {
         loginProperties.setFailureRedirectUri(" ");
 
         // when
-        Throwable thrown = catchThrowable(() -> new OAuth2AuthenticationFailureHandler(loginProperties, new AuthCookieManager(new JwtProperties())));
+        Throwable thrown = catchThrowable(
+                () -> new OAuth2AuthenticationFailureHandler(
+                        loginProperties,
+                        new AuthCookieManager(new JwtProperties())
+                )
+        );
 
         // then
         assertThat(thrown).isInstanceOfSatisfying(

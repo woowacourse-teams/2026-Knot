@@ -18,7 +18,10 @@ public class AuthSessionRepositoryImpl implements AuthSessionRepository {
         try {
             return jpaRepository.saveAndFlush(session);
         } catch (DataAccessException exception) {
-            throw new AuthException(AuthErrorCode.AUTHENTICATION_INTERNAL_ERROR, exception);
+            throw new AuthException(
+                    AuthErrorCode.AUTHENTICATION_INTERNAL_ERROR,
+                    exception
+            );
         }
     }
 }

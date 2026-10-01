@@ -14,11 +14,11 @@ import com.knot.backend.auth.domain.OAuthIdentity;
 import com.knot.backend.auth.domain.OAuthUser;
 import com.knot.backend.member.application.MemberService;
 import com.knot.backend.member.domain.Member;
+import java.time.Clock;
+import java.time.Instant;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import java.time.Clock;
-import java.time.Instant;
 
 @Service
 @RequiredArgsConstructor
@@ -74,10 +74,18 @@ public class AuthService {
         String accessToken = authTokenProvider.issue(authenticatedMember);
         RefreshToken refreshToken = refreshTokenProvider.issue();
         Instant now = clock.instant();
-        AuthSession session = AuthSession.create(member.getId(), refreshToken.getHash(), now);
+        AuthSession session = AuthSession.create(
+                member.getId(),
+                refreshToken.getHash(),
+                now
+        );
         sessionRepository.save(session);
 
-        return AuthLoginResult.authenticated(accessToken, refreshToken.getValue(), session.remainingRefreshLifetime(now));
+        return AuthLoginResult.authenticated(
+                accessToken,
+                refreshToken.getValue(),
+                session.remainingRefreshLifetime(now)
+        );
     }
 
     private AuthLoginResult issueNicknameToken(OAuthUser oauthUser) {

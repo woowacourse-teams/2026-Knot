@@ -23,7 +23,10 @@ public class OAuth2AuthenticationFailureHandler implements AuthenticationFailure
     private final OAuth2LoginProperties loginProperties;
     private final AuthCookieManager cookieManager;
 
-    public OAuth2AuthenticationFailureHandler(OAuth2LoginProperties loginProperties, AuthCookieManager cookieManager) {
+    public OAuth2AuthenticationFailureHandler(
+            OAuth2LoginProperties loginProperties,
+            AuthCookieManager cookieManager
+    ) {
         if (loginProperties == null || loginProperties.getFailureRedirectUri() == null
                 || loginProperties.getFailureRedirectUri()
                         .isBlank()) {

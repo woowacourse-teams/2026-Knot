@@ -32,7 +32,11 @@ public class AuthCookieManager {
         );
     }
 
-    public void addRefreshToken(HttpServletResponse response, String token, Duration maxAge) {
+    public void addRefreshToken(
+            HttpServletResponse response,
+            String token,
+            Duration maxAge
+    ) {
         String name = jwtProperties.getRefreshCookieName();
         if (token == null || token.isBlank() || maxAge == null || maxAge.isZero() || maxAge.isNegative()) {
             throw new AuthException(AuthErrorCode.AUTHENTICATION_INTERNAL_ERROR);
@@ -40,7 +44,12 @@ public class AuthCookieManager {
         if (name == null || name.isBlank() || (name.startsWith("__Host-") && !jwtProperties.isSecure())) {
             throw new AuthException(AuthErrorCode.JWT_CONFIGURATION_INVALID);
         }
-        addCookie(response, name, token, maxAge);
+        addCookie(
+                response,
+                name,
+                token,
+                maxAge
+        );
     }
 
     public void addNicknameToken(
@@ -56,12 +65,23 @@ public class AuthCookieManager {
     }
 
     public void expireLoginCookies(HttpServletResponse response) {
-        Set<String> names = new LinkedHashSet<>(List.of(jwtProperties.getCookieName(),
-                jwtProperties.getRefreshCookieName(), jwtProperties.getNicknameCookieName(),
-                "KNOT_ACCESS_TOKEN", "KNOT_REFRESH_TOKEN", "KNOT_NICKNAME_TOKEN",
-                "__Host-KNOT_ACCESS_TOKEN", "__Host-KNOT_REFRESH_TOKEN"));
+        Set<String> names = new LinkedHashSet<>(
+                List.of(
+                        jwtProperties.getCookieName(),
+                        jwtProperties.getRefreshCookieName(),
+                        jwtProperties.getNicknameCookieName(),
+                        "KNOT_ACCESS_TOKEN",
+                        "KNOT_REFRESH_TOKEN",
+                        "KNOT_NICKNAME_TOKEN",
+                        "__Host-KNOT_ACCESS_TOKEN",
+                        "__Host-KNOT_REFRESH_TOKEN"
+                )
+        );
         for (String name : names) {
-            expireCookie(response, name);
+            expireCookie(
+                    response,
+                    name
+            );
         }
     }
 

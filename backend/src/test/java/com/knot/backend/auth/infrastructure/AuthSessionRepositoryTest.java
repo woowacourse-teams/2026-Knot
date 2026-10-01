@@ -31,7 +31,11 @@ class AuthSessionRepositoryTest {
     private final EntityManager entityManager;
     private final JdbcTemplate jdbcTemplate;
 
-    AuthSessionRepositoryTest(AuthSessionRepository repository, EntityManager entityManager, JdbcTemplate jdbcTemplate) {
+    AuthSessionRepositoryTest(
+            AuthSessionRepository repository,
+            EntityManager entityManager,
+            JdbcTemplate jdbcTemplate
+    ) {
         this.repository = repository;
         this.entityManager = entityManager;
         this.jdbcTemplate = jdbcTemplate;
@@ -41,16 +45,28 @@ class AuthSessionRepositoryTest {
     @DisplayName("로그인 세션의 해시와 만료 시각을 PostgreSQL에 저장한다")
     void save_success() {
         // given
-        Member member = Member.create("흑곰", null);
+        Member member = Member.create(
+                "흑곰",
+                null
+        );
         entityManager.persist(member);
         Instant now = Instant.parse("2026-10-01T00:00:00Z");
 
         // when
-        AuthSession saved = repository.save(AuthSession.create(member.getId(), "a".repeat(64), now));
+        AuthSession saved = repository.save(
+                AuthSession.create(
+                        member.getId(),
+                        "a".repeat(64),
+                        now
+                )
+        );
 
         // then
         entityManager.clear();
-        AuthSession loaded = entityManager.find(AuthSession.class, saved.getId());
+        AuthSession loaded = entityManager.find(
+                AuthSession.class,
+                saved.getId()
+        );
         assertThat(loaded.getRefreshTokenHash()).isEqualTo("a".repeat(64));
         assertThat(loaded.getCreatedAt()).isEqualTo(now);
         assertThat(loaded.getExpiresAt()).isEqualTo(now.plusSeconds(7 * 86400));
@@ -62,33 +78,69 @@ class AuthSessionRepositoryTest {
     @DisplayName("같은 refresh 해시를 가진 세션은 중복 저장할 수 없다")
     void save_failure_duplicateHash() {
         // given
-        Member member = Member.create("흑곰", null);
+        Member member = Member.create(
+                "흑곰",
+                null
+        );
         entityManager.persist(member);
-        repository.save(AuthSession.create(member.getId(), "a".repeat(64), Instant.now()));
+        repository.save(
+                AuthSession.create(
+                        member.getId(),
+                        "a".repeat(64),
+                        Instant.now()
+                )
+        );
 
         // when & then
-        assertThatThrownBy(() -> repository.save(AuthSession.create(member.getId(), "a".repeat(64), Instant.now())))
-                .isInstanceOf(AuthException.class);
+        assertThatThrownBy(
+                () -> repository.save(
+                        AuthSession.create(
+                                member.getId(),
+                                "a".repeat(64),
+                                Instant.now()
+                        )
+                )
+        ).isInstanceOf(AuthException.class);
     }
 
     @Test
     @DisplayName("존재하지 않는 회원의 세션은 외래 키 제약으로 저장할 수 없다")
     void save_failure_missingMember() {
         // when & then
-        assertThatThrownBy(() -> repository.save(AuthSession.create(999999L, "a".repeat(64), Instant.now())))
-                .isInstanceOf(AuthException.class);
+        assertThatThrownBy(
+                () -> repository.save(
+                        AuthSession.create(
+                                999999L,
+                                "a".repeat(64),
+                                Instant.now()
+                        )
+                )
+        ).isInstanceOf(AuthException.class);
     }
 
     @Test
     @DisplayName("세션 만료 시각은 발급 시각 이후이면서 절대 만료 이하여야 한다")
     void schema_failure_invalidExpiry() {
         // given
-        Member member = Member.create("흑곰", null);
+        Member member = Member.create(
+                "흑곰",
+                null
+        );
         entityManager.persist(member);
-        AuthSession session = repository.save(AuthSession.create(member.getId(), "a".repeat(64), Instant.now()));
+        AuthSession session = repository.save(
+                AuthSession.create(
+                        member.getId(),
+                        "a".repeat(64),
+                        Instant.now()
+                )
+        );
 
         // when & then
-        assertThatThrownBy(() -> jdbcTemplate.update("UPDATE auth_sessions SET expires_at = created_at WHERE id = ?",
-                session.getId())).isInstanceOf(DataIntegrityViolationException.class);
+        assertThatThrownBy(
+                () -> jdbcTemplate.update(
+                        "UPDATE auth_sessions SET expires_at = created_at WHERE id = ?",
+                        session.getId()
+                )
+        ).isInstanceOf(DataIntegrityViolationException.class);
     }
 }

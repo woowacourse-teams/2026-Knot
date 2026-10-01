@@ -22,16 +22,26 @@ public class RefreshTokenIssuer implements RefreshTokenProvider {
     public RefreshToken issue() {
         byte[] bytes = new byte[TOKEN_BYTES];
         random.nextBytes(bytes);
-        String value = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
-        return RefreshToken.of(value, hash(value));
+        String value = Base64.getUrlEncoder()
+                .withoutPadding()
+                .encodeToString(bytes);
+        return RefreshToken.of(
+                value,
+                hash(value)
+        );
     }
 
     private String hash(String value) {
         try {
-            byte[] digest = MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.UTF_8));
-            return HexFormat.of().formatHex(digest);
+            byte[] digest = MessageDigest.getInstance("SHA-256")
+                    .digest(value.getBytes(StandardCharsets.UTF_8));
+            return HexFormat.of()
+                    .formatHex(digest);
         } catch (NoSuchAlgorithmException exception) {
-            throw new AuthException(AuthErrorCode.AUTHENTICATION_INTERNAL_ERROR, exception);
+            throw new AuthException(
+                    AuthErrorCode.AUTHENTICATION_INTERNAL_ERROR,
+                    exception
+            );
         }
     }
 }

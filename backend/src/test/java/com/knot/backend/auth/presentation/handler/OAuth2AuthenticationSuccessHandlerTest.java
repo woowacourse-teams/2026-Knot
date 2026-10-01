@@ -77,7 +77,13 @@ class OAuth2AuthenticationSuccessHandlerTest {
         );
         Authentication authentication = mock(Authentication.class);
         when(authentication.getPrincipal()).thenReturn(githubUser);
-        when(authService.login(oauthUser)).thenReturn(AuthLoginResult.authenticated("jwt-token", "refresh-token", Duration.ofDays(7)));
+        when(authService.login(oauthUser)).thenReturn(
+                AuthLoginResult.authenticated(
+                        "jwt-token",
+                        "refresh-token",
+                        Duration.ofDays(7)
+                )
+        );
         MockHttpServletRequest request = new MockHttpServletRequest();
         request.getSession();
         SecurityContextHolder.getContext()
@@ -93,7 +99,10 @@ class OAuth2AuthenticationSuccessHandlerTest {
 
         // then
         assertThat(response.getRedirectedUrl()).isEqualTo("/api/v1/auth/me");
-        Cookie cookie = lastCookie(response, "KNOT_ACCESS_TOKEN");
+        Cookie cookie = lastCookie(
+                response,
+                "KNOT_ACCESS_TOKEN"
+        );
         assertThat(cookie).isNotNull();
         assertThat(cookie.getValue()).isEqualTo("jwt-token");
         assertThat(cookie.isHttpOnly()).isTrue();
@@ -101,11 +110,19 @@ class OAuth2AuthenticationSuccessHandlerTest {
         assertThat(cookie.getPath()).isEqualTo("/");
         assertThat(cookie.getMaxAge()).isEqualTo(3600);
         assertThat(response.getHeader("Set-Cookie")).contains("SameSite=Lax");
-        Cookie refreshCookie = lastCookie(response, "KNOT_REFRESH_TOKEN");
+        Cookie refreshCookie = lastCookie(
+                response,
+                "KNOT_REFRESH_TOKEN"
+        );
         assertThat(refreshCookie).isNotNull();
         assertThat(refreshCookie.getValue()).isEqualTo("refresh-token");
         assertThat(refreshCookie.getMaxAge()).isEqualTo(7 * 86400);
-        assertThat(lastCookie(response, "KNOT_NICKNAME_TOKEN").getMaxAge()).isZero();
+        assertThat(
+                lastCookie(
+                        response,
+                        "KNOT_NICKNAME_TOKEN"
+                ).getMaxAge()
+        ).isZero();
         assertThat(request.getSession(false)).isNull();
         assertThat(
                 SecurityContextHolder.getContext()
@@ -158,11 +175,24 @@ class OAuth2AuthenticationSuccessHandlerTest {
 
         // then
         assertThat(response.getRedirectedUrl()).isEqualTo("/nickname");
-        Cookie cookie = lastCookie(response, "KNOT_NICKNAME_TOKEN");
+        Cookie cookie = lastCookie(
+                response,
+                "KNOT_NICKNAME_TOKEN"
+        );
         assertThat(cookie).isNotNull();
         assertThat(cookie.getValue()).isEqualTo("nickname-token");
-        assertThat(lastCookie(response, "KNOT_ACCESS_TOKEN").getMaxAge()).isZero();
-        assertThat(lastCookie(response, "KNOT_REFRESH_TOKEN").getMaxAge()).isZero();
+        assertThat(
+                lastCookie(
+                        response,
+                        "KNOT_ACCESS_TOKEN"
+                ).getMaxAge()
+        ).isZero();
+        assertThat(
+                lastCookie(
+                        response,
+                        "KNOT_REFRESH_TOKEN"
+                ).getMaxAge()
+        ).isZero();
     }
 
     @Test
@@ -190,7 +220,8 @@ class OAuth2AuthenticationSuccessHandlerTest {
 
         // then
         assertThat(response.getRedirectedUrl()).isEqualTo("/login?error=oauth2");
-        assertThat(response.getCookies()).isNotEmpty().allSatisfy(cookie -> assertThat(cookie.getMaxAge()).isZero());
+        assertThat(response.getCookies()).isNotEmpty()
+                .allSatisfy(cookie -> assertThat(cookie.getMaxAge()).isZero());
         verify(
                 authService,
                 never()
@@ -302,9 +333,19 @@ class OAuth2AuthenticationSuccessHandlerTest {
         return properties;
     }
 
-    private Cookie lastCookie(MockHttpServletResponse response, String name) {
-        return Arrays.stream(response.getCookies()).filter(cookie -> name.equals(cookie.getName()))
-                .reduce((previous, current) -> current).orElseThrow();
+    private Cookie lastCookie(
+            MockHttpServletResponse response,
+            String name
+    ) {
+        return Arrays.stream(response.getCookies())
+                .filter(cookie -> name.equals(cookie.getName()))
+                .reduce(
+                        (
+                                previous,
+                                current
+                        ) -> current
+                )
+                .orElseThrow();
     }
 
     @Test
@@ -313,18 +354,32 @@ class OAuth2AuthenticationSuccessHandlerTest {
     void onAuthenticationSuccess_failure_redactsInternalError(CapturedOutput output) throws Exception {
         // given
         AuthService authService = mock(AuthService.class);
-        OAuthUser user = OAuthUser.of(OAuthProvider.GITHUB, "42", null);
+        OAuthUser user = OAuthUser.of(
+                OAuthProvider.GITHUB,
+                "42",
+                null
+        );
         OAuth2User delegate = mock(OAuth2User.class);
-        GithubOAuth2User githubUser = GithubOAuth2User.of(user, delegate);
+        GithubOAuth2User githubUser = GithubOAuth2User.of(
+                user,
+                delegate
+        );
         Authentication authentication = mock(Authentication.class);
         when(authentication.getPrincipal()).thenReturn(githubUser);
         when(authService.login(user)).thenThrow(new RuntimeException("private-refresh-secret"));
-        OAuth2AuthenticationSuccessHandler handler = new OAuth2AuthenticationSuccessHandler(authService,
-                new OAuth2LoginProperties(), new AuthCookieManager(jwtProperties()));
+        OAuth2AuthenticationSuccessHandler handler = new OAuth2AuthenticationSuccessHandler(
+                authService,
+                new OAuth2LoginProperties(),
+                new AuthCookieManager(jwtProperties())
+        );
         MockHttpServletResponse response = new MockHttpServletResponse();
 
         // when
-        handler.onAuthenticationSuccess(new MockHttpServletRequest(), response, authentication);
+        handler.onAuthenticationSuccess(
+                new MockHttpServletRequest(),
+                response,
+                authentication
+        );
 
         // then
         assertThat(response.getRedirectedUrl()).isEqualTo("/login?error=oauth2");
