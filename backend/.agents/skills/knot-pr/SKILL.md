@@ -28,6 +28,7 @@ The diff is the source of truth for what changed. The Issue is the source of tru
 - Separate drafting from publishing. `PR 생성해줘` and `PR 올려줘` explicitly authorize PR publication; resolve and verify the final title, base, head, Issue linkage, and body from repository evidence before publishing. Drafting, body-writing, and readiness-review requests do not authorize publication.
 - Keep each backend API PR to one HTTP method-and-path endpoint. Include the endpoint's directly required implementation, tests, schema changes, and internal support code, but do not bundle a second independently callable endpoint.
 - Treat roughly 1,000 changed lines as a target, not a minimum or hard cap. Preserve a coherent single-endpoint change when its necessary implementation is larger, and explain the size in `참고 사항`; never pad a smaller endpoint change to meet the target. Endpoint isolation takes priority over line count.
+- The 999/1,000-line reference excludes test code. Report the implementation-line count without test sources and the full diff count separately when both help reviewers understand the PR size. Tests remain required when the Issue calls for them.
 - If the Issue or diff spans multiple endpoints, identify the method and path for each and mark readiness as `보완 필요`. Recommend endpoint-focused Issue/PR boundaries when repository evidence supports them, but do not create or edit Issues or split branches on the user's behalf.
 - Do not claim tests, formatting, review, or Issue completion unless a command or GitHub state proves it.
 - Flag unrelated commits, files, generated artifacts, pre-existing dirty changes, and branch-rule mismatches instead of hiding them.
@@ -107,7 +108,7 @@ Classify each requirement as `충족`, `부분 충족`, `미충족`, or `검증 
 Check the scope explicitly:
 
 - name the primary endpoint as `<HTTP method> <path>` and confirm the PR diff changes only that endpoint's external behavior; a second method on the same path is a second endpoint;
-- calculate committed diff size with `git diff --numstat <base>...HEAD -- .`, summing additions and deletions as changed lines, and report local uncommitted changes separately. Target approximately 1,000 changed lines for the PR diff;
+- calculate the committed diff with `git diff --numstat <base>...HEAD -- .`; report additions plus deletions excluding test-source paths for the 999/1,000-line reference, and report the full diff size separately. Report local uncommitted changes separately;
 - if the diff is materially above the target, check whether unrelated endpoint work can be separated. If the excess is necessary for this one endpoint, retain the coherent change and explain why; size alone is not a blocker;
 - changed files belong to the linked Issue and backend area;
 - implementation and direct tests are included when the Issue requires tests;
