@@ -85,8 +85,8 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
             );
         } catch (RuntimeException exception) {
             log.error(
-                    "OAuth 인증 처리 중 예기치 않은 오류가 발생했습니다.",
-                    exception
+                    "OAuth 인증 처리 중 예기치 않은 오류: type={}",
+                    exception.getClass().getSimpleName()
             );
             handleFailure(
                     request,
