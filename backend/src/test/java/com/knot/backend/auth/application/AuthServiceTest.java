@@ -282,6 +282,30 @@ class AuthServiceTest {
                 sessionRepository, refreshTokenProvider, clock);
     }
 
+    @Test
+    @DisplayName("탈퇴 회원은 OAuth 인증에 성공해도 토큰과 세션을 받지 못한다")
+    void login_failure_withdrawnMember() {
+        // given
+        MemberService members = mock(MemberService.class);
+        OAuthIdentityService identities = mock(OAuthIdentityService.class);
+        AuthTokenProvider tokens = mock(AuthTokenProvider.class);
+        Member member = mock(Member.class);
+        when(member.isDeleted()).thenReturn(true);
+        when(member.getId()).thenReturn(1L);
+        when(member.getNickname()).thenReturn("흑곰");
+        when(tokens.issue(any())).thenReturn("access-token");
+        when(refreshTokenProvider.issue()).thenReturn(RefreshToken.of("refresh-token", "a".repeat(64)));
+        when(members.findById(1L)).thenReturn(Optional.of(member));
+        when(identities.findByProviderAndProviderUserId(OAuthProvider.GITHUB, "42"))
+                .thenReturn(Optional.of(OAuthIdentity.create(oauthUser(), 1L)));
+        AuthService service = new AuthService(members, identities, mock(MemberNicknameService.class), tokens,
+                sessionRepository, refreshTokenProvider, clock);
+
+        // when & then
+        assertThatThrownBy(() -> service.login(oauthUser())).isInstanceOf(AuthException.class);
+        verifyNoInteractions(tokens, refreshTokenProvider, sessionRepository);
+    }
+
     private OAuthUser oauthUser() {
         return OAuthUser.of(
                 OAuthProvider.GITHUB,
