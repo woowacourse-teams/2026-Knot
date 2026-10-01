@@ -56,4 +56,9 @@ public class AuthSession {
     public static AuthSession create(long memberId, String refreshTokenHash, Instant createdAt) {
         return new AuthSession(memberId, refreshTokenHash, createdAt);
     }
+
+    public boolean isActive(Instant now) {
+        return now != null && !now.isBefore(createdAt) && revokedAt == null
+                && now.isBefore(expiresAt) && now.isBefore(absoluteExpiresAt);
+    }
 }
