@@ -73,7 +73,7 @@ class OAuth2AuthenticationSuccessHandlerTest {
         );
         Authentication authentication = mock(Authentication.class);
         when(authentication.getPrincipal()).thenReturn(githubUser);
-        when(authService.login(oauthUser)).thenReturn(AuthLoginResult.authenticated("jwt-token"));
+        when(authService.login(oauthUser)).thenReturn(AuthLoginResult.authenticated("jwt-token", "refresh-token", Duration.ofDays(7)));
         MockHttpServletRequest request = new MockHttpServletRequest();
         request.getSession();
         SecurityContextHolder.getContext()
