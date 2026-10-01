@@ -1,5 +1,6 @@
 package com.knot.backend.global.config;
 
+import com.knot.backend.workspace.presentation.WorkspaceOwnershipTransferApi;
 import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.Operation;
@@ -56,6 +57,14 @@ public class OpenApiConfig {
             }
             if (isWorkspaceListOperation(handlerMethod)) {
                 customizeWorkspaceListOperation(operation);
+            }
+            if (WorkspaceOwnershipTransferApi.class.isAssignableFrom(handlerMethod.getBeanType())) {
+                operation.security(
+                        List.of(
+                                new SecurityRequirement().addList(ACCESS_TOKEN_COOKIE)
+                                        .addList(CSRF_TOKEN_HEADER)
+                        )
+                );
             }
             return operation;
         };
