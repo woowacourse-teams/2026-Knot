@@ -14,7 +14,7 @@ import WorkspaceNotionConnectionPage from "@pages/workspace/[workspaceId]/notion
 import RecordingPage from "@pages/workspace/[workspaceId]/recording";
 import WorkspaceCodePage from "@pages/workspace/code";
 import WorkspaceCreatePage from "@pages/workspace/create";
-import { createBrowserRouter } from "react-router";
+import type { RouteObject } from "react-router";
 
 import AuthGuard from "./AuthGuard";
 import EntryRedirect from "./EntryRedirect";
@@ -40,7 +40,7 @@ import { PATH_ROUTE } from "./PATH_ROUTE";
  * 가드는 레이아웃 안쪽에 둬요. 판정 중 로딩과 실패 안내가 로고가 있는 자리에서 보여야
  * 화면이 비어 보이지 않기 때문이에요.
  */
-export const router = createBrowserRouter([
+export const routes: RouteObject[] = [
   // 화면 가운데 정렬 — 워크스페이스 진입 전 플로우
   {
     element: <CenteredLayout />,
@@ -128,4 +128,4 @@ export const router = createBrowserRouter([
       },
     ],
   },
-]);
+];
