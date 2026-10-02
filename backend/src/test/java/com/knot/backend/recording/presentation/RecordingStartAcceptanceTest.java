@@ -333,7 +333,7 @@ class RecordingStartAcceptanceTest {
     }
 
     @Test
-    @DisplayName("다른 멤버는 한 멤버의 활성 녹음과 무관하게 녹음을 시작할 수 있다")
+    @DisplayName("다른 멤버는 같은 요청 키로도 별도 녹음을 시작할 수 있다")
     void start_success_otherMemberHasSeparateSession() throws Exception {
         // given
         long firstMemberId = saveMember("octocat");
@@ -362,9 +362,9 @@ class RecordingStartAcceptanceTest {
         // when
         ResultActions result = startRecording(
                 workspaceId,
-                UUID.fromString("33333333-3333-3333-3333-333333333333"),
-                UUID.fromString("44444444-4444-4444-4444-444444444444"),
-                OTHER_CONTROL_TOKEN,
+                REQUEST_ID,
+                TAB_ID,
+                CONTROL_TOKEN,
                 secondAccessTokenCookie,
                 csrfCredentials
         );
