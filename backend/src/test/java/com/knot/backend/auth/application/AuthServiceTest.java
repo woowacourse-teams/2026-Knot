@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -34,10 +35,12 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 class AuthServiceTest {
+    private static final Instant NOW = Instant.parse("2026-10-01T00:00:00Z");
+
     private final AuthSessionRepository sessionRepository = mock(AuthSessionRepository.class);
     private final RefreshTokenProvider refreshTokenProvider = mock(RefreshTokenProvider.class);
     private final Clock clock = Clock.fixed(
-            Instant.parse("2026-10-01T00:00:00Z"),
+            NOW,
             ZoneOffset.UTC
     );
 
@@ -210,7 +213,7 @@ class AuthServiceTest {
     }
 
     @Test
-    @DisplayName("닉네임 토큰과 닉네임으로 member를 생성하고 access token을 발급한다")
+    @DisplayName("닉네임 설정을 완료하면 access·refresh token과 인증 세션을 발급한다")
     void completeNicknameSetup_success() {
         // given
         AuthTokenProvider authTokenProvider = mock(AuthTokenProvider.class);
@@ -224,7 +227,12 @@ class AuthServiceTest {
                 refreshTokenProvider,
                 clock
         );
-        OAuthUser oauthUser = oauthUser();
+        OAuthUser oauthUser = OAuthUser.of(
+                OAuthProvider.GITHUB,
+                "42",
+                "https://example.com/avatar",
+                NOW.minusSeconds(30)
+        );
         Member member = mock(Member.class);
         when(member.getId()).thenReturn(1L);
         when(member.getNickname()).thenReturn("octocat");
@@ -242,9 +250,15 @@ class AuthServiceTest {
                 null
         );
         when(authTokenProvider.issue(authenticatedMember)).thenReturn("access-token");
+        when(refreshTokenProvider.issue()).thenReturn(
+                RefreshToken.of(
+                        "refresh-token",
+                        "a".repeat(64)
+                )
+        );
 
         // when
-        String result = service.completeNicknameSetup(
+        AuthLoginResult result = service.completeNicknameSetup(
                 new CompleteNicknameCommand(
                         "nickname-token",
                         "octocat"
@@ -252,8 +266,193 @@ class AuthServiceTest {
         );
 
         // then
-        assertThat(result).isEqualTo("access-token");
+        assertThat(result.token()).isEqualTo("access-token");
+        assertThat(result.refreshToken()).isEqualTo("refresh-token");
+        assertThat(result.refreshMaxAge()).isEqualTo(Duration.ofDays(7));
         verify(authTokenProvider).issue(authenticatedMember);
+        verify(sessionRepository).save(
+                argThat(
+                        session -> session.getCreatedAt()
+                                .equals(NOW)
+                                && session.getAbsoluteExpiresAt()
+                                        .equals(
+                                                NOW.minusSeconds(30)
+                                                        .plus(Duration.ofDays(30))
+                                        )
+                )
+        );
+    }
+
+    @Test
+    @DisplayName("온보딩 토큰 인증에 실패하면 회원과 인증 세션 생성을 요청하지 않는다")
+    void completeNicknameSetup_failure_invalidNicknameToken() {
+        // given
+        AuthTokenProvider tokens = mock(AuthTokenProvider.class);
+        MemberNicknameService nicknameService = mock(MemberNicknameService.class);
+        AuthService service = new AuthService(
+                mock(MemberService.class),
+                mock(OAuthIdentityService.class),
+                nicknameService,
+                tokens,
+                sessionRepository,
+                refreshTokenProvider,
+                clock
+        );
+        when(tokens.authenticateNickname("invalid-token")).thenThrow(new AuthException(AuthErrorCode.INVALID_JWT));
+
+        // when & then
+        assertThatThrownBy(
+                () -> service.completeNicknameSetup(
+                        new CompleteNicknameCommand(
+                                "invalid-token",
+                                "octocat"
+                        )
+                )
+        ).isInstanceOfSatisfying(
+                AuthException.class,
+                exception -> assertThat(exception.getErrorCode()).isEqualTo(AuthErrorCode.INVALID_JWT)
+        );
+        verifyNoInteractions(
+                nicknameService,
+                refreshTokenProvider,
+                sessionRepository
+        );
+    }
+
+    @Test
+    @DisplayName("최초 OAuth 로그인 시각이 없는 온보딩 정보는 가입 완료에 사용할 수 없다")
+    void completeNicknameSetup_failure_missingOAuthLoginTime() {
+        // given
+        AuthTokenProvider tokens = mock(AuthTokenProvider.class);
+        MemberNicknameService nicknameService = mock(MemberNicknameService.class);
+        AuthService service = new AuthService(
+                mock(MemberService.class),
+                mock(OAuthIdentityService.class),
+                nicknameService,
+                tokens,
+                sessionRepository,
+                refreshTokenProvider,
+                clock
+        );
+        when(tokens.authenticateNickname("nickname-token")).thenReturn(
+                OAuthUser.of(
+                        OAuthProvider.GITHUB,
+                        "42",
+                        null
+                )
+        );
+
+        // when & then
+        assertThatThrownBy(
+                () -> service.completeNicknameSetup(
+                        new CompleteNicknameCommand(
+                                "nickname-token",
+                                "octocat"
+                        )
+                )
+        ).isInstanceOfSatisfying(
+                AuthException.class,
+                exception -> assertThat(exception.getErrorCode()).isEqualTo(AuthErrorCode.INVALID_JWT)
+        );
+        verifyNoInteractions(
+                nicknameService,
+                refreshTokenProvider,
+                sessionRepository
+        );
+    }
+
+    @Test
+    @DisplayName("가입 완료 후 access token 발급에 실패하면 refresh token과 세션을 발급하지 않는다")
+    void completeNicknameSetup_failure_accessTokenIssuance() {
+        // given
+        AuthTokenProvider tokens = mock(AuthTokenProvider.class);
+        MemberNicknameService nicknameService = mock(MemberNicknameService.class);
+        AuthService service = new AuthService(
+                mock(MemberService.class),
+                mock(OAuthIdentityService.class),
+                nicknameService,
+                tokens,
+                sessionRepository,
+                refreshTokenProvider,
+                clock
+        );
+        OAuthUser oauthUser = OAuthUser.of(
+                OAuthProvider.GITHUB,
+                "42",
+                null,
+                NOW
+        );
+        Member member = mock(Member.class);
+        when(tokens.authenticateNickname("nickname-token")).thenReturn(oauthUser);
+        when(
+                nicknameService.completeNicknameSetup(
+                        oauthUser,
+                        "octocat"
+                )
+        ).thenReturn(member);
+        when(member.getId()).thenReturn(1L);
+        when(member.getNickname()).thenReturn("octocat");
+        when(tokens.issue(any())).thenThrow(new AuthException(AuthErrorCode.AUTHENTICATION_INTERNAL_ERROR));
+
+        // when & then
+        assertThatThrownBy(
+                () -> service.completeNicknameSetup(
+                        new CompleteNicknameCommand(
+                                "nickname-token",
+                                "octocat"
+                        )
+                )
+        ).isInstanceOf(AuthException.class);
+        verifyNoInteractions(
+                refreshTokenProvider,
+                sessionRepository
+        );
+    }
+
+    @Test
+    @DisplayName("가입 완료 후 refresh token 발급에 실패하면 인증 세션을 저장하지 않는다")
+    void completeNicknameSetup_failure_refreshTokenIssuance() {
+        // given
+        AuthTokenProvider tokens = mock(AuthTokenProvider.class);
+        MemberNicknameService nicknameService = mock(MemberNicknameService.class);
+        AuthService service = new AuthService(
+                mock(MemberService.class),
+                mock(OAuthIdentityService.class),
+                nicknameService,
+                tokens,
+                sessionRepository,
+                refreshTokenProvider,
+                clock
+        );
+        OAuthUser oauthUser = OAuthUser.of(
+                OAuthProvider.GITHUB,
+                "42",
+                null,
+                NOW
+        );
+        Member member = mock(Member.class);
+        when(tokens.authenticateNickname("nickname-token")).thenReturn(oauthUser);
+        when(
+                nicknameService.completeNicknameSetup(
+                        oauthUser,
+                        "octocat"
+                )
+        ).thenReturn(member);
+        when(member.getId()).thenReturn(1L);
+        when(member.getNickname()).thenReturn("octocat");
+        when(tokens.issue(any())).thenReturn("access-token");
+        when(refreshTokenProvider.issue()).thenThrow(new AuthException(AuthErrorCode.AUTHENTICATION_INTERNAL_ERROR));
+
+        // when & then
+        assertThatThrownBy(
+                () -> service.completeNicknameSetup(
+                        new CompleteNicknameCommand(
+                                "nickname-token",
+                                "octocat"
+                        )
+                )
+        ).isInstanceOf(AuthException.class);
+        verifyNoInteractions(sessionRepository);
     }
 
     @Test
