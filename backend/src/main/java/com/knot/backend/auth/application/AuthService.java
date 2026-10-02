@@ -45,22 +45,39 @@ public class AuthService {
                 .orElseGet(() -> issueNicknameToken(oauthUser));
     }
 
-    public String completeNicknameSetup(CompleteNicknameCommand command) {
+    @Transactional
+    public AuthLoginResult completeNicknameSetup(CompleteNicknameCommand command) {
         OAuthUser oauthUser = authTokenProvider.authenticateNickname(command.nicknameToken());
+        Instant initialOAuthLoginAt = oauthUser.getAuthenticatedAt();
+        if (initialOAuthLoginAt == null) {
+            throw new AuthException(AuthErrorCode.INVALID_JWT);
+        }
         Member member = memberNicknameService.completeNicknameSetup(
                 oauthUser,
                 command.nickname()
         );
-        AuthenticatedMember authenticatedMember = AuthenticatedMember.of(
-                member.getId(),
-                member.getNickname(),
-                member.getProfileImageUrl()
+        return issueMemberTokens(
+                member,
+                clock.instant(),
+                initialOAuthLoginAt
         );
-        return authTokenProvider.issue(authenticatedMember);
     }
 
     private AuthLoginResult createMemberLogin(OAuthIdentity identity) {
         Member member = getActiveMember(identity.getMemberId());
+        Instant loginAt = clock.instant();
+        return issueMemberTokens(
+                member,
+                loginAt,
+                loginAt
+        );
+    }
+
+    private AuthLoginResult issueMemberTokens(
+            Member member,
+            Instant sessionCreatedAt,
+            Instant initialOAuthLoginAt
+    ) {
         AuthenticatedMember authenticatedMember = AuthenticatedMember.of(
                 member.getId(),
                 member.getNickname(),
@@ -69,17 +86,17 @@ public class AuthService {
 
         String accessToken = authTokenProvider.issue(authenticatedMember);
         RefreshToken refreshToken = refreshTokenProvider.issue();
-        Instant now = clock.instant();
         AuthSession session = createLoginSession(
                 member.getId(),
                 refreshToken.getHash(),
-                now
+                sessionCreatedAt,
+                initialOAuthLoginAt
         );
 
         return AuthLoginResult.authenticated(
                 accessToken,
                 refreshToken.getValue(),
-                session.remainingRefreshLifetime(now)
+                session.remainingRefreshLifetime(sessionCreatedAt)
         );
     }
 
@@ -95,12 +112,14 @@ public class AuthService {
     private AuthSession createLoginSession(
             long memberId,
             String refreshTokenHash,
-            Instant loginAt
+            Instant sessionCreatedAt,
+            Instant initialOAuthLoginAt
     ) {
         AuthSession session = AuthSession.create(
                 memberId,
                 refreshTokenHash,
-                loginAt
+                sessionCreatedAt,
+                initialOAuthLoginAt
         );
         sessionRepository.save(session);
         return session;
