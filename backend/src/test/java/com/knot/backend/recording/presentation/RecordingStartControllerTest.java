@@ -37,6 +37,7 @@ import org.springframework.security.web.method.annotation.AuthenticationPrincipa
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 
 class RecordingStartControllerTest {
     private static final long WORKSPACE_ID = 12L;
@@ -166,7 +167,7 @@ class RecordingStartControllerTest {
         assertThat(
                 result.andReturn()
                         .getResolvedException()
-        ).isInstanceOf(org.springframework.web.method.annotation.HandlerMethodValidationException.class);
+        ).isInstanceOf(MethodArgumentNotValidException.class);
         result.andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
                 .andExpect(jsonPath("$.fieldErrors[0].field").value("requestId"));

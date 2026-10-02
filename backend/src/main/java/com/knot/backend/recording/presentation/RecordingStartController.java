@@ -6,7 +6,6 @@ import com.knot.backend.recording.application.dto.result.RecordingStartResult;
 import com.knot.backend.recording.presentation.dto.request.RecordingStartRequest;
 import com.knot.backend.recording.presentation.dto.response.RecordingStartResponse;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -27,7 +26,7 @@ public class RecordingStartController implements RecordingStartApi {
     @Override
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<RecordingStartResponse> start(
-            @Positive(message = "워크스페이스 ID는 양수여야 합니다") @PathVariable long workspaceId,
+            @PathVariable long workspaceId,
             @Valid @RequestBody RecordingStartRequest request,
             @AuthenticationPrincipal AuthenticatedMember authenticatedMember
     ) {
