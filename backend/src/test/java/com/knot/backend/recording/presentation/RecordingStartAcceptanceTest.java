@@ -165,7 +165,13 @@ class RecordingStartAcceptanceTest {
                                         .asLong()
                         )
                 )
-                .andExpect(jsonPath("$.status").value("RECORDING"));
+                .andExpect(jsonPath("$.status").value("RECORDING"))
+                .andExpect(
+                        jsonPath("$.startedAt").value(
+                                firstBody.get("startedAt")
+                                        .asText()
+                        )
+                );
         assertThat(countRecordingSessions()).isEqualTo(1);
     }
 
@@ -350,14 +356,17 @@ class RecordingStartAcceptanceTest {
         Cookie firstAccessTokenCookie = accessTokenCookie(firstMemberId);
         Cookie secondAccessTokenCookie = accessTokenCookie(secondMemberId);
         CsrfCredentials csrfCredentials = csrfCredentials();
-        startRecording(
-                workspaceId,
-                REQUEST_ID,
-                TAB_ID,
-                CONTROL_TOKEN,
-                firstAccessTokenCookie,
-                csrfCredentials
-        ).andExpect(status().isCreated());
+        long firstRecordingId = responseBody(
+                startRecording(
+                        workspaceId,
+                        REQUEST_ID,
+                        TAB_ID,
+                        CONTROL_TOKEN,
+                        firstAccessTokenCookie,
+                        csrfCredentials
+                ).andExpect(status().isCreated())
+        ).get("recordingId")
+                .asLong();
 
         // when
         ResultActions result = startRecording(
@@ -372,6 +381,8 @@ class RecordingStartAcceptanceTest {
         // then
         result.andExpect(status().isCreated())
                 .andExpect(jsonPath("$.status").value("RECORDING"));
+        assertThat(responseBody(result).get("recordingId").asLong())
+                .isNotEqualTo(firstRecordingId);
         assertThat(countRecordingSessions()).isEqualTo(2);
     }
 
