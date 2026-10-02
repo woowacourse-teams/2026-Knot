@@ -26,7 +26,7 @@ public class AuthCookieManager {
     ) {
         addCookie(
                 response,
-                jwtProperties.getCookieName(),
+                cookieNameForSecurity(jwtProperties.getCookieName()),
                 token,
                 jwtProperties.getExpiration()
         );
@@ -37,12 +37,9 @@ public class AuthCookieManager {
             String token,
             Duration maxAge
     ) {
-        String name = jwtProperties.getRefreshCookieName();
+        String name = cookieNameForSecurity(jwtProperties.getRefreshCookieName());
         if (token == null || token.isBlank() || maxAge == null || maxAge.isZero() || maxAge.isNegative()) {
             throw new AuthException(AuthErrorCode.AUTHENTICATION_INTERNAL_ERROR);
-        }
-        if (name == null || name.isBlank() || (name.startsWith("__Host-") && !jwtProperties.isSecure())) {
-            throw new AuthException(AuthErrorCode.JWT_CONFIGURATION_INVALID);
         }
         addCookie(
                 response,
@@ -58,7 +55,7 @@ public class AuthCookieManager {
     ) {
         addCookie(
                 response,
-                jwtProperties.getNicknameCookieName(),
+                cookieNameForSecurity(jwtProperties.getNicknameCookieName()),
                 token,
                 jwtProperties.getNicknameTokenExpiration()
         );
@@ -67,14 +64,14 @@ public class AuthCookieManager {
     public void expireLoginCookies(HttpServletResponse response) {
         Set<String> names = new LinkedHashSet<>(
                 List.of(
-                        jwtProperties.getCookieName(),
-                        jwtProperties.getRefreshCookieName(),
-                        jwtProperties.getNicknameCookieName(),
-                        "KNOT_ACCESS_TOKEN",
-                        "KNOT_REFRESH_TOKEN",
-                        "KNOT_NICKNAME_TOKEN",
-                        "__Host-KNOT_ACCESS_TOKEN",
-                        "__Host-KNOT_REFRESH_TOKEN"
+                        cookieNameForSecurity(jwtProperties.getCookieName()),
+                        cookieNameForSecurity(jwtProperties.getRefreshCookieName()),
+                        cookieNameForSecurity(jwtProperties.getNicknameCookieName()),
+                        cookieNameForSecurity("KNOT_ACCESS_TOKEN"),
+                        cookieNameForSecurity("KNOT_REFRESH_TOKEN"),
+                        cookieNameForSecurity("KNOT_NICKNAME_TOKEN"),
+                        cookieNameForSecurity("__Host-KNOT_ACCESS_TOKEN"),
+                        cookieNameForSecurity("__Host-KNOT_REFRESH_TOKEN")
                 )
         );
         for (String name : names) {
@@ -88,15 +85,31 @@ public class AuthCookieManager {
     public void expireAccessToken(HttpServletResponse response) {
         expireCookie(
                 response,
-                jwtProperties.getCookieName()
+                cookieNameForSecurity(jwtProperties.getCookieName())
         );
     }
 
     public void expireNicknameToken(HttpServletResponse response) {
         expireCookie(
                 response,
-                jwtProperties.getNicknameCookieName()
+                cookieNameForSecurity(jwtProperties.getNicknameCookieName())
         );
+    }
+
+    private String cookieNameForSecurity(String name) {
+        if (name == null || name.isBlank()) {
+            throw new AuthException(AuthErrorCode.JWT_CONFIGURATION_INVALID);
+        }
+        if (jwtProperties.isSecure()) {
+            return name;
+        }
+        if (name.startsWith("__Host-")) {
+            return name.substring("__Host-".length());
+        }
+        if (name.startsWith("__Secure-")) {
+            return name.substring("__Secure-".length());
+        }
+        return name;
     }
 
     private void expireCookie(
