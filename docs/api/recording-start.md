@@ -8,7 +8,7 @@
 
 `POST /api/v1/workspaces/{workspaceId}/recordings`
 
-인증 쿠키와 `X-XSRF-TOKEN`을 보낸다. `workspaceId`는 양수이며 현재 참여 중인 Workspace여야 한다.
+인증 쿠키와 `X-XSRF-TOKEN`을 보낸다. `workspaceId`는 현재 참여 중인 Workspace여야 한다.
 JSON 본문은 세 필드를 모두 요구한다.
 
 | 필드 | 형식 | 유지 범위 |
@@ -48,12 +48,12 @@ JSON 본문은 세 필드를 모두 요구한다.
 
 | 상태 | 코드 | 조건 |
 | --- | --- | --- |
-| 400 | `VALIDATION_ERROR` | 누락·잘못된 증명 형식·양수가 아닌 Workspace ID |
+| 400 | `VALIDATION_ERROR` | 누락·잘못된 증명 형식 |
 | 400 | `INVALID_REQUEST_BODY` 또는 `INVALID_PARAMETER` | UUID·JSON·경로 타입 오류 |
 | 401 | `UNAUTHENTICATED` | 인증 없음 |
 | 403 | `FORBIDDEN` | CSRF 검증 실패 |
 | 403 | `WORKSPACE_ACCESS_DENIED` | 현재 소속 없음 |
-| 404 | `WORKSPACE_NOT_FOUND` | Workspace 없음 |
+| 404 | `WORKSPACE_NOT_FOUND` | Workspace 없음(양수가 아닌 ID 포함) |
 | 409 | `ACTIVE_RECORDING_ALREADY_EXISTS` | 다른 요청으로 만든 본인 활성 세션 존재 |
 | 409 | `RECORDING_START_REQUEST_CONFLICT` | 같은 키에 Workspace·탭·증명 중 하나라도 변경 |
 
