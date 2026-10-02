@@ -8,7 +8,6 @@ import com.knot.backend.recording.presentation.dto.response.RecordingStartRespon
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -24,7 +23,7 @@ public class RecordingStartController implements RecordingStartApi {
     private final RecordingStartService recordingStartService;
 
     @Override
-    @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
+    @PostMapping
     public ResponseEntity<RecordingStartResponse> start(
             @PathVariable long workspaceId,
             @Valid @RequestBody RecordingStartRequest request,
