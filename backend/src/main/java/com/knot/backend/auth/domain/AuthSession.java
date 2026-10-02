@@ -44,17 +44,23 @@ public class AuthSession {
     private AuthSession(
             long memberId,
             String refreshTokenHash,
-            Instant createdAt
+            Instant createdAt,
+            Instant initialOAuthLoginAt
     ) {
-        if (memberId <= 0 || refreshTokenHash == null || !refreshTokenHash.matches("[0-9a-f]{64}")
-                || createdAt == null) {
+        if (memberId <= 0 || refreshTokenHash == null || !refreshTokenHash.matches("[0-9a-f]{64}") || createdAt == null
+                || initialOAuthLoginAt == null || initialOAuthLoginAt.isAfter(createdAt)) {
+            throw new AuthException(AuthErrorCode.INVALID_AUTH_SESSION);
+        }
+        Instant absoluteExpiresAt = initialOAuthLoginAt.plus(ABSOLUTE_LIFETIME);
+        if (!absoluteExpiresAt.isAfter(createdAt)) {
             throw new AuthException(AuthErrorCode.INVALID_AUTH_SESSION);
         }
         this.memberId = memberId;
         this.refreshTokenHash = refreshTokenHash;
         this.createdAt = createdAt;
-        this.expiresAt = createdAt.plus(IDLE_LIFETIME);
-        this.absoluteExpiresAt = createdAt.plus(ABSOLUTE_LIFETIME);
+        Instant idleExpiresAt = createdAt.plus(IDLE_LIFETIME);
+        this.expiresAt = idleExpiresAt.isBefore(absoluteExpiresAt) ? idleExpiresAt : absoluteExpiresAt;
+        this.absoluteExpiresAt = absoluteExpiresAt;
     }
 
     public static AuthSession create(
@@ -62,10 +68,25 @@ public class AuthSession {
             String refreshTokenHash,
             Instant createdAt
     ) {
+        return create(
+                memberId,
+                refreshTokenHash,
+                createdAt,
+                createdAt
+        );
+    }
+
+    public static AuthSession create(
+            long memberId,
+            String refreshTokenHash,
+            Instant createdAt,
+            Instant initialOAuthLoginAt
+    ) {
         return new AuthSession(
                 memberId,
                 refreshTokenHash,
-                createdAt
+                createdAt,
+                initialOAuthLoginAt
         );
     }
 
