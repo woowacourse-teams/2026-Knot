@@ -131,6 +131,29 @@ class AuthCookieManagerTest {
     }
 
     @Test
+    @DisplayName("Secure가 꺼져 있으면 기본 Host refresh 쿠키 이름을 로컬용으로 사용한다")
+    void addRefreshToken_success_defaultHostCookieNameWhenSecureDisabled() {
+        // given
+        JwtProperties properties = new JwtProperties();
+        properties.setSecure(false);
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        // when
+        new AuthCookieManager(properties).addRefreshToken(
+                response,
+                "refresh-token",
+                Duration.ofDays(7)
+        );
+
+        // then
+        Cookie cookie = response.getCookie("KNOT_REFRESH_TOKEN");
+        assertThat(cookie).isNotNull();
+        assertThat(cookie.getValue()).isEqualTo("refresh-token");
+        assertThat(cookie.getSecure()).isFalse();
+        assertThat(response.getCookie("__Host-KNOT_REFRESH_TOKEN")).isNull();
+    }
+
+    @Test
     @DisplayName("빈 refresh나 만료된 수명으로는 쿠키를 발급하지 않는다")
     void addRefreshToken_failure_invalidCredential() {
         // given
@@ -160,23 +183,6 @@ class AuthCookieManagerTest {
                 )
         ).isInstanceOf(AuthException.class);
         assertThat(response.getHeaders("Set-Cookie")).isEmpty();
-    }
-
-    @Test
-    @DisplayName("Secure 없이 Host 접두사 refresh 쿠키를 발급할 수 없다")
-    void addRefreshToken_failure_insecureHostCookie() {
-        // given
-        JwtProperties properties = properties();
-        properties.setRefreshCookieName("__Host-KNOT_REFRESH_TOKEN");
-
-        // when & then
-        assertThatThrownBy(
-                () -> new AuthCookieManager(properties).addRefreshToken(
-                        new MockHttpServletResponse(),
-                        "refresh",
-                        Duration.ofDays(7)
-                )
-        ).isInstanceOf(AuthException.class);
     }
 
     @Test

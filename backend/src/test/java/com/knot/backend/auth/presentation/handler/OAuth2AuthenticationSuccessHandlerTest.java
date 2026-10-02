@@ -50,6 +50,8 @@ class OAuth2AuthenticationSuccessHandlerTest {
         // given
         AuthService authService = mock(AuthService.class);
         JwtProperties jwtProperties = jwtProperties();
+        assertThat(jwtProperties.getRefreshCookieName()).isEqualTo("__Host-KNOT_REFRESH_TOKEN");
+        assertThat(jwtProperties.isSecure()).isFalse();
         OAuth2LoginProperties loginProperties = new OAuth2LoginProperties();
         loginProperties.setSuccessRedirectUri("/api/v1/auth/me");
         OAuth2AuthenticationSuccessHandler handler = new OAuth2AuthenticationSuccessHandler(
@@ -326,8 +328,6 @@ class OAuth2AuthenticationSuccessHandlerTest {
 
     private JwtProperties jwtProperties() {
         JwtProperties properties = new JwtProperties();
-        properties.setCookieName("KNOT_ACCESS_TOKEN");
-        properties.setRefreshCookieName("KNOT_REFRESH_TOKEN");
         properties.setExpiration(Duration.ofHours(1));
         properties.setSecure(false);
         return properties;

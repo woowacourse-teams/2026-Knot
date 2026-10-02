@@ -142,7 +142,7 @@ class KnotApplicationTests {
         ).isZero();
         assertThat(
                 result.getResponse()
-                        .getCookie("__Host-KNOT_REFRESH_TOKEN")
+                        .getCookie("KNOT_REFRESH_TOKEN")
                         .getMaxAge()
         ).isZero();
         assertThat(session.isInvalid()).isTrue();
