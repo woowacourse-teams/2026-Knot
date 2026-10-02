@@ -2,13 +2,13 @@ import styled from "@emotion/styled";
 import Button from "@primitives/ui/Button";
 import type { HTMLAttributes, ReactNode } from "react";
 
-import Caution from "@/assets/icons/caution.svg";
-
 interface AlertDialogProps extends Omit<
   HTMLAttributes<HTMLDivElement>,
   "title"
 > {
-  /** 한 줄 제목. 앞에 주의 아이콘이 붙어요 */
+  /** 제목 앞에 붙는 아이콘. 넘기지 않으면 제목만 그려요. 색은 넘기는 쪽에서 정해요 */
+  icon?: ReactNode;
+  /** 한 줄 제목 */
   title: ReactNode;
   /** 제목 아래 안내. 한 줄이 기본이고 최대 두 줄이에요. 줄바꿈은 의미 단위로 직접 넣어요 */
   description: ReactNode;
@@ -21,13 +21,14 @@ interface AlertDialogProps extends Omit<
 /**
  * 일어난 일을 알리는 알림 모달 카드.
  *
- * 주의 아이콘을 붙인 제목·안내와 가로를 채운 확인 버튼 하나를 그려요.
+ * 제목·안내와 가로를 채운 확인 버튼 하나를 그려요. 아이콘을 넘기면 제목 앞에 붙여요.
  * 화면 가운데 띄우기·ESC·포커스 가두기 같은 동작은 없어서,
  * 쓰는 쪽이 `Dim` 위에 올리고 `role`·`aria-*`도 함께 넘겨요.
  *
  * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=1814-5058 Dialog 유형=알림}
  */
 export default function AlertDialog({
+  icon,
   title,
   description,
   confirmLabel,
@@ -38,9 +39,7 @@ export default function AlertDialog({
     <Container {...rest}>
       <Head>
         <TitleRow>
-          <CautionIconWrapper aria-hidden>
-            <Caution />
-          </CautionIconWrapper>
+          {icon && <IconWrapper aria-hidden>{icon}</IconWrapper>}
           <Title>{title}</Title>
         </TitleRow>
         <Description>{description}</Description>
@@ -80,10 +79,9 @@ const TitleRow = styled.div`
   gap: 0.625rem; /* 10px */
 `;
 
-const CautionIconWrapper = styled.span`
+const IconWrapper = styled.span`
   display: flex;
   flex-shrink: 0;
-  color: ${({ theme }) => theme.sub.caution[700]};
 `;
 
 const Title = styled.h2`
