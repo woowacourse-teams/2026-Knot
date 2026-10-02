@@ -48,6 +48,12 @@ public enum AuthErrorCode implements ErrorCode {
             "인증 토큰이 유효하지 않습니다"
     ),
 
+    CSRF_INVALID(
+            ErrorCategory.FORBIDDEN,
+            "CSRF_INVALID",
+            "CSRF 토큰이 유효하지 않습니다"
+    ),
+
     JWT_CONFIGURATION_INVALID(
             ErrorCategory.INTERNAL_SERVER_ERROR,
             "JWT_CONFIGURATION_INVALID",
