@@ -20,12 +20,6 @@ interface AlertDialogProps extends Omit<
 
 /**
  * 일어난 일을 알리는 알림 모달 카드.
- *
- * 제목·안내와 가로를 채운 확인 버튼 하나를 그려요. 아이콘을 넘기면 제목 앞에 붙여요.
- * 화면 가운데 띄우기·ESC·포커스 가두기 같은 동작은 없어서,
- * 쓰는 쪽이 `Dim` 위에 올리고 `role`·`aria-*`도 함께 넘겨요.
- *
- * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=1814-5058 Dialog 유형=알림}
  */
 export default function AlertDialog({
   icon,

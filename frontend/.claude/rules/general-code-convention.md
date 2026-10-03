@@ -14,7 +14,7 @@ paths:
 - 파일명:
   - 컴포넌트 파일: `PascalCase` + `.tsx`(`.jsx`)
   - 컴포넌트 외 파일: `camelCase` + `.ts`(`.js`)
-- 인덱스(`index.ts(x)`)를 제외한 나머지는 폴더 + `index.ts` 형태로 두되, 테스트 파일(`test.ts`, 컴포넌트 통합 테스트는 `test.tsx`)은 예외로 일반 파일로 둠
+- 인덱스(`index.ts(x)`)를 제외한 나머지는 폴더 + `index.ts` 형태로 두되, 테스트 파일(`test.ts`, 컴포넌트 통합 테스트는 `test.tsx`)과 스토리 파일(`index.stories.tsx`)은 예외로 일반 파일로 둠
 - **컴포넌트 폴더의 세그먼트(`ui`/`model`/`utils`/`types`/`constants`/`context`) 내부는 예외**: 폴더 + `index.ts`를 다시 쓰지 않고 구현체 이름의 플랫 파일로 둠 (e.g. `ui/LoadingFallback.tsx`, `model/useCalendar.ts`, `constants/errorMessages.ts`). 단위 테스트는 `utils/formatDate.test.ts`처럼 구현 파일 옆에 둠. `shared` 레이어는 기존대로 폴더 + `index.ts`
 - 타입 파일은 항상 `types/` 폴더로 감싸고, `index.ts` 없이 내용을 나타내는 이름으로 분리:
 
@@ -126,6 +126,8 @@ paths:
 ## 컴포넌트 · 훅 · 함수 작성
 
 - 컴포넌트는 `export default function` 형식으로 구현
+- 컴포넌트 위 JSDoc에는 **무엇을 하는 컴포넌트인지 한두 줄**을 두고, 쓰임새 등 필요한 설명도 JSDoc에 둠. 코드 안 인라인 주석은 아래 「주석」을 따름. 스토리북을 가리키는 안내 문장은 쓰지 않음. 스토리가 있는 컴포넌트는 Figma 링크를 `@see` 대신 스토리 `parameters.design`에 둠. 스토리가 없는 페이지(`src/pages`)·유틸은 `@see`로 둠. (`create-story` 스킬, 아래 「주석」)
+- Figma 링크가 여러 개면 대표 프레임은 meta `parameters.design`에, 상태가 명확한 프레임은 해당 스토리의 `parameters.design`에 둠. 부품 프레임이나 어느 스토리에 붙일지 애매한 프레임은 meta `design`을 배열로 바꿔 `{ name, type: "figma", url }`로 두고, 첫 항목을 대표 프레임으로 함. (`create-story` 스킬)
 - 커스텀 훅은 `use*`로 시작하고 **객체 반환** (배열 X — 확장성)
 - 파라미터가 **2개 이상**일 때는 객체 구조 분해로 받기
 
@@ -136,6 +138,12 @@ paths:
     year,
   }: DateFormatHandlerParams) => {};
   ```
+
+## 주석
+
+- JSDoc은 무엇을 하는지·쓰임새를 설명함. 코드 안 인라인 주석은 코드로 드러나지 않는 이유·제약만 적고, 코드를 다시 말하지 않음.
+- 스토리 설명과 내용이 겹쳐도 컴포넌트 주석은 지우지 않음. 스토리가 있는 컴포넌트에서 Storybook으로 옮기는 것은 Figma 링크뿐임.
+- 값 옆의 원본 값 주석(예: `"1.25rem" /* 20px */`의 피그마 px)은 남김.
 
 ## 스타일
 

@@ -16,12 +16,6 @@ interface StepperProps {
 
 /**
  * 여러 항목을 이전·다음으로 하나씩 넘기는 컨트롤.
- *
- * 지금 순서는 쓰는 쪽이 들고 있고, 버튼을 누르면 `onPrev`·`onNext`로 알리기만 해요.
- * 첫 항목에서는 이전 버튼을, 마지막 항목에서는 다음 버튼을 막습니다.
- * 녹음 직후 확인 화면의 하단 바 안에서만 쓰고, 화면에 단독으로 두지 않아요.
- *
- * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=1750-743 Stepper/RecordingDocs}
  */
 export default function Stepper({
   current,
