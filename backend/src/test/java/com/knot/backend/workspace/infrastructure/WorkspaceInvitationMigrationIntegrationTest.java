@@ -25,10 +25,10 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
 
 @Tag("integration")
 @Testcontainers
-class WorkspaceInvitationExpiryMigrationIntegrationTest {
+class WorkspaceInvitationMigrationIntegrationTest {
     @Container
     private static final PostgreSQLContainer POSTGRESQL = new PostgreSQLContainer("pgvector/pgvector:pg18")
-            .withDatabaseName("invitation_expiry_migration")
+            .withDatabaseName("invitation_migration")
             .withUsername("knot")
             .withPassword("knot");
 
@@ -39,7 +39,7 @@ class WorkspaceInvitationExpiryMigrationIntegrationTest {
     }
 
     @Test
-    @DisplayName("확장 migration은 유효·만료·무효 초대의 기존 컬럼과 두 수단의 효력을 보존한다")
+    @DisplayName("FK migration은 유효·만료·무효 초대의 공통 만료와 기존 데이터를 보존한다")
     void migrate_preservesLegacyRows() throws SQLException {
         // given
         execute("""
@@ -61,17 +61,8 @@ class WorkspaceInvitationExpiryMigrationIntegrationTest {
         assertThat(result.success).isTrue();
         assertThat(legacyRows()).isEqualTo(before);
         assertThat(query("""
-                SELECT (code_expires_at = expires_at AND link_token_expires_at = expires_at)::text
-                FROM workspace_invitations ORDER BY id
-                """)).containsExactly(
-                "true",
-                "true",
-                "true"
-        );
-        assertThat(query("""
                 SELECT (invalidated_at IS NULL AND '2026-10-03 12:00Z'::timestamptz >= created_at
-                    AND '2026-10-03 12:00Z'::timestamptz < code_expires_at
-                    AND '2026-10-03 12:00Z'::timestamptz < link_token_expires_at)::text
+                    AND '2026-10-03 12:00Z'::timestamptz < expires_at)::text
                 FROM workspace_invitations ORDER BY id
                 """)).containsExactly(
                 "true",
@@ -81,7 +72,7 @@ class WorkspaceInvitationExpiryMigrationIntegrationTest {
     }
 
     @Test
-    @DisplayName("확장 뒤 구 INSERT는 만료 컬럼을 생략해도 기존 24시간 초대를 저장한다")
+    @DisplayName("FK migration 뒤 기존 INSERT는 공통 24시간 만료 초대를 저장한다")
     void insert_acceptsLegacyWriter() throws SQLException {
         // given
         flyway("17").migrate();
@@ -92,26 +83,22 @@ class WorkspaceInvitationExpiryMigrationIntegrationTest {
 
         // then
         assertThat(query("""
-                SELECT (code_expires_at IS NULL AND link_token_expires_at IS NULL
-                    AND expires_at = created_at + INTERVAL '24 hours')::text
+                SELECT (expires_at = created_at + INTERVAL '24 hours')::text
                 FROM workspace_invitations
                 """)).containsExactly("true");
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"code_expires_at = created_at, link_token_expires_at = expires_at",
-            "code_expires_at = expires_at, link_token_expires_at = created_at - INTERVAL '1 second'",
-            "code_expires_at = expires_at, link_token_expires_at = NULL",
-            "code_expires_at = NULL, link_token_expires_at = expires_at"})
-    @DisplayName("DB는 유효 기간 없는 만료와 한쪽만 있는 확장 컬럼을 거부한다")
-    void update_rejectsInvalidExpirations(String assignments) throws SQLException {
+    @ValueSource(strings = {"created_at", "created_at - INTERVAL '1 second'", "created_at + INTERVAL '23 hours'"})
+    @DisplayName("DB는 공통 만료가 생성 시각의 24시간 뒤가 아니면 거부한다")
+    void update_rejectsInvalidExpirations(String expiration) throws SQLException {
         // given
         flyway("17").migrate();
         execute("INSERT INTO workspaces (id, name, created_at) VALUES (1, '제약 팀', CURRENT_TIMESTAMP)");
         insertLegacyInvitation();
 
         // when
-        ThrowingCallable action = () -> execute("UPDATE workspace_invitations SET " + assignments);
+        ThrowingCallable action = () -> execute("UPDATE workspace_invitations SET expires_at = " + expiration);
 
         // then
         assertThatThrownBy(action).isInstanceOf(SQLException.class)
