@@ -381,8 +381,10 @@ class RecordingStartAcceptanceTest {
         // then
         result.andExpect(status().isCreated())
                 .andExpect(jsonPath("$.status").value("RECORDING"));
-        assertThat(responseBody(result).get("recordingId").asLong())
-                .isNotEqualTo(firstRecordingId);
+        assertThat(
+                responseBody(result).get("recordingId")
+                        .asLong()
+        ).isNotEqualTo(firstRecordingId);
         assertThat(countRecordingSessions()).isEqualTo(2);
     }
 
