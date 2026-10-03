@@ -27,8 +27,9 @@ type ButtonSizeToken =
  * - `filled` : 배경이 채워진 기본 버튼
  * - `outline` : 흰 배경에 테두리만 있는 버튼
  * - `accent` : 옅은 강조색 배경에 강조색 글자. `복사됨`처럼 방금 끝난 일을 알릴 때 써요
+ * - `danger` : 경고색 배경. 워크스페이스 나가기처럼 되돌릴 수 없는 동작에 써요
  */
-export type ButtonVariant = "filled" | "outline" | "accent";
+export type ButtonVariant = "filled" | "outline" | "accent" | "danger";
 
 /**
  * 버튼이 그려야 할 상태. prop이 아니라 `isLoading`·`disabled`로 계산해요.
@@ -121,6 +122,20 @@ const buttonAppearance = (theme: Theme) => {
       loading: css`
         background-color: ${theme.sub.accent[100]};
         color: ${theme.sub.accent[500]};
+      `,
+      inactive: css`
+        background-color: ${theme.neutral[200]};
+        color: ${theme.neutral[400]};
+      `,
+    },
+    danger: {
+      active: css`
+        background-color: ${theme.sub.warning[600]};
+        color: ${theme.neutral[0]};
+      `,
+      loading: css`
+        background-color: ${theme.sub.warning[600]};
+        color: ${theme.neutral[0]};
       `,
       inactive: css`
         background-color: ${theme.neutral[200]};

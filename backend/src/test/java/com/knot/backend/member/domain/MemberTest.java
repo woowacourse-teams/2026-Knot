@@ -2,9 +2,14 @@ package com.knot.backend.member.domain;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.NullSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 class MemberTest {
 
@@ -22,6 +27,30 @@ class MemberTest {
         // then
         assertThat(member.getNickname()).isEqualTo("octocat");
         assertThat(member.getProfileImageUrl()).isEqualTo("https://example.com/avatar");
+    }
+
+    @Test
+    @DisplayName("1자와 20자 한글·영어 닉네임 및 괄호·하이픈을 허용한다")
+    void create_success_validNicknameBoundaries() {
+        // given
+        List<String> nicknames = List.of(
+                "a",
+                "가",
+                "a".repeat(20),
+                "가".repeat(20),
+                "(knot)-user"
+        );
+
+        // when & then
+        nicknames.forEach(
+                nickname -> assertThat(
+                        Member.create(
+                                nickname,
+                                null
+                        )
+                                .getNickname()
+                ).isEqualTo(nickname)
+        );
     }
 
     @Test
@@ -58,6 +87,20 @@ class MemberTest {
 
         // then
         assertThat(thrown).isInstanceOf(MemberException.class);
+    }
+
+    @ParameterizedTest
+    @NullSource
+    @ValueSource(strings = {"", " ", "name1", "user_name", "two words", "nickname!"})
+    @DisplayName("허용되지 않은 닉네임 문자가 있으면 member 생성을 거부한다")
+    void create_failure_invalidNicknameCharacters(String nickname) {
+        // when & then
+        assertThatThrownBy(
+                () -> Member.create(
+                        nickname,
+                        null
+                )
+        ).isInstanceOf(MemberException.class);
     }
 
     @Test

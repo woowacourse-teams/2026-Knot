@@ -6,7 +6,9 @@ Knot 저장소의 BE·FE Issue 기획에는 `/knot-issue-planning`을 사용한�
 고위험 작업의 인터뷰에는 `/knot-deep-interview`를 사용하고, 모든 고위험 계약의 압박
 검증에는 `/knot-grill-me`를 사용한다.
 
-`.claude/skills`는 Claude Code용 진입점이다. 판단 규칙의 정본은 `.agents/skills`와
+`.claude/skills`는 Claude Code용 진입점이다. 백엔드 전용 스킬(`knot-commit`, `knot-pr`,
+`knot-api-spec`)의 진입점은 `backend/.claude/skills`이고 정본은 `backend/.agents/skills`다.
+백엔드 작업은 `backend/`에서 시작해야 두 진입점을 함께 발견한다. 판단 규칙의 정본은 `.agents/skills`와
 `docs/harness/issue-planning.md`이며, 실행 결과는 Codex와 동일한
 `harness/issue_planning.py`와 `harness/materialize_adr.py`로 검증한다. Claude 전용 규칙을
 복사해 별도의 정책 정본을 만들지 않는다.

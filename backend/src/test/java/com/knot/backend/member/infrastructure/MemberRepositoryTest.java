@@ -73,6 +73,48 @@ class MemberRepositoryTest {
     }
 
     @Test
+    @DisplayName("탈퇴 시각이 없는 회원은 활성 회원으로 조회된다")
+    void isDeleted_success_activeMember() {
+        // given
+        Member saved = memberRepository.save(
+                Member.create(
+                        "흑곰",
+                        null
+                )
+        );
+
+        // when
+        Member loaded = memberRepository.findById(saved.getId())
+                .orElseThrow();
+
+        // then
+        assertThat(loaded.isDeleted()).isFalse();
+    }
+
+    @Test
+    @DisplayName("탈퇴 시각이 저장된 회원은 탈퇴 상태로 조회된다")
+    void isDeleted_failure_withdrawnMember() {
+        // given
+        Member saved = memberRepository.save(
+                Member.create(
+                        "흑곰",
+                        null
+                )
+        );
+        jdbcTemplate.update(
+                "UPDATE members SET deleted_at = CURRENT_TIMESTAMP WHERE id = ?",
+                saved.getId()
+        );
+
+        // when
+        Member loaded = memberRepository.findById(saved.getId())
+                .orElseThrow();
+
+        // then
+        assertThat(loaded.isDeleted()).isTrue();
+    }
+
+    @Test
     @DisplayName("공백 nickname이면 데이터베이스가 저장을 거부한다")
     void save_failure_blankNickname() {
         // given
