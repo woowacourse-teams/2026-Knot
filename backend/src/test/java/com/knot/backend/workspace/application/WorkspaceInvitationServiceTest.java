@@ -187,7 +187,7 @@ class WorkspaceInvitationServiceTest {
     @Test
     void issue_failure_nonMember() {
         // given
-        when(workspaceRepository.findByIdForUpdate(WORKSPACE_ID)).thenReturn(
+        when(workspaceRepository.findById(WORKSPACE_ID)).thenReturn(
                 Optional.of(
                         Workspace.create(
                                 "Knot 팀",
@@ -222,7 +222,7 @@ class WorkspaceInvitationServiceTest {
     }
 
     private void allowMemberWithLock() {
-        when(workspaceRepository.findByIdForUpdate(WORKSPACE_ID)).thenReturn(
+        when(workspaceRepository.findById(WORKSPACE_ID)).thenReturn(
                 Optional.of(
                         Workspace.create(
                                 "Knot 팀",
