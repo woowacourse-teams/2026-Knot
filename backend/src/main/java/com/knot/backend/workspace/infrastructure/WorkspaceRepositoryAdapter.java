@@ -21,12 +21,12 @@ public class WorkspaceRepositoryAdapter implements WorkspaceRepository {
 
     @Override
     public Optional<Workspace> findById(Long workspaceId) {
-        return workspaceJpaRepository.findById(workspaceId);
+        return workspaceJpaRepository.findByIdAndDeletedAtIsNull(workspaceId);
     }
 
     @Override
     public Optional<Workspace> findByIdForUpdate(Long workspaceId) {
-        return workspaceJpaRepository.findWithLockById(workspaceId);
+        return workspaceJpaRepository.findWithLockByIdAndDeletedAtIsNull(workspaceId);
     }
 
     @Override
