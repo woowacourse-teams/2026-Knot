@@ -28,6 +28,13 @@ Issue 생성 요청을 저장소 전역의 실행 가능한 작업 계약으로 
 4. 확인 가능한 사실을 사용자에게 질문하지 않는다.
 5. 현재 맥락, 구체적인 문제 상황, 선택 필요성, 실제 대안, 최종 선택과 선택 이유마다
    확인 내용과 출처를 기록한다.
+6. `docs/harness/issue-planning.md`의 `Issue 라벨 선택과 게시 후 확인`을 따라 실제 담당자,
+   개발 영역과 작업 성격에 맞는 기존 라벨을 선택한다. `흑곰`, `BE`, `Feature`를 고정값으로
+   사용하지 않는다. 현재 요청에 담당자가 명시되지 않았으면 먼저 "이 이슈의 담당자는
+   누구인가요?"라고 질문하고, 대화 사용자·기존 assignee·과거 작업자로 추정하지 않는다.
+   여러 이슈의 담당자가 같은지도 함께 확인하고, 다른 경우 이슈별로 구분한다. 이미 사용자가
+   담당자를 명시했다면 되묻지 않는다. 답변 전에는 담당자 라벨을 확정·적용하지 않고,
+   독립적인 근거 조사와 영역·작업 유형 판단은 계속한다.
 
 ## 3. 위험 분류
 
@@ -102,6 +109,8 @@ ADR 필요 여부를 판정한다.
    `remote_write_authorized=true`, `issue_url`, `issue_number`를 포함한다.
 10. ADR이 필요하면 실제 Issue 번호로 예정 경로를 확정하고 같은 Issue 본문만 갱신한다.
     생성 이후 본문 갱신이 실패하면 번호와 URL을 보존한 `partial_publish_issue`로 보고한다.
+    실제 게시가 승인된 같은 요청에서는 공통 문서의 라벨 절차로 생성·재사용한 Issue에
+    선택한 기존 라벨을 추가하고 실제 값을 검증한다. 게시기는 라벨을 자동 적용하지 않는다.
     Project 변경, branch, commit, push, PR merge 또는 ADR 파일 생성은 함께 하지 않는다.
 11. `draft`, `hold`, 잘못된 `--repo`에는 원격 호출을 하지 않는다. 승인된 게시 단계의
     검색·생성·갱신 실패는 권한과 성공을 구분해 `remote_write_authorized=true`인 실패로
@@ -131,10 +140,13 @@ python3 harness/materialize_adr.py <snapshot.json> \
 - 계약 판정기의 `status`, `action`, `requested_action`, `remote_write_authorized`,
   `contract_id`를 보고했다.
 - 실제 게시를 수행했다면 `issue_url`과 가능한 경우 `issue_number`를 보고했다.
+- 실제 게시한 Issue의 담당자·영역·작업 유형 라벨을 적용·조회했으며 미확인 담당자나
+  미반영 라벨은 별도로 보고했다. 초안에서는 선택할 라벨만 제시하고 원격을 바꾸지 않았다.
 - ADR 경로가 번호 확정 전인지 실제 Issue 번호로 확정됐는지 보고했다.
 - `hold`의 누락 항목 또는 `pass`의 Issue 본문을 사용자가 확인할 수 있다.
 - dry-run Issue 기획에서는 GitHub, branch, commit과 ADR 파일을 변경하지 않았다.
 - publish Issue 기획에서는 계약 표식 기반 생성·재사용과 ADR 경로 확정을 위한 동일 Issue
-  본문 갱신 외의 원격 변경, branch, commit과 ADR 파일을 변경하지 않았다.
+  본문 갱신, 승인된 같은 요청의 해당 Issue 라벨 추가 외의 원격 변경, branch, commit과
+  ADR 파일을 변경하지 않았다.
 - 구현 요청에서는 필요한 ADR 파일이 `Proposed`로 현재 작업 브랜치에 있고 코드와 같은
   PR의 검토 대상이다.
