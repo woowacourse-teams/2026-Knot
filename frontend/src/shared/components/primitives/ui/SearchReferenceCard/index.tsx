@@ -12,6 +12,7 @@ interface SearchReferenceCardProps {
 /**
  * AI 탐색 답변의 근거가 된 문서를 보여주는 Card UI.
  *
+ * 상태별 모양은 스토리북 `Shared/SearchReferenceCard`에서 확인해요.
  * @see https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=720-563&t=NtCKbgE8RjHqh556-11
  * @see https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=720-573&t=NtCKbgE8RjHqh556-11
  * @see https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=720-584&t=NtCKbgE8RjHqh556-11

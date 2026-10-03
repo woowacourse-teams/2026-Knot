@@ -5,9 +5,8 @@ interface TextareaProps extends ComponentProps<"textarea"> {}
 
 /**
  * 여러 줄 텍스트 입력 UI.
- * 브라우저 기본 스타일만 제거한 primitive 컴포넌트입니다.
- * 배경, 보더, 폰트, 높이 제한은 사용처에서 지정합니다.
  *
+ * 쓰는 법은 스토리북 `Shared/Textarea`에서 확인해요.
  * @see https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=506-7322&t=gJ9xykBAewLJr7bt-11
  */
 

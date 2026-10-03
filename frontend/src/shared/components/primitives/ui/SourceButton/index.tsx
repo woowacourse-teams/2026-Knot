@@ -10,9 +10,7 @@ interface SourceButtonProps extends ComponentProps<"button"> {
 /**
  * 답변의 근거 문서를 여는 버튼.
  *
- * 지금 열려 있는 버튼은 `isSelected`로 채워진 모양이 되며, 이 상태를 `aria-pressed`로도 알립니다.
- * 라벨 문구는 도메인이 정하므로 `children`으로 받습니다.
- *
+ * 상태별 모양은 스토리북 `Shared/SourceButton`에서 확인해요.
  * @see https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=1170-697
  */
 export default function SourceButton({

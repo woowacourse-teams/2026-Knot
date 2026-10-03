@@ -107,11 +107,7 @@ const STATUS_STYLE = {
 /**
  * 단일 줄 텍스트 입력 UI.
  *
- * 값이 비었는지·에러인지를 스스로 판단하지 않고 `status`로 받아 그리기만 해요.
- * 상태 판단은 값을 들고 있는 상위 컴포넌트가 담당합니다.
- *
- * `status`는 색(배경·테두리)만, `variant`는 형태·타이포만 결정하며 서로 독립적으로 조합돼요.
- *
+ * variant·status별 쓰임새와 동작 규칙은 스토리북 `Shared/Input`에서 확인해요.
  * @see https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=424-596 Field/TextField 컴포넌트 세트
  * @see https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=424-595 status=입력 전 (`empty`)
  * @see https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=424-597 status=입력 중 (`filled`)

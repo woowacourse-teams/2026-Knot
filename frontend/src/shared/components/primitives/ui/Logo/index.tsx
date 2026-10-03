@@ -20,14 +20,8 @@ const ASPECT_RATIO = "117.56 / 41.04";
  *
  * SVGR이 `<svg>`에 `width`·`height`를 같은 값으로 박아두기 때문에 그대로 쓰면
  * 정사각형으로 찌그러져요. 그래서 CSS로 덮어쓰고 `aspect-ratio`로 비율을 잡습니다.
- * 이 처리를 화면마다 반복하지 않으려고 컴포넌트로 감쌌어요.
  *
- * 색은 `currentColor`가 아니라 `neutral[800]`로 고정돼 있습니다.
- * 다른 색이 필요하면 `color`를 넘기세요.
- *
- * @example
- * <Logo />
- * <Logo width={5} />
+ * 크기·색을 바꾸는 법은 스토리북 `Shared/Logo`에서 확인해요.
  */
 export default function Logo({ width = 7.0625, ...props }: LogoProps) {
   return (

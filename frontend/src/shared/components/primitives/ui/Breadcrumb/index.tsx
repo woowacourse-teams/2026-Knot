@@ -12,10 +12,7 @@ interface BreadcrumbProps {
 /**
  * 지금 보고 있는 화면이 어디인지 보여주는 2단 경로.
  *
- * `문서 › 회원 탈퇴 정책`처럼 위 단계와 지금 항목만 그려요.
- * 위치를 보여주기만 하므로 위 단계를 눌러도 이동하지 않습니다.
- * 지금 항목은 놓인 자리의 폭을 넘으면 한 줄에서 말줄임돼요.
- *
+ * 동작 규칙은 스토리북 `Shared/Breadcrumb`에서 확인해요.
  * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=1814-16211 Doc/Breadcrumb}
  */
 export default function Breadcrumb({ parent, current }: BreadcrumbProps) {

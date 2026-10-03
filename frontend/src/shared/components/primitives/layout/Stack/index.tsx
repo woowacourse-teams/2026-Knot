@@ -44,29 +44,7 @@ const JUSTIFY = {
 /**
  * 자식을 세로로 쌓는 레이아웃 프리미티브.
  *
- * `display: flex`와 `flex-direction: column`을 매번 적는 대신 씁니다.
- * 가로로 나열할 때는 `Row`를 쓰세요.
- *
- * ## `gap`과 `Spacing` 중 무엇을 쓸까
- *
- * - `gap`: 자식들이 **모두 같은 간격**으로 나열될 때. 리스트, 카드 목록, 폼 필드 여러 개.
- *   자식이 조건부로 사라지면 간격도 함께 사라져요.
- * - `Spacing`: 간격이 **자리마다 다를 때**. 여러 개의 `gap`을 만들려고 그룹 `div`를
- *   겹겹이 만드는 상황이면 `Spacing`이 읽기 쉬워요.
- *
- * @example 같은 간격 — gap
- * <Stack gap={1}>
- *   {todos.map((todo) => <TodoItem key={todo.id} {...todo} />)}
- * </Stack>
- *
- * @example 자리마다 다른 간격 — Spacing
- * <Stack align="center">
- *   <Logo />
- *   <Spacing size={2.5} />
- *   <Title />
- *   <Spacing size={4.5} />
- *   <Button />
- * </Stack>
+ * `gap`과 `Spacing` 중 무엇을 쓸지 등 자세한 내용은 스토리북 `Shared/Layout/Stack`에서 확인해요.
  */
 export default function Stack({ align, justify, gap, ...props }: StackProps) {
   return <Root $align={align} $justify={justify} $gap={gap} {...props} />;

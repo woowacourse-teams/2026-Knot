@@ -9,10 +9,7 @@ interface ChipProps extends HTMLAttributes<HTMLSpanElement> {
 /**
  * 짧은 정보를 담는 작은 칩.
  *
- * 받은 글자를 그대로 보여줘요. 녹음 길이처럼 값을 바꿔야 하면
- * `<Chip>{formatDurationFromSeconds(durationSeconds)}</Chip>`처럼 바꾼 결과를 넘깁니다.
- * 다른 요소 옆에 붙여 쓰므로 간격은 쓰는 쪽이 정해요.
- *
+ * 사용 예시는 스토리북 `Shared/Chip`에서 확인해요.
  * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=2062-7288 Chip/Duration}
  */
 export default function Chip({ children, ...props }: ChipProps) {

@@ -18,10 +18,7 @@ interface AvatarProps {
 /**
  * 원형 아바타.
  *
- * 프로필 이미지 → 이름 첫 글자 → 기본 글리프 순으로 그릴 수 있는 것을 그려요.
- * 이미지 주소를 받았더라도 불러오기에 실패하면 첫 글자로 내려가므로,
- * GitHub 프로필 이미지가 없거나 주소가 깨져도 빈 원이 남지 않아요.
- *
+ * 무엇을 어떤 순서로 그리는지는 스토리북 `Shared/Avatar`에서 확인해요.
  * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=587-516 Avatar}
  */
 export default function Avatar({
