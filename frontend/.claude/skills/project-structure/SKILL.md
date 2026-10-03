@@ -50,6 +50,7 @@ src/
 │   │   │   └── {domain}Context.tsx
 │   │   ├── types/
 │   │   │   └── {domain}.ts
+│   │   ├── index.stories.tsx        # 스토리북 스토리
 │   │   └── test.tsx                 # 통합 테스트
 │   │
 │   └── features/{domain}/BComponent/
@@ -91,7 +92,8 @@ src/
 │   │   ├── primitives/
 │   │   │   ├── ui/
 │   │   │   │   └── Button/
-│   │   │   │       └── index.tsx
+│   │   │   │       ├── index.tsx
+│   │   │   │       └── index.stories.tsx  # 스토리북 스토리
 │   │   │   ├── layout/
 │   │   │   └── animation/
 │   │   └── composites/
