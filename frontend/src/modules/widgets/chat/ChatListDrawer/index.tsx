@@ -6,14 +6,7 @@ import { useParams } from "react-router";
 import PlusIcon from "@/assets/icons/plus.svg";
 
 /**
- * 대화 목록 드로어.
- *
- * GNB 좌측의 목록 버튼이 여닫으며, 탐색 화면에서만 열 수 있어요.
- * 스쳐 지나가면 겹쳐 뜨고 누르면 왼쪽에 자리를 잡는데, 그 판단은 감싸는 `DockablePanel`이 해요.
- *
- * 목록 자체는 `ChatSessionList`가 그대로 그리고, 여기서는 드로어 껍데기와 새 채팅 버튼만 얹어요.
- *
- * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=526-772 탐색 결과/채팅 세션 목록}
+ * 대화 목록 드로어. 목록은 `ChatSessionList`가 그리고, 여기서는 드로어 껍데기와 새 채팅 버튼만 얹어요.
  */
 export default function ChatListDrawer() {
   const { workspaceId } = useParams();
@@ -30,8 +23,7 @@ export default function ChatListDrawer() {
       <DrawerHead>
         <Title>대화</Title>
         <NewChatButton type="button" onClick={handleStartNewChat}>
-          <PlusIcon size={14} />
-          새 채팅
+          <PlusIcon size={14} />새 채팅
         </NewChatButton>
       </DrawerHead>
 
@@ -53,7 +45,6 @@ const Container = styled.aside`
   box-shadow: ${({ theme }) => theme.shadow03};
 `;
 
-/** @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=1379-8238 DrawerHead} */
 const DrawerHead = styled.div`
   display: flex;
   flex-shrink: 0;
@@ -67,7 +58,6 @@ const Title = styled.h2`
   ${({ theme }) => theme.text.label01};
 `;
 
-/** @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=1379-8240 Btn/새채팅} */
 const NewChatButton = styled.button`
   display: flex;
   flex-shrink: 0;
