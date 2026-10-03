@@ -43,16 +43,6 @@ public class WorkspaceInvitationRepositoryAdapter implements WorkspaceInvitation
         return workspaceInvitationJpaRepository.findByInviteCodeHash(inviteCodeHash);
     }
 
-    @Override
-    public Optional<Long> findWorkspaceIdByLinkTokenHash(String linkTokenHash) {
-        return workspaceInvitationJpaRepository.findWorkspaceIdByLinkTokenHash(linkTokenHash);
-    }
-
-    @Override
-    public Optional<Long> findWorkspaceIdByInviteCodeHash(String inviteCodeHash) {
-        return workspaceInvitationJpaRepository.findWorkspaceIdByInviteCodeHash(inviteCodeHash);
-    }
-
     private boolean isSecretUniqueConstraintViolation(Throwable exception) {
         Throwable cause = exception;
         while (cause != null) {

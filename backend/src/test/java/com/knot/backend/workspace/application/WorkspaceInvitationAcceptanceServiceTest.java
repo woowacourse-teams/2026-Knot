@@ -73,8 +73,6 @@ class WorkspaceInvitationAcceptanceServiceTest {
                         CODE
                 )
         ).thenReturn(CODE_HASH);
-        when(workspaceInvitationRepository.findWorkspaceIdByInviteCodeHash(CODE_HASH))
-                .thenReturn(Optional.of(WORKSPACE_ID));
         when(workspaceRepository.findByIdForUpdate(WORKSPACE_ID)).thenReturn(Optional.of(workspace()));
         when(workspaceInvitationRepository.findByInviteCodeHash(CODE_HASH)).thenReturn(Optional.of(invitation));
         when(
@@ -113,11 +111,9 @@ class WorkspaceInvitationAcceptanceServiceTest {
                 workspaceMemberRepository
         );
         inOrder.verify(workspaceInvitationRepository)
-                .findWorkspaceIdByInviteCodeHash(CODE_HASH);
+                .findByInviteCodeHash(CODE_HASH);
         inOrder.verify(workspaceRepository)
                 .findByIdForUpdate(WORKSPACE_ID);
-        inOrder.verify(workspaceInvitationRepository)
-                .findByInviteCodeHash(CODE_HASH);
         inOrder.verify(workspaceMemberRepository)
                 .existsByWorkspaceIdAndMemberId(
                         WORKSPACE_ID,
@@ -137,8 +133,6 @@ class WorkspaceInvitationAcceptanceServiceTest {
                         LINK_TOKEN
                 )
         ).thenReturn(LINK_TOKEN_HASH);
-        when(workspaceInvitationRepository.findWorkspaceIdByLinkTokenHash(LINK_TOKEN_HASH))
-                .thenReturn(Optional.of(WORKSPACE_ID));
         when(workspaceRepository.findByIdForUpdate(WORKSPACE_ID)).thenReturn(Optional.of(workspace()));
         when(workspaceInvitationRepository.findByLinkTokenHash(LINK_TOKEN_HASH)).thenReturn(Optional.of(invitation));
         when(
@@ -172,8 +166,6 @@ class WorkspaceInvitationAcceptanceServiceTest {
                         CODE
                 )
         ).thenReturn(CODE_HASH);
-        when(workspaceInvitationRepository.findWorkspaceIdByInviteCodeHash(CODE_HASH))
-                .thenReturn(Optional.of(WORKSPACE_ID));
         when(workspaceRepository.findByIdForUpdate(WORKSPACE_ID)).thenReturn(Optional.of(workspace()));
         when(workspaceInvitationRepository.findByInviteCodeHash(CODE_HASH)).thenReturn(Optional.of(invitation));
         when(
@@ -221,9 +213,9 @@ class WorkspaceInvitationAcceptanceServiceTest {
         verifyNoInteractions(secretProtector);
     }
 
-    @DisplayName("초기 조회 후 재발급으로 초대가 사라지면 멤버십을 만들지 않고 초대 없음으로 응답한다")
+    @DisplayName("초대가 없으면 멤버십을 만들지 않고 초대 없음으로 응답한다")
     @Test
-    void accept_failure_invitationReissuedAfterWorkspaceLookup() {
+    void accept_failure_invitationNotFound() {
         // given
         when(
                 secretProtector.hash(
@@ -231,9 +223,6 @@ class WorkspaceInvitationAcceptanceServiceTest {
                         CODE
                 )
         ).thenReturn(CODE_HASH);
-        when(workspaceInvitationRepository.findWorkspaceIdByInviteCodeHash(CODE_HASH))
-                .thenReturn(Optional.of(WORKSPACE_ID));
-        when(workspaceRepository.findByIdForUpdate(WORKSPACE_ID)).thenReturn(Optional.of(workspace()));
         when(workspaceInvitationRepository.findByInviteCodeHash(CODE_HASH)).thenReturn(Optional.empty());
 
         // when
@@ -272,9 +261,6 @@ class WorkspaceInvitationAcceptanceServiceTest {
                         CODE
                 )
         ).thenReturn(CODE_HASH);
-        when(workspaceInvitationRepository.findWorkspaceIdByInviteCodeHash(CODE_HASH))
-                .thenReturn(Optional.of(WORKSPACE_ID));
-        when(workspaceRepository.findByIdForUpdate(WORKSPACE_ID)).thenReturn(Optional.of(workspace()));
         when(workspaceInvitationRepository.findByInviteCodeHash(CODE_HASH)).thenReturn(Optional.of(invitation));
 
         // when

@@ -9,8 +9,4 @@ public interface WorkspaceInvitationRepository {
     Optional<WorkspaceInvitation> findByLinkTokenHash(String linkTokenHash);
 
     Optional<WorkspaceInvitation> findByInviteCodeHash(String inviteCodeHash);
-
-    Optional<Long> findWorkspaceIdByLinkTokenHash(String linkTokenHash);
-
-    Optional<Long> findWorkspaceIdByInviteCodeHash(String inviteCodeHash);
 }
