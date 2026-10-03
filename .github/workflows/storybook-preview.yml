@@ -1,0 +1,130 @@
+name: Storybook Preview
+
+# Storybook을 Cloudflare Pages에 배포해요.
+# - PR: 브랜치별 주소에 배포하고 PR 본문에 주소를 남겨요. 리뷰어가 playground 없이 바로 조작해 볼 수 있어요.
+# - develop 머지: 상시 확인용 주소를 develop 최신 코드로 갱신해요.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    # Storybook 화면이 달라지는 변경에만 배포해요 (API·유틸·페이지만 바꾼 PR은 건너뛰어요)
+    paths: &storybook-paths
+      - "frontend/**/*.stories.tsx"
+      - "frontend/src/shared/components/**"
+      - "frontend/src/modules/**"
+      - "frontend/src/shared/provider/themeProvider/**"
+      - "frontend/src/assets/**"
+      - "frontend/.storybook/**"
+      - "frontend/package.json"
+      - "frontend/pnpm-lock.yaml"
+      - ".github/workflows/storybook-preview.yml"
+      # 테스트 파일만 바뀐 PR은 화면이 같으므로 제외해요
+      - "!frontend/**/test.tsx"
+      - "!frontend/**/*.test.ts"
+  push:
+    branches:
+      - develop
+    paths: *storybook-paths
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: storybook-preview-${{ github.event.pull_request.number || github.ref_name }}
+  cancel-in-progress: true
+
+env:
+  PAGES_PROJECT: knot-storybook
+
+jobs:
+  deploy:
+    # fork PR에는 Cloudflare 시크릿이 없으므로 같은 저장소의 브랜치만 배포해요
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          package_json_file: frontend/package.json
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Storybook
+        run: pnpm build-storybook --quiet
+
+      # 시크릿이 가리키는 계정에 Pages 프로젝트가 없으면 만들어요. 이미 있으면 실패하지만 넘어가요
+      - name: Create Pages project if missing
+        continue-on-error: true
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_PAGES_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: frontend
+          packageManager: pnpm
+          command: pages project create ${{ env.PAGES_PROJECT }} --production-branch=develop
+
+      - name: Deploy to Cloudflare Pages
+        id: deploy
+        uses: cloudflare/wrangler-action@v3
+        with:
+          # FE 배포 토큰과 분리한, Cloudflare Pages Edit 권한만 가진 토큰이에요
+          apiToken: ${{ secrets.CLOUDFLARE_PAGES_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: frontend
+          packageManager: pnpm
+          # PR은 브랜치별 별칭 주소(<브랜치>.knot-storybook.pages.dev)에, develop은 상시 주소에 올라가요
+          command: pages deploy storybook-static --project-name=${{ env.PAGES_PROJECT }} --branch=${{ github.head_ref || github.ref_name }}
+
+      - name: Write preview URL to PR description
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        env:
+          ALIAS_URL: ${{ steps.deploy.outputs.pages-deployment-alias-url }}
+          DEPLOYMENT_URL: ${{ steps.deploy.outputs.deployment-url }}
+        with:
+          script: |
+            const START = "<!-- storybook-preview:start -->";
+            const END = "<!-- storybook-preview:end -->";
+            const url = process.env.ALIAS_URL || process.env.DEPLOYMENT_URL;
+            const sha = context.payload.pull_request.head.sha.slice(0, 7);
+            const block = [
+              START,
+              "### Storybook",
+              "",
+              `- ${url} (\`${sha}\` 기준, 푸시할 때마다 갱신)`,
+              END,
+            ].join("\n");
+
+            // 작성자가 쓴 본문은 건드리지 않고, 표식 사이의 블록만 바꾸거나 맨 끝에 붙여요
+            const { data: pr } = await github.rest.pulls.get({
+              ...context.repo,
+              pull_number: context.issue.number,
+            });
+            const body = pr.body ?? "";
+            const pattern = new RegExp(`${START}[\\s\\S]*?${END}`);
+            const nextBody = pattern.test(body)
+              ? body.replace(pattern, block)
+              : `${body.trimEnd()}\n\n${block}\n`;
+
+            await github.rest.pulls.update({
+              ...context.repo,
+              pull_number: context.issue.number,
+              body: nextBody,
+            });

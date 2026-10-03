@@ -11,8 +11,6 @@ interface ChatSessionRowProps {
  * 대화 목록의 한 줄. 대화 제목과 마지막으로 오간 시각을 보여줍니다.
  *
  * 지금 보고 있는 대화는 `isSelected`로 채워진 모양이 되며, 이 상태를 `aria-current`로도 알립니다.
- *
- * @see https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=1379-8248 SessionRow
  */
 export default function ChatSessionRow({
   title,

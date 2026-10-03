@@ -16,12 +16,6 @@ interface WorkspaceGnbProps {
 
 /**
  * 워크스페이스 전역 상단바(GNB).
- *
- * 배경 없이 본문 위에 떠 있고, 좌측 패널 트리거 · 가운데 내비 필 · 우측 프로필 아바타로 나뉘어요.
- * 좌우 영역이 같은 비율로 늘어나 내비 필이 늘 화면 한가운데에 놓여요.
- *
- * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=1364-6863 GNB/Floating nav=홈}
- * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=1364-7028 GNB/Floating nav=탐색}
  */
 export default function WorkspaceGnb({ children }: WorkspaceGnbProps) {
   return (

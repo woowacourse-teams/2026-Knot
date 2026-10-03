@@ -24,12 +24,6 @@ interface ConfirmDialogProps extends Omit<
 
 /**
  * 동작 전에 묻는 확인 모달 카드.
- *
- * 제목·안내와 보조(왼쪽)·주(오른쪽) 버튼 두 개를 같은 폭으로 그려요.
- * 화면 가운데 띄우기·ESC·포커스 가두기 같은 동작은 없어서,
- * 쓰는 쪽이 `Dim` 위에 올리고 `role`·`aria-*`도 함께 넘겨요.
- *
- * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=2024-11427 Dialog 유형=확인}
  */
 export default function ConfirmDialog({
   title,
