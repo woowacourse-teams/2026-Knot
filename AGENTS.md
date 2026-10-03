@@ -5,6 +5,8 @@
 제품 요구사항을 사용하는 Issue 기획·구현·리뷰 전에
 [현재 V2 MVP 기획 기준](docs/product/current-v2-mvp.md)을 읽고, 작업 항목에 해당하는
 원문과 적용 범위를 확인한다. 출처 충돌·미확정·접근 불가 시 처리도 이 문서를 따른다.
+Notion 후보와 저장소 문서·GitHub Issue·실제 구현을 대조하고 queue 상태를 처리할 때는
+[Notion 정합성 워크플로](docs/harness/notion-alignment.md)를 따른다.
 
 ## 적용 범위와 우선순위
 
@@ -34,7 +36,9 @@ Knot의 GitHub Issue 생성·초안·검토 요청에는 `$knot-issue-planning`�
 `python3 harness/issue_planning.py <snapshot.json> --publish --repo OWNER/REPO --pretty`를
 실행할 수 있다. 게시기는 계약 표식으로 기존 Issue를 먼저 찾아 하나면 재사용하고, 둘 이상이면
 중복 해소 전까지 멈춘다. `gh issue edit`는 ADR 예정 경로를 실제 Issue 번호로 확정하기 위해
-방금 생성하거나 재사용한 동일 Issue의 본문을 갱신할 때만 허용한다. Project 변경, branch,
+방금 생성하거나 재사용한 동일 Issue의 본문을 갱신하거나, 승인된 같은 게시 요청에서 해당
+Issue에 확인된 기존 라벨을 추가할 때만 허용한다. 라벨은 [공통 라벨 선택 규칙](docs/harness/issue-planning.md#issue-라벨-선택과-게시-후-확인)을
+따라 실제 담당자·영역·작업 성격으로 선택하며 대화 사용자를 담당자로 고정하지 않는다. Project 변경, branch,
 commit, push, PR merge와 ADR 파일 생성은 함께 실행하지 않는다. `draft` 또는 `hold` 계약은
 `--publish`가 있어도 GitHub에 쓰지 않는다.
 

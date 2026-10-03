@@ -246,7 +246,7 @@ class FlywayMigrationUpgradeIntegrationTest {
                 """)).isTrue();
 
         // when
-        Flyway currentFlyway = configureFlyway();
+        Flyway currentFlyway = configureFlyway(MigrationVersion.fromVersion("14"));
         MigrateResult cleanupResult = currentFlyway.migrate();
 
         // then
@@ -309,7 +309,7 @@ class FlywayMigrationUpgradeIntegrationTest {
                 .cleanDisabled(false)
                 .load();
         cleanableFlyway.clean();
-        Flyway freshFlyway = configureFlyway();
+        Flyway freshFlyway = configureFlyway(MigrationVersion.fromVersion("14"));
 
         // when
         MigrateResult freshResult = freshFlyway.migrate();

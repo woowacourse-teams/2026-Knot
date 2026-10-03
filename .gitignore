@@ -13,5 +13,15 @@ __pycache__/
 /backend/.omo/
 /backend/src/main/resources/application-local.properties
 
+# Local files currently excluded from staging
+/.playwright-cli/
+/backend/.playwright-cli/
+/output/playwright/
+/tools/
+/backend/docs/api-persona-harness-plan.md
+/docs/api-endpoint-contracts.md
+/docs/api-reference.md
+/docs/realtime-document-collaboration-proposal.md
+
 # Local Notion exports and LLM benchmark results
 /.benchmark-data/
