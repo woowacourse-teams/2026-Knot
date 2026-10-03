@@ -1,0 +1,71 @@
+import useMicrophoneUnavailableDialog from "@hooks/domain/recording/useMicrophoneUnavailableDialog";
+import useNavigateToRecording from "@hooks/domain/recording/useNavigateToRecording";
+import useRecording from "@hooks/domain/recording/useRecording";
+import { PATH_ROUTE } from "@routes/PATH_ROUTE";
+import { useEffect } from "react";
+import { useMatch, useParams } from "react-router";
+
+/**
+ * 독의 회의 녹음(마이크) 슬롯을 다룹니다.
+ *
+ * 마이크를 누르면 녹음 화면에 들어가기 전에 마이크 권한을 받아 녹음을 시작하고, 받으면 녹음 화면으로 가요.
+ * 받지 못하면 [다시 시도]/[닫기] 모달을 띄우고 지금 화면에 남아요.
+ * 이미 녹음 중이면 권한을 다시 묻지 않고 녹음 화면으로 가기만 해요.
+ * 녹음 화면에서는 갈 곳이 없어 마이크를 숨겨요.
+ *
+ * 독은 어느 화면에서나 떠 있으므로, 녹음 중에 마이크가 끊겼다는 알림도 여기서 같은 모달로 띄워요.
+ * 녹음은 저장소가 이미 일시정지해 두었고, [다시 시도]는 마이크를 다시 받아 이어 가요.
+ */
+export const useDockRecording = () => {
+  const { workspaceId } = useParams();
+  const isRecordingPageActive = useMatch(PATH_ROUTE.RECORDING) !== null;
+  const { navigateToRecording } = useNavigateToRecording();
+  const { openMicrophoneUnavailableDialog } = useMicrophoneUnavailableDialog();
+  const {
+    isRecordingActive,
+    isMicrophoneLost,
+    startRecording,
+    resumeRecording,
+    acknowledgeMicrophoneLost,
+  } = useRecording();
+
+  // 녹음 중 마이크가 끊기면 다시 시도 모달을 띄워요
+  useEffect(() => {
+    if (!isMicrophoneLost) return;
+
+    // 알림은 한 번만 띄우도록 바로 확인 처리해요. 녹음은 일시정지로 남아요
+    acknowledgeMicrophoneLost();
+
+    const retryResume = async () => {
+      const isResumed = await resumeRecording();
+      if (isResumed) return;
+
+      openMicrophoneUnavailableDialog({ onRetry: retryResume });
+    };
+
+    openMicrophoneUnavailableDialog({ onRetry: retryResume });
+  }, [
+    acknowledgeMicrophoneLost,
+    isMicrophoneLost,
+    openMicrophoneUnavailableDialog,
+    resumeRecording,
+  ]);
+
+  const handleMicClick = async () => {
+    if (!workspaceId) return;
+
+    const isStarted = await startRecording();
+    if (!isStarted) {
+      openMicrophoneUnavailableDialog({ onRetry: handleMicClick });
+      return;
+    }
+
+    navigateToRecording(workspaceId);
+  };
+
+  return {
+    isMicVisible: !isRecordingPageActive,
+    micLabel: isRecordingActive ? "녹음 화면으로 이동" : "회의 녹음 시작",
+    handleMicClick,
+  };
+};

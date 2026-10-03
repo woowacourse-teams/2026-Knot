@@ -16,6 +16,7 @@ import type { ChatNavigationState } from "@/shared/types/chat";
 
 import WorkspaceDock from "@widgets/workspace/WorkspaceDock";
 import { ChatStreamProvider } from "@provider/context/chatStreamContext";
+import { DialogProvider } from "@provider/context/dialogContext";
 
 import ChatPanel from ".";
 
@@ -110,10 +111,12 @@ const renderChatPanel = (
     <ThemeProvider theme={theme}>
       <QueryClientProvider client={queryClient}>
         <MemoryRouter initialEntries={[initialEntry]}>
-          <Routes>
-            <Route path={PATH_ROUTE.CHAT} element={screenElement} />
-            <Route path={PATH_ROUTE.CHAT_SESSION} element={screenElement} />
-          </Routes>
+          <DialogProvider>
+            <Routes>
+              <Route path={PATH_ROUTE.CHAT} element={screenElement} />
+              <Route path={PATH_ROUTE.CHAT_SESSION} element={screenElement} />
+            </Routes>
+          </DialogProvider>
         </MemoryRouter>
       </QueryClientProvider>
     </ThemeProvider>,
