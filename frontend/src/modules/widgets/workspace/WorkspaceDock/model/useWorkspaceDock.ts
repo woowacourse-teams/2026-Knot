@@ -1,7 +1,6 @@
 import useNavigateToChat from "@hooks/domain/chat/useNavigateToChat";
 import useOutsideClick from "@hooks/common/useOutsideClick";
 import useWorkspaceNav from "@hooks/domain/workspace/useWorkspaceNav";
-import { useChatStreamContext } from "@provider/context/chatStreamContext";
 import {
   useCallback,
   useEffect,
@@ -24,17 +23,13 @@ import { useTypeToStartChat } from "./useTypeToStartChat";
  * 독 바깥을 누르면 다시 접힙니다. 적던 글은 지우지 않고 들고 있다가 다시 열 때 그대로 돌려줘요.
  * 탐색 화면은 채팅이 곧 화면 자체라 독을 늘 펼쳐 둡니다. 그래서 그 화면에서는 접히지 않고 입력만 비워져요.
  *
- * 이 독이 탐색 화면의 입력창이기도 합니다. 탐색에서 보낸 질문은 보고 있던 대화에 그대로 이어 붙고,
- * 홈에서 보낸 질문은 탐색 화면으로 옮겨 가며 실려 갑니다. 답변이 오는 동안에는 또 보내지 못합니다.
- * 서버가 같은 세션의 동시 스트림을 409로 거절하기 때문입니다.
- * 보내지 못했을 때의 안내는 독이 아니라 대화가 놓인 채팅 패널이 보여 줍니다. 독은 화면마다 따라다니므로
- * 여기에 붙이면 홈으로 나가도 실패 문구가 같이 따라옵니다.
+ * 홈에서 보낸 질문은 탐색 화면으로 옮겨 가며 실려 갑니다.
+ * 탐색 화면에서 보낸 질문은 아직 받을 곳이 없어 입력만 비웁니다. 탐색 v2에서 대화 스트림과 다시 연결합니다.
  */
 export const useWorkspaceDock = () => {
   const { workspaceId } = useParams();
   const { navigateToChat } = useNavigateToChat();
   const { isChatActive } = useWorkspaceNav();
-  const { isSending, handleSubmitQuestion } = useChatStreamContext();
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [isExpandedByUser, setIsExpandedByUser] = useState(false);
@@ -43,7 +38,7 @@ export const useWorkspaceDock = () => {
   const [focusRequestCount, setFocusRequestCount] = useState(0);
 
   const isExpanded = isChatActive || isExpandedByUser;
-  const canSubmit = message.trim().length > 0 && !isSending;
+  const canSubmit = message.trim().length > 0;
 
   const { isHintVisible } = useDockHint({ isDockExpanded: isExpanded });
 
@@ -109,9 +104,8 @@ export const useWorkspaceDock = () => {
 
     const question = message.trim();
 
-    // 이미 탐색 화면이면 옮겨 갈 곳이 없어요. 보던 대화에 그대로 이어 보내고 입력만 비웁니다
+    // 이미 탐색 화면이면 옮겨 갈 곳이 없어요. 입력만 비웁니다
     if (isChatActive) {
-      handleSubmitQuestion(question);
       setMessage("");
       // 버튼을 눌러 보냈다면 커서가 버튼에 가 있으므로 이어서 적을 수 있게 되돌려 놔요
       requestFocus();

@@ -263,8 +263,8 @@ class FlywayMigrationUpgradeIntegrationTest {
     }
 
     @Test
-    @DisplayName("V13 기존 데이터를 보존하며 V18로 업그레이드한다")
-    void migrate_success_preservesRetainedDataThroughV18() throws SQLException {
+    @DisplayName("V13 기존 데이터를 보존하며 V17로 업그레이드한다")
+    void migrate_success_preservesRetainedDataThroughV17() throws SQLException {
         // given
         configureFlyway(MigrationVersion.fromVersion("13")).migrate();
         insertImportRun(
@@ -273,7 +273,7 @@ class FlywayMigrationUpgradeIntegrationTest {
         );
 
         // when
-        Flyway currentFlyway = configureFlyway();
+        Flyway currentFlyway = configureFlyway(MigrationVersion.fromVersion("17"));
         MigrateResult cleanupResult = currentFlyway.migrate();
 
         // then
@@ -293,8 +293,8 @@ class FlywayMigrationUpgradeIntegrationTest {
                 "13",
                 "14",
                 "15",
-                "17",
-                "18"
+                "16",
+                "17"
         );
         List<String> tablesAfterCleanup = schemaObjectNames("""
                 SELECT table_name
@@ -354,8 +354,8 @@ class FlywayMigrationUpgradeIntegrationTest {
     }
 
     @Test
-    @DisplayName("빈 스키마에 V18까지 전체 마이그레이션을 적용한다")
-    void migrate_success_freshSchemaToV18() throws SQLException {
+    @DisplayName("빈 스키마에 V17까지 전체 마이그레이션을 적용한다")
+    void migrate_success_freshSchemaToV17() throws SQLException {
         // given
         Flyway cleanableFlyway = Flyway.configure()
                 .dataSource(
@@ -367,7 +367,7 @@ class FlywayMigrationUpgradeIntegrationTest {
                 .cleanDisabled(false)
                 .load();
         cleanableFlyway.clean();
-        Flyway freshFlyway = configureFlyway();
+        Flyway freshFlyway = configureFlyway(MigrationVersion.fromVersion("17"));
 
         // when
         MigrateResult freshResult = freshFlyway.migrate();
@@ -389,8 +389,8 @@ class FlywayMigrationUpgradeIntegrationTest {
                 "13",
                 "14",
                 "15",
-                "17",
-                "18"
+                "16",
+                "17"
         );
         List<String> freshTables = schemaObjectNames("""
                 SELECT table_name
