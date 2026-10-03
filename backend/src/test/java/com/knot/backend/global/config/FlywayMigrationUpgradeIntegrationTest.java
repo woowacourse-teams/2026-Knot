@@ -328,8 +328,8 @@ class FlywayMigrationUpgradeIntegrationTest {
     }
 
     @Test
-    @DisplayName("빈 스키마를 V15까지 생성하고 녹음 테이블과 기존 유지 테이블을 구성한다")
-    void migrate_success_freshSchemaToV15() throws SQLException {
+    @DisplayName("빈 스키마를 V17까지 생성하고 녹음 테이블과 기존 유지 테이블을 구성한다")
+    void migrate_success_freshSchemaToV17() throws SQLException {
         // given
         Flyway freshFlyway = configureFlyway();
 
@@ -338,7 +338,7 @@ class FlywayMigrationUpgradeIntegrationTest {
 
         // then
         assertThat(freshResult.success).isTrue();
-        assertThat(freshResult.migrationsExecuted).isEqualTo(13);
+        assertThat(freshResult.migrationsExecuted).isEqualTo(15);
         assertThat(appliedVersions(freshFlyway)).containsExactly(
                 "1",
                 "2",
@@ -352,7 +352,9 @@ class FlywayMigrationUpgradeIntegrationTest {
                 "12",
                 "13",
                 "14",
-                "15"
+                "15",
+                "16",
+                "17"
         );
         List<String> freshTables = schemaObjectNames("""
                 SELECT table_name
@@ -386,15 +388,15 @@ class FlywayMigrationUpgradeIntegrationTest {
     }
 
     @Test
-    @DisplayName("V14의 기존 사용자 데이터를 보존하면서 V15 녹음 스키마를 추가한다")
-    void migrate_success_v14ToV15() throws SQLException {
+    @DisplayName("V16의 기존 사용자 데이터를 보존하면서 V17 녹음 스키마를 추가한다")
+    void migrate_success_v16ToV17() throws SQLException {
         // given
         configureFlyway(MigrationVersion.fromVersion("13")).migrate();
         insertImportRun(
                 "recording-upgrade",
                 "RUNNING"
         );
-        configureFlyway(MigrationVersion.fromVersion("14")).migrate();
+        configureFlyway(MigrationVersion.fromVersion("16")).migrate();
         Flyway currentFlyway = configureFlyway();
 
         // when
@@ -403,7 +405,7 @@ class FlywayMigrationUpgradeIntegrationTest {
         // then
         assertThat(result.success).isTrue();
         assertThat(result.migrationsExecuted).isEqualTo(1);
-        assertThat(appliedVersions(currentFlyway)).endsWith("15");
+        assertThat(appliedVersions(currentFlyway)).endsWith("17");
         assertThat(queryBoolean("SELECT EXISTS (SELECT 1 FROM members)")).isTrue();
         assertThat(queryBoolean("SELECT EXISTS (SELECT 1 FROM workspaces)")).isTrue();
         assertThat(queryBoolean("SELECT EXISTS (SELECT 1 FROM workspace_members)")).isTrue();

@@ -53,9 +53,13 @@ class JwtProviderTest {
     @DisplayName("OAuth 사용자 정보로 닉네임 토큰을 발급하고 다시 복원한다")
     void issueAndAuthenticateNickname_success() {
         // given
+        Instant issuedAt = Instant.parse("2026-10-01T00:00:00Z");
         JwtProvider provider = new JwtProvider(
                 properties(Duration.ofHours(1)),
-                Clock.systemUTC()
+                Clock.fixed(
+                        issuedAt,
+                        ZoneOffset.UTC
+                )
         );
         OAuthUser oauthUser = OAuthUser.of(
                 OAuthProvider.GITHUB,
@@ -68,7 +72,10 @@ class JwtProviderTest {
         OAuthUser result = provider.authenticateNickname(token);
 
         // then
-        assertThat(result).isEqualTo(oauthUser);
+        assertThat(result.getProvider()).isEqualTo(oauthUser.getProvider());
+        assertThat(result.getExternalId()).isEqualTo(oauthUser.getExternalId());
+        assertThat(result.getProfileImageUrl()).isEqualTo(oauthUser.getProfileImageUrl());
+        assertThat(result.getAuthenticatedAt()).isEqualTo(issuedAt);
     }
 
     @Test

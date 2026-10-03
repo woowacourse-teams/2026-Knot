@@ -1,0 +1,30 @@
+apiVersion: 1
+providers:
+  - name: Knot Operations
+    orgId: 1
+    folder: Knot
+    type: file
+    disableDeletion: true
+    editable: false
+    options:
+      path: /var/lib/grafana/dashboards
+  - name: Knot-dev
+    orgId: 1
+    folder: Knot-dev
+    folderUid: knot-dev
+    type: file
+    disableDeletion: true
+    editable: false
+    updateIntervalSeconds: 30
+    options:
+      path: /etc/grafana/provisioning/environment-dashboards/dev
+  - name: Knot-prod
+    orgId: 1
+    folder: Knot-prod
+    folderUid: knot-prod
+    type: file
+    disableDeletion: true
+    editable: false
+    updateIntervalSeconds: 30
+    options:
+      path: /etc/grafana/provisioning/environment-dashboards/prod
