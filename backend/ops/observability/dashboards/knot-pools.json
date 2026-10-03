@@ -1,0 +1,784 @@
+{
+  "title": "03 Tomcat & Hikari",
+  "uid": "knot-pools",
+  "schemaVersion": 41,
+  "version": 5,
+  "tags": [
+    "knot",
+    "operations"
+  ],
+  "refresh": "30s",
+  "timezone": "Asia/Seoul",
+  "time": {
+    "from": "now-30m",
+    "to": "now"
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "env",
+        "label": "환경",
+        "type": "custom",
+        "query": "dev,prod",
+        "multi": true,
+        "includeAll": true,
+        "allValue": "dev|prod",
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        },
+        "options": [
+          {
+            "text": "dev",
+            "value": "dev",
+            "selected": false
+          },
+          {
+            "text": "prod",
+            "value": "prod",
+            "selected": false
+          }
+        ]
+      },
+      {
+        "name": "instance",
+        "label": "수집 대상 (Prometheus)",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "knot-prometheus"
+        },
+        "query": "label_values({env=~\"$env\"}, instance)",
+        "refresh": 1,
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*",
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        },
+        "options": [],
+        "sort": 1
+      }
+    ]
+  },
+  "panels": [
+    {
+      "type": "text",
+      "title": "적용 범위",
+      "options": {
+        "mode": "markdown",
+        "content": "Dev는 Spring, Prod는 프로토타입입니다. Spring/JVM/DB 풀 지표는 Dev에만 적용됩니다. 데이터 없음은 정상 0이 아닙니다.\n\nTomcat은 요청 처리 스레드, Hikari는 앱의 DB 연결 풀입니다. Hikari 값으로 RDS 자체 CPU·IOPS를 알 수는 없습니다.\n\n수집 대상 변수는 Prometheus 패널에만 적용됩니다. host·Spring·외부 probe의 instance 값은 서로 다릅니다. Loki 요청·로그는 환경으로만 선택합니다. 신규 API 집계는 health/prometheus를 제외하고, 요청 없는 구간의 지연·비율은 계산하지 않습니다. RDS는 각 환경의 EC2 역할로 CloudWatch 5분 평균을 수집합니다. RDS 상세 화면은 DB 식별자로 선택합니다."
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 5
+      },
+      "id": 1
+    },
+    {
+      "type": "timeseries",
+      "title": "Tomcat busy threads",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "knot-prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "tomcat_threads_busy_threads{env=~\"$env\",instance=~\"$instance\",job=\"spring\"}",
+          "legendFormat": "{{env}} {{instance}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "데이터 없음 / 미연결"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "id": 2,
+      "gridPos": {
+        "x": 0,
+        "y": 5,
+        "w": 12,
+        "h": 8
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Tomcat 최대 threads",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "knot-prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "tomcat_threads_config_max_threads{env=~\"$env\",instance=~\"$instance\",job=\"spring\"}",
+          "legendFormat": "{{env}} {{instance}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "데이터 없음 / 미연결"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "id": 3,
+      "gridPos": {
+        "x": 12,
+        "y": 5,
+        "w": 12,
+        "h": 8
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Hikari active connections",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "knot-prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "hikaricp_connections_active{env=~\"$env\",instance=~\"$instance\",job=\"spring\"}",
+          "legendFormat": "{{env}} {{pool}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "데이터 없음 / 미연결"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "id": 4,
+      "gridPos": {
+        "x": 0,
+        "y": 13,
+        "w": 12,
+        "h": 8
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Hikari idle connections",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "knot-prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "hikaricp_connections_idle{env=~\"$env\",instance=~\"$instance\",job=\"spring\"}",
+          "legendFormat": "{{env}} {{pool}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "데이터 없음 / 미연결"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "id": 5,
+      "gridPos": {
+        "x": 12,
+        "y": 13,
+        "w": 12,
+        "h": 8
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Hikari pending connections",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "knot-prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "hikaricp_connections_pending{env=~\"$env\",instance=~\"$instance\",job=\"spring\"}",
+          "legendFormat": "{{env}} {{pool}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "데이터 없음 / 미연결"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "id": 6,
+      "gridPos": {
+        "x": 0,
+        "y": 21,
+        "w": 12,
+        "h": 8
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Hikari max connections",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "knot-prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "hikaricp_connections_max{env=~\"$env\",instance=~\"$instance\",job=\"spring\"}",
+          "legendFormat": "{{env}} {{pool}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "데이터 없음 / 미연결"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "id": 7,
+      "gridPos": {
+        "x": 12,
+        "y": 21,
+        "w": 12,
+        "h": 8
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Hikari timeout 증가율",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "knot-prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "rate(hikaricp_connections_timeout_total{env=~\"$env\",instance=~\"$instance\",job=\"spring\"}[2m])",
+          "legendFormat": "{{env}} {{pool}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "noValue": "데이터 없음 / 미연결"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "id": 8,
+      "gridPos": {
+        "x": 0,
+        "y": 29,
+        "w": 12,
+        "h": 8
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "DB connection acquire 평균",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "knot-prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "rate(hikaricp_connections_acquire_seconds_sum{env=~\"$env\",instance=~\"$instance\",job=\"spring\"}[2m]) / (rate(hikaricp_connections_acquire_seconds_count{env=~\"$env\",instance=~\"$instance\",job=\"spring\"}[2m]) > 0)",
+          "legendFormat": "{{env}} {{pool}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "noValue": "데이터 없음 / 미연결"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "id": 9,
+      "gridPos": {
+        "x": 12,
+        "y": 29,
+        "w": 12,
+        "h": 8
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Tomcat current threads",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "knot-prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "tomcat_threads_current_threads{env=~\"$env\",instance=~\"$instance\",job=\"spring\"}",
+          "legendFormat": "{{env}} {{name}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "데이터 없음 / 미연결"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "id": 10,
+      "gridPos": {
+        "x": 0,
+        "y": 37,
+        "w": 12,
+        "h": 8
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Tomcat current connections",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "knot-prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "tomcat_connections_current_connections{env=~\"$env\",instance=~\"$instance\",job=\"spring\"}",
+          "legendFormat": "{{env}} {{name}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "데이터 없음 / 미연결"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "id": 11,
+      "gridPos": {
+        "x": 12,
+        "y": 37,
+        "w": 12,
+        "h": 8
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Tomcat max connections",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "knot-prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "tomcat_connections_config_max_connections{env=~\"$env\",instance=~\"$instance\",job=\"spring\"}",
+          "legendFormat": "{{env}} {{name}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "데이터 없음 / 미연결"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "id": 12,
+      "gridPos": {
+        "x": 0,
+        "y": 45,
+        "w": 12,
+        "h": 8
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Tomcat busy 비율",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "knot-prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "100 * tomcat_threads_busy_threads{env=~\"$env\",instance=~\"$instance\",job=\"spring\"} / tomcat_threads_config_max_threads{env=~\"$env\",instance=~\"$instance\",job=\"spring\"}",
+          "legendFormat": "{{env}} {{name}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "noValue": "데이터 없음 / 미연결"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "id": 13,
+      "gridPos": {
+        "x": 12,
+        "y": 45,
+        "w": 12,
+        "h": 8
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Hikari active 비율",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "knot-prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "100 * hikaricp_connections_active{env=~\"$env\",instance=~\"$instance\",job=\"spring\"} / hikaricp_connections_max{env=~\"$env\",instance=~\"$instance\",job=\"spring\"}",
+          "legendFormat": "{{env}} {{pool}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "noValue": "데이터 없음 / 미연결"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "id": 14,
+      "gridPos": {
+        "x": 0,
+        "y": 53,
+        "w": 12,
+        "h": 8
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "DB connection usage 평균",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "knot-prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "rate(hikaricp_connections_usage_seconds_sum{env=~\"$env\",instance=~\"$instance\",job=\"spring\"}[5m]) / (rate(hikaricp_connections_usage_seconds_count{env=~\"$env\",instance=~\"$instance\",job=\"spring\"}[5m]) > 0)",
+          "legendFormat": "{{env}} {{pool}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "noValue": "데이터 없음 / 미연결"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "id": 15,
+      "gridPos": {
+        "x": 12,
+        "y": 53,
+        "w": 12,
+        "h": 8
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "DB connection acquire 최대",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "knot-prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "hikaricp_connections_acquire_seconds_max{env=~\"$env\",instance=~\"$instance\",job=\"spring\"}",
+          "legendFormat": "{{env}} {{pool}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "noValue": "데이터 없음 / 미연결"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "id": 16,
+      "gridPos": {
+        "x": 0,
+        "y": 61,
+        "w": 12,
+        "h": 8
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Hikari timeout 5분 증가",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "knot-prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "increase(hikaricp_connections_timeout_total{env=~\"$env\",instance=~\"$instance\",job=\"spring\"}[5m])",
+          "legendFormat": "{{env}} {{pool}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "데이터 없음 / 미연결"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "id": 17,
+      "gridPos": {
+        "x": 12,
+        "y": 61,
+        "w": 12,
+        "h": 8
+      }
+    }
+  ],
+  "links": [
+    {
+      "title": "01 Overview",
+      "type": "link",
+      "url": "/d/knot-operations",
+      "keepTime": true,
+      "includeVars": true
+    },
+    {
+      "title": "02 Spring Boot",
+      "type": "link",
+      "url": "/d/knot-spring",
+      "keepTime": true,
+      "includeVars": true
+    },
+    {
+      "title": "03 Tomcat & Hikari",
+      "type": "link",
+      "url": "/d/knot-pools",
+      "keepTime": true,
+      "includeVars": true
+    },
+    {
+      "title": "04 Infrastructure",
+      "type": "link",
+      "url": "/d/knot-infra",
+      "keepTime": true,
+      "includeVars": true
+    },
+    {
+      "title": "05 RDS",
+      "type": "link",
+      "url": "/d/knot-rds",
+      "keepTime": true,
+      "includeVars": true
+    },
+    {
+      "title": "06 PROD vs DEV",
+      "type": "link",
+      "url": "/d/knot-compare",
+      "keepTime": true,
+      "includeVars": true
+    }
+  ]
+}
