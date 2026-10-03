@@ -69,6 +69,17 @@ jobs:
       - name: Build Storybook
         run: pnpm build-storybook --quiet
 
+      # 시크릿이 가리키는 계정에 Pages 프로젝트가 없으면 만들어요. 이미 있으면 실패하지만 넘어가요
+      - name: Create Pages project if missing
+        continue-on-error: true
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_PAGES_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: frontend
+          packageManager: pnpm
+          command: pages project create ${{ env.PAGES_PROJECT }} --production-branch=develop
+
       - name: Deploy to Cloudflare Pages
         id: deploy
         uses: cloudflare/wrangler-action@v3
