@@ -59,6 +59,6 @@ V17→V18 보존·제약을 검증한다. Workspace 탈퇴의 최신 upgrade 목
 - 최신 base 동기화 후 기본 wrapper는 기존 위반 40건, 전체 wrapper는 43건으로 중단했다.
   지적된 15파일 모두 최신 base와 바이트 단위로 동일하며 최종 PR diff 밖이다.
   전체 Gradle task는 별도로 실행해 통과했다.
-- 이슈 계약 6건은 사용자 결정에 따라 재검증했다. #439 계약 `953000337ca38d8f` Pass,
+- 이슈 계약 6건은 사용자 결정에 따라 재검증했다. #439 계약 `9d54a3c9d864a6b8` Pass,
   자료 충분으로 인터뷰 생략. dry-run `render_draft`, `remote_write_authorized=false`이며
   기존 이슈 수정은 사용자의 수정·push 지시 및 이전 이슈 정합성 수정 권한으로 별도 수행한다.
