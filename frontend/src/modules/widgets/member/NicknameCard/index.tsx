@@ -8,16 +8,7 @@ import { NICKNAME_MAX_LENGTH } from "./constants/nickname";
 import { useSignUp } from "./model/useSignUp";
 
 /**
- * 닉네임을 입력받아 회원가입을 완료하는 카드.
- *
- * GitHub 로그인을 마친 신규 사용자가 도착하는 화면이에요. 닉네임을 등록해야
- * 회원가입이 끝나고 서버가 접근 토큰을 발급합니다.
- *
- * 입력값과 제출은 `useSignUp`이 맡고, 이 파일은 화면만 그려요.
- *
- * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=422-390 닉네임 입력 전}
- * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=424-628 닉네임 입력 중}
- * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=424-1237 닉네임 입력 에러}
+ * 닉네임을 입력받아 회원가입을 완료하는 카드. 입력값과 제출은 `useSignUp`이 맡고, 이 파일은 화면만 그려요.
  */
 export default function NicknameCard() {
   const {
