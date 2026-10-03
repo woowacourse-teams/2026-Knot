@@ -12,15 +12,7 @@ import {
 import { useNotionSync } from "./model/useNotionSync";
 
 /**
- * 홈의 Notion 동기화 카드.
- *
- * Notion 연결 상태(연결 안 됨·연결됨·재인증 필요)를 보여주고, `지금 동기화`를 누르면 동기화 API로
- * Import를 시작해 끝날 때까지 스피너를 돌려요. 완료되면 새로 들어온 문서 수 안내와 비활성 `완료` 버튼으로,
- * 실패하면 실패 안내 문구로 바뀌고, 두 경우 모두 2초 뒤 연결 상태 안내로 돌아와요.
- * 연결 상태를 아직 못 받았으면 안내를 비워 두고, 조회가 실패하면 확인 실패 문구를 보여줘요.
- *
- * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=600-10086 Card/NotionImport status=기본}
- * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=600-10101 홈 화면/노션 연동 완료}
+ * 홈의 Notion 동기화 카드. Notion 연결 상태를 보여주고, 동기화(Import)를 시작해 결과를 알려요.
  */
 export default function NotionSyncCard() {
   const {

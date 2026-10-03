@@ -14,21 +14,9 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 /** 버튼 크기. 피그마 Button/CTA의 L·M·S에 대응해요. */
 export type ButtonSize = "lg" | "md" | "sm";
 type ButtonSizeToken =
-  | "paddingX"
-  | "paddingY"
-  | "borderRadius"
-  | "gap"
-  | "iconSize"
-  | "spinnerSize";
+  "paddingX" | "paddingY" | "borderRadius" | "gap" | "iconSize" | "spinnerSize";
 
-/**
- * 버튼의 겉모양.
- *
- * - `filled` : 배경이 채워진 기본 버튼
- * - `outline` : 흰 배경에 테두리만 있는 버튼
- * - `accent` : 옅은 강조색 배경에 강조색 글자. `복사됨`처럼 방금 끝난 일을 알릴 때 써요
- * - `danger` : 경고색 배경. 워크스페이스 나가기처럼 되돌릴 수 없는 동작에 써요
- */
+/** 버튼의 겉모양. */
 export type ButtonVariant = "filled" | "outline" | "accent" | "danger";
 
 /**
@@ -39,7 +27,6 @@ export type ButtonVariant = "filled" | "outline" | "accent" | "danger";
  * - `inactive` : 비활성
  *
  * 둘 다 참이면 `loading`이 이깁니다.
- * 처리 중인 버튼을 회색으로 그리면 아무 일도 일어나지 않는 것처럼 보이기 때문이에요.
  */
 type ButtonStatus = "active" | "loading" | "inactive";
 
@@ -147,17 +134,6 @@ const buttonAppearance = (theme: Theme) => {
 
 /**
  * 액션을 실행하는 버튼.
- *
- * 로딩 중에도 라벨이 자리를 지켜 너비가 변하지 않아요.
- * 라벨은 `opacity: 0`으로 감추므로 스크린리더는 계속 버튼 이름을 읽습니다.
- *
- * `isLoading`이면 `disabled`도 함께 걸리고, 두 값을 모두 넘기면 로딩이 우선합니다.
- *
- * 크기는 height가 아니라 padding으로 정의해요. 글꼴이 커져도 잘리지 않습니다.
- * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=422-440 Button/CTA/L}
- * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=511-284 Button/CTA/M}
- * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=484-4907 Button/CTA/S}
- * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=484-4926 Field/Copy status=copied (`accent`)}
  */
 export default function Button({
   size = "md",
