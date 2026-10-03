@@ -10,6 +10,7 @@ import com.knot.backend.auth.domain.AuthException;
 import com.knot.backend.auth.domain.AuthenticatedMember;
 import com.knot.backend.auth.domain.OAuthProvider;
 import com.knot.backend.auth.domain.OAuthUser;
+import com.knot.backend.auth.domain.RefreshToken;
 import com.knot.backend.global.config.JwtProperties;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
@@ -416,6 +417,180 @@ class JwtProviderTest {
                 AuthException.class,
                 exception -> assertThat(exception.getErrorCode()).isEqualTo(AuthErrorCode.INVALID_JWT)
         );
+    }
+
+    @Test
+    @DisplayName("refresh JWT는 전용 token_type과 지정된 만료 시각을 가진다")
+    void issueRefreshToken_success_refreshPurposeAndExpiration() {
+        // given
+        Instant issuedAt = Instant.parse("2026-10-01T00:00:00Z");
+        Instant expiresAt = issuedAt.plus(Duration.ofDays(7));
+        JwtProperties properties = properties(Duration.ofHours(1));
+        JwtProvider provider = new JwtProvider(
+                properties,
+                Clock.fixed(
+                        issuedAt,
+                        ZoneOffset.UTC
+                )
+        );
+
+        // when
+        RefreshToken refreshToken = provider.issue(expiresAt);
+        String token = refreshToken.getValue();
+        Jwt jwt = decoder(properties).decode(token);
+        provider.authenticateRefreshToken(token);
+
+        // then
+        assertThat(jwt.getClaimAsString("token_type")).isEqualTo("REFRESH");
+        assertThat(jwt.getExpiresAt()).isEqualTo(expiresAt);
+        assertThat(jwt.getId()).isNotBlank();
+        assertThat(jwt.getIssuer()).hasToString(properties.getIssuer());
+        assertThat(jwt.getAudience()).contains(properties.getAudience());
+        assertThat(refreshToken.getHash()).hasSize(64)
+                .isNotEqualTo(token);
+        assertThat(refreshToken.toString()).doesNotContain(token);
+    }
+
+    @Test
+    @DisplayName("refresh 인증은 access token을 거절한다")
+    void authenticateRefreshToken_failure_accessToken() {
+        // given
+        JwtProvider provider = new JwtProvider(
+                properties(Duration.ofHours(1)),
+                Clock.systemUTC()
+        );
+        String accessToken = provider.issue(
+                AuthenticatedMember.of(
+                        1L,
+                        "octocat",
+                        null
+                )
+        );
+
+        // when
+        Throwable thrown = catchThrowable(() -> provider.authenticateRefreshToken(accessToken));
+
+        // then
+        assertThat(thrown).isInstanceOfSatisfying(
+                AuthException.class,
+                exception -> assertThat(exception.getErrorCode()).isEqualTo(AuthErrorCode.INVALID_JWT)
+        );
+    }
+
+    @Test
+    @DisplayName("refresh 인증은 서명 키가 다른 토큰을 거절한다")
+    void authenticateRefreshToken_failure_wrongSecret() {
+        // given
+        JwtProperties issuerProperties = properties(Duration.ofHours(1));
+        JwtProvider issuer = new JwtProvider(
+                issuerProperties,
+                Clock.systemUTC()
+        );
+        JwtProperties verifierProperties = properties(Duration.ofHours(1));
+        verifierProperties.setSecret("another-jwt-secret-012345678901234567890123456789");
+        JwtProvider verifier = new JwtProvider(
+                verifierProperties,
+                Clock.systemUTC()
+        );
+        String token = issuer.issue(
+                Instant.now()
+                        .plus(Duration.ofDays(7))
+        )
+                .getValue();
+
+        // when
+        Throwable thrown = catchThrowable(() -> verifier.authenticateRefreshToken(token));
+
+        // then
+        assertThat(thrown).isInstanceOfSatisfying(
+                AuthException.class,
+                exception -> assertThat(exception.getErrorCode()).isEqualTo(AuthErrorCode.INVALID_JWT)
+        );
+    }
+
+    @Test
+    @DisplayName("refresh 인증은 issuer나 audience가 다른 토큰을 거절한다")
+    void authenticateRefreshToken_failure_differentTokenBoundary() {
+        // given
+        JwtProperties issuerProperties = properties(Duration.ofHours(1));
+        issuerProperties.setIssuer("https://issuer.example");
+        issuerProperties.setAudience("issuer-api");
+        JwtProvider issuer = new JwtProvider(
+                issuerProperties,
+                Clock.systemUTC()
+        );
+        JwtProvider verifier = new JwtProvider(
+                properties(Duration.ofHours(1)),
+                Clock.systemUTC()
+        );
+        String token = issuer.issue(
+                Instant.now()
+                        .plus(Duration.ofDays(7))
+        )
+                .getValue();
+
+        // when
+        Throwable thrown = catchThrowable(() -> verifier.authenticateRefreshToken(token));
+
+        // then
+        assertThat(thrown).isInstanceOfSatisfying(
+                AuthException.class,
+                exception -> assertThat(exception.getErrorCode()).isEqualTo(AuthErrorCode.INVALID_JWT)
+        );
+    }
+
+    @Test
+    @DisplayName("만료된 refresh JWT는 인증하지 않는다")
+    void authenticateRefreshToken_failure_expiredToken() {
+        // given
+        Instant issuedAt = Instant.parse("2026-10-01T00:00:00Z");
+        JwtProperties properties = properties(Duration.ofHours(1));
+        JwtProvider issuer = new JwtProvider(
+                properties,
+                Clock.fixed(
+                        issuedAt,
+                        ZoneOffset.UTC
+                )
+        );
+        JwtProvider verifier = new JwtProvider(
+                properties,
+                Clock.fixed(
+                        issuedAt.plusSeconds(2),
+                        ZoneOffset.UTC
+                )
+        );
+        String token = issuer.issue(issuedAt.plusSeconds(1))
+                .getValue();
+
+        // when
+        Throwable thrown = catchThrowable(() -> verifier.authenticateRefreshToken(token));
+
+        // then
+        assertThat(thrown).isInstanceOfSatisfying(
+                AuthException.class,
+                exception -> assertThat(exception.getErrorCode()).isEqualTo(AuthErrorCode.INVALID_JWT)
+        );
+    }
+
+    @Test
+    @DisplayName("refresh 토큰 원문으로 저장용 해시를 식별한다")
+    void identifyRefreshToken_success_hashesRawValue() {
+        // given
+        JwtProvider provider = new JwtProvider(
+                properties(Duration.ofHours(1)),
+                Clock.systemUTC()
+        );
+        Instant expiresAt = Instant.now()
+                .plus(Duration.ofDays(7));
+        RefreshToken issuedToken = provider.issue(expiresAt);
+
+        // when
+        RefreshToken identifiedToken = provider.identify(issuedToken.getValue());
+
+        // then
+        assertThat(identifiedToken.getHash()).isEqualTo(issuedToken.getHash());
+        assertThat(identifiedToken.getValue()).isEqualTo(issuedToken.getValue());
+        assertThat(identifiedToken.toString()).doesNotContain(issuedToken.getValue());
     }
 
     private JwtProperties properties(Duration expiration) {

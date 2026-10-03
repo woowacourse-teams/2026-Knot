@@ -83,7 +83,7 @@ class AuthNicknameCompletionIntegrationTest {
         Instant firstOAuthLoginAt = NOW.minus(Duration.ofDays(29));
         stubOnboardingToken(firstOAuthLoginAt);
         when(authTokenProvider.issue(any())).thenReturn("access-token");
-        when(refreshTokenProvider.issue()).thenReturn(
+        when(refreshTokenProvider.issue(any(Instant.class))).thenReturn(
                 RefreshToken.of(
                         "refresh-token",
                         REFRESH_HASH
@@ -147,7 +147,8 @@ class AuthNicknameCompletionIntegrationTest {
         // given
         stubOnboardingToken(NOW);
         when(authTokenProvider.issue(any())).thenReturn("access-token");
-        when(refreshTokenProvider.issue()).thenThrow(new AuthException(AuthErrorCode.AUTHENTICATION_INTERNAL_ERROR));
+        when(refreshTokenProvider.issue(any(Instant.class)))
+                .thenThrow(new AuthException(AuthErrorCode.AUTHENTICATION_INTERNAL_ERROR));
 
         // when & then
         assertThatThrownBy(
@@ -180,7 +181,7 @@ class AuthNicknameCompletionIntegrationTest {
         );
         stubOnboardingToken(NOW);
         when(authTokenProvider.issue(any())).thenReturn("access-token");
-        when(refreshTokenProvider.issue()).thenReturn(
+        when(refreshTokenProvider.issue(any(Instant.class))).thenReturn(
                 RefreshToken.of(
                         "duplicate-refresh",
                         REFRESH_HASH
@@ -207,7 +208,7 @@ class AuthNicknameCompletionIntegrationTest {
         // given
         stubOnboardingToken(NOW);
         when(authTokenProvider.issue(any())).thenReturn("access-token");
-        when(refreshTokenProvider.issue()).thenReturn(
+        when(refreshTokenProvider.issue(any(Instant.class))).thenReturn(
                 RefreshToken.of(
                         "first-refresh",
                         "a".repeat(64)
