@@ -22,13 +22,13 @@ description: 구현·설계를 마친 컴포넌트의 스토리북 스토리(`in
 
 ## 절차
 
-1. **컴포넌트를 읽는다.** 대상 컴포넌트의 `index.tsx`, props 타입, JSDoc, `ui` 세그먼트를 읽는다. JSDoc의 Figma 링크(`@see`)도 확인한다.
+1. **컴포넌트를 읽는다.** 대상 컴포넌트의 `index.tsx`, props 타입, JSDoc, `ui` 세그먼트를 읽는다. 구현에 쓴 Figma 링크를 확인한다. 링크를 모르면 개발자에게 묻는다.
 2. **상태 목록을 뽑는다.** props와 분기(`variant`, `size`, `isLoading`, `disabled`, 빈 값, 긴 텍스트 등)에서 화면이 달라지는 경우를 나열한다.
    - 코드에 없는 상태를 지어내지 않는다.
    - 분기는 있는데 왜 있는지 알 수 없으면 추측해 적지 말고 사용자에게 묻는다.
 3. **목록을 먼저 보여 준다.** 스토리 이름과 한 줄 설명을 사용자에게 보여 주고, 빠진 상태가 없는지 확인받은 뒤 작성한다.
 4. **작성한다.** 컴포넌트 폴더 바로 아래 `index.stories.tsx`에 둔다. (`.claude/rules/segment-pattern.md` 「스토리 위치」)
-5. **컴포넌트 주석을 옮긴다.** 컴포넌트·타입 위 JSDoc에서 스토리로 옮길 수 있는 내용(variant별 쓰임새, 상태별 동작, 사용 예시, 그렇게 만든 이유)을 스토리 설명으로 옮기고 컴포넌트에서는 지운다. 컴포넌트 JSDoc에는 한두 줄 설명, 「자세한 내용은 스토리북 `title`」 안내, Figma `@see`만 남긴다. 값 옆의 구현 주석(예: 피그마 px 원본 값)은 코드를 고칠 사람을 위한 것이므로 그대로 둔다.
+5. **컴포넌트 주석을 옮긴다.** 컴포넌트·타입 위 JSDoc과 코드 주석에서 스토리로 옮길 수 있는 내용(variant별 쓰임새, 상태별 동작, 사용 예시, 그렇게 만든 이유)을 스토리 설명으로 옮기고 컴포넌트에서는 지운다. Figma 링크는 `parameters.design`으로 옮긴다. 컴포넌트 JSDoc에는 한 줄 설명과 「동작 규칙은 스토리북 `title`에서 확인해요」 안내만 남긴다. 스토리가 없는 `ui/` 서브 컴포넌트의 JSDoc에는 한 줄 설명과 「스토리북 `<부모 title>`」 안내 한 줄만 남긴다. 값 옆의 구현 주석(예: 피그마 px 원본 값)은 코드를 고칠 사람을 위한 것이므로 그대로 둔다.
 6. **검증한다.** `pnpm build-storybook`과 `pnpm tsc`가 통과하는지 확인하고, `pnpm storybook`에서 확인할 스토리 목록을 알린다.
 
 ## 작성 규칙
@@ -42,7 +42,11 @@ description: 구현·설계를 마친 컴포넌트의 스토리북 스토리(`in
   - 무엇을 하는 컴포넌트이고 화면의 어디에 쓰는지
   - 어떤 모양·상태를 언제 고르는지 (실제 화면의 예와 함께)
   - 동작 규칙과 그렇게 만든 이유
-  - Figma 디자인 원본 링크
+- 구현에 쓴 Figma 링크를 `meta.parameters.design`에 넣는다(`{ type: "figma", url }`). 링크를 모르면 개발자에게 묻는다. 설명 본문에는 링크를 다시 적지 않는다. url의 `&t=` 파라미터는 뺀다.
+  - 링크가 여러 개면 대표 프레임은 meta에 둔다.
+  - 상태가 명확한 프레임은 해당 스토리의 `parameters.design`에 둔다.
+  - 부품 프레임이나 어느 스토리에 붙일지 애매한 프레임은 meta의 `design`을 배열로 바꿔 `{ name, type: "figma", url }`로 넣는다. 배열 첫 항목은 대표 프레임이고, `name`에는 Figma 프레임 이름을 쓴다. Design 탭에 이름 붙은 탭으로 보인다.
+  - 스토리의 `parameters.design`은 meta의 값을 덮어쓴다. 대표 프레임을 보여 줘야 하는 스토리(예: `Default`)에는 따로 두지 않는다.
 - 스토리 하나에 상태 하나. 스토리마다 JSDoc 한 줄로 **언제 쓰는지**를 적고, 가능하면 실제 화면의 예를 든다. (예: `/** 되돌릴 수 없는 동작에 써요. 예: 워크스페이스 나가기 */`)
 - 기본값은 `meta.args`에 두고, 각 스토리는 달라지는 `args`만 덮는다.
 - 선택지가 정해진 prop은 `argTypes`에 `control`과 `options`를 둬 리뷰어가 바꿔 볼 수 있게 한다.
@@ -66,6 +70,20 @@ import Button from ".";
 const meta = {
   title: "Shared/Button",
   component: Button,
+  parameters: {
+    design: [
+      {
+        name: "Button/CTA/M",
+        type: "figma",
+        url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=511-284",
+      },
+      {
+        name: "Button/CTA/L",
+        type: "figma",
+        url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=422-440",
+      },
+    ],
+  },
   args: { children: "워크스페이스 만들기", variant: "filled" },
 } satisfies Meta<typeof Button>;
 
@@ -73,8 +91,14 @@ export default meta;
 
 type Story = StoryObj<typeof meta>;
 
-/** 되돌릴 수 없는 동작에 써요. 예: 워크스페이스 나가기 */
-export const Danger: Story = {
-  args: { variant: "danger", children: "나가기" },
+/** 방금 끝난 일을 알릴 때 써요. 예: 초대 코드를 복사한 뒤의 「복사됨」 */
+export const Accent: Story = {
+  args: { variant: "accent", children: "복사됨" },
+  parameters: {
+    design: {
+      type: "figma",
+      url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=484-4926",
+    },
+  },
 };
 ```
