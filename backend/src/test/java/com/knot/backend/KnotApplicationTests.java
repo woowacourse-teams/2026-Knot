@@ -474,7 +474,7 @@ class KnotApplicationTests {
                 .getCookie(CSRF_COOKIE_NAME);
         assertThat(csrfCookie).isNotNull();
         String csrfToken = csrfCookie.getValue();
-        String nickname = uniqueValue("user-");
+        String nickname = "valid-user";
         String nicknameToken = authTokenProvider.issueNickname(
                 OAuthUser.of(
                         OAuthProvider.GITHUB,
@@ -505,6 +505,27 @@ class KnotApplicationTests {
 
         // then
         result.andExpect(status().isNoContent());
+        assertThat(
+                result.andReturn()
+                        .getResponse()
+                        .getContentAsString()
+        ).isEmpty();
+        assertThat(
+                result.andReturn()
+                        .getResponse()
+                        .getCookie(JWT_COOKIE_NAME)
+        ).isNotNull();
+        assertThat(
+                result.andReturn()
+                        .getResponse()
+                        .getCookie("KNOT_REFRESH_TOKEN")
+        ).isNotNull();
+        assertThat(
+                result.andReturn()
+                        .getResponse()
+                        .getCookie(NICKNAME_COOKIE_NAME)
+                        .getMaxAge()
+        ).isZero();
     }
 
     @Test
@@ -533,8 +554,7 @@ class KnotApplicationTests {
 
         // then
         result.andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.code").value("FORBIDDEN"))
-                .andExpect(jsonPath("$.message").value("요청 권한이 없습니다"));
+                .andExpect(jsonPath("$.code").value("CSRF_INVALID"));
     }
 
     @Test

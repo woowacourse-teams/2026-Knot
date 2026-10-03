@@ -7,6 +7,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.Instant;
+import java.util.regex.Pattern;
 import lombok.Getter;
 
 @Getter
@@ -15,6 +16,7 @@ import lombok.Getter;
 public class Member {
     private static final int MAX_NICKNAME_LENGTH = 20;
     private static final int MAX_PROFILE_IMAGE_URL_LENGTH = 500;
+    private static final Pattern VALID_NICKNAME = Pattern.compile("^[가-힣A-Za-z()-]+$");
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -77,7 +79,8 @@ public class Member {
     ) {
         if (nickname == null
                 || nickname.isBlank()
-                || nickname.length() > MAX_NICKNAME_LENGTH) {
+                || nickname.length() > MAX_NICKNAME_LENGTH
+                || !VALID_NICKNAME.matcher(nickname).matches()) {
             throw new MemberException(MemberErrorCode.INVALID_MEMBER_DATA);
         }
 

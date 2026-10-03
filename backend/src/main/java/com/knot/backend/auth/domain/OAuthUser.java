@@ -1,5 +1,6 @@
 package com.knot.backend.auth.domain;
 
+import java.time.Instant;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
@@ -13,11 +14,13 @@ public final class OAuthUser {
     private final OAuthProvider provider;
     private final String externalId;
     private final String profileImageUrl;
+    private final Instant authenticatedAt;
 
     private OAuthUser(
             OAuthProvider provider,
             String externalId,
-            String profileImageUrl
+            String profileImageUrl,
+            Instant authenticatedAt
     ) {
         validate(
                 provider,
@@ -28,6 +31,7 @@ public final class OAuthUser {
         this.provider = provider;
         this.externalId = externalId;
         this.profileImageUrl = profileImageUrl;
+        this.authenticatedAt = authenticatedAt;
     }
 
     public static OAuthUser of(
@@ -38,7 +42,22 @@ public final class OAuthUser {
         return new OAuthUser(
                 provider,
                 externalId,
-                profileImageUrl
+                profileImageUrl,
+                null
+        );
+    }
+
+    public static OAuthUser of(
+            OAuthProvider provider,
+            String externalId,
+            String profileImageUrl,
+            Instant authenticatedAt
+    ) {
+        return new OAuthUser(
+                provider,
+                externalId,
+                profileImageUrl,
+                authenticatedAt
         );
     }
 

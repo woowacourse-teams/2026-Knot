@@ -34,6 +34,41 @@ class AuthSessionTest {
         assertThat(session.getRevokedAt()).isNull();
     }
 
+    @Test
+    @DisplayName("refresh 만료는 온보딩 시작 후 30일과 발급 후 7일 중 빠른 시각을 따른다")
+    void create_success_absoluteLifetimeStartsAtOAuthLogin() {
+        // given
+        Instant firstOAuthLoginAt = NOW.minus(Duration.ofDays(29));
+
+        // when
+        AuthSession session = AuthSession.create(
+                1L,
+                HASH,
+                NOW,
+                firstOAuthLoginAt
+        );
+
+        // then
+        assertThat(session.getCreatedAt()).isEqualTo(NOW);
+        assertThat(session.getAbsoluteExpiresAt()).isEqualTo(NOW.plus(Duration.ofDays(1)));
+        assertThat(session.getExpiresAt()).isEqualTo(NOW.plus(Duration.ofDays(1)));
+        assertThat(session.remainingRefreshLifetime(NOW)).isEqualTo(Duration.ofDays(1));
+    }
+
+    @Test
+    @DisplayName("최초 OAuth 로그인 시각이 세션 발급 뒤라면 세션을 생성할 수 없다")
+    void create_failure_initialLoginAfterSessionCreation() {
+        // when & then
+        assertThatThrownBy(
+                () -> AuthSession.create(
+                        1L,
+                        HASH,
+                        NOW,
+                        NOW.plusSeconds(1)
+                )
+        ).isInstanceOf(AuthException.class);
+    }
+
     @ParameterizedTest
     @ValueSource(longs = {0, -1})
     @DisplayName("양수가 아닌 회원 ID로는 로그인 세션을 생성할 수 없다")
