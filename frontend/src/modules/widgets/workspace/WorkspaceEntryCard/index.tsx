@@ -5,13 +5,6 @@ import Divider from "@primitives/ui/Divider";
 
 /**
  * 워크스페이스 생성 및 참여 선택 카드.
- *
- * 가입을 마친 사용자가 새 워크스페이스를 만들지, 초대 코드로 참여할지 고르는 분기점이에요.
- * API 호출 없이 두 선택지를 각각 `/workspace/create`와 `/workspace/code`로 연결합니다.
- *
- * 로고와 중앙 배치는 `CenteredLayout`이 맡으므로 이 카드는 자기 모양만 그려요.
- *
- * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=432-1750 Card/Onboarding/Workspace}
  */
 export default function WorkspaceEntryCard() {
   return (

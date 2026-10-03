@@ -11,12 +11,6 @@ interface LoadingIndicatorProps extends HTMLAttributes<HTMLDivElement> {
 
 /**
  * 무언가를 기다리는 중임을 알리는 표시.
- *
- * 스피너 자체는 장식이라 낭독기가 무시하므로, 여기서 `role="status"`와 이름을 붙여
- * 기다리는 중이라는 사실을 소리로도 전합니다.
- *
- * 부모가 준 자리의 가운데에 놓이고, 그 자리의 크기는 부모가 정해요.
- * 색은 `currentColor`를 따라가므로 부모의 `color`만 맞으면 됩니다.
  */
 export default function LoadingIndicator({
   label = "불러오는 중",

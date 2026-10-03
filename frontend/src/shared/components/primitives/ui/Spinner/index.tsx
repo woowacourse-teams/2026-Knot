@@ -11,15 +11,6 @@ interface SpinnerProps extends HTMLAttributes<HTMLSpanElement> {
 
 /**
  * 회전하는 로딩 표시.
- *
- * 색은 `currentColor`를 따라가므로 부모의 `color`만 맞으면 됩니다.
- * 흰 버튼 위에서는 흰색, 밝은 버튼 위에서는 어두운 색으로 알아서 그려져요.
- *
- * 위치는 잡지 않습니다. 어디에 놓을지는 쓰는 쪽이 정해요.
- *
- * 장식이라 `aria-hidden`을 붙였습니다.
- * 로딩 중이라는 사실은 부모가 `aria-busy`로 알립니다.
- * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=422-263 loading spinner}
  */
 export default function Spinner({ size = "1.5rem", ...props }: SpinnerProps) {
   return <Root $size={size} aria-hidden {...props} />;
