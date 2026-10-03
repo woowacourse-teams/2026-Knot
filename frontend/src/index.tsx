@@ -1,5 +1,6 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
+import { BrowserRouter } from "react-router";
 import { ThemeProvider } from "@emotion/react";
 
 import App from "./App";
@@ -7,6 +8,7 @@ import { GlobalStyle, theme } from "./shared/provider/themeProvider";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "./shared/provider/queryClient";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
+import { DialogProvider } from "./shared/provider/context/dialogContext";
 
 // 정적 import하면 msw가 프로덕션 번들에 들어가므로 플래그 안에서 동적 import해요
 const enableApiMocking = async () => {
@@ -22,7 +24,11 @@ const renderApp = () => {
       <ThemeProvider theme={theme}>
         <GlobalStyle />
         <QueryClientProvider client={queryClient}>
-          <App />
+          <BrowserRouter>
+            <DialogProvider>
+              <App />
+            </DialogProvider>
+          </BrowserRouter>
           <ReactQueryDevtools initialIsOpen={false} />
         </QueryClientProvider>
       </ThemeProvider>

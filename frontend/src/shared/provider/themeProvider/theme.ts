@@ -84,6 +84,9 @@ export const theme = {
       200: "#A8CEDB",
       500: "#2E85A3",
     },
+    caution: {
+      700: "#8A6A2C",
+    },
     warning: {
       50: "#FAEFEE",
       200: "#DDACA6",
