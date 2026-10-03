@@ -16,5 +16,6 @@ public class JwtProperties {
     private String audience = "knot-api";
     private String cookieName = "__Host-KNOT_ACCESS_TOKEN";
     private String nicknameCookieName = "KNOT_NICKNAME_TOKEN";
+    private String refreshCookieName = "__Host-KNOT_REFRESH_TOKEN";
     private boolean secure = true;
 }

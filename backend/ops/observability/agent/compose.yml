@@ -1,0 +1,35 @@
+name: knot-observability-agent
+services:
+  alloy:
+    image: grafana/alloy@sha256:2aa2099af76c0098d4af7a4d6e48f86cb66dc1a000222ad927a1c67c6542d13f
+    restart: unless-stopped
+    user: "0:0"
+    network_mode: host
+    pid: host
+    mem_limit: 256m
+    cpus: 0.25
+    environment:
+      KNOT_INGEST_BASE_URL: ${KNOT_INGEST_BASE_URL:?Set the approved ingest base URL without a trailing slash}
+      KNOT_ENV: ${KNOT_ENV:?Set KNOT_ENV to dev or prod}
+    command:
+      - run
+      - --server.http.listen-addr=127.0.0.1:12345
+      - --storage.path=/var/lib/alloy
+      - /etc/alloy/config.alloy
+    volumes:
+      - ./config.alloy:/etc/alloy/config.alloy:ro
+      - ./tls:/etc/alloy/tls:ro
+      - /:/host:ro,rslave
+      - /var/log/nginx:/var/log/nginx:ro
+      - /var/log/journal:/var/log/journal:ro
+      - /run/log/journal:/run/log/journal:ro
+      - /etc/machine-id:/etc/machine-id:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - alloy-data:/var/lib/alloy
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+volumes:
+  alloy-data:
