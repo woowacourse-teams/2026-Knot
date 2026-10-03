@@ -2,7 +2,6 @@ package com.knot.backend.workspace.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -24,6 +23,7 @@ import java.util.Optional;
 import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.test.util.ReflectionTestUtils;
 
 class WorkspaceInvitationPreviewServiceTest {
     private static final Long WORKSPACE_ID = 1L;
@@ -54,7 +54,6 @@ class WorkspaceInvitationPreviewServiceTest {
             secretProtector,
             rateLimiter,
             transactionExecutor,
-            new WorkspaceInvitationFeatures(false),
             Clock.fixed(
                     NOW,
                     ZoneOffset.UTC
@@ -145,14 +144,6 @@ class WorkspaceInvitationPreviewServiceTest {
         // then
         assertThat(result.workspaceId()).isEqualTo(WORKSPACE_ID);
         assertThat(result.workspaceName()).isEqualTo(WORKSPACE_NAME);
-        verify(
-                secretProtector,
-                never()
-        ).decrypt(
-                any(),
-                any(),
-                any()
-        );
     }
 
     @DisplayName("금지 문자가 포함된 6자리 값도 코드 조회 제한을 소비한 뒤 초대 없음으로 응답한다")
@@ -208,8 +199,6 @@ class WorkspaceInvitationPreviewServiceTest {
                 WORKSPACE_ID,
                 LINK_TOKEN_HASH,
                 CODE_HASH,
-                LINK_TOKEN,
-                CODE,
                 NOW.minus(WorkspaceInvitation.VALIDITY_PERIOD)
         );
         when(
@@ -232,12 +221,16 @@ class WorkspaceInvitationPreviewServiceTest {
                 .isEqualTo(WorkspaceErrorCode.WORKSPACE_INVITATION_PREVIEW_NOT_FOUND);
     }
 
-    @DisplayName("재발급으로 무효화된 초대는 원인을 구분하지 않는 초대 없음으로 응답한다")
+    @DisplayName("과거 재발급으로 무효화된 초대는 원인을 구분하지 않는 초대 없음으로 응답한다")
     @Test
     void preview_failure_invalidatedInvitation() {
         // given
         WorkspaceInvitation invitation = validInvitation();
-        invitation.invalidate(NOW);
+        ReflectionTestUtils.setField(
+                invitation,
+                "invalidatedAt",
+                NOW
+        );
         when(
                 secretProtector.hash(
                         WorkspaceInvitationSecretKind.INVITE_CODE,
@@ -263,8 +256,6 @@ class WorkspaceInvitationPreviewServiceTest {
                 WORKSPACE_ID,
                 LINK_TOKEN_HASH,
                 CODE_HASH,
-                LINK_TOKEN,
-                CODE,
                 NOW.minusSeconds(1)
         );
     }

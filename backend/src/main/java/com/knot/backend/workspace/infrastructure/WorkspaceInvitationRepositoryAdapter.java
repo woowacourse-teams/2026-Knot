@@ -53,11 +53,6 @@ public class WorkspaceInvitationRepositoryAdapter implements WorkspaceInvitation
         return workspaceInvitationJpaRepository.findWorkspaceIdByInviteCodeHash(inviteCodeHash);
     }
 
-    @Override
-    public Optional<WorkspaceInvitation> findUninvalidatedByWorkspaceId(Long workspaceId) {
-        return workspaceInvitationJpaRepository.findByWorkspaceIdAndInvalidatedAtIsNull(workspaceId);
-    }
-
     private boolean isSecretUniqueConstraintViolation(Throwable exception) {
         Throwable cause = exception;
         while (cause != null) {

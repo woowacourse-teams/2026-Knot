@@ -8,9 +8,8 @@ import java.util.Base64;
 public class SecureWorkspaceInvitationSecretGenerator implements WorkspaceInvitationSecretGenerator {
     static final int CODE_LENGTH = 6;
     static final int LINK_TOKEN_BYTES = 32;
-    private static final char[] CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789".toCharArray();
+    private static final char[] CODE_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".toCharArray();
 
-    private final char[] codeAlphabet;
     private final SecureRandom secureRandom;
 
     public SecureWorkspaceInvitationSecretGenerator() {
@@ -19,12 +18,6 @@ public class SecureWorkspaceInvitationSecretGenerator implements WorkspaceInvita
 
     SecureWorkspaceInvitationSecretGenerator(SecureRandom secureRandom) {
         this.secureRandom = secureRandom;
-        this.codeAlphabet = CODE_ALPHABET;
-    }
-
-    public SecureWorkspaceInvitationSecretGenerator(boolean multipleEnabled) {
-        this.secureRandom = new SecureRandom();
-        this.codeAlphabet = multipleEnabled ? "ABCDEFGHIJKLMNOPQRSTUVWXYZ".toCharArray() : CODE_ALPHABET;
     }
 
     @Override
@@ -38,7 +31,7 @@ public class SecureWorkspaceInvitationSecretGenerator implements WorkspaceInvita
     private String generateCode() {
         StringBuilder code = new StringBuilder(CODE_LENGTH);
         for (int index = 0; index < CODE_LENGTH; index++) {
-            code.append(codeAlphabet[secureRandom.nextInt(codeAlphabet.length)]);
+            code.append(CODE_ALPHABET[secureRandom.nextInt(CODE_ALPHABET.length)]);
         }
         return code.toString();
     }

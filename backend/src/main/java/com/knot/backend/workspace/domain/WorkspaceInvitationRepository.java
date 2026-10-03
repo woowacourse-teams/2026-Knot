@@ -13,6 +13,4 @@ public interface WorkspaceInvitationRepository {
     Optional<Long> findWorkspaceIdByLinkTokenHash(String linkTokenHash);
 
     Optional<Long> findWorkspaceIdByInviteCodeHash(String inviteCodeHash);
-
-    Optional<WorkspaceInvitation> findUninvalidatedByWorkspaceId(Long workspaceId);
 }

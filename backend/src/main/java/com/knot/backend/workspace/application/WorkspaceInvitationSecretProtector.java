@@ -6,22 +6,4 @@ public interface WorkspaceInvitationSecretProtector {
             WorkspaceInvitationSecretKind kind,
             String secret
     );
-
-    boolean matches(
-            WorkspaceInvitationSecretKind kind,
-            String secret,
-            String expectedHash
-    );
-
-    String encrypt(
-            Long workspaceId,
-            WorkspaceInvitationSecretKind kind,
-            String secret
-    );
-
-    String decrypt(
-            Long workspaceId,
-            WorkspaceInvitationSecretKind kind,
-            String envelope
-    );
 }

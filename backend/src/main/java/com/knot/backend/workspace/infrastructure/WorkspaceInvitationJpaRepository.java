@@ -24,6 +24,4 @@ interface WorkspaceInvitationJpaRepository extends JpaRepository<WorkspaceInvita
             where invitation.inviteCodeHash = :inviteCodeHash
             """)
     Optional<Long> findWorkspaceIdByInviteCodeHash(String inviteCodeHash);
-
-    Optional<WorkspaceInvitation> findByWorkspaceIdAndInvalidatedAtIsNull(Long workspaceId);
 }

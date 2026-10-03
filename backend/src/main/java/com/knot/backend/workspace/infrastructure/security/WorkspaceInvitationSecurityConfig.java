@@ -1,7 +1,6 @@
 package com.knot.backend.workspace.infrastructure.security;
 
 import com.knot.backend.workspace.application.WorkspaceInvitationSecretGenerator;
-import com.knot.backend.workspace.application.WorkspaceInvitationFeatures;
 import com.knot.backend.workspace.application.WorkspaceInvitationSecretProtector;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -12,14 +11,14 @@ import org.springframework.context.annotation.Configuration;
 public class WorkspaceInvitationSecurityConfig {
 
     @Bean
-    public WorkspaceInvitationSecretGenerator workspaceInvitationSecretGenerator(WorkspaceInvitationFeatures features) {
-        return new SecureWorkspaceInvitationSecretGenerator(features.multipleEnabled());
+    public WorkspaceInvitationSecretGenerator workspaceInvitationSecretGenerator() {
+        return new SecureWorkspaceInvitationSecretGenerator();
     }
 
     @Bean
     public WorkspaceInvitationSecretProtector workspaceInvitationSecretProtector(
             WorkspaceInvitationSecurityProperties properties
     ) {
-        return new AesGcmWorkspaceInvitationSecretProtector(properties);
+        return new HmacWorkspaceInvitationSecretProtector(properties);
     }
 }

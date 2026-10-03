@@ -8,14 +8,13 @@ import java.time.temporal.ChronoUnit;
 import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.test.util.ReflectionTestUtils;
 
 class WorkspaceInvitationTest {
     private static final Instant CREATED_AT = Instant.parse("2026-08-29T00:00:00Z");
     private static final Instant CREATED_AT_WITH_NANOS = Instant.parse("2026-08-29T00:00:00.123456789Z");
     private static final String LINK_TOKEN_HASH = "link-token-hash";
     private static final String INVITE_CODE_HASH = "invite-code-hash";
-    private static final String LINK_TOKEN_CIPHERTEXT = "link-token-ciphertext";
-    private static final String INVITE_CODE_CIPHERTEXT = "invite-code-ciphertext";
 
     @DisplayName("링크 토큰 해시와 초대 코드 해시로 24시간짜리 워크스페이스 초대를 생성한다")
     @Test
@@ -38,50 +37,6 @@ class WorkspaceInvitationTest {
         assertThat(invitation.getExpiresAt()).isEqualTo(CREATED_AT.plus(WorkspaceInvitation.VALIDITY_PERIOD));
         assertThat(invitation.getInvalidatedAt()).isNull();
         assertThat(invitation.getCreatedAt()).isEqualTo(CREATED_AT);
-    }
-
-    @DisplayName("lookup hash와 암호문으로 복원 가능한 워크스페이스 초대를 생성한다")
-    @Test
-    void create_success_recoverableSecrets() {
-        // given
-        Long workspaceId = 1L;
-
-        // when
-        WorkspaceInvitation invitation = WorkspaceInvitation.create(
-                workspaceId,
-                LINK_TOKEN_HASH,
-                INVITE_CODE_HASH,
-                LINK_TOKEN_CIPHERTEXT,
-                INVITE_CODE_CIPHERTEXT,
-                CREATED_AT
-        );
-
-        // then
-        assertThat(invitation.hasRecoverableSecrets()).isTrue();
-        assertThat(invitation.getLinkTokenCiphertext()).isEqualTo(LINK_TOKEN_CIPHERTEXT);
-        assertThat(invitation.getInviteCodeCiphertext()).isEqualTo(INVITE_CODE_CIPHERTEXT);
-    }
-
-    @DisplayName("링크 토큰과 초대 코드 암호문 중 하나만 있으면 초대 생성을 거부한다")
-    @Test
-    void create_failure_incompleteSecretEnvelopes() {
-        // given
-        String missingInviteCodeCiphertext = null;
-
-        // when
-        ThrowingCallable action = () -> WorkspaceInvitation.create(
-                1L,
-                LINK_TOKEN_HASH,
-                INVITE_CODE_HASH,
-                LINK_TOKEN_CIPHERTEXT,
-                missingInviteCodeCiphertext,
-                CREATED_AT
-        );
-
-        // then
-        assertThatThrownBy(action).isInstanceOf(WorkspaceException.class)
-                .extracting(exception -> ((WorkspaceException) exception).getErrorCode())
-                .isEqualTo(WorkspaceErrorCode.INVALID_WORKSPACE_INVITATION_SECRET_ENVELOPE);
     }
 
     @DisplayName("초대 생성 시각은 PostgreSQL TIMESTAMPTZ와 같은 마이크로초 정밀도로 보정한다")
@@ -264,83 +219,22 @@ class WorkspaceInvitationTest {
         assertThat(valid).isFalse();
     }
 
-    @DisplayName("무효화 시각이 있으면 조회 시점과 무관하게 유효하지 않다")
+    @DisplayName("과거에 무효화된 초대는 조회 시점과 무관하게 유효하지 않다")
     @Test
-    void invalidate_success() {
+    void isValidAt_failure_invalidated() {
         // given
         WorkspaceInvitation invitation = createInvitation();
-        Instant invalidatedAt = CREATED_AT.plusSeconds(1);
+        ReflectionTestUtils.setField(
+                invitation,
+                "invalidatedAt",
+                CREATED_AT.plusSeconds(1)
+        );
 
         // when
-        invitation.invalidate(invalidatedAt);
+        boolean valid = invitation.isValidAt(CREATED_AT.plusSeconds(2));
 
         // then
-        assertThat(invitation.getInvalidatedAt()).isEqualTo(invalidatedAt);
-        assertThat(invitation.isValidAt(invalidatedAt.minusNanos(1))).isFalse();
-        assertThat(invitation.isValidAt(invalidatedAt)).isFalse();
-    }
-
-    @DisplayName("초대 무효화 시각은 PostgreSQL TIMESTAMPTZ와 같은 마이크로초 정밀도로 보정한다")
-    @Test
-    void invalidate_success_truncatesInvalidatedAtToMicroseconds() {
-        // given
-        WorkspaceInvitation invitation = createInvitation();
-        Instant invalidatedAt = CREATED_AT_WITH_NANOS.plusSeconds(1);
-        Instant expectedInvalidatedAt = invalidatedAt.truncatedTo(ChronoUnit.MICROS);
-
-        // when
-        invitation.invalidate(invalidatedAt);
-
-        // then
-        assertThat(invitation.getInvalidatedAt()).isEqualTo(expectedInvalidatedAt);
-        assertThat(invitation.isValidAt(expectedInvalidatedAt.minusNanos(1))).isFalse();
-    }
-
-    @DisplayName("이미 무효화된 초대를 다시 무효화해도 최초 무효화 시각을 유지한다")
-    @Test
-    void invalidate_success_alreadyInvalidated() {
-        // given
-        WorkspaceInvitation invitation = createInvitation();
-        Instant firstInvalidatedAt = CREATED_AT.plusSeconds(1);
-        invitation.invalidate(firstInvalidatedAt);
-
-        // when
-        invitation.invalidate(firstInvalidatedAt.plusSeconds(1));
-
-        // then
-        assertThat(invitation.getInvalidatedAt()).isEqualTo(firstInvalidatedAt);
-    }
-
-    @DisplayName("생성 시각보다 이른 시각으로 초대를 무효화할 수 없다")
-    @Test
-    void invalidate_failure_beforeCreation() {
-        // given
-        WorkspaceInvitation invitation = createInvitation();
-        Instant invalidatedAt = CREATED_AT.minusNanos(1);
-
-        // when
-        ThrowingCallable action = () -> invitation.invalidate(invalidatedAt);
-
-        // then
-        assertThatThrownBy(action).isInstanceOf(WorkspaceException.class)
-                .extracting(exception -> ((WorkspaceException) exception).getErrorCode())
-                .isEqualTo(WorkspaceErrorCode.INVALID_WORKSPACE_INVITATION_INVALIDATED_AT);
-    }
-
-    @DisplayName("무효화 시각이 없으면 초대를 무효화할 수 없다")
-    @Test
-    void invalidate_failure_missingInvalidatedAt() {
-        // given
-        WorkspaceInvitation invitation = createInvitation();
-        Instant missingInvalidatedAt = null;
-
-        // when
-        ThrowingCallable action = () -> invitation.invalidate(missingInvalidatedAt);
-
-        // then
-        assertThatThrownBy(action).isInstanceOf(WorkspaceException.class)
-                .extracting(exception -> ((WorkspaceException) exception).getErrorCode())
-                .isEqualTo(WorkspaceErrorCode.INVALID_WORKSPACE_INVITATION_INVALIDATED_AT);
+        assertThat(valid).isFalse();
     }
 
     @DisplayName("확인 시각이 없으면 초대 유효성을 판단할 수 없다")

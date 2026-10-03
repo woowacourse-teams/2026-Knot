@@ -72,12 +72,6 @@ public enum WorkspaceErrorCode implements ErrorCode {
             "워크스페이스 초대 코드 해시가 올바르지 않습니다"
     ),
 
-    INVALID_WORKSPACE_INVITATION_SECRET_ENVELOPE(
-            ErrorCategory.INVALID_INPUT,
-            "INVALID_WORKSPACE_INVITATION_SECRET_ENVELOPE",
-            "워크스페이스 초대 암호문이 올바르지 않습니다"
-    ),
-
     INVALID_WORKSPACE_INVITATION_CREATED_AT(
             ErrorCategory.INVALID_INPUT,
             "INVALID_WORKSPACE_INVITATION_CREATED_AT",
@@ -88,12 +82,6 @@ public enum WorkspaceErrorCode implements ErrorCode {
             ErrorCategory.INVALID_INPUT,
             "INVALID_WORKSPACE_INVITATION_POINT_IN_TIME",
             "워크스페이스 초대 확인 시각이 올바르지 않습니다"
-    ),
-
-    INVALID_WORKSPACE_INVITATION_INVALIDATED_AT(
-            ErrorCategory.INVALID_INPUT,
-            "INVALID_WORKSPACE_INVITATION_INVALIDATED_AT",
-            "워크스페이스 초대 무효화 시각이 올바르지 않습니다"
     ),
 
     WORKSPACE_NOT_FOUND(
@@ -136,12 +124,6 @@ public enum WorkspaceErrorCode implements ErrorCode {
             ErrorCategory.CONFLICT,
             "WORKSPACE_OWNERSHIP_TRANSFER_TARGET_CONFLICT",
             "OWNER 권한을 승계할 활성 멤버를 찾을 수 없습니다"
-    ),
-
-    WORKSPACE_INVITATION_NOT_FOUND(
-            ErrorCategory.NOT_FOUND,
-            "WORKSPACE_INVITATION_NOT_FOUND",
-            "활성 워크스페이스 초대를 찾을 수 없습니다"
     ),
 
     WORKSPACE_INVITATION_PREVIEW_NOT_FOUND(

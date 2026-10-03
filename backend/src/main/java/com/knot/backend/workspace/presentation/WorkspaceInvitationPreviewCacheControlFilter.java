@@ -39,6 +39,6 @@ public class WorkspaceInvitationPreviewCacheControlFilter extends OncePerRequest
         String contextPath = request.getContextPath();
         String applicationPath = requestUri.substring(contextPath.length());
         return applicationPath.startsWith(PREVIEW_PATH_PREFIX)
-                || applicationPath.matches("/api/v1/workspaces/[^/]+/(invitation|invitations)(/.*)?");
+                || applicationPath.matches("/api/v1/workspaces/[^/]+/invitations");
     }
 }

@@ -13,7 +13,6 @@ import jakarta.persistence.EntityManager;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
-import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CyclicBarrier;
@@ -28,12 +27,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.jdbc.core.simple.JdbcClient;
-import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionTemplate;
 
 @Tag("integration")
 @Import({TestcontainersConfiguration.class, WorkspaceRepositoryAdapter.class,
@@ -53,8 +49,6 @@ class WorkspaceInvitationRepositoryIntegrationTest {
     private EntityManager entityManager;
     @Autowired
     private JdbcClient jdbcClient;
-    @Autowired
-    private PlatformTransactionManager transactionManager;
 
     @DisplayName("워크스페이스 초대를 저장하고 링크 토큰 해시와 초대 코드 해시로 조회한다")
     @Test
@@ -83,38 +77,6 @@ class WorkspaceInvitationRepositoryIntegrationTest {
         assertThat(workspaceInvitationRepository.findByInviteCodeHash(INVITE_CODE_HASH)).get()
                 .extracting(WorkspaceInvitation::getId)
                 .isEqualTo(savedInvitation.getId());
-        assertThat(workspaceInvitationRepository.findUninvalidatedByWorkspaceId(workspace.getId())).get()
-                .extracting(WorkspaceInvitation::getId)
-                .isEqualTo(savedInvitation.getId());
-        assertThat(savedInvitation.hasRecoverableSecrets()).isFalse();
-    }
-
-    @DisplayName("V4 암호문 envelope를 저장하고 다시 조회한다")
-    @Test
-    void saveAndFind_success_secretEnvelopes() {
-        // given
-        Workspace workspace = saveAndFlush(
-                Workspace.create(
-                        "Knot 팀",
-                        CREATED_AT
-                )
-        );
-        WorkspaceInvitation invitation = WorkspaceInvitation.create(
-                workspace.getId(),
-                LINK_TOKEN_HASH,
-                INVITE_CODE_HASH,
-                "v1:link-nonce:link-ciphertext",
-                "v1:code-nonce:code-ciphertext",
-                CREATED_AT
-        );
-
-        // when
-        WorkspaceInvitation savedInvitation = saveAndReload(invitation);
-
-        // then
-        assertThat(savedInvitation.getLinkTokenCiphertext()).isEqualTo("v1:link-nonce:link-ciphertext");
-        assertThat(savedInvitation.getInviteCodeCiphertext()).isEqualTo("v1:code-nonce:code-ciphertext");
-        assertThat(savedInvitation.hasRecoverableSecrets()).isTrue();
     }
 
     @DisplayName("V4는 링크 토큰과 초대 코드 암호문 중 하나만 저장하는 Row를 거부한다")
@@ -382,48 +344,6 @@ class WorkspaceInvitationRepositoryIntegrationTest {
         assertThatThrownBy(action).isInstanceOf(DataIntegrityViolationException.class);
     }
 
-    @DisplayName("기존 초대를 무효화하면 새 초대를 저장하고 기존 이력을 조회할 수 있다")
-    @Test
-    void save_success_afterInvalidation() {
-        // given
-        Workspace workspace = saveAndFlush(
-                Workspace.create(
-                        "Knot 팀",
-                        CREATED_AT
-                )
-        );
-        WorkspaceInvitation previousInvitation = saveAndFlush(
-                createInvitation(
-                        workspace.getId(),
-                        "previous-link-hash",
-                        "previous-code-hash",
-                        CREATED_AT
-                )
-        );
-        Instant invalidatedAt = CREATED_AT.plusSeconds(1);
-        previousInvitation.invalidate(invalidatedAt);
-        workspaceInvitationRepository.save(previousInvitation);
-        WorkspaceInvitation newInvitation = createInvitation(
-                workspace.getId(),
-                "new-link-hash",
-                "new-code-hash",
-                CREATED_AT.plusSeconds(2)
-        );
-
-        // when
-        WorkspaceInvitation savedNewInvitation = workspaceInvitationRepository.save(newInvitation);
-        entityManager.clear();
-
-        // then
-        assertThat(workspaceInvitationRepository.findByLinkTokenHash("previous-link-hash")).get()
-                .extracting(WorkspaceInvitation::getInvalidatedAt)
-                .isEqualTo(invalidatedAt);
-        assertThat(workspaceInvitationRepository.findUninvalidatedByWorkspaceId(workspace.getId())).get()
-                .extracting(WorkspaceInvitation::getId)
-                .isEqualTo(savedNewInvitation.getId());
-        assertThat(countInvitations(workspace.getId())).isEqualTo(2);
-    }
-
     @DisplayName("나노초 생성 시각으로 저장해도 재조회한 만료 시각과 생성 시각이 일치한다")
     @Test
     void saveAndFind_success_preservesMicrosecondPrecision() {
@@ -447,69 +367,6 @@ class WorkspaceInvitationRepositoryIntegrationTest {
         // then
         assertThat(savedInvitation.getCreatedAt()).isEqualTo(invitation.getCreatedAt());
         assertThat(savedInvitation.getExpiresAt()).isEqualTo(invitation.getExpiresAt());
-    }
-
-    @DisplayName("나노초 무효화 시각으로 저장해도 재조회한 무효화 시각이 일치한다")
-    @Test
-    void saveAndFind_success_preservesInvalidatedAtMicrosecondPrecision() {
-        // given
-        Workspace workspace = saveAndFlush(
-                Workspace.create(
-                        "Knot 팀",
-                        CREATED_AT
-                )
-        );
-        WorkspaceInvitation invitation = createInvitation(
-                workspace.getId(),
-                LINK_TOKEN_HASH,
-                INVITE_CODE_HASH,
-                CREATED_AT
-        );
-        Instant invalidatedAt = CREATED_AT_WITH_NANOS.plusSeconds(1);
-        Instant expectedInvalidatedAt = invalidatedAt.truncatedTo(ChronoUnit.MICROS);
-        invitation.invalidate(invalidatedAt);
-
-        // when
-        WorkspaceInvitation savedInvitation = saveAndReload(invitation);
-
-        // then
-        assertThat(savedInvitation.getInvalidatedAt()).isEqualTo(expectedInvalidatedAt);
-        assertThat(savedInvitation.getInvalidatedAt()).isEqualTo(invitation.getInvalidatedAt());
-    }
-
-    @DisplayName("이미 무효화된 초대의 stale entity 저장은 낙관적 잠금 실패로 거부한다")
-    @Test
-    void save_failure_staleEntityRestoresInvalidation() {
-        // given
-        Workspace workspace = saveAndFlush(
-                Workspace.create(
-                        "Knot 팀",
-                        CREATED_AT
-                )
-        );
-        WorkspaceInvitation savedInvitation = saveAndFlush(
-                createInvitation(
-                        workspace.getId(),
-                        LINK_TOKEN_HASH,
-                        INVITE_CODE_HASH,
-                        CREATED_AT
-                )
-        );
-        entityManager.detach(savedInvitation);
-        WorkspaceInvitation loadedInvitation = workspaceInvitationRepository.findByLinkTokenHash(LINK_TOKEN_HASH)
-                .orElseThrow();
-        loadedInvitation.invalidate(CREATED_AT.plusSeconds(1));
-        saveAndFlush(loadedInvitation);
-        entityManager.clear();
-
-        // when
-        ThrowingCallable action = () -> saveAndFlush(savedInvitation);
-
-        // then
-        assertThatThrownBy(action).isInstanceOf(ObjectOptimisticLockingFailureException.class);
-        assertThat(workspaceInvitationRepository.findByLinkTokenHash(LINK_TOKEN_HASH)).get()
-                .extracting(WorkspaceInvitation::getInvalidatedAt)
-                .isEqualTo(CREATED_AT.plusSeconds(1));
     }
 
     @DisplayName("같은 워크스페이스에 미무효화 초대를 동시에 저장하면 모두 성공한다")
@@ -562,55 +419,6 @@ class WorkspaceInvitationRepositoryIntegrationTest {
         } finally {
             executorService.shutdownNow();
         }
-    }
-
-    @DisplayName("새 초대 저장 실패 시 기존 초대 무효화를 rollback한다")
-    @Test
-    @Transactional(propagation = Propagation.NOT_SUPPORTED)
-    void reissue_failure_rollsBackInvalidation() {
-        // given
-        Long targetWorkspaceId = insertWorkspace("대상 팀");
-        Long otherWorkspaceId = insertWorkspace("다른 팀");
-        insertInvitation(
-                targetWorkspaceId,
-                "target-link-hash",
-                "target-code-hash",
-                CREATED_AT.plus(WorkspaceInvitation.VALIDITY_PERIOD),
-                null,
-                CREATED_AT
-        );
-        insertInvitation(
-                otherWorkspaceId,
-                "duplicate-link-hash",
-                "other-code-hash",
-                CREATED_AT.plus(WorkspaceInvitation.VALIDITY_PERIOD),
-                null,
-                CREATED_AT
-        );
-        TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
-
-        // when
-        ThrowingCallable action = () -> transactionTemplate.executeWithoutResult(status -> {
-            WorkspaceInvitation previousInvitation = workspaceInvitationRepository
-                    .findUninvalidatedByWorkspaceId(targetWorkspaceId)
-                    .orElseThrow();
-            previousInvitation.invalidate(CREATED_AT.plusSeconds(1));
-            workspaceInvitationRepository.save(previousInvitation);
-            workspaceInvitationRepository.save(
-                    WorkspaceInvitation.create(
-                            targetWorkspaceId,
-                            "duplicate-link-hash",
-                            "new-code-hash",
-                            CREATED_AT.plusSeconds(2)
-                    )
-            );
-        });
-
-        // then
-        assertThatThrownBy(action).isInstanceOf(WorkspaceInvitationSecretCollisionException.class);
-        assertThat(workspaceInvitationRepository.findUninvalidatedByWorkspaceId(targetWorkspaceId)).get()
-                .extracting(WorkspaceInvitation::getInvalidatedAt)
-                .isNull();
     }
 
     private WorkspaceInvitation createInvitation(
@@ -757,24 +565,6 @@ class WorkspaceInvitationRepositoryIntegrationTest {
                         toOffsetDateTime(createdAt)
                 )
                 .update();
-    }
-
-    private Long insertWorkspace(String name) {
-        return jdbcClient.sql("""
-                INSERT INTO workspaces (name, created_at)
-                VALUES (:name, :createdAt)
-                RETURNING id
-                """)
-                .param(
-                        "name",
-                        name
-                )
-                .param(
-                        "createdAt",
-                        toOffsetDateTime(CREATED_AT)
-                )
-                .query(Long.class)
-                .single();
     }
 
     private OffsetDateTime toOffsetDateTime(Instant instant) {

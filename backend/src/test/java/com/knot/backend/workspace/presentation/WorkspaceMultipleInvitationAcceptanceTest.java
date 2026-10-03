@@ -7,6 +7,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.knot.backend.auth.domain.AuthenticatedMember;
@@ -46,7 +47,7 @@ import tools.jackson.databind.ObjectMapper;
 @Tag("acceptance")
 @Import(TestcontainersConfiguration.class)
 @TestApplicationProperties
-@SpringBootTest(properties = "workspace.invitation.multiple-enabled=true")
+@SpringBootTest
 @AutoConfigureMockMvc
 @TestConstructor(autowireMode = TestConstructor.AutowireMode.ALL)
 class WorkspaceMultipleInvitationAcceptanceTest {
@@ -94,13 +95,6 @@ class WorkspaceMultipleInvitationAcceptanceTest {
                 );
         JsonNode second = body(response);
         assertThat(
-                second.get("invitationId")
-                        .asLong()
-        ).isNotEqualTo(
-                first.get("invitationId")
-                        .asLong()
-        );
-        assertThat(
                 second.get("code")
                         .asText()
         ).matches("[A-Z]{6}")
@@ -138,42 +132,6 @@ class WorkspaceMultipleInvitationAcceptanceTest {
                 )
         )
                 .andExpect(status().isOk());
-    }
-
-    @Test
-    @DisplayName("여러 초대가 있어도 구 조회와 재발급은 404이며 데이터를 바꾸지 않는다")
-    void legacyEndpoints_areBlocked() throws Exception {
-        // given
-        Fixture fixture = fixture("OWNER");
-        issue(fixture);
-        issue(fixture);
-        List<String> before = rows(fixture.workspaceId());
-
-        // when
-        ResultActions response = mvc.perform(
-                get(
-                        "/api/v1/workspaces/{id}/invitation",
-                        fixture.workspaceId()
-                ).cookie(cookie(fixture.memberId()))
-        );
-
-        // then
-        response.andExpect(status().isNotFound())
-                .andExpect(
-                        header().string(
-                                "Cache-Control",
-                                "no-store"
-                        )
-                );
-        mvc.perform(
-                post(
-                        "/api/v1/workspaces/{id}/invitations/reissue",
-                        fixture.workspaceId()
-                ).cookie(cookie(fixture.memberId()))
-                        .with(csrf())
-        )
-                .andExpect(status().isNotFound());
-        assertThat(rows(fixture.workspaceId())).isEqualTo(before);
     }
 
     @ParameterizedTest
@@ -224,6 +182,23 @@ class WorkspaceMultipleInvitationAcceptanceTest {
                         )
                 );
         assertThat(rows(original.workspaceId())).isEmpty();
+    }
+
+    @Test
+    @DisplayName("양수가 아닌 Workspace ID의 초대 발급 요청은 400을 반환한다")
+    void issue_rejectsInvalidWorkspaceId() throws Exception {
+        // given
+        Fixture fixture = new Fixture(
+                0L,
+                fixture("OWNER").memberId()
+        );
+
+        // when
+        ResultActions response = issue(fixture);
+
+        // then
+        response.andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_WORKSPACE_ID"));
     }
 
     @Test
@@ -297,9 +272,8 @@ class WorkspaceMultipleInvitationAcceptanceTest {
         }
 
         // then
-        assertThat(results).extracting(WorkspaceInvitationResult::invitationId)
+        assertThat(results).extracting(WorkspaceInvitationResult::code)
                 .doesNotHaveDuplicates();
-        assertThat(results).allMatch(WorkspaceInvitationResult::created);
         assertThat(rows(fixture.workspaceId())).hasSize(2);
     }
 
