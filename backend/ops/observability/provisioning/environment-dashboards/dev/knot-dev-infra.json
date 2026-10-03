@@ -1,0 +1,1156 @@
+{
+  "title": "DEV 04 서버 자원",
+  "uid": "knot-dev-infra",
+  "schemaVersion": 41,
+  "version": 1,
+  "tags": [
+    "knot",
+    "dev",
+    "infra"
+  ],
+  "refresh": "30s",
+  "timezone": "Asia/Seoul",
+  "time": {
+    "from": "now-30m",
+    "to": "now"
+  },
+  "templating": {
+    "list": []
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "text",
+      "title": "DEV · 이 화면 읽는 법",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 3
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "DEV AWS 앱 서버의 자원입니다. **CPU·메모리·디스크 추세**를 먼저 보고 필요할 때 아래 상세 지표를 확인하세요.\n\nNCP Grafana 서버 자원이나 EC2 전원 상태를 표시하는 화면은 아닙니다."
+      }
+    },
+    {
+      "id": 2,
+      "title": "CPU 사용률",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "knot-prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 3,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "100 * (1 - avg by (env, instance) (rate(node_cpu_seconds_total{mode=\"idle\",env=\"dev\"}[2m])))",
+          "legendFormat": "{{env}} {{instance}}"
+        }
+      ],
+      "description": "AWS 앱 서버 CPU의 2분 평균 사용률입니다. 높은 값이 지속되면 서버 자원과 같은 시각의 요청·앱 로그를 확인하세요. NCP Grafana 컨테이너의 CPU가 아닙니다."
+    },
+    {
+      "id": 3,
+      "title": "메모리 사용률",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "knot-prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 3,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "100 * (1 - node_memory_MemAvailable_bytes{env=\"dev\"}/node_memory_MemTotal_bytes{env=\"dev\"})",
+          "legendFormat": "{{env}} {{instance}}"
+        }
+      ],
+      "description": "AWS 앱 서버에서 가용 메모리를 제외한 사용 비율입니다. 장기 상승이면 앱별 메모리와 GC를 확인하세요. NCP Grafana 컨테이너 메모리와는 다릅니다."
+    },
+    {
+      "id": 4,
+      "title": "서버 디스크 사용률",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "knot-prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 11,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "100 * (1 - node_filesystem_avail_bytes{env=\"dev\",mountpoint=\"/\",fstype!~\"tmpfs|overlay\"}/node_filesystem_size_bytes{env=\"dev\",mountpoint=\"/\",fstype!~\"tmpfs|overlay\"})",
+          "legendFormat": "{{env}} {{instance}}"
+        }
+      ],
+      "description": "AWS 앱 서버 루트 디스크 사용률입니다. 앱 파일·로그·Docker 이미지가 포함되며 RDS 저장 공간이 아닙니다. 증가하면 서버에서 용량을 차지하는 경로를 확인하세요."
+    },
+    {
+      "id": 5,
+      "title": "서버 지표가 들어오나?",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "knot-prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 11,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          },
+          "noValue": "수집 없음",
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "장애",
+                  "color": "red"
+                },
+                "1": {
+                  "text": "수집 중",
+                  "color": "green"
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "max by (env) (present_over_time(node_cpu_seconds_total{env=\"dev\"}[2m]))",
+          "legendFormat": "{{env}} {{instance}}",
+          "instant": true,
+          "range": false
+        }
+      ],
+      "description": "최근 2분 안에 CPU 지표가 들어왔는지 확인합니다. 수집 중은 EC2 전원 상태나 앱 정상 여부가 아닙니다. 없으면 Alloy와 전송 경로를 확인하세요."
+    },
+    {
+      "id": 6,
+      "title": "네트워크 수신량",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "knot-prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 19,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (env) (rate(node_network_receive_bytes_total{env=\"dev\",device!=\"lo\"}[2m]))",
+          "legendFormat": "{{env}} {{instance}}"
+        }
+      ],
+      "description": "DEV의 네트워크 수신량 지표입니다. 같은 시간대의 요청·앱 로그와 함께 확인하세요. 데이터 없음은 정상 0이 아닙니다."
+    },
+    {
+      "type": "timeseries",
+      "title": "네트워크 전송량",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "knot-prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (env,instance) (rate(node_network_transmit_bytes_total{env=\"dev\",device!=\"lo\"}[2m]))",
+          "legendFormat": "{{env}} {{instance}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps",
+          "noValue": "데이터 없음 / 미연결"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "id": 7,
+      "gridPos": {
+        "x": 12,
+        "y": 19,
+        "w": 12,
+        "h": 8
+      },
+      "description": "DEV의 네트워크 전송량 지표입니다. 같은 시간대의 요청·앱 로그와 함께 확인하세요. 데이터 없음은 정상 0이 아닙니다."
+    },
+    {
+      "type": "timeseries",
+      "title": "Load average 1m",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "knot-prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "node_load1{env=\"dev\"}",
+          "legendFormat": "{{env}} {{instance}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "데이터 없음 / 미연결"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "id": 8,
+      "gridPos": {
+        "x": 0,
+        "y": 27,
+        "w": 12,
+        "h": 8
+      },
+      "description": "DEV의 Load average 1m 지표입니다. 같은 시간대의 요청·앱 로그와 함께 확인하세요. 데이터 없음은 정상 0이 아닙니다."
+    },
+    {
+      "type": "timeseries",
+      "title": "CPU mode별 비율",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "knot-prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "100 * avg by (env,instance,mode) (rate(node_cpu_seconds_total{env=\"dev\",mode=~\"user|system|iowait|idle\"}[5m]))",
+          "legendFormat": "{{env}} {{instance}} {{mode}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "noValue": "데이터 없음 / 미연결"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "id": 9,
+      "gridPos": {
+        "x": 12,
+        "y": 27,
+        "w": 12,
+        "h": 8
+      },
+      "description": "DEV의 CPU mode별 비율 지표입니다. 같은 시간대의 요청·앱 로그와 함께 확인하세요. 데이터 없음은 정상 0이 아닙니다."
+    },
+    {
+      "type": "timeseries",
+      "title": "메모리 사용량",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "knot-prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "node_memory_MemTotal_bytes{env=\"dev\"} - node_memory_MemAvailable_bytes{env=\"dev\"}",
+          "legendFormat": "{{env}} {{instance}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "noValue": "데이터 없음 / 미연결"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "id": 10,
+      "gridPos": {
+        "x": 0,
+        "y": 35,
+        "w": 12,
+        "h": 8
+      },
+      "description": "DEV의 메모리 사용량 지표입니다. 같은 시간대의 요청·앱 로그와 함께 확인하세요. 데이터 없음은 정상 0이 아닙니다."
+    },
+    {
+      "type": "timeseries",
+      "title": "메모리 가용량",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "knot-prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "node_memory_MemAvailable_bytes{env=\"dev\"}",
+          "legendFormat": "{{env}} {{instance}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "noValue": "데이터 없음 / 미연결"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "id": 11,
+      "gridPos": {
+        "x": 12,
+        "y": 35,
+        "w": 12,
+        "h": 8
+      },
+      "description": "DEV의 메모리 가용량 지표입니다. 같은 시간대의 요청·앱 로그와 함께 확인하세요. 데이터 없음은 정상 0이 아닙니다."
+    },
+    {
+      "type": "timeseries",
+      "title": "메모리 cache",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "knot-prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "node_memory_Cached_bytes{env=\"dev\"}",
+          "legendFormat": "{{env}} {{instance}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "noValue": "데이터 없음 / 미연결"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "id": 12,
+      "gridPos": {
+        "x": 0,
+        "y": 43,
+        "w": 12,
+        "h": 8
+      },
+      "description": "DEV의 메모리 cache 지표입니다. 같은 시간대의 요청·앱 로그와 함께 확인하세요. 데이터 없음은 정상 0이 아닙니다."
+    },
+    {
+      "type": "timeseries",
+      "title": "Swap 사용량",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "knot-prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "node_memory_SwapTotal_bytes{env=\"dev\"} - node_memory_SwapFree_bytes{env=\"dev\"}",
+          "legendFormat": "{{env}} {{instance}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "noValue": "데이터 없음 / 미연결"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "id": 13,
+      "gridPos": {
+        "x": 12,
+        "y": 43,
+        "w": 12,
+        "h": 8
+      },
+      "description": "DEV의 Swap 사용량 지표입니다. 같은 시간대의 요청·앱 로그와 함께 확인하세요. 데이터 없음은 정상 0이 아닙니다."
+    },
+    {
+      "type": "timeseries",
+      "title": "루트 디스크 가용량",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "knot-prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "node_filesystem_avail_bytes{env=\"dev\",mountpoint=\"/\",fstype!~\"tmpfs|overlay\"}",
+          "legendFormat": "{{env}} {{instance}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "noValue": "데이터 없음 / 미연결"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "id": 14,
+      "gridPos": {
+        "x": 0,
+        "y": 51,
+        "w": 12,
+        "h": 8
+      },
+      "description": "DEV의 루트 디스크 가용량 지표입니다. 같은 시간대의 요청·앱 로그와 함께 확인하세요. 데이터 없음은 정상 0이 아닙니다."
+    },
+    {
+      "type": "timeseries",
+      "title": "디스크 read 처리량",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "knot-prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "rate(node_disk_read_bytes_total{env=\"dev\",device!~\"loop.*|ram.*\"}[5m])",
+          "legendFormat": "{{env}} {{instance}} {{device}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps",
+          "noValue": "데이터 없음 / 미연결"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "id": 15,
+      "gridPos": {
+        "x": 12,
+        "y": 51,
+        "w": 12,
+        "h": 8
+      },
+      "description": "DEV의 디스크 read 처리량 지표입니다. 같은 시간대의 요청·앱 로그와 함께 확인하세요. 데이터 없음은 정상 0이 아닙니다."
+    },
+    {
+      "type": "timeseries",
+      "title": "디스크 write 처리량",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "knot-prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "rate(node_disk_written_bytes_total{env=\"dev\",device!~\"loop.*|ram.*\"}[5m])",
+          "legendFormat": "{{env}} {{instance}} {{device}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps",
+          "noValue": "데이터 없음 / 미연결"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "id": 16,
+      "gridPos": {
+        "x": 0,
+        "y": 59,
+        "w": 12,
+        "h": 8
+      },
+      "description": "DEV의 디스크 write 처리량 지표입니다. 같은 시간대의 요청·앱 로그와 함께 확인하세요. 데이터 없음은 정상 0이 아닙니다."
+    },
+    {
+      "type": "timeseries",
+      "title": "디스크 read 평균 latency",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "knot-prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "rate(node_disk_read_time_seconds_total{env=\"dev\",device!~\"loop.*|ram.*\"}[5m]) / (rate(node_disk_reads_completed_total{env=\"dev\",device!~\"loop.*|ram.*\"}[5m]) > 0)",
+          "legendFormat": "{{env}} {{instance}} {{device}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "noValue": "데이터 없음 / 미연결"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "id": 17,
+      "gridPos": {
+        "x": 12,
+        "y": 59,
+        "w": 12,
+        "h": 8
+      },
+      "description": "DEV의 디스크 read 평균 latency 지표입니다. 같은 시간대의 요청·앱 로그와 함께 확인하세요. 데이터 없음은 정상 0이 아닙니다."
+    },
+    {
+      "type": "timeseries",
+      "title": "디스크 write 평균 latency",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "knot-prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "rate(node_disk_write_time_seconds_total{env=\"dev\",device!~\"loop.*|ram.*\"}[5m]) / (rate(node_disk_writes_completed_total{env=\"dev\",device!~\"loop.*|ram.*\"}[5m]) > 0)",
+          "legendFormat": "{{env}} {{instance}} {{device}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "noValue": "데이터 없음 / 미연결"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "id": 18,
+      "gridPos": {
+        "x": 0,
+        "y": 67,
+        "w": 12,
+        "h": 8
+      },
+      "description": "DEV의 디스크 write 평균 latency 지표입니다. 같은 시간대의 요청·앱 로그와 함께 확인하세요. 데이터 없음은 정상 0이 아닙니다."
+    },
+    {
+      "type": "timeseries",
+      "title": "디스크 I/O busy 비율",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "knot-prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "100 * rate(node_disk_io_time_seconds_total{env=\"dev\",device!~\"loop.*|ram.*\"}[5m])",
+          "legendFormat": "{{env}} {{instance}} {{device}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "noValue": "데이터 없음 / 미연결"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "id": 19,
+      "gridPos": {
+        "x": 12,
+        "y": 67,
+        "w": 12,
+        "h": 8
+      },
+      "description": "DEV의 디스크 I/O busy 비율 지표입니다. 같은 시간대의 요청·앱 로그와 함께 확인하세요. 데이터 없음은 정상 0이 아닙니다."
+    },
+    {
+      "type": "timeseries",
+      "title": "네트워크 RX packets",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "knot-prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (env,instance,device) (rate(node_network_receive_packets_total{env=\"dev\",device!=\"lo\"}[5m]))",
+          "legendFormat": "{{env}} {{instance}} {{device}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "pps",
+          "noValue": "데이터 없음 / 미연결"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "id": 20,
+      "gridPos": {
+        "x": 0,
+        "y": 75,
+        "w": 12,
+        "h": 8
+      },
+      "description": "DEV의 네트워크 RX packets 지표입니다. 같은 시간대의 요청·앱 로그와 함께 확인하세요. 데이터 없음은 정상 0이 아닙니다."
+    },
+    {
+      "type": "timeseries",
+      "title": "네트워크 TX packets",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "knot-prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (env,instance,device) (rate(node_network_transmit_packets_total{env=\"dev\",device!=\"lo\"}[5m]))",
+          "legendFormat": "{{env}} {{instance}} {{device}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "pps",
+          "noValue": "데이터 없음 / 미연결"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "id": 21,
+      "gridPos": {
+        "x": 12,
+        "y": 75,
+        "w": 12,
+        "h": 8
+      },
+      "description": "DEV의 네트워크 TX packets 지표입니다. 같은 시간대의 요청·앱 로그와 함께 확인하세요. 데이터 없음은 정상 0이 아닙니다."
+    },
+    {
+      "type": "timeseries",
+      "title": "네트워크 errors",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "knot-prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (env,instance,device) (rate(node_network_receive_errs_total{env=\"dev\",device!=\"lo\"}[5m]) + rate(node_network_transmit_errs_total{env=\"dev\",device!=\"lo\"}[5m]))",
+          "legendFormat": "{{env}} {{instance}} {{device}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "noValue": "데이터 없음 / 미연결"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "id": 22,
+      "gridPos": {
+        "x": 0,
+        "y": 83,
+        "w": 12,
+        "h": 8
+      },
+      "description": "DEV의 네트워크 errors 지표입니다. 같은 시간대의 요청·앱 로그와 함께 확인하세요. 데이터 없음은 정상 0이 아닙니다."
+    },
+    {
+      "type": "timeseries",
+      "title": "네트워크 drops",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "knot-prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (env,instance,device) (rate(node_network_receive_drop_total{env=\"dev\",device!=\"lo\"}[5m]) + rate(node_network_transmit_drop_total{env=\"dev\",device!=\"lo\"}[5m]))",
+          "legendFormat": "{{env}} {{instance}} {{device}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "noValue": "데이터 없음 / 미연결"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "id": 23,
+      "gridPos": {
+        "x": 12,
+        "y": 83,
+        "w": 12,
+        "h": 8
+      },
+      "description": "DEV의 네트워크 drops 지표입니다. 같은 시간대의 요청·앱 로그와 함께 확인하세요. 데이터 없음은 정상 0이 아닙니다."
+    },
+    {
+      "type": "timeseries",
+      "title": "Load average 5m",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "knot-prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "node_load5{env=\"dev\"}",
+          "legendFormat": "{{env}} {{instance}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "데이터 없음 / 미연결"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "id": 24,
+      "gridPos": {
+        "x": 0,
+        "y": 91,
+        "w": 12,
+        "h": 8
+      },
+      "description": "DEV의 Load average 5m 지표입니다. 같은 시간대의 요청·앱 로그와 함께 확인하세요. 데이터 없음은 정상 0이 아닙니다."
+    },
+    {
+      "type": "timeseries",
+      "title": "Load average 15m",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "knot-prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "node_load15{env=\"dev\"}",
+          "legendFormat": "{{env}} {{instance}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "데이터 없음 / 미연결"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "id": 25,
+      "gridPos": {
+        "x": 12,
+        "y": 91,
+        "w": 12,
+        "h": 8
+      },
+      "description": "DEV의 Load average 15m 지표입니다. 같은 시간대의 요청·앱 로그와 함께 확인하세요. 데이터 없음은 정상 0이 아닙니다."
+    }
+  ],
+  "links": [
+    {
+      "title": "01 전체 상태",
+      "type": "link",
+      "url": "/d/knot-dev-overview",
+      "keepTime": true,
+      "includeVars": false
+    },
+    {
+      "title": "02 API 요청·오류",
+      "type": "link",
+      "url": "/d/knot-dev-api",
+      "keepTime": true,
+      "includeVars": false
+    },
+    {
+      "title": "03 로그",
+      "type": "link",
+      "url": "/d/knot-dev-logs",
+      "keepTime": true,
+      "includeVars": false
+    },
+    {
+      "title": "04 서버 자원",
+      "type": "link",
+      "url": "/d/knot-dev-infra",
+      "keepTime": true,
+      "includeVars": false
+    },
+    {
+      "title": "05 Spring 앱",
+      "type": "link",
+      "url": "/d/knot-dev-spring",
+      "keepTime": true,
+      "includeVars": false
+    },
+    {
+      "title": "06 Tomcat·DB 연결 풀",
+      "type": "link",
+      "url": "/d/knot-dev-pools",
+      "keepTime": true,
+      "includeVars": false
+    },
+    {
+      "title": "07 RDS",
+      "type": "link",
+      "url": "/d/knot-dev-rds",
+      "keepTime": true,
+      "includeVars": false
+    },
+    {
+      "title": "PROD로 이동",
+      "type": "link",
+      "url": "/d/knot-prod-overview",
+      "keepTime": true,
+      "includeVars": false
+    }
+  ],
+  "description": "DEV 전용 서버 자원. 환경이 쿼리에 고정되어 URL 변수로 다른 환경을 섞지 않습니다."
+}

@@ -1,0 +1,169 @@
+{
+  "title": "PROD 03 로그",
+  "uid": "knot-prod-logs",
+  "schemaVersion": 41,
+  "version": 1,
+  "tags": [
+    "knot",
+    "prod",
+    "logs"
+  ],
+  "refresh": "30s",
+  "timezone": "Asia/Seoul",
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "templating": {
+    "list": []
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "text",
+      "title": "PROD · 이 화면 읽는 법",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 4
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "PROD 로그만 표시합니다. **앱 로그 → Nginx 요청 로그 → Nginx 5xx**를 따로 읽으세요. 시간 범위를 문제 발생 시각에 맞추고 위 Refresh로 갱신하세요.\n\n로그 없음만으로 수집 장애를 확정할 수 없습니다. 트래픽이 없거나 시간 범위가 짧을 수 있습니다. 전체 상태의 지표 수집과 Alloy 로그를 함께 확인하세요."
+      }
+    },
+    {
+      "id": 2,
+      "title": "앱 로그 · 예외와 처리 기록",
+      "type": "logs",
+      "datasource": {
+        "type": "loki",
+        "uid": "knot-loki"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 4,
+        "w": 24,
+        "h": 10
+      },
+      "options": {
+        "showTime": true,
+        "showLabels": true,
+        "sortOrder": "Descending",
+        "wrapLogMessage": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "{project=\"knot\",env=\"prod\",job=\"prototype\"}",
+          "queryType": "range"
+        }
+      ],
+      "description": "Prod knot-prototype-ec2-api-1 컨테이너 로그입니다. 시간과 레이블을 확인하고 필요한 구간으로 범위를 좁히세요."
+    },
+    {
+      "id": 3,
+      "title": "Nginx 요청 로그 · 경로와 응답",
+      "type": "logs",
+      "datasource": {
+        "type": "loki",
+        "uid": "knot-loki"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 14,
+        "w": 24,
+        "h": 10
+      },
+      "options": {
+        "showTime": true,
+        "showLabels": true,
+        "sortOrder": "Descending",
+        "wrapLogMessage": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "{project=\"knot\",env=\"prod\",job=\"nginx\"} | json",
+          "queryType": "range"
+        }
+      ],
+      "description": "health 요청을 포함한 Nginx 원문입니다. uri, status, duration, upstream_duration을 확인하세요. 앱 내부 예외는 위 앱 로그에서 봅니다. 시간과 레이블을 확인하고 필요한 구간으로 범위를 좁히세요."
+    },
+    {
+      "id": 4,
+      "title": "Nginx 5xx · 실패한 요청만",
+      "type": "logs",
+      "datasource": {
+        "type": "loki",
+        "uid": "knot-loki"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 24,
+        "w": 24,
+        "h": 10
+      },
+      "options": {
+        "showTime": true,
+        "showLabels": true,
+        "sortOrder": "Descending",
+        "wrapLogMessage": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "{project=\"knot\",env=\"prod\",job=\"nginx\"} | json | status >= 500 | status < 600 | __error__=\"\"",
+          "queryType": "range"
+        }
+      ],
+      "description": "HTTP 500~599 요청만 표시합니다. 비어 있어도 전체 수집 정상의 증거는 아닙니다. 같은 시각의 앱 로그와 전체 요청을 함께 확인하세요. 시간과 레이블을 확인하고 필요한 구간으로 범위를 좁히세요."
+    }
+  ],
+  "links": [
+    {
+      "title": "01 전체 상태",
+      "type": "link",
+      "url": "/d/knot-prod-overview",
+      "keepTime": true,
+      "includeVars": false
+    },
+    {
+      "title": "02 API 요청·오류",
+      "type": "link",
+      "url": "/d/knot-prod-api",
+      "keepTime": true,
+      "includeVars": false
+    },
+    {
+      "title": "03 로그",
+      "type": "link",
+      "url": "/d/knot-prod-logs",
+      "keepTime": true,
+      "includeVars": false
+    },
+    {
+      "title": "04 서버 자원",
+      "type": "link",
+      "url": "/d/knot-prod-infra",
+      "keepTime": true,
+      "includeVars": false
+    },
+    {
+      "title": "05 RDS·별도 AWS DB",
+      "type": "link",
+      "url": "/d/knot-prod-rds",
+      "keepTime": true,
+      "includeVars": false
+    },
+    {
+      "title": "DEV로 이동",
+      "type": "link",
+      "url": "/d/knot-dev-overview",
+      "keepTime": true,
+      "includeVars": false
+    }
+  ],
+  "description": "PROD 전용 로그. 환경이 쿼리에 고정되어 URL 변수로 다른 환경을 섞지 않습니다."
+}

@@ -1,0 +1,464 @@
+{
+  "title": "05 RDS",
+  "uid": "knot-rds",
+  "schemaVersion": 41,
+  "version": 5,
+  "tags": [
+    "knot",
+    "operations"
+  ],
+  "refresh": "30s",
+  "timezone": "Asia/Seoul",
+  "time": {
+    "from": "now-30m",
+    "to": "now"
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "env",
+        "label": "환경",
+        "type": "custom",
+        "query": "dev,prod",
+        "multi": true,
+        "includeAll": true,
+        "allValue": "dev|prod",
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        },
+        "options": [
+          {
+            "text": "dev",
+            "value": "dev",
+            "selected": false
+          },
+          {
+            "text": "prod",
+            "value": "prod",
+            "selected": false
+          }
+        ]
+      },
+      {
+        "name": "db",
+        "label": "DB",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "knot-prometheus"
+        },
+        "definition": "label_values(aws_rds_cpuutilization_average{env=~\"$env\"}, dimension_DBInstanceIdentifier)",
+        "query": {
+          "query": "label_values(aws_rds_cpuutilization_average{env=~\"$env\"}, dimension_DBInstanceIdentifier)",
+          "refId": "StandardVariableQuery"
+        },
+        "refresh": 1,
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*",
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        },
+        "options": []
+      }
+    ]
+  },
+  "panels": [
+    {
+      "type": "text",
+      "title": "적용 범위",
+      "options": {
+        "mode": "markdown",
+        "content": "Dev: `knot-dev-database`, Prod: `knot-database`의 실제 CloudWatch 지표입니다. 기존 EC2 역할과 Alloy를 사용하며 AWS 키는 저장하지 않습니다.\n\n5분 집계·조회, 최근 10분 검색이므로 실시간 DB 순간값이 아닙니다. 데이터가 없으면 정상 0으로 표시하지 않습니다. Hikari 풀과 함께 확인하고, 서로 다른 앱의 성능 우열로 해석하지 않습니다."
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 5
+      },
+      "id": 1
+    },
+    {
+      "id": 2,
+      "title": "RDS CPU 사용률",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "knot-prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 5,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "noValue": "데이터 없음"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "description": "CloudWatch 5분 Average. 호스트 메모리나 Hikari 연결 수가 아니라 RDS 자체 값입니다.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "aws_rds_cpuutilization_average{env=~\"$env\",dimension_DBInstanceIdentifier=~\"$db\"} < +Inf",
+          "legendFormat": "{{env}} {{dimension_DBInstanceIdentifier}}"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "RDS DB connections",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "knot-prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 5,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "min": 0,
+          "noValue": "데이터 없음"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "description": "CloudWatch 5분 Average. 호스트 메모리나 Hikari 연결 수가 아니라 RDS 자체 값입니다.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "aws_rds_database_connections_average{env=~\"$env\",dimension_DBInstanceIdentifier=~\"$db\"} < +Inf",
+          "legendFormat": "{{env}} {{dimension_DBInstanceIdentifier}}"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "RDS 가용 메모리",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "knot-prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 13,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "min": 0,
+          "noValue": "데이터 없음"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "description": "CloudWatch 5분 Average. 호스트 메모리나 Hikari 연결 수가 아니라 RDS 자체 값입니다.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "aws_rds_freeable_memory_average{env=~\"$env\",dimension_DBInstanceIdentifier=~\"$db\"} < +Inf",
+          "legendFormat": "{{env}} {{dimension_DBInstanceIdentifier}}"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "RDS 가용 스토리지",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "knot-prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 13,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "min": 0,
+          "noValue": "데이터 없음"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "description": "CloudWatch 5분 Average. 호스트 메모리나 Hikari 연결 수가 아니라 RDS 자체 값입니다.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "aws_rds_free_storage_space_average{env=~\"$env\",dimension_DBInstanceIdentifier=~\"$db\"} < +Inf",
+          "legendFormat": "{{env}} {{dimension_DBInstanceIdentifier}}"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "RDS read latency",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "knot-prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 21,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0,
+          "noValue": "데이터 없음"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "description": "CloudWatch 5분 Average. 호스트 메모리나 Hikari 연결 수가 아니라 RDS 자체 값입니다.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "aws_rds_read_latency_average{env=~\"$env\",dimension_DBInstanceIdentifier=~\"$db\"} < +Inf",
+          "legendFormat": "{{env}} {{dimension_DBInstanceIdentifier}}"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "RDS write latency",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "knot-prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 21,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0,
+          "noValue": "데이터 없음"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "description": "CloudWatch 5분 Average. 호스트 메모리나 Hikari 연결 수가 아니라 RDS 자체 값입니다.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "aws_rds_write_latency_average{env=~\"$env\",dimension_DBInstanceIdentifier=~\"$db\"} < +Inf",
+          "legendFormat": "{{env}} {{dimension_DBInstanceIdentifier}}"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "title": "RDS read IOPS",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "knot-prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 29,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "iops",
+          "min": 0,
+          "noValue": "데이터 없음"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "description": "CloudWatch 5분 Average. 호스트 메모리나 Hikari 연결 수가 아니라 RDS 자체 값입니다.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "aws_rds_read_iops_average{env=~\"$env\",dimension_DBInstanceIdentifier=~\"$db\"} < +Inf",
+          "legendFormat": "{{env}} {{dimension_DBInstanceIdentifier}}"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "title": "RDS write IOPS",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "knot-prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 29,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "iops",
+          "min": 0,
+          "noValue": "데이터 없음"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "description": "CloudWatch 5분 Average. 호스트 메모리나 Hikari 연결 수가 아니라 RDS 자체 값입니다.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "aws_rds_write_iops_average{env=~\"$env\",dimension_DBInstanceIdentifier=~\"$db\"} < +Inf",
+          "legendFormat": "{{env}} {{dimension_DBInstanceIdentifier}}"
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "title": "RDS disk queue depth",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "knot-prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 37,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "min": 0,
+          "noValue": "데이터 없음"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "description": "CloudWatch 5분 Average. 호스트 메모리나 Hikari 연결 수가 아니라 RDS 자체 값입니다.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "aws_rds_disk_queue_depth_average{env=~\"$env\",dimension_DBInstanceIdentifier=~\"$db\"} < +Inf",
+          "legendFormat": "{{env}} {{dimension_DBInstanceIdentifier}}"
+        }
+      ]
+    }
+  ],
+  "links": [
+    {
+      "title": "01 Overview",
+      "type": "link",
+      "url": "/d/knot-operations",
+      "keepTime": true,
+      "includeVars": true
+    },
+    {
+      "title": "02 Spring Boot",
+      "type": "link",
+      "url": "/d/knot-spring",
+      "keepTime": true,
+      "includeVars": true
+    },
+    {
+      "title": "03 Tomcat & Hikari",
+      "type": "link",
+      "url": "/d/knot-pools",
+      "keepTime": true,
+      "includeVars": true
+    },
+    {
+      "title": "04 Infrastructure",
+      "type": "link",
+      "url": "/d/knot-infra",
+      "keepTime": true,
+      "includeVars": true
+    },
+    {
+      "title": "05 RDS",
+      "type": "link",
+      "url": "/d/knot-rds",
+      "keepTime": true,
+      "includeVars": true
+    },
+    {
+      "title": "06 PROD vs DEV",
+      "type": "link",
+      "url": "/d/knot-compare",
+      "keepTime": true,
+      "includeVars": true
+    }
+  ]
+}

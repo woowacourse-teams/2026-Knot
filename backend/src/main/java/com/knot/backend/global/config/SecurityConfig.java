@@ -16,6 +16,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.authorization.AuthorizationDecision;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -95,6 +96,31 @@ public class SecurityConfig {
 
         http.cors(Customizer.withDefaults())
                 .authorizeHttpRequests(auth -> {
+                    auth.requestMatchers(
+                            HttpMethod.GET,
+                            "/actuator/prometheus"
+                    )
+                            .access(
+                                    (
+                                            authentication,
+                                            context
+                                    ) -> new AuthorizationDecision(
+                                            List.of(
+                                                    "127.0.0.1",
+                                                    "::1",
+                                                    "0:0:0:0:0:0:0:1"
+                                            )
+                                                    .contains(
+                                                            context.getRequest()
+                                                                    .getRemoteAddr()
+                                                    )
+                                    )
+                            )
+                            .requestMatchers(
+                                    "/actuator/prometheus",
+                                    "/actuator/prometheus/**"
+                            )
+                            .denyAll();
                     if (apiDocumentationProperties.isEnabled()) {
                         auth.requestMatchers(
                                 "/swagger-ui.html",
