@@ -12,8 +12,6 @@ interface ChatSessionGroupProps {
 
 /**
  * "오늘"처럼 같은 기간에 묶인 대화를 기간 이름과 함께 보여줍니다.
- *
- * @see https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=580-1533
  */
 export default function ChatSessionGroup({
   label,

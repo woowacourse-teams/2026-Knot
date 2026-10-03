@@ -15,8 +15,6 @@ interface SidebarFolderRowProps {
 
 /**
  * 사이드바 폴더 행. 누르면 하위 항목을 펼치거나 접어요.
- *
- * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=580-1444 Sidebar/FolderRow}
  */
 export default function SidebarFolderRow({
   depth,
