@@ -1,8 +1,15 @@
 package com.knot.backend.workspace.domain;
 
 import java.util.Optional;
+import java.util.List;
+import java.time.Instant;
 
 public interface WorkspaceInvitationRepository {
+
+    List<WorkspaceInvitation> findValidByWorkspaceIdAt(
+            Long workspaceId,
+            Instant now
+    );
 
     WorkspaceInvitation save(WorkspaceInvitation workspaceInvitation);
 

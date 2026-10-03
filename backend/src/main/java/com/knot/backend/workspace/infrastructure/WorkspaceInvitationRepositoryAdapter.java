@@ -4,6 +4,8 @@ import com.knot.backend.workspace.domain.WorkspaceInvitation;
 import com.knot.backend.workspace.domain.WorkspaceInvitationRepository;
 import com.knot.backend.workspace.domain.WorkspaceInvitationSecretCollisionException;
 import java.util.Optional;
+import java.util.List;
+import java.time.Instant;
 import java.util.Set;
 import org.hibernate.exception.ConstraintViolationException;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -19,6 +21,17 @@ public class WorkspaceInvitationRepositoryAdapter implements WorkspaceInvitation
 
     public WorkspaceInvitationRepositoryAdapter(WorkspaceInvitationJpaRepository workspaceInvitationJpaRepository) {
         this.workspaceInvitationJpaRepository = workspaceInvitationJpaRepository;
+    }
+
+    @Override
+    public List<WorkspaceInvitation> findValidByWorkspaceIdAt(
+            Long workspaceId,
+            Instant now
+    ) {
+        return workspaceInvitationJpaRepository.findValidByWorkspaceIdAt(
+                workspaceId,
+                now
+        );
     }
 
     @Override
