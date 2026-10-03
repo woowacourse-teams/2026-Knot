@@ -35,6 +35,9 @@ public class WorkspaceMember {
     @Column(name = "last_viewed", nullable = false)
     private boolean lastViewed;
 
+    @Column(name = "left_at")
+    private Instant leftAt;
+
     protected WorkspaceMember() {}
 
     private WorkspaceMember(
@@ -52,6 +55,7 @@ public class WorkspaceMember {
         this.role = role;
         this.joinedAt = joinedAt;
         this.lastViewed = false;
+        this.leftAt = null;
     }
 
     public static WorkspaceMember create(
@@ -69,11 +73,52 @@ public class WorkspaceMember {
     }
 
     public void markLastViewed() {
+        validateActive();
         lastViewed = true;
     }
 
     public void clearLastViewed() {
         lastViewed = false;
+    }
+
+    public void receiveOwnership() {
+        if (!isActive() || role != WorkspaceMemberRole.MEMBER) {
+            throw new WorkspaceException(WorkspaceErrorCode.WORKSPACE_OWNERSHIP_TRANSFER_TARGET_CONFLICT);
+        }
+        this.role = WorkspaceMemberRole.OWNER;
+    }
+
+    public void leave(
+            Instant leftAt,
+            long activeMemberCount
+    ) {
+        if (!isActive()) {
+            return;
+        }
+        validateLeftAt(leftAt);
+        validateLeavePolicy(activeMemberCount);
+        this.leftAt = leftAt;
+        this.lastViewed = false;
+    }
+
+    public void leaveAfterOwnershipTransfer(
+            WorkspaceMember successor,
+            Instant leftAt
+    ) {
+        if (!isActive() || role != WorkspaceMemberRole.OWNER) {
+            throw new WorkspaceException(WorkspaceErrorCode.WORKSPACE_OWNER_REQUIRED);
+        }
+        if (successor == null || !successor.isActive() || successor.getRole() != WorkspaceMemberRole.OWNER
+                || !workspaceId.equals(successor.getWorkspaceId()) || memberId.equals(successor.getMemberId())) {
+            throw new WorkspaceException(WorkspaceErrorCode.WORKSPACE_OWNERSHIP_TRANSFER_TARGET_CONFLICT);
+        }
+        validateLeftAt(leftAt);
+        this.leftAt = leftAt;
+        this.lastViewed = false;
+    }
+
+    public boolean isActive() {
+        return leftAt == null;
     }
 
     private void validateWorkspaceId(Long workspaceId) {
@@ -97,6 +142,27 @@ public class WorkspaceMember {
     private void validateJoinedAt(Instant joinedAt) {
         if (joinedAt == null) {
             throw new WorkspaceException(WorkspaceErrorCode.INVALID_WORKSPACE_MEMBER_JOINED_AT);
+        }
+    }
+
+    private void validateLeftAt(Instant leftAt) {
+        if (leftAt == null || leftAt.isBefore(joinedAt)) {
+            throw new WorkspaceException(WorkspaceErrorCode.INVALID_WORKSPACE_MEMBER_LEFT_AT);
+        }
+    }
+
+    private void validateLeavePolicy(long activeMemberCount) {
+        if (activeMemberCount <= 0) {
+            throw new WorkspaceException(WorkspaceErrorCode.INVALID_WORKSPACE_MEMBER_ACTIVE_COUNT);
+        }
+        if (activeMemberCount > 1 && role == WorkspaceMemberRole.OWNER) {
+            throw new WorkspaceException(WorkspaceErrorCode.WORKSPACE_OWNER_TRANSFER_REQUIRED);
+        }
+    }
+
+    private void validateActive() {
+        if (!isActive()) {
+            throw new WorkspaceException(WorkspaceErrorCode.WORKSPACE_MEMBER_ALREADY_LEFT);
         }
     }
 }

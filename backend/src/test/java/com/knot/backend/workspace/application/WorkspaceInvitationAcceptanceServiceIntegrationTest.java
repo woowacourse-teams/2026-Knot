@@ -451,6 +451,10 @@ class WorkspaceInvitationAcceptanceServiceIntegrationTest {
                         "-",
                         ""
                 )
+                .replaceAll(
+                        "[0-9]",
+                        "g"
+                )
                 .substring(
                         0,
                         10

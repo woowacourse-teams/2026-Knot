@@ -27,12 +27,39 @@ public class WorkspaceMemberRepositoryAdapter implements WorkspaceMemberReposito
 
     @Override
     public List<WorkspaceMember> findAllByMemberIdForUpdate(Long memberId) {
-        return workspaceMemberJpaRepository.findAllByMemberIdOrderByIdAsc(memberId);
+        return workspaceMemberJpaRepository.findAllActiveByMemberIdForUpdate(memberId);
+    }
+
+    @Override
+    public List<WorkspaceMember> findAllActiveByWorkspaceIdAndMemberIdsForUpdate(
+            Long workspaceId,
+            List<Long> memberIds
+    ) {
+        return workspaceMemberJpaRepository.findAllActiveByWorkspaceIdAndMemberIdsForUpdate(
+                workspaceId,
+                memberIds
+        );
     }
 
     @Override
     public Optional<WorkspaceMember> findLastViewedByMemberId(Long memberId) {
-        return workspaceMemberJpaRepository.findByMemberIdAndLastViewedTrue(memberId);
+        return workspaceMemberJpaRepository.findActiveLastViewedByMemberId(memberId);
+    }
+
+    @Override
+    public Optional<WorkspaceMember> findLatestByWorkspaceIdAndMemberIdForUpdate(
+            Long workspaceId,
+            Long memberId
+    ) {
+        return workspaceMemberJpaRepository.findFirstByWorkspaceIdAndMemberIdOrderByIdDesc(
+                workspaceId,
+                memberId
+        );
+    }
+
+    @Override
+    public long countActiveByWorkspaceId(Long workspaceId) {
+        return workspaceMemberJpaRepository.countActiveByWorkspaceId(workspaceId);
     }
 
     @Override
@@ -50,7 +77,7 @@ public class WorkspaceMemberRepositoryAdapter implements WorkspaceMemberReposito
             Long workspaceId,
             Long memberId
     ) {
-        return workspaceMemberJpaRepository.existsByWorkspaceIdAndMemberId(
+        return workspaceMemberJpaRepository.existsActiveByWorkspaceIdAndMemberId(
                 workspaceId,
                 memberId
         );
@@ -62,7 +89,7 @@ public class WorkspaceMemberRepositoryAdapter implements WorkspaceMemberReposito
             Long memberId,
             WorkspaceMemberRole role
     ) {
-        return workspaceMemberJpaRepository.existsByWorkspaceIdAndMemberIdAndRole(
+        return workspaceMemberJpaRepository.existsActiveByWorkspaceIdAndMemberIdAndRole(
                 workspaceId,
                 memberId,
                 role

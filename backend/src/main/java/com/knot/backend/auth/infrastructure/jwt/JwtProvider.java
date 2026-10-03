@@ -150,11 +150,16 @@ public class JwtProvider implements AuthTokenProvider {
             );
 
             OAuthProvider provider = OAuthProvider.valueOf(requiredClaim(jwt.getClaimAsString("provider")));
+            Instant authenticatedAt = jwt.getIssuedAt();
+            if (authenticatedAt == null) {
+                throw new AuthException(AuthErrorCode.INVALID_JWT);
+            }
 
             return OAuthUser.of(
                     provider,
                     requiredClaim(jwt.getSubject()),
-                    jwt.getClaimAsString("profile_image_url")
+                    jwt.getClaimAsString("profile_image_url"),
+                    authenticatedAt
             );
         } catch (IllegalArgumentException exception) {
             throw new AuthException(

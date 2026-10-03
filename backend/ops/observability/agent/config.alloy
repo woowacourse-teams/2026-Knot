@@ -1,0 +1,161 @@
+prometheus.exporter.unix "host" {
+  procfs_path = "/host/proc"
+  sysfs_path = "/host/sys"
+  rootfs_path = "/host"
+  set_collectors = ["cpu", "meminfo", "filesystem", "diskstats", "loadavg", "netdev", "stat", "time", "uname"]
+}
+
+prometheus.scrape "host" {
+  targets = prometheus.exporter.unix.host.targets
+  scrape_interval = "30s"
+  job_name = "node"
+  forward_to = [prometheus.remote_write.ncp.receiver]
+}
+
+discovery.relabel "spring" {
+  targets = [{ __address__ = "127.0.0.1:8080", service = "knot-backend", __meta_knot_env = sys.env("KNOT_ENV") }]
+  rule {
+    source_labels = ["__meta_knot_env"]
+    regex = "dev"
+    action = "keep"
+  }
+}
+
+prometheus.scrape "spring" {
+  targets = discovery.relabel.spring.output
+  metrics_path = "/actuator/prometheus"
+  scrape_interval = "30s"
+  job_name = "spring"
+  forward_to = [prometheus.remote_write.ncp.receiver]
+}
+
+prometheus.exporter.cloudwatch "rds" {
+  sts_region = "ap-northeast-2"
+  static "knot_rds" {
+    namespace = "AWS/RDS"
+    regions = ["ap-northeast-2"]
+    dimensions = {
+      DBInstanceIdentifier = { dev = "knot-dev-database", prod = "knot-database" }[sys.env("KNOT_ENV")],
+    }
+    nil_to_zero = false
+    metric {
+      name = "CPUUtilization"
+      statistics = ["Average"]
+      period = "5m"
+      length = "10m"
+    }
+    metric {
+      name = "DatabaseConnections"
+      statistics = ["Average"]
+      period = "5m"
+      length = "10m"
+    }
+    metric {
+      name = "FreeableMemory"
+      statistics = ["Average"]
+      period = "5m"
+      length = "10m"
+    }
+    metric {
+      name = "FreeStorageSpace"
+      statistics = ["Average"]
+      period = "5m"
+      length = "10m"
+    }
+    metric {
+      name = "ReadLatency"
+      statistics = ["Average"]
+      period = "5m"
+      length = "10m"
+    }
+    metric {
+      name = "WriteLatency"
+      statistics = ["Average"]
+      period = "5m"
+      length = "10m"
+    }
+    metric {
+      name = "ReadIOPS"
+      statistics = ["Average"]
+      period = "5m"
+      length = "10m"
+    }
+    metric {
+      name = "WriteIOPS"
+      statistics = ["Average"]
+      period = "5m"
+      length = "10m"
+    }
+    metric {
+      name = "DiskQueueDepth"
+      statistics = ["Average"]
+      period = "5m"
+      length = "10m"
+    }
+  }
+  decoupled_scraping {
+    enabled = true
+    scrape_interval = "5m"
+  }
+}
+
+prometheus.scrape "rds" {
+  targets = prometheus.exporter.cloudwatch.rds.targets
+  scrape_interval = "60s"
+  scrape_timeout = "30s"
+  job_name = "rds"
+  forward_to = [prometheus.remote_write.ncp.receiver]
+}
+
+prometheus.remote_write "ncp" {
+  external_labels = { project = "knot", env = sys.env("KNOT_ENV") }
+  endpoint {
+    url = sys.env("KNOT_INGEST_BASE_URL") + "/" + sys.env("KNOT_ENV") + "/api/v1/write"
+    tls_config {
+      ca_file = "/etc/alloy/tls/ca.crt"
+      cert_file = "/etc/alloy/tls/client.crt"
+      key_file = "/etc/alloy/tls/client.key"
+    }
+  }
+}
+
+loki.write "ncp" {
+  external_labels = { project = "knot", env = sys.env("KNOT_ENV") }
+  endpoint {
+    url = sys.env("KNOT_INGEST_BASE_URL") + "/" + sys.env("KNOT_ENV") + "/loki/api/v1/push"
+    tls_config {
+      ca_file = "/etc/alloy/tls/ca.crt"
+      cert_file = "/etc/alloy/tls/client.crt"
+      key_file = "/etc/alloy/tls/client.key"
+    }
+  }
+}
+
+loki.source.journal "spring" {
+  matches = "_SYSTEMD_UNIT=knot-backend.service"
+  labels = { job = "spring", service = "knot-backend" }
+  max_age = "7h"
+  forward_to = [loki.write.ncp.receiver]
+}
+
+loki.source.file "nginx" {
+  targets = [{ __path__ = "/var/log/nginx/knot-observability.json", job = "nginx", service = "gateway" }]
+  tail_from_end = true
+  forward_to = [loki.write.ncp.receiver]
+}
+
+discovery.docker "prototype" {
+  host = "unix:///var/run/docker.sock"
+  refresh_interval = "30s"
+  filter {
+    name = "name"
+    values = ["knot-prototype-ec2-api-1"]
+  }
+}
+
+loki.source.docker "prototype" {
+  host = "unix:///var/run/docker.sock"
+  targets = discovery.docker.prototype.targets
+  labels = { job = "prototype", service = "knot-prototype" }
+  forward_to = [loki.write.ncp.receiver]
+}

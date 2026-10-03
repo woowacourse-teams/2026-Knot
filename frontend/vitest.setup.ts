@@ -2,7 +2,6 @@ import "@testing-library/jest-dom/vitest";
 import { afterAll, afterEach, beforeAll, vi } from "vitest";
 
 import { mockServer } from "@api/mock/server";
-import { resetSentChatMessages } from "@api/mock/store/chatMessage";
 
 import { installFakeMedia } from "./vitest.media";
 
@@ -12,8 +11,6 @@ beforeAll(() => mockServer.listen({ onUnhandledRequest: "error" }));
 beforeAll(() => installFakeMedia());
 afterEach(() => {
   mockServer.resetHandlers();
-  // 핸들러가 기억하는 값은 resetHandlers로 되돌아가지 않아 따로 비웁니다
-  resetSentChatMessages();
   vi.restoreAllMocks();
 });
 afterAll(() => mockServer.close());

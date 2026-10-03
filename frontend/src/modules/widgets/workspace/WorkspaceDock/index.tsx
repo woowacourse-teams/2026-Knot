@@ -29,14 +29,11 @@ const fadeIn = keyframes`
  * 펼친 뒤 독 바깥을 누르면 다시 접혀요.
  * 채팅이 곧 화면인 탐색에서는 접지 않고 늘 펼쳐 둬요.
  *
- * 질문을 보내면 어느 화면에 있었든 탐색 화면으로 옮겨 가며 그 질문으로 대화를 시작해요.
+ * 질문을 보내면 어느 화면에 있었든 그 질문을 들고 탐색 화면으로 옮겨 가요.
  * 접혀 있든 펼쳐 있든 회의 녹음(마이크) 슬롯을 두고, 누르면 마이크 권한을 받아 녹음을 시작해요.
  * 녹음 화면에서는 마이크를 숨겨요. Figma에서 숨겨져 있는 글 작성 슬롯은 만들지 않아요.
  *
  * 화면 어디에 놓을지는 이 독을 쓰는 레이아웃이 정해요.
- *
- * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=1347-862 Dock/Bar}
- * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=1379-1834 Dock/Bar 모드=채팅 입력}
  */
 export default function WorkspaceDock() {
   const {
@@ -260,7 +257,6 @@ const ControlDivider = styled.span`
     center / 1.5px 100% no-repeat;
 `;
 
-/** @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=1080-648 Button/Send} */
 const SubmitButton = styled.button`
   display: flex;
   flex-shrink: 0;

@@ -1067,7 +1067,10 @@ class WorkspaceInvitationAcceptanceTest {
                 .minusSeconds(1);
         Member member = memberRepository.save(
                 Member.create(
-                        uniqueValue("member"),
+                        uniqueValue("member").replaceAll(
+                                "[0-9]",
+                                "g"
+                        ),
                         null
                 )
         );

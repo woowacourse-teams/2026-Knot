@@ -14,8 +14,6 @@ interface SidebarFileRowProps {
  * 들여쓰기는 같은 깊이의 폴더 행보다 2px 더 들어가요.
  * 부모 폴더 행의 들여쓰기(8px + 18px × (depth − 1))에 chevron 12px과 간격 8px을 더한 값이라,
  * 문서 아이콘이 부모 폴더 아이콘 아래 정렬돼요.
- *
- * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=588-523 Sidebar/FileRow}
  */
 export default function SidebarFileRow({ depth, name }: SidebarFileRowProps) {
   return (

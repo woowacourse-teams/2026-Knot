@@ -4,7 +4,6 @@ import useRecordingLeaveWarning from "@hooks/domain/recording/useRecordingLeaveW
 import useWorkspaceEntry from "@hooks/domain/workspace/useWorkspaceEntry";
 import useWorkspaceNav from "@hooks/domain/workspace/useWorkspaceNav";
 import LoadingIndicator from "@primitives/ui/LoadingIndicator";
-import { ChatStreamProvider } from "@provider/context/chatStreamContext";
 import ChatListDrawer from "@widgets/chat/ChatListDrawer";
 import WorkspaceDock from "@widgets/workspace/WorkspaceDock";
 import WorkspaceGnb from "@widgets/workspace/WorkspaceGnb";
@@ -59,53 +58,51 @@ export default function WorkspaceLayout() {
       setPickedPanel(isDocked ? panel : null);
 
   return (
-    <ChatStreamProvider>
-      <Container>
-        <GnbSlot>
-          <WorkspaceGnb>
+    <Container>
+      <GnbSlot>
+        <WorkspaceGnb>
+          <DockablePanel
+            label="사이드바"
+            icon={<SidebarIcon size={18} />}
+            dockTargetId={WORKSPACE_DOCK_RAIL_ID}
+            isDocked={dockedPanel === "sidebar"}
+            onDockedChange={pickPanel("sidebar")}
+          >
+            <WorkspaceSidebar />
+          </DockablePanel>
+
+          {isChatActive && (
             <DockablePanel
-              label="사이드바"
-              icon={<SidebarIcon size={18} />}
+              label="대화 목록"
+              icon={<ChatListIcon size={18} />}
               dockTargetId={WORKSPACE_DOCK_RAIL_ID}
-              isDocked={dockedPanel === "sidebar"}
-              onDockedChange={pickPanel("sidebar")}
+              isDocked={dockedPanel === "chatList"}
+              onDockedChange={pickPanel("chatList")}
             >
-              <WorkspaceSidebar />
+              <ChatListDrawer />
             </DockablePanel>
+          )}
+        </WorkspaceGnb>
+      </GnbSlot>
 
-            {isChatActive && (
-              <DockablePanel
-                label="대화 목록"
-                icon={<ChatListIcon size={18} />}
-                dockTargetId={WORKSPACE_DOCK_RAIL_ID}
-                isDocked={dockedPanel === "chatList"}
-                onDockedChange={pickPanel("chatList")}
-              >
-                <ChatListDrawer />
-              </DockablePanel>
+      <Body>
+        <DockRail id={WORKSPACE_DOCK_RAIL_ID} />
+
+        <Content>
+          <Main aria-busy={!isReady}>
+            {isReady ? (
+              <Outlet />
+            ) : (
+              <LoadingFallback label="워크스페이스를 불러오고 있어요" />
             )}
-          </WorkspaceGnb>
-        </GnbSlot>
+          </Main>
+        </Content>
+      </Body>
 
-        <Body>
-          <DockRail id={WORKSPACE_DOCK_RAIL_ID} />
-
-          <Content>
-            <Main aria-busy={!isReady}>
-              {isReady ? (
-                <Outlet />
-              ) : (
-                <LoadingFallback label="워크스페이스를 불러오고 있어요" />
-              )}
-            </Main>
-          </Content>
-        </Body>
-
-        <DockSlot>
-          <WorkspaceDock />
-        </DockSlot>
-      </Container>
-    </ChatStreamProvider>
+      <DockSlot>
+        <WorkspaceDock />
+      </DockSlot>
+    </Container>
   );
 }
 
