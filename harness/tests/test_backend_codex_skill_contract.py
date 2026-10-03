@@ -7,6 +7,7 @@ ROOT = Path(__file__).resolve().parents[2]
 COMMON_SKILLS = ROOT / ".agents" / "skills"
 BACKEND_SKILLS = ROOT / "backend" / ".agents" / "skills"
 LEGACY_BACKEND_SKILLS = ROOT / "backend" / ".codex" / "skills"
+BACKEND_CLAUDE_SKILLS = ROOT / "backend" / ".claude" / "skills"
 EXPECTED_TRIGGERS = {
     "knot-commit": (
         "커밋해줘",
@@ -99,6 +100,25 @@ class BackendCodexSkillContractTest(unittest.TestCase):
                         if request in description
                     ]
                     self.assertEqual([expected_skill], matches)
+
+    def test_backend_claude_adapters_point_to_canonical_backend_skills(self):
+        canonical_names = sorted(
+            path.parent.name for path in BACKEND_SKILLS.glob("*/SKILL.md")
+        )
+        adapter_names = sorted(
+            path.parent.name for path in BACKEND_CLAUDE_SKILLS.glob("*/SKILL.md")
+        )
+
+        self.assertEqual(canonical_names, adapter_names)
+        for name in canonical_names:
+            with self.subTest(skill=name):
+                fields, text = read_frontmatter(
+                    BACKEND_CLAUDE_SKILLS / name / "SKILL.md"
+                )
+                self.assertEqual(name, fields.get("name"))
+                self.assertTrue(fields.get("description"))
+                self.assertIn(f"../../../.agents/skills/{name}/SKILL.md", text)
+                self.assertIsNone(UNIX_ABSOLUTE_PATH.search(text))
 
     def test_repository_guidance_explains_backend_skill_discovery(self):
         agents_md = (ROOT / "AGENTS.md").read_text(encoding="utf-8")

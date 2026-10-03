@@ -31,6 +31,17 @@ public class WorkspaceMemberRepositoryAdapter implements WorkspaceMemberReposito
     }
 
     @Override
+    public List<WorkspaceMember> findAllActiveByWorkspaceIdAndMemberIdsForUpdate(
+            Long workspaceId,
+            List<Long> memberIds
+    ) {
+        return workspaceMemberJpaRepository.findAllActiveByWorkspaceIdAndMemberIdsForUpdate(
+                workspaceId,
+                memberIds
+        );
+    }
+
+    @Override
     public Optional<WorkspaceMember> findLastViewedByMemberId(Long memberId) {
         return workspaceMemberJpaRepository.findActiveLastViewedByMemberId(memberId);
     }

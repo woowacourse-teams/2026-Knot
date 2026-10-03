@@ -126,6 +126,18 @@ public enum WorkspaceErrorCode implements ErrorCode {
             "이미 탈퇴한 워크스페이스 멤버십입니다"
     ),
 
+    INVALID_WORKSPACE_OWNERSHIP_TRANSFER_TARGET(
+            ErrorCategory.INVALID_INPUT,
+            "INVALID_WORKSPACE_OWNERSHIP_TRANSFER_TARGET",
+            "본인에게 OWNER 권한을 승계할 수 없습니다"
+    ),
+
+    WORKSPACE_OWNERSHIP_TRANSFER_TARGET_CONFLICT(
+            ErrorCategory.CONFLICT,
+            "WORKSPACE_OWNERSHIP_TRANSFER_TARGET_CONFLICT",
+            "OWNER 권한을 승계할 활성 멤버를 찾을 수 없습니다"
+    ),
+
     WORKSPACE_INVITATION_NOT_FOUND(
             ErrorCategory.NOT_FOUND,
             "WORKSPACE_INVITATION_NOT_FOUND",
