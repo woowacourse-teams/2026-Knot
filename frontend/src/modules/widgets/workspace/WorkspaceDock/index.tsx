@@ -20,17 +20,9 @@ const fadeIn = keyframes`
 `;
 
 /**
- * 화면 하단 가운데에 고정으로 놓이는 독.
+ * 화면 하단 가운데에 고정으로 놓이는 독. 화면 어디에 놓을지는 이 독을 쓰는 레이아웃이 정해요.
  *
- * 접혀 있을 때는 동그란 버튼 하나이고, 누르면 질문 입력창으로 폭이 벌어지며 펼쳐져요.
- * 화면 아무 데서나 글자를 쳐도 같은 자리로 이어지고, 그 방법은 처음 몇 번 말풍선으로 알려줘요.
- * 펼친 뒤 독 바깥을 누르면 다시 접혀요.
- * 채팅이 곧 화면인 탐색에서는 접지 않고 늘 펼쳐 둬요.
- *
- * 질문을 보내면 어느 화면에 있었든 탐색 화면으로 옮겨 가며 그 질문으로 대화를 시작해요.
- * Figma에서 숨겨져 있는 회의 녹음·글 작성 슬롯은 만들지 않아요.
- *
- * 화면 어디에 놓을지는 이 독을 쓰는 레이아웃이 정해요.
+ * 상태별 모양과 동작 규칙은 스토리북 `Workspace/WorkspaceDock`에서 확인해요.
  *
  * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=1347-862 Dock/Bar}
  * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=1379-1834 Dock/Bar 모드=채팅 입력}

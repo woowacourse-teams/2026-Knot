@@ -4,9 +4,7 @@ import Divider from "@primitives/ui/Divider";
 /**
  * 녹음 화면 카드.
  *
- * 회의 제목은 받지 않고, 제목 자리에 `{시작한 사람} 님의 녹음`을 보여줘요. 문서 제목은 녹음이 끝난 뒤
- * 주제별로 붙기 때문이에요. 닉네임은 로그인한 회원 정보(`GET /auth/me`)에서 오고,
- * 응답 전에는 `녹음`만 보여 자리를 지켜요. 아래에는 녹음이 어떻게 이어지는지 안내 두 줄을 둬요.
+ * 무엇을 보여 주는지와 동작 규칙은 스토리북 `Recording/RecordingCard`에서 확인해요.
  *
  * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=2241-530 Card/Recording}
  */

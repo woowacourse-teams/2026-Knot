@@ -6,12 +6,9 @@ import { useParams } from "react-router";
 import PlusIcon from "@/assets/icons/plus.svg";
 
 /**
- * 대화 목록 드로어.
+ * 대화 목록 드로어. 목록은 `ChatSessionList`가 그리고, 여기서는 드로어 껍데기와 새 채팅 버튼만 얹어요.
  *
- * GNB 좌측의 목록 버튼이 여닫으며, 탐색 화면에서만 열 수 있어요.
- * 스쳐 지나가면 겹쳐 뜨고 누르면 왼쪽에 자리를 잡는데, 그 판단은 감싸는 `DockablePanel`이 해요.
- *
- * 목록 자체는 `ChatSessionList`가 그대로 그리고, 여기서는 드로어 껍데기와 새 채팅 버튼만 얹어요.
+ * 자세한 내용은 스토리북 `Chat/ChatListDrawer`에서 확인해요.
  *
  * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=526-772 탐색 결과/채팅 세션 목록}
  */

@@ -10,22 +10,16 @@ import SidebarTreeList from "./ui/SidebarTreeList";
 import { toWorkspaceTree } from "./utils/toWorkspaceTree";
 
 /**
- * 워크스페이스 사이드바 드로어.
+ * 워크스페이스 사이드바 드로어. 워크스페이스 이름과 Notion 페이지 트리를 보여줘요.
  *
- * GNB 좌측의 사이드바 버튼이 여닫아요. 스쳐 지나가면 본문 위에 겹쳐 뜨고, 누르면 왼쪽에 자리를 잡아요.
- * 뜨는 방식과 자리는 이 위젯이 아니라 감싸는 `DockablePanel`이 정하고, 여기서는 드로어 껍데기와 내용만 그려요.
- *
- * 헤더의 워크스페이스 이름은 현재 `:workspaceId`의 워크스페이스 조회 응답에서 오고, 레이아웃의 진입 판정과
- * 같은 쿼리라 요청은 한 번만 나가요. 응답 전에는 이름 자리를 비워 둬요.
- *
- * 폴더 목록은 마지막 Import로 발행된 Notion Page Tree예요. 서버는 부모 ID만 달린 평평한 목록을 주므로
- * 트리 모양으로 묶는 일은 여기서 하고, 하위 페이지가 있는 페이지만 눌러서 펼치고 접을 수 있어요.
+ * 동작 규칙은 스토리북 `Workspace/WorkspaceSidebar`에서 확인해요.
  *
  * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=1382-2171 Sidebar/Drawer}
  */
 export default function WorkspaceSidebar() {
   const { workspaceId } = useParams();
   const { isFolderExpanded, toggleFolder } = useWorkspaceTree();
+  // 레이아웃의 진입 판정과 같은 쿼리라 요청은 한 번만 나가요
   const { data: workspace } = useWorkspaceQuery({
     workspaceId: Number(workspaceId),
   });
@@ -34,6 +28,7 @@ export default function WorkspaceSidebar() {
   });
 
   const workspaceName = workspace?.name ?? "";
+  // 서버는 부모 ID만 달린 평평한 목록을 주므로 트리 모양으로 묶는 일은 여기서 해요.
   // 페이지 수가 많지 않고 응답 DTO는 refetch마다 참조가 바뀌므로 메모이제이션하지 않아요
   const treeNodes = toWorkspaceTree(pageTree?.pages ?? []);
 

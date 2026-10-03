@@ -6,7 +6,7 @@ import EmptyChatSessionList from "./ui/EmptyChatSessionList";
 /**
  * 워크스페이스에 쌓인 대화 목록.
  *
- * 대화를 기간별로 묶어 보여주고, 고른 대화의 화면으로 이동시킵니다.
+ * 자세한 내용은 스토리북 `Chat/ChatSessionList`에서 확인해요.
  *
  * @see https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=580-1961
  */

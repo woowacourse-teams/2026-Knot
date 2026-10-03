@@ -8,14 +8,9 @@ import TeammateIcon from "@/assets/icons/teammate.svg";
 import { useWorkspaceInviteMemberCard } from "./model/useWorkspaceInviteMemberCard";
 
 /**
- * 홈의 팀원 초대 카드.
+ * 홈의 팀원 초대 카드. 현재 워크스페이스의 초대 링크와 초대 코드를 복사해요.
  *
- * 초대 링크를 보여주고 `복사`를 누르면 2초 동안 강조색 `복사됨`으로, `초대 코드 복사`를 누르면
- * 6자 참여 코드를 복사하고 글자가 2초 동안 `복사됨`으로 바뀌어요.
- * alert는 쓰지 않고, 클립보드에 쓰지 못하면 화면 변화 없이 넘어갑니다.
- *
- * 코드·링크는 현재 `:workspaceId`의 활성 초대 조회 응답에서 오고, 응답 전에는 복사를 막아요.
- * 코드·링크·복사 로직은 팀원 초대 화면 카드와 같은 `useCopyWorkspaceInvite`를 써요.
+ * 동작 규칙은 스토리북 `Workspace/WorkspaceInviteMemberCard`에서 확인해요.
  *
  * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=600-10087 Card/InviteMember}
  * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=600-10089 홈 화면/초대 링크 복사}

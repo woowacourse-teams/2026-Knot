@@ -10,11 +10,7 @@ import {
 /**
  * GitHub 로그인이 실패해 돌아왔을 때 그 사실을 알립니다.
  *
- * 백엔드는 OAuth 처리에 실패하면 로그인 화면 주소에 `?error=oauth2`를 붙여 보내요.
- * 실패 사유는 사용자가 손쓸 수 있는 것이 아니라서 구분하지 않고 한 문구로 알리고,
- * 바로 아래의 로그인 버튼으로 다시 시도하게 둡니다.
- *
- * 알릴 것이 없으면 아무것도 그리지 않아 로그인 화면의 여백이 그대로 유지돼요.
+ * 언제 보이는지와 동작 규칙은 스토리북 `Auth/OAuthErrorNotice`에서 확인해요.
  */
 export default function OAuthErrorNotice() {
   const [searchParams] = useSearchParams();

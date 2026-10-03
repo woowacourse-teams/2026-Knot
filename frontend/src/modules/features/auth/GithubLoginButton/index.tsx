@@ -14,16 +14,7 @@ const GITHUB_OAUTH_URL = `${process.env.API_BASE_URL}/oauth2/authorization/githu
 /**
  * GitHub 계정으로 로그인을 시작하는 버튼.
  *
- * `httpClient`가 아니라 `window.location.href`로 **페이지를 통째로 이동**시켜요.
- * 이 주소는 응답을 받아 화면에 그리는 API가 아니라 GitHub으로 가는 302 리다이렉트라,
- * axios로 부르면 GitHub 도메인에서 CORS에 막히고 쿠키도 제대로 심기지 않습니다.
- *
- * 이동 뒤의 흐름은 백엔드가 정합니다.
- * 기존 회원은 접근 토큰 쿠키를 받고, 신규 사용자는 온보딩 토큰 쿠키를 받아
- * 닉네임 입력 화면(`/onboarding`)으로 돌아옵니다.
- *
- * 서버가 허용한 출처에서만 동작하므로 `localhost`에서는 확인할 수 없어요.
- * 배포된 주소에서 확인해야 합니다.
+ * 동작 규칙과 이동 뒤의 흐름은 스토리북 `Auth/GithubLoginButton`에서 확인해요.
  */
 export default function GithubLoginButton() {
   const handleClick = () => {

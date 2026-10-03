@@ -3,6 +3,8 @@ import useNavigateToWorkspaceCode from "@hooks/domain/workspace/useNavigateToWor
 
 /**
  * 초대 코드 참여 화면(`/workspace/code`)으로 이동하는 버튼.
+ *
+ * 쓰이는 자리는 스토리북 `Workspace/WorkspaceJoinByCodeButton`에서 확인해요.
  */
 export default function WorkspaceJoinByCodeButton() {
   const { navigateToWorkspaceCode } = useNavigateToWorkspaceCode();

@@ -6,16 +6,9 @@ import EnterWorkspaceIllustration from "@/assets/illustrations/enterWorkspace.sv
 import { useWorkspaceJoin } from "./model/useWorkspaceJoin";
 
 /**
- * 워크스페이스 입장 확인 카드.
+ * 워크스페이스 입장 확인 카드. 합류할 워크스페이스를 보여주고 참여를 처리해요.
  *
- * 초대 코드를 입력했거나 초대 링크를 타고 온 사용자에게 어느 워크스페이스에 합류하는지 보여주고,
- * `참여할게요`를 누르면 참여 API(`POST /invitations/accept`)를 거쳐 응답의 워크스페이스 홈으로 이동해요.
- *
- * 워크스페이스 이름과 참여에 쓸 코드·토큰은 앞 화면이 라우터 state로 넘긴 값이라, state 없이 들어오면
- * 아무것도 그리지 않고 선택 화면(`/workspace`)으로 돌려보내요. 요청 중에는 버튼이 로딩으로 잠기고,
- * 401은 로그인으로, 404·429는 초대 링크 오류 화면으로 보내요.
- *
- * 로고와 중앙 배치는 `CenteredLayout`이 맡으므로 이 카드는 자기 모양만 그려요.
+ * 동작 규칙은 스토리북 `Workspace/WorkspaceJoinCard`에서 확인해요.
  *
  * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=600-10180 초대 링크로 워크스페이스 입장}
  * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=600-10176 초대 코드 입력/워크스페이스 입장}

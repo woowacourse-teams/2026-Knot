@@ -12,15 +12,7 @@ import { useWorkspaceInvite } from "./model/useWorkspaceInvite";
 /**
  * 팀원 초대 카드.
  *
- * 워크스페이스를 만든 직후 참여 코드와 초대 링크를 보여주고 각각 클립보드로 복사하게 해요.
- * 코드 상자는 아이콘이 check로, 링크 버튼은 `복사됨`으로 잠시 바뀌어 결과를 알리고,
- * 클립보드에 쓰지 못하면 화면 변화 없이 조용히 넘어갑니다.
- *
- * 코드와 링크는 현재 `:workspaceId`의 활성 초대 조회 응답에서 오고, 응답 전에는 복사를 막아요.
- * 조회가 401이면 로그인으로, 403·404면 워크스페이스 선택 화면으로 돌려보냅니다.
- * `다음`은 현재 `:workspaceId`로 노션 연동(`/workspace/:workspaceId/notion-connection`)으로 이어져요.
- *
- * 로고와 중앙 배치는 `CenteredLayout`이 맡으므로 이 카드는 자기 모양만 그려요.
+ * 동작 규칙은 스토리북 `Workspace/WorkspaceInviteCard`에서 확인해요.
  *
  * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=432-1868 새 워크스페이스 생성/참여 코드 및 링크 공유}
  * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=679-3120 새 워크스페이스 생성/참여 코드 복사}
