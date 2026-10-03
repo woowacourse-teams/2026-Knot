@@ -11,11 +11,6 @@ interface SearchReferenceCardProps {
 
 /**
  * AI 탐색 답변의 근거가 된 문서를 보여주는 Card UI.
- *
- * @see https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=720-563&t=NtCKbgE8RjHqh556-11
- * @see https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=720-573&t=NtCKbgE8RjHqh556-11
- * @see https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=720-584&t=NtCKbgE8RjHqh556-11
- * @see https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=988-7115&t=NtCKbgE8RjHqh556-11
  */
 
 export default function SearchReferenceCard({

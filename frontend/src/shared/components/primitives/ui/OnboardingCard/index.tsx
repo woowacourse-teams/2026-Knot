@@ -8,19 +8,6 @@ interface OnboardingCardProps extends HTMLAttributes<HTMLDivElement> {
 
 /**
  * 온보딩 플로우에서 내용을 담는 흰 카드.
- *
- * 너비를 고정하지 않고 `max-width`만 둡니다. 넓은 화면에서는 456px에서 멈추고,
- * 좁아지면 화면을 따라 줄어들어요. 안쪽 내용은 `padding` 48을 뺀 360px이 됩니다.
- *
- * 피그마 원본은 460px이지만 좌우 padding 48과 내용 360을 더하면 456입니다.
- * 남는 4px은 내용이 바뀌면 따라 바뀌어야 하는 값이라 보고 456으로 두었어요.
- *
- * 홈 화면 카드와는 padding·간격이 달라서(48/12 vs 20/32) 같은 컴포넌트로 묶지 않습니다.
- *
- * 자식 사이 간격은 자리마다 다르므로(12, 24) 카드가 정하지 않아요.
- * 쓰는 쪽에서 `Spacing`으로 벌리세요.
- *
- * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=424-1193 Card/Onboarding & Workspace}
  */
 export default function OnboardingCard({
   children,
