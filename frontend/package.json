@@ -23,6 +23,7 @@
   "devDependencies": {
     "@emotion/babel-plugin": "^11.13.5",
     "@playwright/test": "^1.62.1",
+    "@storybook/addon-designs": "^11.1.4",
     "@storybook/addon-docs": "^10.6.1",
     "@storybook/react-webpack5": "^10.6.1",
     "@svgr/webpack": "^8.1.0",
