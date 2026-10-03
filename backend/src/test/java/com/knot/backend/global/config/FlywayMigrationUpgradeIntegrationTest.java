@@ -273,12 +273,12 @@ class FlywayMigrationUpgradeIntegrationTest {
         );
 
         // when
-        Flyway currentFlyway = configureFlyway();
+        Flyway currentFlyway = configureFlyway(MigrationVersion.fromVersion("17"));
         MigrateResult cleanupResult = currentFlyway.migrate();
 
         // then
         assertThat(cleanupResult.success).isTrue();
-        assertThat(cleanupResult.migrationsExecuted).isEqualTo(3);
+        assertThat(cleanupResult.migrationsExecuted).isEqualTo(4);
         assertThat(appliedVersions(currentFlyway)).containsExactly(
                 "1",
                 "2",
@@ -293,6 +293,7 @@ class FlywayMigrationUpgradeIntegrationTest {
                 "13",
                 "14",
                 "15",
+                "16",
                 "17"
         );
         List<String> tablesAfterCleanup = schemaObjectNames("""
@@ -366,14 +367,14 @@ class FlywayMigrationUpgradeIntegrationTest {
                 .cleanDisabled(false)
                 .load();
         cleanableFlyway.clean();
-        Flyway freshFlyway = configureFlyway();
+        Flyway freshFlyway = configureFlyway(MigrationVersion.fromVersion("17"));
 
         // when
         MigrateResult freshResult = freshFlyway.migrate();
 
         // then
         assertThat(freshResult.success).isTrue();
-        assertThat(freshResult.migrationsExecuted).isEqualTo(14);
+        assertThat(freshResult.migrationsExecuted).isEqualTo(15);
         assertThat(appliedVersions(freshFlyway)).containsExactly(
                 "1",
                 "2",
@@ -388,6 +389,7 @@ class FlywayMigrationUpgradeIntegrationTest {
                 "13",
                 "14",
                 "15",
+                "16",
                 "17"
         );
         List<String> freshTables = schemaObjectNames("""

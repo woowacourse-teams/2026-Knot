@@ -81,6 +81,13 @@ public class WorkspaceMember {
         lastViewed = false;
     }
 
+    public void receiveOwnership() {
+        if (!isActive() || role != WorkspaceMemberRole.MEMBER) {
+            throw new WorkspaceException(WorkspaceErrorCode.WORKSPACE_OWNERSHIP_TRANSFER_TARGET_CONFLICT);
+        }
+        this.role = WorkspaceMemberRole.OWNER;
+    }
+
     public void leave(
             Instant leftAt,
             long activeMemberCount
@@ -90,6 +97,22 @@ public class WorkspaceMember {
         }
         validateLeftAt(leftAt);
         validateLeavePolicy(activeMemberCount);
+        this.leftAt = leftAt;
+        this.lastViewed = false;
+    }
+
+    public void leaveAfterOwnershipTransfer(
+            WorkspaceMember successor,
+            Instant leftAt
+    ) {
+        if (!isActive() || role != WorkspaceMemberRole.OWNER) {
+            throw new WorkspaceException(WorkspaceErrorCode.WORKSPACE_OWNER_REQUIRED);
+        }
+        if (successor == null || !successor.isActive() || successor.getRole() != WorkspaceMemberRole.OWNER
+                || !workspaceId.equals(successor.getWorkspaceId()) || memberId.equals(successor.getMemberId())) {
+            throw new WorkspaceException(WorkspaceErrorCode.WORKSPACE_OWNERSHIP_TRANSFER_TARGET_CONFLICT);
+        }
+        validateLeftAt(leftAt);
         this.leftAt = leftAt;
         this.lastViewed = false;
     }

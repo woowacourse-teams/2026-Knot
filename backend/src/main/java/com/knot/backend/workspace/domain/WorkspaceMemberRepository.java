@@ -11,6 +11,11 @@ public interface WorkspaceMemberRepository {
 
     List<WorkspaceMember> findAllByMemberIdForUpdate(Long memberId);
 
+    List<WorkspaceMember> findAllActiveByWorkspaceIdAndMemberIdsForUpdate(
+            Long workspaceId,
+            List<Long> memberIds
+    );
+
     Optional<WorkspaceMember> findLastViewedByMemberId(Long memberId);
 
     Optional<WorkspaceMember> findLatestByWorkspaceIdAndMemberIdForUpdate(

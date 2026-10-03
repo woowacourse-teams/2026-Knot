@@ -1,7 +1,6 @@
 import styled from "@emotion/styled";
 import useOpenedSourceMessage from "@hooks/domain/chat/useOpenedSourceMessage";
 
-import ChatPanel from "@/modules/widgets/chat/ChatPanel";
 import SearchReferenceList from "@/modules/widgets/search/SearchReferenceList";
 
 /**
@@ -11,8 +10,7 @@ import SearchReferenceList from "@/modules/widgets/search/SearchReferenceList";
  * `sessionId` 없이 들어오면 입력 전(빈 결과) 상태로 시작하고,
  * 대화가 시작되면 해당 세션(`/chat/:sessionId`)으로 이어집니다.
  *
- * 처음에는 대화만 놓여 화면 가운데를 넓게 씁니다. 답변의 근거 버튼을 누르면 그때 오른쪽에
- * 찾은 문서 레일이 열리면서 대화가 왼쪽으로 좁아지고, 레일을 닫으면 다시 넓어집니다.
+ * 대화 자리는 탐색 v2에서 새로 채웁니다. 지금은 빈 칸으로 두고, 찾은 문서 레일 자리만 남겨 둡니다.
  * 어느 답변의 문서를 펼쳐 뒀는지는 주소(`?messageId=`)에 있어 새로고침해도 그대로예요.
  *
  * 사이드바 오픈, 채팅 세션 목록도 별도 라우트가 아니라 이 화면 위의 상태 변형입니다.
@@ -28,9 +26,7 @@ export default function ChatPage() {
 
   return (
     <Container>
-      <ChatColumn $isNarrow={isReferenceOpen}>
-        <ChatPanel />
-      </ChatColumn>
+      <ChatColumn $isNarrow={isReferenceOpen} />
 
       {isReferenceOpen && (
         <ReferenceColumn>
