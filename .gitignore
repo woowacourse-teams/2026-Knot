@@ -17,7 +17,13 @@ __pycache__/
 /.playwright-cli/
 /backend/.playwright-cli/
 /output/playwright/
-/tools/
+/tools/*
+!/tools/discord-knot-assistant/
+/tools/discord-knot-assistant/*
+!/tools/discord-knot-assistant/*.py
+!/tools/discord-knot-assistant/.gitignore
+!/tools/discord-knot-assistant/.env.example
+!/tools/discord-knot-assistant/README.md
 /backend/docs/api-persona-harness-plan.md
 /docs/api-endpoint-contracts.md
 /docs/api-reference.md
