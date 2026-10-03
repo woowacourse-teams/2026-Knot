@@ -11,7 +11,19 @@ public interface WorkspaceMemberRepository {
 
     List<WorkspaceMember> findAllByMemberIdForUpdate(Long memberId);
 
+    List<WorkspaceMember> findAllActiveByWorkspaceIdAndMemberIdsForUpdate(
+            Long workspaceId,
+            List<Long> memberIds
+    );
+
     Optional<WorkspaceMember> findLastViewedByMemberId(Long memberId);
+
+    Optional<WorkspaceMember> findLatestByWorkspaceIdAndMemberIdForUpdate(
+            Long workspaceId,
+            Long memberId
+    );
+
+    long countActiveByWorkspaceId(Long workspaceId);
 
     List<WorkspaceMember> saveAll(List<WorkspaceMember> workspaceMembers);
 

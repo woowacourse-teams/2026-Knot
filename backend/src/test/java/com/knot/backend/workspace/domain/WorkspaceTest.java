@@ -115,4 +115,41 @@ class WorkspaceTest {
                 .extracting(exception -> ((WorkspaceException) exception).getErrorCode())
                 .isEqualTo(WorkspaceErrorCode.INVALID_WORKSPACE_CREATED_AT);
     }
+
+    @DisplayName("삭제 시각을 기록해 워크스페이스를 논리 삭제한다")
+    @Test
+    void delete_success() {
+        // given
+        Workspace workspace = Workspace.create(
+                "Knot 팀",
+                CREATED_AT
+        );
+        Instant deletedAt = CREATED_AT.plusSeconds(1);
+
+        // when
+        workspace.delete(deletedAt);
+
+        // then
+        assertThat(workspace.isDeleted()).isTrue();
+        assertThat(workspace.getDeletedAt()).isEqualTo(deletedAt);
+    }
+
+    @DisplayName("삭제 시각이 생성 시각보다 빠르면 논리 삭제를 거부한다")
+    @Test
+    void delete_failure_deletedAtBeforeCreatedAt() {
+        // given
+        Workspace workspace = Workspace.create(
+                "Knot 팀",
+                CREATED_AT
+        );
+        Instant deletedAtBeforeCreatedAt = CREATED_AT.minusSeconds(1);
+
+        // when
+        ThrowingCallable action = () -> workspace.delete(deletedAtBeforeCreatedAt);
+
+        // then
+        assertThatThrownBy(action).isInstanceOf(WorkspaceException.class)
+                .extracting(exception -> ((WorkspaceException) exception).getErrorCode())
+                .isEqualTo(WorkspaceErrorCode.INVALID_WORKSPACE_DELETED_AT);
+    }
 }
