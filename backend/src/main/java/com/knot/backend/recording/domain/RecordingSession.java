@@ -14,7 +14,10 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.UUID;
 import java.util.regex.Pattern;
+import lombok.AccessLevel;
+import lombok.Getter;
 
+@Getter
 @Entity
 @Table(name = "recording_sessions")
 public class RecordingSession {
@@ -36,6 +39,7 @@ public class RecordingSession {
     @Column(name = "tab_id", nullable = false)
     private UUID tabId;
 
+    @Getter(AccessLevel.NONE)
     @Column(name = "control_token_hash", nullable = false, length = 64)
     private String controlTokenHash;
 
@@ -46,6 +50,7 @@ public class RecordingSession {
     @Column(name = "started_at", nullable = false, updatable = false)
     private Instant startedAt;
 
+    @Getter(AccessLevel.NONE)
     @Column(name = "current_interval_started_at")
     private Instant currentIntervalStartedAt;
 
@@ -172,46 +177,6 @@ public class RecordingSession {
                 now
         )
                 .toMillis();
-    }
-
-    public Long getId() {
-        return id;
-    }
-
-    public Long getWorkspaceId() {
-        return workspaceId;
-    }
-
-    public Long getMemberId() {
-        return memberId;
-    }
-
-    public UUID getRequestId() {
-        return requestId;
-    }
-
-    public UUID getTabId() {
-        return tabId;
-    }
-
-    public RecordingStatus getStatus() {
-        return status;
-    }
-
-    public Instant getStartedAt() {
-        return startedAt;
-    }
-
-    public Instant getEndedAt() {
-        return endedAt;
-    }
-
-    public Instant getLastSeenAt() {
-        return lastSeenAt;
-    }
-
-    public long getAccumulatedRecordingMillis() {
-        return accumulatedRecordingMillis;
     }
 
     private boolean sameControlTokenHash(String controlTokenHash) {
