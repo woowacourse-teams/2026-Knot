@@ -34,8 +34,8 @@ class WorkspaceInvitationMigrationIntegrationTest {
 
     @BeforeEach
     void setUp() {
-        flyway("15").clean();
-        flyway("15").migrate();
+        flyway("17").clean();
+        flyway("17").migrate();
     }
 
     @Test
@@ -55,7 +55,7 @@ class WorkspaceInvitationMigrationIntegrationTest {
         List<String> before = legacyRows();
 
         // when
-        MigrateResult result = flyway("17").migrate();
+        MigrateResult result = flyway("18").migrate();
 
         // then
         assertThat(result.success).isTrue();
@@ -75,7 +75,7 @@ class WorkspaceInvitationMigrationIntegrationTest {
     @DisplayName("FK migration 뒤 기존 INSERT는 공통 24시간 만료 초대를 저장한다")
     void insert_acceptsLegacyWriter() throws SQLException {
         // given
-        flyway("17").migrate();
+        flyway("18").migrate();
         execute("INSERT INTO workspaces (id, name, created_at) VALUES (1, '호환 팀', CURRENT_TIMESTAMP)");
 
         // when
@@ -93,7 +93,7 @@ class WorkspaceInvitationMigrationIntegrationTest {
     @DisplayName("DB는 공통 만료가 생성 시각의 24시간 뒤가 아니면 거부한다")
     void update_rejectsInvalidExpirations(String expiration) throws SQLException {
         // given
-        flyway("17").migrate();
+        flyway("18").migrate();
         execute("INSERT INTO workspaces (id, name, created_at) VALUES (1, '제약 팀', CURRENT_TIMESTAMP)");
         insertLegacyInvitation();
 
@@ -109,7 +109,7 @@ class WorkspaceInvitationMigrationIntegrationTest {
     @DisplayName("초대가 있으면 Workspace 물리 삭제를 거부하고 이력을 보존한다")
     void delete_restrictsWorkspaceWithInvitation() throws SQLException {
         // given
-        flyway("17").migrate();
+        flyway("18").migrate();
         execute("INSERT INTO workspaces (id, name, created_at) VALUES (1, '보존 팀', CURRENT_TIMESTAMP)");
         insertLegacyInvitation();
         List<String> before = legacyRows();

@@ -26,6 +26,11 @@ invitationId·createdAt·expiresAt만 배열로 반환한다. 없으면 빈 배�
 최초 OpenAPI 검증은 테스트의 문서 공개 설정이 false여서 401이었다. 테스트 context에
 knot.api-docs.enabled=true를 명시한 뒤 11건이 통과했다. 운영 설정은 바꾸지 않았다.
 
+선행 #444의 최신 기반 반영 후 clean 전체 검증은 단위 278·통합 116·인수 192건,
+총 586건이 실패·오류·건너뜀 없이 통과했다. Spotless·bootJar·PR base 기준 9파일 감사와
+Governance 단위 8건도 통과했다. 기본 wrapper는 선행 변경의 기존 위반 40건,
+전체 wrapper는 43건으로 중단했으며 원문 hash 검증은 통과했다.
+
 ## 컨벤션과 경계
 
 STACK/LIB는 기존 스택·의존성, LAYER/MODEL은 Repository·Service·결과/응답 DTO 분리를
