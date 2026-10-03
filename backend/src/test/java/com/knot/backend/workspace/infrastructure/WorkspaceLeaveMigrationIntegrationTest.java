@@ -36,9 +36,9 @@ class WorkspaceLeaveMigrationIntegrationTest {
             .withUsername("knot")
             .withPassword("knot");
 
-    @DisplayName("V14 스키마를 V19로 업그레이드하면 탈퇴 이력과 삭제 워크스페이스 제약을 만든다")
+    @DisplayName("V14 스키마를 V20로 업그레이드하면 탈퇴 이력과 삭제 워크스페이스 제약을 만든다")
     @Test
-    void migrate_success_v14SchemaToV19() throws SQLException {
+    void migrate_success_v14SchemaToV20() throws SQLException {
         // given
         cleanAndMigrate(MigrationVersion.fromVersion("14"));
 
@@ -64,7 +64,8 @@ class WorkspaceLeaveMigrationIntegrationTest {
                 "16",
                 "17",
                 "18",
-                "19"
+                "19",
+                "20"
         );
         assertThat(columnNames("workspaces")).contains("deleted_at");
         assertThat(columnNames("workspace_members")).contains("left_at");

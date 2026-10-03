@@ -32,6 +32,9 @@ public class WorkspaceMember {
     @Column(name = "joined_at", nullable = false, updatable = false)
     private Instant joinedAt;
 
+    @Column(name = "source_invitation_id", updatable = false)
+    private Long sourceInvitationId;
+
     @Column(name = "last_viewed", nullable = false)
     private boolean lastViewed;
 
@@ -44,7 +47,8 @@ public class WorkspaceMember {
             Long workspaceId,
             Long memberId,
             WorkspaceMemberRole role,
-            Instant joinedAt
+            Instant joinedAt,
+            Long sourceInvitationId
     ) {
         validateWorkspaceId(workspaceId);
         validateMemberId(memberId);
@@ -54,6 +58,7 @@ public class WorkspaceMember {
         this.memberId = memberId;
         this.role = role;
         this.joinedAt = joinedAt;
+        this.sourceInvitationId = sourceInvitationId;
         this.lastViewed = false;
         this.leftAt = null;
     }
@@ -68,7 +73,26 @@ public class WorkspaceMember {
                 workspaceId,
                 memberId,
                 role,
-                joinedAt
+                joinedAt,
+                null
+        );
+    }
+
+    public static WorkspaceMember createFromInvitation(
+            Long workspaceId,
+            Long memberId,
+            Long sourceInvitationId,
+            Instant joinedAt
+    ) {
+        if (sourceInvitationId == null || sourceInvitationId <= 0) {
+            throw new WorkspaceException(WorkspaceErrorCode.INVALID_WORKSPACE_MEMBER_SOURCE_INVITATION_ID);
+        }
+        return new WorkspaceMember(
+                workspaceId,
+                memberId,
+                WorkspaceMemberRole.MEMBER,
+                joinedAt,
+                sourceInvitationId
         );
     }
 

@@ -54,6 +54,12 @@ public enum WorkspaceErrorCode implements ErrorCode {
             "워크스페이스 탈퇴 시각이 올바르지 않습니다"
     ),
 
+    INVALID_WORKSPACE_MEMBER_SOURCE_INVITATION_ID(
+            ErrorCategory.INVALID_INPUT,
+            "INVALID_WORKSPACE_MEMBER_SOURCE_INVITATION_ID",
+            "가입에 사용한 초대 ID가 올바르지 않습니다"
+    ),
+
     INVALID_WORKSPACE_MEMBER_ACTIVE_COUNT(
             ErrorCategory.INVALID_INPUT,
             "INVALID_WORKSPACE_MEMBER_ACTIVE_COUNT",
