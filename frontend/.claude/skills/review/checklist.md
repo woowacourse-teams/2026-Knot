@@ -184,8 +184,8 @@
       mock 값을 그대로 쓰기 ❌, 문자열로 박기 ❌, 변환 로직을 테스트에 되풀이(`mockResponse.name.trim()`) ❌, 테스트에서 요청 DTO `new` ❌
 - [ ] C-7-7. 새로 추가·변경된 유틸 함수(세그먼트 `utils`, `shared/utils`)에 단위 테스트가 있는가
       (훅은 대상 아님 — C-7-4)
-- [ ] C-7-8. 스토리가 있는 컴포넌트의 JSDoc이 한 줄 설명과 스토리북 안내만 두는가. 스토리가 없는 `ui/` 서브 컴포넌트는 한 줄 설명과 「스토리북 `<부모 title>`」 안내만 두는가.
-      Figma 링크는 스토리 `parameters.design`에 있는가(여러 개면 대표는 meta, 상태가 명확한 프레임은 해당 스토리, 부품·애매한 프레임은 meta `design` 배열에 `name`과 함께). 코드 주석이 스토리 설명과 겹치지 않는가 (`.claude/rules/general-code-convention.md` 「컴포넌트 · 훅 · 함수 작성」·「주석」)
+- [ ] C-7-8. 스토리가 있는 컴포넌트의 Figma 링크가 컴포넌트 `@see`가 아니라 스토리 `parameters.design`에 있는가(여러 개면 대표는 meta, 상태가 명확한 프레임은 해당 스토리, 부품·애매한 프레임은 meta `design` 배열에 `name`과 함께). 스토리가 없는 페이지·유틸의 `@see`는 지적하지 않음.
+      컴포넌트 JSDoc에 스토리북을 가리키는 안내 문장이 없는가 (`.claude/rules/general-code-convention.md` 「컴포넌트 · 훅 · 함수 작성」·「주석」)
 - [ ] C-7-9. 새로 만들거나 props·상태·모양이 바뀐 컴포넌트에 스토리가 함께 작성·갱신됐는가. API를 호출하는 컴포넌트도 포함하며, 응답별 상태는 `parameters.msw.handlers`로 덮는다 (`CLAUDE.md` 작업 절차 4단계)
 
 ---
