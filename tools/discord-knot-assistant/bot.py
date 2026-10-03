@@ -212,6 +212,18 @@ def install_service() -> None:
     typer.echo(f"로그인 시 자동 실행하도록 등록했어: {service_path}")
 
 
+@app.command("evaluate")
+def evaluate_command(rounds: int = typer.Option(2, min=1, max=3)) -> None:
+    """Run repeated live retrieval/model checks without posting to Discord."""
+    from evaluation import evaluate
+
+    configure_logging()
+    path, passed = anyio.run(evaluate, rounds)
+    typer.echo(f"검증 {'PASS' if passed else 'FAIL'}: {path}")
+    if not passed:
+        raise typer.Exit(1)
+
+
 @app.command("uninstall-service")
 def uninstall_service() -> None:
     service_path = uninstall_launch_agent()
