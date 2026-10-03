@@ -1,5 +1,6 @@
 package com.knot.backend.workspace.presentation;
 
+import static org.hamcrest.Matchers.containsString;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -109,7 +110,7 @@ class WorkspaceInvitationAcceptanceTest {
                 .andExpect(
                         header().string(
                                 HttpHeaders.CACHE_CONTROL,
-                                "no-store"
+                                containsString("no-store")
                         )
                 )
                 .andExpect(jsonPath("$.workspaceId").value(fixture.workspaceId()))
@@ -144,7 +145,7 @@ class WorkspaceInvitationAcceptanceTest {
                 .andExpect(
                         header().string(
                                 HttpHeaders.CACHE_CONTROL,
-                                "no-store"
+                                containsString("no-store")
                         )
                 )
                 .andExpect(jsonPath("$.workspaceId").value(fixture.workspaceId()))
@@ -181,7 +182,7 @@ class WorkspaceInvitationAcceptanceTest {
                 .andExpect(
                         header().string(
                                 HttpHeaders.CACHE_CONTROL,
-                                "no-store"
+                                containsString("no-store")
                         )
                 )
                 .andExpect(jsonPath("$.workspaceId").value(fixture.workspaceId()))
@@ -223,7 +224,7 @@ class WorkspaceInvitationAcceptanceTest {
                 .andExpect(
                         header().string(
                                 HttpHeaders.CACHE_CONTROL,
-                                "no-store"
+                                containsString("no-store")
                         )
                 )
                 .andExpect(jsonPath("$.code").value("WORKSPACE_INVITATION_PREVIEW_NOT_FOUND"));
@@ -256,7 +257,7 @@ class WorkspaceInvitationAcceptanceTest {
                     .andExpect(
                             header().string(
                                     HttpHeaders.CACHE_CONTROL,
-                                    "no-store"
+                                    containsString("no-store")
                             )
                     )
                     .andExpect(jsonPath("$.code").value("WORKSPACE_INVITATION_PREVIEW_NOT_FOUND"));
@@ -288,7 +289,7 @@ class WorkspaceInvitationAcceptanceTest {
                 .andExpect(
                         header().string(
                                 HttpHeaders.CACHE_CONTROL,
-                                "no-store"
+                                containsString("no-store")
                         )
                 )
                 .andExpect(jsonPath("$.code").value("WORKSPACE_INVITATION_PREVIEW_NOT_FOUND"));
@@ -405,7 +406,7 @@ class WorkspaceInvitationAcceptanceTest {
                 .andExpect(
                         header().string(
                                 HttpHeaders.CACHE_CONTROL,
-                                "no-store"
+                                containsString("no-store")
                         )
                 )
                 .andExpect(

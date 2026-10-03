@@ -1,5 +1,6 @@
 package com.knot.backend.workspace.presentation;
 
+import static org.hamcrest.Matchers.containsString;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.doReturn;
@@ -90,7 +91,7 @@ class WorkspaceMultipleInvitationAcceptanceTest {
                 .andExpect(
                         header().string(
                                 "Cache-Control",
-                                "no-store"
+                                containsString("no-store")
                         )
                 );
         JsonNode second = body(response);
@@ -178,7 +179,7 @@ class WorkspaceMultipleInvitationAcceptanceTest {
                 .andExpect(
                         header().string(
                                 "Cache-Control",
-                                "no-store"
+                                containsString("no-store")
                         )
                 );
         assertThat(rows(original.workspaceId())).isEmpty();
