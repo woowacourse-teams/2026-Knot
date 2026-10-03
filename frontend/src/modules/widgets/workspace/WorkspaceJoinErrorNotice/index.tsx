@@ -6,13 +6,6 @@ import InvalidInvitationUrlIllustration from "@/assets/illustrations/invalidInvi
 
 /**
  * 초대 링크 오류 안내.
- *
- * 만료되었거나 잘못된 초대 링크로 들어온 사용자에게 카드 없이 이유를 알리고,
- * `초대 코드 직접 입력하기`로 초대 코드 입력(`/workspace/code`)에 이어 줘요.
- *
- * 로고와 중앙 배치는 `CenteredLayout`이 맡으므로 이 위젯은 로고 아래 내용만 그려요.
- *
- * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=600-10148 올바르지 않은 초대 링크 접근}
  */
 export default function WorkspaceJoinErrorNotice() {
   const { navigateToWorkspaceCode } = useNavigateToWorkspaceCode();

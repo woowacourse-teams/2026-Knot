@@ -7,17 +7,7 @@ import NotionIcon from "@/assets/icons/notion.svg";
 import { useNotionConnect } from "./model/useNotionConnect";
 
 /**
- * 노션 연동 카드.
- *
- * 워크스페이스 생성 플로우의 마지막 단계로, 노션에 쌓아둔 기록을 knot로 옮길지 물어요.
- * `노션 연결하기`는 연결 시작 API로 받은 Notion 인증 페이지로 이동하고, 돌아오면
- * `?result=connected`는 홈으로 보내고 `?result=failed`는 실패 화면(워크스페이스로 이동)을
- * 보여줍니다. 알 수 없는 `result`는 쿼리를 지우고 연결 카드로 되돌려요. `워크스페이스로 이동`은 연결 없이 홈으로 가요.
- *
- * 로고와 중앙 배치는 `CenteredLayout`이 맡으므로 이 카드는 자기 모양만 그려요.
- *
- * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=432-1946 새 워크스페이스 생성/노션에서 가져오기}
- * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=432-1949 Card/Onboarding & Workspace}
+ * 노션 연동 카드. 워크스페이스 생성 플로우의 마지막 단계로, 노션에 쌓아둔 기록을 knot로 옮길지 물어요.
  */
 export default function NotionConnectCard() {
   const { isFailed, isConnecting, errorMessage, handleConnect, handleGoHome } =
@@ -95,7 +85,6 @@ const Container = styled.section`
   box-shadow: ${({ theme }) => theme.shadow02};
 `;
 
-/** @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=542-261 Icon/Notion size=48} */
 const Icon = styled(NotionIcon)`
   flex-shrink: 0;
   width: 3rem; /* 48px */
