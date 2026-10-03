@@ -4,6 +4,7 @@ import com.knot.backend.recording.domain.RecordingSession;
 import com.knot.backend.recording.domain.RecordingSessionRepository;
 import com.knot.backend.recording.domain.RecordingErrorCode;
 import com.knot.backend.recording.domain.RecordingException;
+import com.knot.backend.recording.domain.RecordingStatus;
 import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -43,7 +44,10 @@ public class RecordingSessionRepositoryAdapter implements RecordingSessionReposi
 
     @Override
     public boolean existsActiveByMemberId(long memberId) {
-        return recordingSessionJpaRepository.existsActiveByMemberId(memberId);
+        return recordingSessionJpaRepository.existsByMemberIdAndStatusIn(
+                memberId,
+                RecordingStatus.ACTIVE_STATUSES
+        );
     }
 
     private RecordingException translateIntegrityViolation(DataIntegrityViolationException exception) {
