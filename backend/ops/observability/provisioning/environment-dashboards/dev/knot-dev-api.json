@@ -1,0 +1,426 @@
+{
+  "title": "DEV 02 API 요청·오류",
+  "uid": "knot-dev-api",
+  "schemaVersion": 41,
+  "version": 1,
+  "tags": [
+    "knot",
+    "dev",
+    "api"
+  ],
+  "refresh": "30s",
+  "timezone": "Asia/Seoul",
+  "time": {
+    "from": "now-30m",
+    "to": "now"
+  },
+  "templating": {
+    "list": []
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "text",
+      "title": "DEV · 이 화면 읽는 법",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 3
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "DEV 실제 API 요청을 Nginx 로그로 분석합니다. **요청 수 → 4xx/5xx → 느린 응답 → 경로별 오류** 순서로 보세요.\n\nhealth·actuator를 제외합니다. 요청이 없는 구간의 지연·비율은 계산하지 않습니다. 오류가 있으면 로그 화면에서 같은 시간을 확인하세요."
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "초당 API 요청 수",
+      "datasource": {
+        "type": "loki",
+        "uid": "knot-loki"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (env) (rate({project=\"knot\",job=\"nginx\",env=\"dev\"} | json | uri !~ \"/health|/actuator/.*\" | __error__=\"\" [5m]))",
+          "legendFormat": "{{env}}",
+          "queryType": "range"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "noValue": "데이터 없음 / 미연결"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "id": 14,
+      "gridPos": {
+        "x": 0,
+        "y": 3,
+        "w": 12,
+        "h": 8
+      },
+      "description": "Nginx 요청 로그에서 최근 5분의 초당 요청 수를 계산합니다. health·actuator 요청을 제외합니다. 실제 사용자·시나리오 트래픽이 없으면 값이 비어 있을 수 있습니다."
+    },
+    {
+      "type": "timeseries",
+      "title": "API 4xx 비율",
+      "datasource": {
+        "type": "loki",
+        "uid": "knot-loki"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "100 * (sum by (env) (rate({project=\"knot\",job=\"nginx\",env=\"dev\"} | json | uri !~ \"/health|/actuator/.*\" | status =~ \"4..\" | __error__=\"\" [5m])) or on(env) (0 * sum by (env) (rate({project=\"knot\",job=\"nginx\",env=\"dev\"} | json | uri !~ \"/health|/actuator/.*\" | __error__=\"\" [5m])))) / (sum by (env) (rate({project=\"knot\",job=\"nginx\",env=\"dev\"} | json | uri !~ \"/health|/actuator/.*\" | __error__=\"\" [5m])) > 0)",
+          "legendFormat": "{{env}}",
+          "queryType": "range"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "noValue": "데이터 없음 / 미연결"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "id": 15,
+      "gridPos": {
+        "x": 12,
+        "y": 3,
+        "w": 12,
+        "h": 8
+      },
+      "description": "최근 5분 실제 API 요청 중 4xx 비율입니다. 인증·권한·없는 경로 등을 로그에서 확인하세요. 4xx만으로 서버 장애라고 판단하지 않습니다. 요청이 없으면 비율을 계산하지 않습니다."
+    },
+    {
+      "type": "timeseries",
+      "title": "API 5xx 비율",
+      "datasource": {
+        "type": "loki",
+        "uid": "knot-loki"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "100 * (sum by (env) (rate({project=\"knot\",job=\"nginx\",env=\"dev\"} | json | uri !~ \"/health|/actuator/.*\" | status =~ \"5..\" | __error__=\"\" [5m])) or on(env) (0 * sum by (env) (rate({project=\"knot\",job=\"nginx\",env=\"dev\"} | json | uri !~ \"/health|/actuator/.*\" | __error__=\"\" [5m])))) / (sum by (env) (rate({project=\"knot\",job=\"nginx\",env=\"dev\"} | json | uri !~ \"/health|/actuator/.*\" | __error__=\"\" [5m])) > 0)",
+          "legendFormat": "{{env}}",
+          "queryType": "range"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "noValue": "데이터 없음 / 미연결"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "id": 16,
+      "gridPos": {
+        "x": 0,
+        "y": 11,
+        "w": 12,
+        "h": 8
+      },
+      "description": "최근 5분 실제 API 요청 중 5xx 비율입니다. 해당 시각의 Nginx 5xx와 앱 로그를 확인하세요. 요청이 없는 구간을 정상 0으로 대체하지 않습니다."
+    },
+    {
+      "type": "timeseries",
+      "title": "API 응답 시간 p50",
+      "datasource": {
+        "type": "loki",
+        "uid": "knot-loki"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "quantile_over_time(0.5, {project=\"knot\",job=\"nginx\",env=\"dev\"} | json | uri !~ \"/health|/actuator/.*\" | unwrap duration | __error__=\"\" [5m]) by (env)",
+          "legendFormat": "{{env}}",
+          "queryType": "range"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "noValue": "데이터 없음 / 미연결"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "id": 17,
+      "gridPos": {
+        "x": 12,
+        "y": 11,
+        "w": 12,
+        "h": 8
+      },
+      "description": "최근 5분 Nginx 실제 API 요청의 중앙값입니다. health·actuator를 제외하며 요청이 없으면 계산하지 않습니다. 느린 요청의 URI와 앱 로그를 함께 확인하세요."
+    },
+    {
+      "type": "timeseries",
+      "title": "느린 API 응답 시간 p95",
+      "datasource": {
+        "type": "loki",
+        "uid": "knot-loki"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "quantile_over_time(0.95, {project=\"knot\",job=\"nginx\",env=\"dev\"} | json | uri !~ \"/health|/actuator/.*\" | unwrap duration | __error__=\"\" [5m]) by (env)",
+          "legendFormat": "{{env}}",
+          "queryType": "range"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "noValue": "데이터 없음 / 미연결"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "id": 18,
+      "gridPos": {
+        "x": 0,
+        "y": 19,
+        "w": 12,
+        "h": 8
+      },
+      "description": "최근 5분 Nginx 실제 API 요청의 95백분위입니다. 약 95% 요청이 이 시간 이내에 끝났다는 뜻입니다. 요청이 적으면 쉽게 변하므로 요청 수와 로그를 함께 봅니다."
+    },
+    {
+      "type": "timeseries",
+      "title": "느린 API 응답 시간 p99",
+      "datasource": {
+        "type": "loki",
+        "uid": "knot-loki"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "quantile_over_time(0.99, {project=\"knot\",job=\"nginx\",env=\"dev\"} | json | uri !~ \"/health|/actuator/.*\" | unwrap duration | __error__=\"\" [5m]) by (env)",
+          "legendFormat": "{{env}}",
+          "queryType": "range"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "noValue": "데이터 없음 / 미연결"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "id": 19,
+      "gridPos": {
+        "x": 12,
+        "y": 19,
+        "w": 12,
+        "h": 8
+      },
+      "description": "최근 5분 Nginx 실제 API 요청의 99백분위입니다. 소수의 느린 요청에 민감합니다. health·actuator를 제외하며 요청이 없는 구간은 계산하지 않습니다."
+    },
+    {
+      "id": 91,
+      "type": "table",
+      "title": "어떤 경로에서 오류가 많았나?",
+      "datasource": {
+        "type": "loki",
+        "uid": "knot-loki"
+      },
+      "description": "선택 기간 전체의 health·actuator 제외 4xx/5xx 요청을 URI와 상태 코드별로 비교합니다. 최근 5분 오류 비율과 범위가 다릅니다. 결과가 없으면 해당 오류가 없거나 로그가 없는 것이므로 로그 화면에서 구분하세요.",
+      "gridPos": {
+        "x": 0,
+        "y": 27,
+        "w": 24,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (uri, status) (count_over_time({project=\"knot\",job=\"nginx\",env=\"dev\"} | json | uri !~ \"/health|/actuator/.*\" | status >= 400 | status < 600 | __error__=\"\" [$__range]))",
+          "queryType": "instant"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "labelsToFields",
+          "options": {
+            "mode": "columns"
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            },
+            "indexByName": {
+              "uri": 0,
+              "status": 1,
+              "Value": 2
+            },
+            "renameByName": {
+              "uri": "요청 경로",
+              "status": "HTTP 상태",
+              "Value": "오류 건수"
+            }
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": {
+            "sort": [
+              {
+                "field": "오류 건수",
+                "desc": true
+              }
+            ]
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "확인 불가"
+        },
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm"
+      }
+    }
+  ],
+  "links": [
+    {
+      "title": "01 전체 상태",
+      "type": "link",
+      "url": "/d/knot-dev-overview",
+      "keepTime": true,
+      "includeVars": false
+    },
+    {
+      "title": "02 API 요청·오류",
+      "type": "link",
+      "url": "/d/knot-dev-api",
+      "keepTime": true,
+      "includeVars": false
+    },
+    {
+      "title": "03 로그",
+      "type": "link",
+      "url": "/d/knot-dev-logs",
+      "keepTime": true,
+      "includeVars": false
+    },
+    {
+      "title": "04 서버 자원",
+      "type": "link",
+      "url": "/d/knot-dev-infra",
+      "keepTime": true,
+      "includeVars": false
+    },
+    {
+      "title": "05 Spring 앱",
+      "type": "link",
+      "url": "/d/knot-dev-spring",
+      "keepTime": true,
+      "includeVars": false
+    },
+    {
+      "title": "06 Tomcat·DB 연결 풀",
+      "type": "link",
+      "url": "/d/knot-dev-pools",
+      "keepTime": true,
+      "includeVars": false
+    },
+    {
+      "title": "07 RDS",
+      "type": "link",
+      "url": "/d/knot-dev-rds",
+      "keepTime": true,
+      "includeVars": false
+    },
+    {
+      "title": "PROD로 이동",
+      "type": "link",
+      "url": "/d/knot-prod-overview",
+      "keepTime": true,
+      "includeVars": false
+    }
+  ],
+  "description": "DEV 전용 API 요청·오류. 환경이 쿼리에 고정되어 URL 변수로 다른 환경을 섞지 않습니다."
+}

@@ -1,0 +1,1229 @@
+{
+  "title": "01 Overview",
+  "uid": "knot-operations",
+  "schemaVersion": 41,
+  "version": 5,
+  "tags": [
+    "knot",
+    "operations"
+  ],
+  "refresh": "30s",
+  "timezone": "Asia/Seoul",
+  "time": {
+    "from": "now-30m",
+    "to": "now"
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "env",
+        "label": "환경",
+        "type": "custom",
+        "query": "dev,prod",
+        "multi": true,
+        "includeAll": true,
+        "allValue": "dev|prod",
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        },
+        "options": [
+          {
+            "text": "dev",
+            "value": "dev",
+            "selected": false
+          },
+          {
+            "text": "prod",
+            "value": "prod",
+            "selected": false
+          }
+        ]
+      },
+      {
+        "name": "instance",
+        "label": "수집 대상 (Prometheus)",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "knot-prometheus"
+        },
+        "query": "label_values({env=~\"$env\"}, instance)",
+        "refresh": 1,
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*",
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        },
+        "options": [],
+        "sort": 1
+      }
+    ]
+  },
+  "panels": [
+    {
+      "type": "text",
+      "title": "적용 범위",
+      "options": {
+        "mode": "markdown",
+        "content": "Dev는 Spring, Prod는 프로토타입입니다. Spring/JVM/DB 풀 지표는 Dev에만 적용됩니다. 데이터 없음은 정상 0이 아닙니다.\n\n서버 지표·Nginx 요청 로그·외부 health·앱 로그는 양쪽 환경에서 수집합니다. env 선택으로 환경을 전환하세요.\n\n수집 대상 변수는 Prometheus 패널에만 적용됩니다. host·Spring·외부 probe의 instance 값은 서로 다릅니다. Loki 요청·로그는 환경으로만 선택합니다. 신규 API 집계는 health/prometheus를 제외하고, 요청 없는 구간의 지연·비율은 계산하지 않습니다. RDS는 각 환경의 EC2 역할로 CloudWatch 5분 평균을 수집합니다. RDS 상세 화면은 DB 식별자로 선택합니다."
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 5
+      },
+      "id": 1
+    },
+    {
+      "id": 2,
+      "title": "외부 API 정상 여부",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "knot-prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 5,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          },
+          "noValue": "확인 불가",
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "장애",
+                  "color": "red"
+                },
+                "1": {
+                  "text": "정상",
+                  "color": "green"
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "probe_success{job=\"public-health\",env=~\"$env\",instance=~\"$instance\"}",
+          "legendFormat": "{{env}} {{instance}}",
+          "instant": true,
+          "range": false
+        }
+      ],
+      "description": "현재 공개 API의 헬스체크 결과입니다. 응답 실패가 EC2 전원 꺼짐을 직접 의미하지는 않습니다."
+    },
+    {
+      "id": 3,
+      "title": "외부 API 응답 시간",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "knot-prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 5,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "probe_duration_seconds{job=\"public-health\",env=~\"$env\",instance=~\"$instance\"}",
+          "legendFormat": "{{env}} {{instance}}"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "CPU 사용률",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "knot-prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 13,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "100 * (1 - avg by (env, instance) (rate(node_cpu_seconds_total{mode=\"idle\",env=~\"$env\",instance=~\"$instance\"}[2m])))",
+          "legendFormat": "{{env}} {{instance}}"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "메모리 사용률",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "knot-prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 13,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "100 * (1 - node_memory_MemAvailable_bytes{env=~\"$env\",instance=~\"$instance\"}/node_memory_MemTotal_bytes{env=~\"$env\",instance=~\"$instance\"})",
+          "legendFormat": "{{env}} {{instance}}"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "루트 디스크 사용률",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "knot-prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 21,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "100 * (1 - node_filesystem_avail_bytes{env=~\"$env\",instance=~\"$instance\",mountpoint=\"/\",fstype!~\"tmpfs|overlay\"}/node_filesystem_size_bytes{env=~\"$env\",instance=~\"$instance\",mountpoint=\"/\",fstype!~\"tmpfs|overlay\"})",
+          "legendFormat": "{{env}} {{instance}}"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "호스트 지표 수집 상태",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "knot-prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 21,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          },
+          "noValue": "수집 없음",
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "장애",
+                  "color": "red"
+                },
+                "1": {
+                  "text": "수집 중",
+                  "color": "green"
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "max by (env) (present_over_time(node_cpu_seconds_total{env=~\"$env\",instance=~\"$instance\"}[2m]))",
+          "legendFormat": "{{env}} {{instance}}",
+          "instant": true,
+          "range": false
+        }
+      ],
+      "description": "최근 2분 내 호스트 CPU 지표 수집 여부입니다. 데이터가 없으면 서버·수집기·네트워크를 확인하세요. EC2 running/stopped 상태와는 다릅니다."
+    },
+    {
+      "id": 8,
+      "title": "HTTP 상태 코드",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "knot-prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 29,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 200
+              },
+              {
+                "color": "red",
+                "value": 300
+              }
+            ]
+          },
+          "noValue": "확인 불가"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "probe_http_status_code{job=\"public-health\",env=~\"$env\",instance=~\"$instance\"}",
+          "legendFormat": "{{env}} {{instance}}",
+          "instant": true,
+          "range": false
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "title": "네트워크 수신량",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "knot-prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 29,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (env) (rate(node_network_receive_bytes_total{env=~\"$env\",instance=~\"$instance\",device!=\"lo\"}[2m]))",
+          "legendFormat": "{{env}} {{instance}}"
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "title": "Nginx 요청률",
+      "type": "timeseries",
+      "datasource": {
+        "type": "loki",
+        "uid": "knot-loki"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 37,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (env) (rate({project=\"knot\",job=\"nginx\",env=~\"$env\"}[2m]))",
+          "legendFormat": "{{env}}"
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "title": "Nginx 응답 시간 p95",
+      "type": "timeseries",
+      "datasource": {
+        "type": "loki",
+        "uid": "knot-loki"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 37,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "quantile_over_time(0.95, {project=\"knot\",job=\"nginx\",env=~\"$env\"} | json | unwrap duration | __error__=\"\" [5m]) by (env)",
+          "legendFormat": "{{env}}"
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "title": "HTTP 5xx 응답률",
+      "type": "timeseries",
+      "datasource": {
+        "type": "loki",
+        "uid": "knot-loki"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 45,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (env) (rate({project=\"knot\",job=\"nginx\",env=~\"$env\"} | json | status >= 500 | __error__=\"\" [2m])) or on (env) (0 * sum by (env) (rate({project=\"knot\",job=\"nginx\",env=~\"$env\"}[2m])))",
+          "legendFormat": "{{env}}"
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "title": "최근 서비스 로그",
+      "type": "logs",
+      "datasource": {
+        "type": "loki",
+        "uid": "knot-loki"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 45,
+        "w": 12,
+        "h": 8
+      },
+      "options": {
+        "showTime": true,
+        "showLabels": true,
+        "sortOrder": "Descending",
+        "wrapLogMessage": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "{project=\"knot\",env=~\"$env\",job=~\"spring|prototype|nginx\"}",
+          "queryType": "range"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "전체 API 요청률",
+      "datasource": {
+        "type": "loki",
+        "uid": "knot-loki"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (env) (rate({project=\"knot\",job=\"nginx\",env=~\"$env\"} | json | uri !~ \"/health|/actuator/.*\" | __error__=\"\" [5m]))",
+          "legendFormat": "{{env}}",
+          "queryType": "range"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "noValue": "데이터 없음 / 미연결"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "id": 14,
+      "gridPos": {
+        "x": 0,
+        "y": 53,
+        "w": 12,
+        "h": 8
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "전체 API 4xx 비율",
+      "datasource": {
+        "type": "loki",
+        "uid": "knot-loki"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "100 * (sum by (env) (rate({project=\"knot\",job=\"nginx\",env=~\"$env\"} | json | uri !~ \"/health|/actuator/.*\" | status =~ \"4..\" | __error__=\"\" [5m])) or on(env) (0 * sum by (env) (rate({project=\"knot\",job=\"nginx\",env=~\"$env\"} | json | uri !~ \"/health|/actuator/.*\" | __error__=\"\" [5m])))) / (sum by (env) (rate({project=\"knot\",job=\"nginx\",env=~\"$env\"} | json | uri !~ \"/health|/actuator/.*\" | __error__=\"\" [5m])) > 0)",
+          "legendFormat": "{{env}}",
+          "queryType": "range"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "noValue": "데이터 없음 / 미연결"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "id": 15,
+      "gridPos": {
+        "x": 12,
+        "y": 53,
+        "w": 12,
+        "h": 8
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "전체 API 5xx 비율",
+      "datasource": {
+        "type": "loki",
+        "uid": "knot-loki"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "100 * (sum by (env) (rate({project=\"knot\",job=\"nginx\",env=~\"$env\"} | json | uri !~ \"/health|/actuator/.*\" | status =~ \"5..\" | __error__=\"\" [5m])) or on(env) (0 * sum by (env) (rate({project=\"knot\",job=\"nginx\",env=~\"$env\"} | json | uri !~ \"/health|/actuator/.*\" | __error__=\"\" [5m])))) / (sum by (env) (rate({project=\"knot\",job=\"nginx\",env=~\"$env\"} | json | uri !~ \"/health|/actuator/.*\" | __error__=\"\" [5m])) > 0)",
+          "legendFormat": "{{env}}",
+          "queryType": "range"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "noValue": "데이터 없음 / 미연결"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "id": 16,
+      "gridPos": {
+        "x": 0,
+        "y": 61,
+        "w": 12,
+        "h": 8
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "전체 API p50 응답 시간",
+      "datasource": {
+        "type": "loki",
+        "uid": "knot-loki"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "quantile_over_time(0.5, {project=\"knot\",job=\"nginx\",env=~\"$env\"} | json | uri !~ \"/health|/actuator/.*\" | unwrap duration | __error__=\"\" [5m]) by (env)",
+          "legendFormat": "{{env}}",
+          "queryType": "range"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "noValue": "데이터 없음 / 미연결"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "id": 17,
+      "gridPos": {
+        "x": 12,
+        "y": 61,
+        "w": 12,
+        "h": 8
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "전체 API p95 응답 시간",
+      "datasource": {
+        "type": "loki",
+        "uid": "knot-loki"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "quantile_over_time(0.95, {project=\"knot\",job=\"nginx\",env=~\"$env\"} | json | uri !~ \"/health|/actuator/.*\" | unwrap duration | __error__=\"\" [5m]) by (env)",
+          "legendFormat": "{{env}}",
+          "queryType": "range"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "noValue": "데이터 없음 / 미연결"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "id": 18,
+      "gridPos": {
+        "x": 0,
+        "y": 69,
+        "w": 12,
+        "h": 8
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "전체 API p99 응답 시간",
+      "datasource": {
+        "type": "loki",
+        "uid": "knot-loki"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "quantile_over_time(0.99, {project=\"knot\",job=\"nginx\",env=~\"$env\"} | json | uri !~ \"/health|/actuator/.*\" | unwrap duration | __error__=\"\" [5m]) by (env)",
+          "legendFormat": "{{env}}",
+          "queryType": "range"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "noValue": "데이터 없음 / 미연결"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "id": 19,
+      "gridPos": {
+        "x": 12,
+        "y": 69,
+        "w": 12,
+        "h": 8
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "JVM heap 사용률",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "knot-prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "100 * sum by (env,instance) (jvm_memory_used_bytes{env=~\"$env\",instance=~\"$instance\",job=\"spring\",area=\"heap\"}) / sum by (env,instance) (jvm_memory_max_bytes{env=~\"$env\",instance=~\"$instance\",job=\"spring\",area=\"heap\"} > 0)",
+          "legendFormat": "{{env}} {{instance}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "noValue": "데이터 없음 / 미연결"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "id": 20,
+      "gridPos": {
+        "x": 0,
+        "y": 77,
+        "w": 12,
+        "h": 8
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Tomcat busy threads",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "knot-prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "tomcat_threads_busy_threads{env=~\"$env\",instance=~\"$instance\",job=\"spring\"}",
+          "legendFormat": "{{env}} {{instance}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "데이터 없음 / 미연결"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "id": 21,
+      "gridPos": {
+        "x": 12,
+        "y": 77,
+        "w": 12,
+        "h": 8
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Hikari active connections",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "knot-prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "hikaricp_connections_active{env=~\"$env\",instance=~\"$instance\",job=\"spring\"}",
+          "legendFormat": "{{env}} {{pool}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "데이터 없음 / 미연결"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "id": 22,
+      "gridPos": {
+        "x": 0,
+        "y": 85,
+        "w": 12,
+        "h": 8
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Hikari pending connections",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "knot-prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "hikaricp_connections_pending{env=~\"$env\",instance=~\"$instance\",job=\"spring\"}",
+          "legendFormat": "{{env}} {{pool}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "데이터 없음 / 미연결"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "id": 23,
+      "gridPos": {
+        "x": 12,
+        "y": 85,
+        "w": 12,
+        "h": 8
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "GC pause 누적 소요율",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "knot-prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (env,instance) (rate(jvm_gc_pause_seconds_sum{env=~\"$env\",instance=~\"$instance\",job=\"spring\"}[5m]))",
+          "legendFormat": "{{env}} {{instance}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "noValue": "데이터 없음 / 미연결"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "id": 24,
+      "gridPos": {
+        "x": 0,
+        "y": 93,
+        "w": 12,
+        "h": 8
+      }
+    },
+    {
+      "id": 25,
+      "title": "RDS CPU 사용률",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "knot-prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 101,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "noValue": "데이터 없음"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "description": "CloudWatch 5분 Average. 호스트 메모리나 Hikari 연결 수가 아니라 RDS 자체 값입니다.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "aws_rds_cpuutilization_average{env=~\"$env\",instance=~\"$instance\"} < +Inf",
+          "legendFormat": "{{env}} {{dimension_DBInstanceIdentifier}}"
+        }
+      ]
+    },
+    {
+      "id": 26,
+      "title": "RDS DB connections",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "knot-prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 101,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "min": 0,
+          "noValue": "데이터 없음"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "description": "CloudWatch 5분 Average. 호스트 메모리나 Hikari 연결 수가 아니라 RDS 자체 값입니다.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "aws_rds_database_connections_average{env=~\"$env\",instance=~\"$instance\"} < +Inf",
+          "legendFormat": "{{env}} {{dimension_DBInstanceIdentifier}}"
+        }
+      ]
+    },
+    {
+      "id": 27,
+      "title": "RDS write latency",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "knot-prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 109,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0,
+          "noValue": "데이터 없음"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "description": "CloudWatch 5분 Average. 호스트 메모리나 Hikari 연결 수가 아니라 RDS 자체 값입니다.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "aws_rds_write_latency_average{env=~\"$env\",instance=~\"$instance\"} < +Inf",
+          "legendFormat": "{{env}} {{dimension_DBInstanceIdentifier}}"
+        }
+      ]
+    }
+  ],
+  "links": [
+    {
+      "title": "01 Overview",
+      "type": "link",
+      "url": "/d/knot-operations",
+      "keepTime": true,
+      "includeVars": true
+    },
+    {
+      "title": "02 Spring Boot",
+      "type": "link",
+      "url": "/d/knot-spring",
+      "keepTime": true,
+      "includeVars": true
+    },
+    {
+      "title": "03 Tomcat & Hikari",
+      "type": "link",
+      "url": "/d/knot-pools",
+      "keepTime": true,
+      "includeVars": true
+    },
+    {
+      "title": "04 Infrastructure",
+      "type": "link",
+      "url": "/d/knot-infra",
+      "keepTime": true,
+      "includeVars": true
+    },
+    {
+      "title": "05 RDS",
+      "type": "link",
+      "url": "/d/knot-rds",
+      "keepTime": true,
+      "includeVars": true
+    },
+    {
+      "title": "06 PROD vs DEV",
+      "type": "link",
+      "url": "/d/knot-compare",
+      "keepTime": true,
+      "includeVars": true
+    }
+  ]
+}
