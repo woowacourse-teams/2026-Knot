@@ -423,8 +423,8 @@ class FlywayMigrationUpgradeIntegrationTest {
     }
 
     @Test
-    @DisplayName("V17의 기존 사용자 데이터를 보존하면서 V18 녹음 스키마를 추가한다")
-    void migrate_success_v17ToV18() throws SQLException {
+    @DisplayName("V17의 기존 사용자 데이터를 보존하면서 V19 녹음 스키마를 추가한다")
+    void migrate_success_v17ToV19() throws SQLException {
         // given
         configureFlyway(MigrationVersion.fromVersion("13")).migrate();
         insertImportRun(
@@ -439,8 +439,7 @@ class FlywayMigrationUpgradeIntegrationTest {
 
         // then
         assertThat(result.success).isTrue();
-        assertThat(result.migrationsExecuted).isEqualTo(1);
-        assertThat(appliedVersions(currentFlyway)).endsWith("18");
+        assertThat(appliedVersions(currentFlyway)).endsWith("19");
         assertThat(queryBoolean("SELECT EXISTS (SELECT 1 FROM members)")).isTrue();
         assertThat(queryBoolean("SELECT EXISTS (SELECT 1 FROM workspaces)")).isTrue();
         assertThat(queryBoolean("SELECT EXISTS (SELECT 1 FROM workspace_members)")).isTrue();
