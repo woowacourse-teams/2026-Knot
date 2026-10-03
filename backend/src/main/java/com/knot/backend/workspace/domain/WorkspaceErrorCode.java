@@ -18,6 +18,12 @@ public enum WorkspaceErrorCode implements ErrorCode {
             "워크스페이스 생성 시각이 올바르지 않습니다"
     ),
 
+    INVALID_WORKSPACE_DELETED_AT(
+            ErrorCategory.INVALID_INPUT,
+            "INVALID_WORKSPACE_DELETED_AT",
+            "워크스페이스 삭제 시각이 올바르지 않습니다"
+    ),
+
     INVALID_WORKSPACE_ID(
             ErrorCategory.INVALID_INPUT,
             "INVALID_WORKSPACE_ID",
@@ -40,6 +46,18 @@ public enum WorkspaceErrorCode implements ErrorCode {
             ErrorCategory.INVALID_INPUT,
             "INVALID_WORKSPACE_MEMBER_JOINED_AT",
             "워크스페이스 참여 시각이 올바르지 않습니다"
+    ),
+
+    INVALID_WORKSPACE_MEMBER_LEFT_AT(
+            ErrorCategory.INVALID_INPUT,
+            "INVALID_WORKSPACE_MEMBER_LEFT_AT",
+            "워크스페이스 탈퇴 시각이 올바르지 않습니다"
+    ),
+
+    INVALID_WORKSPACE_MEMBER_ACTIVE_COUNT(
+            ErrorCategory.INVALID_INPUT,
+            "INVALID_WORKSPACE_MEMBER_ACTIVE_COUNT",
+            "워크스페이스 활성 멤버 수가 올바르지 않습니다"
     ),
 
     INVALID_WORKSPACE_INVITATION_LINK_TOKEN_HASH(
@@ -94,6 +112,30 @@ public enum WorkspaceErrorCode implements ErrorCode {
             ErrorCategory.FORBIDDEN,
             "WORKSPACE_OWNER_REQUIRED",
             "워크스페이스 OWNER 권한이 필요합니다"
+    ),
+
+    WORKSPACE_OWNER_TRANSFER_REQUIRED(
+            ErrorCategory.CONFLICT,
+            "WORKSPACE_OWNER_TRANSFER_REQUIRED",
+            "OWNER 권한을 승계하거나 워크스페이스를 삭제해야 합니다"
+    ),
+
+    WORKSPACE_MEMBER_ALREADY_LEFT(
+            ErrorCategory.CONFLICT,
+            "WORKSPACE_MEMBER_ALREADY_LEFT",
+            "이미 탈퇴한 워크스페이스 멤버십입니다"
+    ),
+
+    INVALID_WORKSPACE_OWNERSHIP_TRANSFER_TARGET(
+            ErrorCategory.INVALID_INPUT,
+            "INVALID_WORKSPACE_OWNERSHIP_TRANSFER_TARGET",
+            "본인에게 OWNER 권한을 승계할 수 없습니다"
+    ),
+
+    WORKSPACE_OWNERSHIP_TRANSFER_TARGET_CONFLICT(
+            ErrorCategory.CONFLICT,
+            "WORKSPACE_OWNERSHIP_TRANSFER_TARGET_CONFLICT",
+            "OWNER 권한을 승계할 활성 멤버를 찾을 수 없습니다"
     ),
 
     WORKSPACE_INVITATION_NOT_FOUND(
