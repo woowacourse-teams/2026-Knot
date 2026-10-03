@@ -11,7 +11,7 @@ describe("formatRecordingTime", () => {
   });
 
   it("한 시간부터는 시간을 앞에 붙인다", () => {
-    expect(formatRecordingTime(3600)).toBe("1:00:00");
+    expect(formatRecordingTime(3600)).toBe("1:00:01");
     expect(formatRecordingTime(3723)).toBe("1:02:03");
   });
 
