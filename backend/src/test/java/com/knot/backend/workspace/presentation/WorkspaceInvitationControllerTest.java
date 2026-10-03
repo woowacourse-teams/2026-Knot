@@ -6,6 +6,7 @@ import static org.mockito.Mockito.when;
 
 import com.knot.backend.auth.domain.AuthenticatedMember;
 import com.knot.backend.workspace.application.WorkspaceInvitationService;
+import com.knot.backend.workspace.application.WorkspaceInvitationFeatures;
 import com.knot.backend.workspace.application.dto.result.WorkspaceInvitationResult;
 import com.knot.backend.workspace.presentation.dto.response.WorkspaceInvitationResponse;
 import java.time.Instant;
@@ -22,7 +23,10 @@ class WorkspaceInvitationControllerTest {
     private static final Instant EXPIRES_AT = Instant.parse("2026-08-30T00:00:00Z");
 
     private final WorkspaceInvitationService service = mock(WorkspaceInvitationService.class);
-    private final WorkspaceInvitationController controller = new WorkspaceInvitationController(service);
+    private final WorkspaceInvitationController controller = new WorkspaceInvitationController(
+            service,
+            new WorkspaceInvitationFeatures(false)
+    );
     private final AuthenticatedMember authenticatedMember = AuthenticatedMember.of(
             MEMBER_ID,
             "현성",
@@ -139,6 +143,7 @@ class WorkspaceInvitationControllerTest {
 
     private WorkspaceInvitationResult result(boolean created) {
         return new WorkspaceInvitationResult(
+                1L,
                 CODE,
                 LINK_TOKEN,
                 EXPIRES_AT,
@@ -148,6 +153,7 @@ class WorkspaceInvitationControllerTest {
 
     private WorkspaceInvitationResponse expectedResponse() {
         return new WorkspaceInvitationResponse(
+                1L,
                 CODE,
                 LINK_TOKEN,
                 EXPIRES_AT

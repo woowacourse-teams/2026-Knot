@@ -2,6 +2,7 @@ package com.knot.backend.workspace.presentation;
 
 import com.knot.backend.auth.domain.AuthenticatedMember;
 import com.knot.backend.workspace.application.WorkspaceInvitationService;
+import com.knot.backend.workspace.application.WorkspaceInvitationFeatures;
 import com.knot.backend.workspace.application.dto.result.WorkspaceInvitationResult;
 import com.knot.backend.workspace.presentation.dto.response.WorkspaceInvitationResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -19,9 +20,14 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/workspaces/{workspaceId}")
 public class WorkspaceInvitationController {
     private final WorkspaceInvitationService workspaceInvitationService;
+    private final WorkspaceInvitationFeatures features;
 
-    public WorkspaceInvitationController(WorkspaceInvitationService workspaceInvitationService) {
+    public WorkspaceInvitationController(
+            WorkspaceInvitationService workspaceInvitationService,
+            WorkspaceInvitationFeatures features
+    ) {
         this.workspaceInvitationService = workspaceInvitationService;
+        this.features = features;
     }
 
     @PostMapping("/invitations")
@@ -66,6 +72,8 @@ public class WorkspaceInvitationController {
     }
 
     private URI invitationUri(Long workspaceId) {
-        return URI.create("/api/v1/workspaces/" + workspaceId + "/invitation");
+        return URI.create(
+                "/api/v1/workspaces/" + workspaceId + (features.multipleEnabled() ? "/invitations" : "/invitation")
+        );
     }
 }

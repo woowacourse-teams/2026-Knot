@@ -219,9 +219,9 @@ class WorkspaceInvitationRepositoryIntegrationTest {
         assertThatThrownBy(action).isInstanceOf(WorkspaceInvitationSecretCollisionException.class);
     }
 
-    @DisplayName("한 워크스페이스에는 미무효화 초대를 두 개 저장할 수 없다")
+    @DisplayName("한 워크스페이스에 미무효화 초대를 여러 개 저장한다")
     @Test
-    void save_failure_duplicateUninvalidatedInvitation() {
+    void save_success_multipleUninvalidatedInvitations() {
         // given
         Workspace workspace = saveAndFlush(
                 Workspace.create(
@@ -245,15 +245,16 @@ class WorkspaceInvitationRepositoryIntegrationTest {
         );
 
         // when
-        ThrowingCallable action = () -> saveAndFlush(duplicate);
+        WorkspaceInvitation saved = saveAndFlush(duplicate);
 
         // then
-        assertThatThrownBy(action).isInstanceOf(DataIntegrityViolationException.class);
+        assertThat(saved.getId()).isNotNull();
+        assertThat(countInvitations(workspace.getId())).isEqualTo(2);
     }
 
-    @DisplayName("만료됐더라도 무효화되지 않은 초대가 있으면 새 초대를 저장할 수 없다")
+    @DisplayName("만료된 초대를 무효화하지 않고 새 초대를 저장한다")
     @Test
-    void save_failure_expiredButUninvalidatedInvitation() {
+    void save_success_preservesExpiredInvitation() {
         // given
         Instant previousCreatedAt = CREATED_AT.minus(WorkspaceInvitation.VALIDITY_PERIOD)
                 .minusSeconds(1);
@@ -279,10 +280,11 @@ class WorkspaceInvitationRepositoryIntegrationTest {
         );
 
         // when
-        ThrowingCallable action = () -> saveAndFlush(newInvitation);
+        WorkspaceInvitation saved = saveAndFlush(newInvitation);
 
         // then
-        assertThatThrownBy(action).isInstanceOf(DataIntegrityViolationException.class);
+        assertThat(saved.getId()).isNotNull();
+        assertThat(countInvitations(workspace.getId())).isEqualTo(2);
     }
 
     @DisplayName("존재하지 않는 워크스페이스를 참조하는 초대는 저장할 수 없다")
@@ -510,10 +512,10 @@ class WorkspaceInvitationRepositoryIntegrationTest {
                 .isEqualTo(CREATED_AT.plusSeconds(1));
     }
 
-    @DisplayName("같은 워크스페이스에 미무효화 초대를 동시에 저장해도 하나만 성공한다")
+    @DisplayName("같은 워크스페이스에 미무효화 초대를 동시에 저장하면 모두 성공한다")
     @Test
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
-    void save_failure_concurrentUninvalidatedInvitation() throws Exception {
+    void save_success_concurrentUninvalidatedInvitations() throws Exception {
         // given
         Workspace workspace = workspaceRepository.save(
                 Workspace.create(
@@ -554,9 +556,9 @@ class WorkspaceInvitationRepositoryIntegrationTest {
             // then
             assertThat(results).containsExactlyInAnyOrder(
                     true,
-                    false
+                    true
             );
-            assertThat(countInvitations(workspace.getId())).isEqualTo(1);
+            assertThat(countInvitations(workspace.getId())).isEqualTo(2);
         } finally {
             executorService.shutdownNow();
         }

@@ -12,8 +12,10 @@ class WorkspaceInvitationSecurityConfigTest {
     private static final String LOOKUP_HASH_KEY = "ZmVkY2JhOTg3NjU0MzIxMGZlZGNiYTk4NzY1NDMyMTA";
     private static final String ENCRYPTION_KEY = "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY";
 
-    private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
-            .withUserConfiguration(WorkspaceInvitationSecurityConfig.class);
+    private final ApplicationContextRunner contextRunner = new ApplicationContextRunner().withUserConfiguration(
+            WorkspaceInvitationSecurityConfig.class,
+            com.knot.backend.workspace.application.WorkspaceInvitationFeatures.class
+    );
 
     @DisplayName("서로 다른 32-byte key가 있으면 초대 보안 Bean을 생성한다")
     @Test

@@ -1,6 +1,7 @@
 package com.knot.backend.workspace.presentation;
 
 import com.knot.backend.global.config.OpenApiConfig;
+import com.knot.backend.workspace.application.WorkspaceInvitationFeatures;
 import io.swagger.v3.oas.models.Operation;
 import io.swagger.v3.oas.models.headers.Header;
 import io.swagger.v3.oas.models.media.Content;
@@ -24,7 +25,7 @@ public class WorkspaceInvitationOpenApiConfig {
     private static final String ERROR_RESPONSE_SCHEMA = "ErrorResponse";
 
     @Bean
-    public OperationCustomizer workspaceInvitationOperationCustomizer() {
+    public OperationCustomizer workspaceInvitationOperationCustomizer(WorkspaceInvitationFeatures features) {
         return (
                 operation,
                 handlerMethod
@@ -38,6 +39,19 @@ public class WorkspaceInvitationOpenApiConfig {
                 case "get" -> customizeGetOperation(operation);
                 case "reissue" -> customizeReissueOperation(operation);
                 default -> {
+                }
+            }
+            if (features.multipleEnabled()) {
+                operation.getResponses()
+                        .remove("200");
+                if (!handlerMethod.getMethod()
+                        .getName()
+                        .equals("issue")) {
+                    operation.getResponses()
+                            .remove("201");
+                    operation.description("복수 발급 모드에서는 종료된 경로이며 404를 반환합니다.");
+                } else {
+                    operation.description("매 요청마다 새 코드·링크를 발급하며 둘 다 생성 24시간 뒤 만료합니다.");
                 }
             }
             return operation;

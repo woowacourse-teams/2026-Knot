@@ -54,6 +54,7 @@ class WorkspaceInvitationPreviewServiceTest {
             secretProtector,
             rateLimiter,
             transactionExecutor,
+            new WorkspaceInvitationFeatures(false),
             Clock.fixed(
                     NOW,
                     ZoneOffset.UTC

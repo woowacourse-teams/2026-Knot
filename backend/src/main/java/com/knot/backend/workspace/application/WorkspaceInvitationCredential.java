@@ -10,7 +10,7 @@ public record WorkspaceInvitationCredential(
         boolean rateLimited
 ) {
     static final int CODE_LENGTH = 6;
-    private static final String CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    private static final String CODE_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ23456789";
 
     public static WorkspaceInvitationCredential from(String tokenOrCode) {
         if (tokenOrCode == null || tokenOrCode.isBlank()) {

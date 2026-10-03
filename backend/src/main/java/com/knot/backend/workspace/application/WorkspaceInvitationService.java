@@ -30,6 +30,7 @@ public class WorkspaceInvitationService {
     private final WorkspaceInvitationSecretProtector secretProtector;
     private final WorkspaceInvitationPreviewRateLimiter previewRateLimiter;
     private final WorkspaceInvitationTransactionExecutor transactionExecutor;
+    private final WorkspaceInvitationFeatures features;
     private final Clock clock;
 
     public WorkspaceInvitationService(
@@ -40,6 +41,7 @@ public class WorkspaceInvitationService {
             WorkspaceInvitationSecretProtector secretProtector,
             WorkspaceInvitationPreviewRateLimiter previewRateLimiter,
             WorkspaceInvitationTransactionExecutor transactionExecutor,
+            WorkspaceInvitationFeatures features,
             Clock clock
     ) {
         this.workspaceRepository = workspaceRepository;
@@ -49,6 +51,7 @@ public class WorkspaceInvitationService {
         this.secretProtector = secretProtector;
         this.previewRateLimiter = previewRateLimiter;
         this.transactionExecutor = transactionExecutor;
+        this.features = features;
         this.clock = clock;
     }
 
@@ -75,6 +78,12 @@ public class WorkspaceInvitationService {
         );
 
         Instant now = currentTime();
+        if (features.multipleEnabled()) {
+            return createInvitation(
+                    workspaceId,
+                    now
+            );
+        }
         return workspaceInvitationRepository.findUninvalidatedByWorkspaceId(workspaceId)
                 .map(
                         invitation -> issueWithExistingInvitation(
@@ -95,6 +104,7 @@ public class WorkspaceInvitationService {
             Long workspaceId,
             long memberId
     ) {
+        validateLegacyAccess();
         validateWorkspaceId(workspaceId);
         validateAccessAllowed(
                 workspaceId,
@@ -133,6 +143,7 @@ public class WorkspaceInvitationService {
             Long workspaceId,
             long memberId
     ) {
+        validateLegacyAccess();
         return executeWithSecretCollisionRetry(
                 () -> reissueInTransaction(
                         workspaceId,
@@ -264,6 +275,7 @@ public class WorkspaceInvitationService {
     private WorkspaceInvitationResult savePreparedInvitation(PreparedInvitation preparedInvitation) {
         WorkspaceInvitation savedInvitation = workspaceInvitationRepository.save(preparedInvitation.invitation());
         return new WorkspaceInvitationResult(
+                savedInvitation.getId(),
                 preparedInvitation.secrets()
                         .code(),
                 preparedInvitation.secrets()
@@ -293,6 +305,7 @@ public class WorkspaceInvitationService {
                 linkToken
         );
         return new WorkspaceInvitationResult(
+                invitation.getId(),
                 inviteCode,
                 linkToken,
                 invitation.getExpiresAt(),
@@ -353,6 +366,12 @@ public class WorkspaceInvitationService {
                 memberId
         )) {
             throw new WorkspaceException(WorkspaceErrorCode.WORKSPACE_ACCESS_DENIED);
+        }
+    }
+
+    private void validateLegacyAccess() {
+        if (features.multipleEnabled()) {
+            throw new WorkspaceException(WorkspaceErrorCode.WORKSPACE_INVITATION_NOT_FOUND);
         }
     }
 
