@@ -1,0 +1,548 @@
+{
+  "title": "DEV 01 전체 상태",
+  "uid": "knot-dev-overview",
+  "schemaVersion": 41,
+  "version": 1,
+  "tags": [
+    "knot",
+    "dev",
+    "overview"
+  ],
+  "refresh": "30s",
+  "timezone": "Asia/Seoul",
+  "time": {
+    "from": "now-30m",
+    "to": "now"
+  },
+  "templating": {
+    "list": []
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "text",
+      "title": "DEV · 이 화면 읽는 법",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 3
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "DEV만 표시합니다. **health 상태 → 지표 수집 → 자원 사용률** 순서로 보세요. API·로그·서버 상세는 위 링크로 이동합니다.\n\n색이 아닌 제목과 수치를 읽으세요. 데이터가 없으면 정상 0이 아닙니다."
+      }
+    },
+    {
+      "id": 2,
+      "title": "지금 health가 응답하나?",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "knot-prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 3,
+        "w": 12,
+        "h": 5
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          },
+          "noValue": "확인 불가",
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "장애",
+                  "color": "red"
+                },
+                "1": {
+                  "text": "정상",
+                  "color": "green"
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "probe_success{job=\"public-health\",env=\"dev\"}",
+          "legendFormat": "{{env}} {{instance}}",
+          "instant": true,
+          "range": false
+        }
+      ],
+      "description": "최근 외부 health 검사 결과입니다. 정상은 모든 API 기능이나 지난 기간 전체의 무장애를 보장하지 않습니다. 실패하면 로그 화면과 앱 상태를 확인하세요."
+    },
+    {
+      "id": 7,
+      "title": "서버 지표가 들어오나?",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "knot-prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 3,
+        "w": 12,
+        "h": 5
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          },
+          "noValue": "수집 없음",
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "장애",
+                  "color": "red"
+                },
+                "1": {
+                  "text": "수집 중",
+                  "color": "green"
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "max by (env) (present_over_time(node_cpu_seconds_total{env=\"dev\"}[2m]))",
+          "legendFormat": "{{env}} {{instance}}",
+          "instant": true,
+          "range": false
+        }
+      ],
+      "description": "최근 2분 안에 CPU 지표가 들어왔는지 확인합니다. 수집 중은 EC2 전원 상태나 앱 정상 여부가 아닙니다. 없으면 Alloy와 전송 경로를 확인하세요."
+    },
+    {
+      "id": 4,
+      "title": "지금 CPU 사용률",
+      "type": "gauge",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "knot-prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 8,
+        "w": 8,
+        "h": 6
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 85
+              },
+              {
+                "color": "red",
+                "value": 95
+              }
+            ]
+          },
+          "min": 0,
+          "max": 100,
+          "noValue": "확인 불가"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showThresholdLabels": true,
+        "showThresholdMarkers": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "100 * (1 - avg by (env, instance) (rate(node_cpu_seconds_total{mode=\"idle\",env=\"dev\"}[2m])))",
+          "legendFormat": "{{env}} {{instance}}",
+          "instant": true,
+          "range": false
+        }
+      ],
+      "description": "AWS 앱 서버 CPU의 2분 평균 사용률입니다. 높은 값이 지속되면 서버 자원과 같은 시각의 요청·앱 로그를 확인하세요. NCP Grafana 컨테이너의 CPU가 아닙니다. 현재 사용률이며 주의/위험 색은 운영 알림의 지속 시간 조건까지 만족했다는 뜻이 아닙니다. 추세는 서버 자원 화면에서 확인하세요."
+    },
+    {
+      "id": 5,
+      "title": "지금 메모리 사용률",
+      "type": "gauge",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "knot-prometheus"
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 8,
+        "w": 8,
+        "h": 6
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 90
+              },
+              {
+                "color": "red",
+                "value": 95
+              }
+            ]
+          },
+          "min": 0,
+          "max": 100,
+          "noValue": "확인 불가"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showThresholdLabels": true,
+        "showThresholdMarkers": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "100 * (1 - node_memory_MemAvailable_bytes{env=\"dev\"}/node_memory_MemTotal_bytes{env=\"dev\"})",
+          "legendFormat": "{{env}} {{instance}}",
+          "instant": true,
+          "range": false
+        }
+      ],
+      "description": "AWS 앱 서버에서 가용 메모리를 제외한 사용 비율입니다. 장기 상승이면 앱별 메모리와 GC를 확인하세요. NCP Grafana 컨테이너 메모리와는 다릅니다. 현재 사용률이며 주의/위험 색은 운영 알림의 지속 시간 조건까지 만족했다는 뜻이 아닙니다. 추세는 서버 자원 화면에서 확인하세요."
+    },
+    {
+      "id": 6,
+      "title": "지금 서버 디스크 사용률",
+      "type": "gauge",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "knot-prometheus"
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 8,
+        "w": 8,
+        "h": 6
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 85
+              },
+              {
+                "color": "red",
+                "value": 95
+              }
+            ]
+          },
+          "min": 0,
+          "max": 100,
+          "noValue": "확인 불가"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showThresholdLabels": true,
+        "showThresholdMarkers": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "100 * (1 - node_filesystem_avail_bytes{env=\"dev\",mountpoint=\"/\",fstype!~\"tmpfs|overlay\"}/node_filesystem_size_bytes{env=\"dev\",mountpoint=\"/\",fstype!~\"tmpfs|overlay\"})",
+          "legendFormat": "{{env}} {{instance}}",
+          "instant": true,
+          "range": false
+        }
+      ],
+      "description": "AWS 앱 서버 루트 디스크 사용률입니다. 앱 파일·로그·Docker 이미지가 포함되며 RDS 저장 공간이 아닙니다. 증가하면 서버에서 용량을 차지하는 경로를 확인하세요. 현재 사용률이며 주의/위험 색은 운영 알림의 지속 시간 조건까지 만족했다는 뜻이 아닙니다. 추세는 서버 자원 화면에서 확인하세요."
+    },
+    {
+      "id": 90,
+      "title": "health 상태가 언제 바뀌었나?",
+      "type": "state-timeline",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "knot-prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 14,
+        "w": 24,
+        "h": 5
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          },
+          "noValue": "확인 불가",
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "장애",
+                  "color": "red"
+                },
+                "1": {
+                  "text": "정상",
+                  "color": "green"
+                }
+              }
+            }
+          ],
+          "custom": {
+            "lineWidth": 0,
+            "fillOpacity": 70,
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "mergeValues": true,
+        "showValue": "auto",
+        "alignValue": "left",
+        "rowHeight": 0.9,
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "probe_success{job=\"public-health\",env=\"dev\"}",
+          "legendFormat": "{{env}} {{instance}}",
+          "instant": false,
+          "range": true
+        }
+      ],
+      "description": "선택 기간의 외부 health 검사 성공/실패 이력입니다. 빈 구간은 확인 불가이며 성공으로 연결하지 않습니다. 앱 배포 기록이나 EC2 running/stopped 이력이 아닙니다."
+    },
+    {
+      "id": 3,
+      "title": "health 확인에 얼마나 걸렸나?",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "knot-prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 19,
+        "w": 24,
+        "h": 7
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "probe_duration_seconds{job=\"public-health\",env=\"dev\"}",
+          "legendFormat": "{{env}} {{instance}}"
+        }
+      ],
+      "description": "외부 health 확인 전체 시간입니다. DNS·연결·응답을 포함하며 실제 업무 API 지연과 다릅니다. 봉우리가 나온 시간의 로그와 서버 자원을 확인하세요."
+    }
+  ],
+  "links": [
+    {
+      "title": "01 전체 상태",
+      "type": "link",
+      "url": "/d/knot-dev-overview",
+      "keepTime": true,
+      "includeVars": false
+    },
+    {
+      "title": "02 API 요청·오류",
+      "type": "link",
+      "url": "/d/knot-dev-api",
+      "keepTime": true,
+      "includeVars": false
+    },
+    {
+      "title": "03 로그",
+      "type": "link",
+      "url": "/d/knot-dev-logs",
+      "keepTime": true,
+      "includeVars": false
+    },
+    {
+      "title": "04 서버 자원",
+      "type": "link",
+      "url": "/d/knot-dev-infra",
+      "keepTime": true,
+      "includeVars": false
+    },
+    {
+      "title": "05 Spring 앱",
+      "type": "link",
+      "url": "/d/knot-dev-spring",
+      "keepTime": true,
+      "includeVars": false
+    },
+    {
+      "title": "06 Tomcat·DB 연결 풀",
+      "type": "link",
+      "url": "/d/knot-dev-pools",
+      "keepTime": true,
+      "includeVars": false
+    },
+    {
+      "title": "07 RDS",
+      "type": "link",
+      "url": "/d/knot-dev-rds",
+      "keepTime": true,
+      "includeVars": false
+    },
+    {
+      "title": "PROD로 이동",
+      "type": "link",
+      "url": "/d/knot-prod-overview",
+      "keepTime": true,
+      "includeVars": false
+    }
+  ],
+  "description": "DEV 전용 전체 상태. 환경이 쿼리에 고정되어 URL 변수로 다른 환경을 섞지 않습니다."
+}

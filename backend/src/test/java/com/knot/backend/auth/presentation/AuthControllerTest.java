@@ -6,6 +6,7 @@ import static org.mockito.Mockito.mock;
 
 import com.knot.backend.auth.application.AuthService;
 import com.knot.backend.auth.application.dto.command.CompleteNicknameCommand;
+import com.knot.backend.auth.application.dto.result.AuthLoginResult;
 import com.knot.backend.auth.domain.AuthenticatedMember;
 import com.knot.backend.auth.presentation.dto.request.CompleteNicknameRequest;
 import com.knot.backend.auth.presentation.dto.response.AuthenticatedMemberResponse;
@@ -62,7 +63,13 @@ class AuthControllerTest {
                                 "octocat"
                         )
                 )
-        ).thenReturn("access-token");
+        ).thenReturn(
+                AuthLoginResult.authenticated(
+                        "access-token",
+                        "refresh-token",
+                        Duration.ofDays(7)
+                )
+        );
         MockHttpServletResponse response = new MockHttpServletResponse();
 
         // when
@@ -81,6 +88,14 @@ class AuthControllerTest {
                 response.getCookie("KNOT_ACCESS_TOKEN")
                         .getValue()
         ).isEqualTo("access-token");
+        assertThat(
+                response.getCookie("KNOT_REFRESH_TOKEN")
+                        .getValue()
+        ).isEqualTo("refresh-token");
+        assertThat(
+                response.getCookie("KNOT_REFRESH_TOKEN")
+                        .getMaxAge()
+        ).isEqualTo(7 * 86400);
         Cookie nicknameCookie = response.getCookie("KNOT_NICKNAME_TOKEN");
         assertThat(nicknameCookie).isNotNull();
         assertThat(nicknameCookie.getMaxAge()).isZero();
