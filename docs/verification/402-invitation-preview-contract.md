@@ -3,7 +3,7 @@
 ## 범위와 근거
 
 2026-10-03 사용자가 채택한 공통 24시간 만료·취소 없는 복수 초대 계약과
-Issue #402의 I04를 검증한다. 선행 #446을 base로 사용하며 실행 로직은 그대로다.
+Issue #402의 I04를 검증한다. 선행 #444를 base로 사용하며 실행 로직은 그대로다.
 기존 `WorkspaceInvitationService.preview`와 `isValidAt`이 같은 expiresAt을 검사한다.
 OpenAPI에 만료 경계와 FE가 담당하는 자동 확인·참여 확인·오류 이동 계약을 추가했다.
 기존 ADR399는 Proposed로 유지하며 새 제품 결정을 추가하지 않는다.
@@ -24,8 +24,8 @@ OpenAPI에 만료 경계와 FE가 담당하는 자동 확인·참여 확인·오
 | FE 자동 확인·입력 전환 | 아래 코드 확인만 수행, FE 인수 테스트 미실행 | 별도 검증 필요 |
 
 직접 테스트는 `WorkspaceInvitationPreviewContractAcceptanceTest` 22건이다.
-기존 `WorkspaceInvitationAcceptanceTest`의 코드 미존재·context path·CORS·기본 모드
-미리보기 회귀도 전체 suite에 포함한다. DB 전제는 실제 hash·암호문·24시간 CHECK를
+기존 `WorkspaceInvitationAcceptanceTest`의 코드 미존재·context path·CORS
+미리보기 회귀도 전체 suite에 포함한다. DB 전제는 실제 hash·24시간 CHECK를
 사용하며 발급자 보존 검증에는 실제 Service 발급 경로를 사용한다.
 
 ## FE 확인 결과와 남은 경계
@@ -36,7 +36,7 @@ OpenAPI에 만료 경계와 FE가 담당하는 자동 확인·참여 확인·오
   응답 무시와 같은 완성값 중복 억제의 최종 계약은 FE 인수 증거가 필요하다.
 - `WorkspaceInviteLinkGate`와 `WorkspaceJoinErrorNotice`에는 링크 미리보기·오류 후
   코드 입력으로 이동하는 경로가 있다. 이 PR에서 FE를 수정하거나 실행 검증하지 않았다.
-- 실제 소비자 전환·구 API 제거·복수 모드 공개는 #404의 범위다. #402 전체의 FE 완료나
+- FE 소비자 정리는 별도 범위다. #402 전체의 FE 완료나
   운영 배포 완료를 의미하지 않는다. 이슈 자동 종료 키워드를 사용하지 않는다.
 
 ## 컨벤션 적용
@@ -49,8 +49,6 @@ snapshot만 사용하며 migration은 없다. JAVA/TEST는 필드·인자 줄바
 
 ## 최종 검증
 
-- `spotlessApply spotlessCheck test integrationTest acceptanceTest bootJar --no-parallel --no-daemon`:
-  단위 278·통합 116·인수 214건, 총 608건 성공. 실패·오류·건너뜀 0건이다.
-- 기본 wrapper·변경 파일 감사·PR base 기준 감사·Governance 단위 8건 통과.
-- 전체 wrapper는 기존 컨벤션 위반 43건으로 중단했다. 전체 Gradle 검증은 별도로 통과했다.
-  이번 PR의 Java 2파일 감사에는 위반이 없다. FE 테스트와 운영 배포는 실행하지 않았다.
+- #444 위로 옮긴 뒤 `spotlessApply spotlessCheck test integrationTest acceptanceTest bootJar --no-parallel`:
+  단위 257·통합 105·인수 179건, 총 541건 성공. 실패·오류·건너뜀 0건이다.
+- FE 테스트와 운영 배포는 실행하지 않았다.

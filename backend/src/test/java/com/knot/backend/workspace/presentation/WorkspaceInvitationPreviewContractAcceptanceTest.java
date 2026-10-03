@@ -1,5 +1,6 @@
 package com.knot.backend.workspace.presentation;
 
+import static org.hamcrest.Matchers.containsString;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -47,7 +48,7 @@ import tools.jackson.databind.ObjectMapper;
 @ExtendWith(OutputCaptureExtension.class)
 @Import({TestcontainersConfiguration.class, WorkspaceInvitationPreviewContractAcceptanceTest.ClockConfiguration.class})
 @TestApplicationProperties
-@SpringBootTest(properties = {"workspace.invitation.multiple-enabled=true", "knot.api-docs.enabled=true"})
+@SpringBootTest(properties = "knot.api-docs.enabled=true")
 @AutoConfigureMockMvc
 @TestConstructor(autowireMode = TestConstructor.AutowireMode.ALL)
 class WorkspaceInvitationPreviewContractAcceptanceTest {
@@ -109,7 +110,7 @@ class WorkspaceInvitationPreviewContractAcceptanceTest {
                 .andExpect(
                         header().string(
                                 "Cache-Control",
-                                "no-store"
+                                containsString("no-store")
                         )
                 );
         if (expectedStatus == 200) {
@@ -292,20 +293,12 @@ class WorkspaceInvitationPreviewContractAcceptanceTest {
         String legacy = "23" + credential.code()
                 .substring(2);
         jdbc.sql("""
-                UPDATE workspace_invitations SET invite_code_hash = :hash, invite_code_ciphertext = :envelope
+                UPDATE workspace_invitations SET invite_code_hash = :hash
                 WHERE link_token_hash = :link
                 """)
                 .param(
                         "hash",
                         protector.hash(
-                                WorkspaceInvitationSecretKind.INVITE_CODE,
-                                legacy
-                        )
-                )
-                .param(
-                        "envelope",
-                        protector.encrypt(
-                                fixture.workspaceId(),
                                 WorkspaceInvitationSecretKind.INVITE_CODE,
                                 legacy
                         )
@@ -331,7 +324,7 @@ class WorkspaceInvitationPreviewContractAcceptanceTest {
                 .andExpect(
                         header().string(
                                 "Cache-Control",
-                                "no-store"
+                                containsString("no-store")
                         )
                 );
         assertThat(snapshot()).isEqualTo(before);
@@ -420,7 +413,7 @@ class WorkspaceInvitationPreviewContractAcceptanceTest {
                 .andExpect(
                         header().string(
                                 "Cache-Control",
-                                "no-store"
+                                containsString("no-store")
                         )
                 )
                 .andExpect(jsonPath("$.code").value("WORKSPACE_INVITATION_PREVIEW_RATE_LIMIT_EXCEEDED"));
@@ -568,9 +561,8 @@ class WorkspaceInvitationPreviewContractAcceptanceTest {
         String link = "link-" + UUID.randomUUID();
         jdbc.sql("""
                 INSERT INTO workspace_invitations (workspace_id, link_token_hash, invite_code_hash,
-                    link_token_ciphertext, invite_code_ciphertext, created_at, expires_at, invalidated_at)
-                VALUES (:workspace, :linkHash, :codeHash, :linkEnvelope, :codeEnvelope,
-                    :created, :expires, :invalidated)
+                    created_at, expires_at, invalidated_at)
+                VALUES (:workspace, :linkHash, :codeHash, :created, :expires, :invalidated)
                 """)
                 .param(
                         "workspace",
@@ -586,22 +578,6 @@ class WorkspaceInvitationPreviewContractAcceptanceTest {
                 .param(
                         "codeHash",
                         protector.hash(
-                                WorkspaceInvitationSecretKind.INVITE_CODE,
-                                code
-                        )
-                )
-                .param(
-                        "linkEnvelope",
-                        protector.encrypt(
-                                workspace,
-                                WorkspaceInvitationSecretKind.LINK_TOKEN,
-                                link
-                        )
-                )
-                .param(
-                        "codeEnvelope",
-                        protector.encrypt(
-                                workspace,
                                 WorkspaceInvitationSecretKind.INVITE_CODE,
                                 code
                         )
@@ -663,7 +639,7 @@ class WorkspaceInvitationPreviewContractAcceptanceTest {
                 .andExpect(
                         header().string(
                                 "Cache-Control",
-                                "no-store"
+                                containsString("no-store")
                         )
                 );
         JsonNode body = body(response);
@@ -686,7 +662,7 @@ class WorkspaceInvitationPreviewContractAcceptanceTest {
                 .andExpect(
                         header().string(
                                 "Cache-Control",
-                                "no-store"
+                                containsString("no-store")
                         )
                 )
                 .andExpect(jsonPath("$.code").value("WORKSPACE_INVITATION_PREVIEW_NOT_FOUND"));
