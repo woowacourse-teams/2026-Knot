@@ -109,7 +109,7 @@ class WorkspaceRepositoryIntegrationTest {
         ).isFalse();
     }
 
-    @DisplayName("멤버의 OWNER·MEMBER 워크스페이스만 최근 참여 순서로 조회한다")
+    @DisplayName("멤버의 활성 OWNER·MEMBER 워크스페이스만 최근 참여 순서로 조회한다")
     @Test
     void findAllByMemberId_success_filtersAndSortsMemberships() {
         // given
@@ -136,6 +136,18 @@ class WorkspaceRepositoryIntegrationTest {
         Workspace otherWorkspace = saveAndFlush(
                 Workspace.create(
                         "다른 팀",
+                        CREATED_AT
+                )
+        );
+        Workspace leftWorkspace = saveAndFlush(
+                Workspace.create(
+                        "탈퇴 팀",
+                        CREATED_AT
+                )
+        );
+        Workspace deletedWorkspace = saveAndFlush(
+                Workspace.create(
+                        "삭제 팀",
                         CREATED_AT
                 )
         );
@@ -171,6 +183,28 @@ class WorkspaceRepositoryIntegrationTest {
                         RECENT_JOINED_AT
                 )
         );
+        WorkspaceMember leftWorkspaceMember = WorkspaceMember.create(
+                leftWorkspace.getId(),
+                memberId,
+                WorkspaceMemberRole.MEMBER,
+                RECENT_JOINED_AT
+        );
+        leftWorkspaceMember.leave(
+                RECENT_JOINED_AT.plusSeconds(1),
+                2L
+        );
+        saveAndFlush(leftWorkspaceMember);
+        deletedWorkspace.delete(RECENT_JOINED_AT.plusSeconds(1));
+        workspaceRepository.save(deletedWorkspace);
+        saveAndFlush(
+                WorkspaceMember.create(
+                        deletedWorkspace.getId(),
+                        memberId,
+                        WorkspaceMemberRole.MEMBER,
+                        RECENT_JOINED_AT
+                )
+        );
+        entityManager.clear();
 
         // when
         List<Workspace> workspaces = workspaceRepository.findAllByMemberId(memberId);
@@ -209,7 +243,33 @@ class WorkspaceRepositoryIntegrationTest {
         assertThat(workspaces).isEmpty();
     }
 
-    @DisplayName("같은 워크스페이스와 멤버 조합은 중복 저장할 수 없다")
+    @DisplayName("논리 삭제된 워크스페이스는 단건 조회와 잠금 조회에서 제외한다")
+    @Test
+    void findById_success_excludeDeletedWorkspace() {
+        // given
+        Workspace workspace = saveAndFlush(
+                Workspace.create(
+                        "삭제 팀",
+                        CREATED_AT
+                )
+        );
+        workspace.delete(CREATED_AT.plusSeconds(1));
+        workspaceRepository.save(workspace);
+        entityManager.flush();
+        entityManager.clear();
+
+        // when
+        boolean foundById = workspaceRepository.findById(workspace.getId())
+                .isPresent();
+        boolean foundByIdForUpdate = workspaceRepository.findByIdForUpdate(workspace.getId())
+                .isPresent();
+
+        // then
+        assertThat(foundById).isFalse();
+        assertThat(foundByIdForUpdate).isFalse();
+    }
+
+    @DisplayName("같은 워크스페이스와 활성 멤버 조합은 중복 저장할 수 없다")
     @Test
     void save_failure_duplicateWorkspaceMember() {
         // given

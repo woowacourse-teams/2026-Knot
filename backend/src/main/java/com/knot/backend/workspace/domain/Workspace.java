@@ -28,6 +28,9 @@ public class Workspace {
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
+    @Column(name = "deleted_at")
+    private Instant deletedAt;
+
     protected Workspace() {}
 
     private Workspace(
@@ -38,6 +41,7 @@ public class Workspace {
         validateCreatedAt(createdAt);
         this.name = name;
         this.createdAt = createdAt;
+        this.deletedAt = null;
     }
 
     public static Workspace create(
@@ -50,6 +54,15 @@ public class Workspace {
         );
     }
 
+    public void delete(Instant deletedAt) {
+        validateDeletedAt(deletedAt);
+        this.deletedAt = deletedAt;
+    }
+
+    public boolean isDeleted() {
+        return deletedAt != null;
+    }
+
     private void validateName(String name) {
         if (name == null || name.isBlank() || name.length() > MAX_NAME_LENGTH || !NAME_PATTERN.matcher(name)
                 .matches()) {
@@ -60,6 +73,12 @@ public class Workspace {
     private void validateCreatedAt(Instant createdAt) {
         if (createdAt == null) {
             throw new WorkspaceException(WorkspaceErrorCode.INVALID_WORKSPACE_CREATED_AT);
+        }
+    }
+
+    private void validateDeletedAt(Instant deletedAt) {
+        if (deletedAt == null || deletedAt.isBefore(createdAt)) {
+            throw new WorkspaceException(WorkspaceErrorCode.INVALID_WORKSPACE_DELETED_AT);
         }
     }
 }
