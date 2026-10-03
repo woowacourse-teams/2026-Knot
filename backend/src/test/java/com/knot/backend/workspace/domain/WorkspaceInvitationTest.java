@@ -36,6 +36,8 @@ class WorkspaceInvitationTest {
         assertThat(invitation.getLinkTokenHash()).isEqualTo(LINK_TOKEN_HASH);
         assertThat(invitation.getInviteCodeHash()).isEqualTo(INVITE_CODE_HASH);
         assertThat(invitation.getExpiresAt()).isEqualTo(CREATED_AT.plus(WorkspaceInvitation.VALIDITY_PERIOD));
+        assertThat(invitation.getLinkTokenExpiresAt()).isEqualTo(CREATED_AT.plus(WorkspaceInvitation.VALIDITY_PERIOD));
+        assertThat(invitation.getInviteCodeExpiresAt()).isEqualTo(CREATED_AT.plus(WorkspaceInvitation.VALIDITY_PERIOD));
         assertThat(invitation.getInvalidatedAt()).isNull();
         assertThat(invitation.getCreatedAt()).isEqualTo(CREATED_AT);
     }
@@ -235,6 +237,49 @@ class WorkspaceInvitationTest {
 
         // then
         assertThat(valid).isTrue();
+    }
+
+    @DisplayName("코드와 링크 만료 시각이 다르면 각 수단의 만료 시각으로 유효성을 판단한다")
+    @Test
+    void isChannelValidAt_success_independentExpirations() {
+        // given
+        Instant linkTokenExpiresAt = CREATED_AT.plusSeconds(20);
+        Instant inviteCodeExpiresAt = CREATED_AT.plusSeconds(10);
+        WorkspaceInvitation invitation = WorkspaceInvitation.createWithExpirations(
+                1L,
+                LINK_TOKEN_HASH,
+                INVITE_CODE_HASH,
+                LINK_TOKEN_CIPHERTEXT,
+                INVITE_CODE_CIPHERTEXT,
+                linkTokenExpiresAt,
+                inviteCodeExpiresAt,
+                CREATED_AT
+        );
+        Instant pointInTime = CREATED_AT.plusSeconds(15);
+
+        // when
+        boolean linkTokenValid = invitation.isLinkTokenValidAt(pointInTime);
+        boolean inviteCodeValid = invitation.isInviteCodeValidAt(pointInTime);
+
+        // then
+        assertThat(linkTokenValid).isTrue();
+        assertThat(inviteCodeValid).isFalse();
+        assertThat(invitation.getExpiresAt()).isEqualTo(inviteCodeExpiresAt);
+    }
+
+    @DisplayName("무효화 시각이 있으면 코드와 링크가 모두 유효하지 않다")
+    @Test
+    void isChannelValidAt_failure_invalidated() {
+        // given
+        WorkspaceInvitation invitation = createInvitation();
+        Instant invalidatedAt = CREATED_AT.plusSeconds(1);
+
+        // when
+        invitation.invalidate(invalidatedAt);
+
+        // then
+        assertThat(invitation.isLinkTokenValidAt(invalidatedAt.minusNanos(1))).isFalse();
+        assertThat(invitation.isInviteCodeValidAt(invalidatedAt.minusNanos(1))).isFalse();
     }
 
     @DisplayName("생성 전 시점에는 초대가 유효하지 않다")

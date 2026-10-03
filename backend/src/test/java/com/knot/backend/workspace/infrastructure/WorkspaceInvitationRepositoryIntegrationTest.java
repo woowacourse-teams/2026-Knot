@@ -87,6 +87,8 @@ class WorkspaceInvitationRepositoryIntegrationTest {
                 .extracting(WorkspaceInvitation::getId)
                 .isEqualTo(savedInvitation.getId());
         assertThat(savedInvitation.hasRecoverableSecrets()).isFalse();
+        assertThat(savedInvitation.getLinkTokenExpiresAt()).isEqualTo(savedInvitation.getExpiresAt());
+        assertThat(savedInvitation.getInviteCodeExpiresAt()).isEqualTo(savedInvitation.getExpiresAt());
     }
 
     @DisplayName("V4 암호문 envelope를 저장하고 다시 조회한다")
@@ -219,9 +221,9 @@ class WorkspaceInvitationRepositoryIntegrationTest {
         assertThatThrownBy(action).isInstanceOf(WorkspaceInvitationSecretCollisionException.class);
     }
 
-    @DisplayName("한 워크스페이스에는 미무효화 초대를 두 개 저장할 수 없다")
+    @DisplayName("한 워크스페이스에 미무효화 초대를 여러 개 저장할 수 있다")
     @Test
-    void save_failure_duplicateUninvalidatedInvitation() {
+    void save_success_multipleUninvalidatedInvitations() {
         // given
         Workspace workspace = saveAndFlush(
                 Workspace.create(
@@ -245,15 +247,16 @@ class WorkspaceInvitationRepositoryIntegrationTest {
         );
 
         // when
-        ThrowingCallable action = () -> saveAndFlush(duplicate);
+        WorkspaceInvitation savedInvitation = saveAndFlush(duplicate);
 
         // then
-        assertThatThrownBy(action).isInstanceOf(DataIntegrityViolationException.class);
+        assertThat(savedInvitation.getId()).isNotNull();
+        assertThat(countInvitations(workspace.getId())).isEqualTo(2);
     }
 
-    @DisplayName("만료됐더라도 무효화되지 않은 초대가 있으면 새 초대를 저장할 수 없다")
+    @DisplayName("만료됐더라도 무효화되지 않은 초대가 있어도 새 초대를 저장할 수 있다")
     @Test
-    void save_failure_expiredButUninvalidatedInvitation() {
+    void save_success_afterExpiredUninvalidatedInvitation() {
         // given
         Instant previousCreatedAt = CREATED_AT.minus(WorkspaceInvitation.VALIDITY_PERIOD)
                 .minusSeconds(1);
@@ -279,10 +282,11 @@ class WorkspaceInvitationRepositoryIntegrationTest {
         );
 
         // when
-        ThrowingCallable action = () -> saveAndFlush(newInvitation);
+        WorkspaceInvitation savedInvitation = saveAndFlush(newInvitation);
 
         // then
-        assertThatThrownBy(action).isInstanceOf(DataIntegrityViolationException.class);
+        assertThat(savedInvitation.getId()).isNotNull();
+        assertThat(countInvitations(workspace.getId())).isEqualTo(2);
     }
 
     @DisplayName("존재하지 않는 워크스페이스를 참조하는 초대는 저장할 수 없다")
@@ -303,9 +307,9 @@ class WorkspaceInvitationRepositoryIntegrationTest {
         assertThatThrownBy(action).isInstanceOf(DataIntegrityViolationException.class);
     }
 
-    @DisplayName("만료 시각이 생성 시각으로부터 24시간보다 짧으면 초대를 저장할 수 없다")
+    @DisplayName("기존 만료 시각이 생성 시각과 같으면 초대를 저장할 수 없다")
     @Test
-    void save_failure_expirationLessThanTwentyFourHours() {
+    void save_failure_expirationAtCreation() {
         // given
         Workspace workspace = saveAndFlush(
                 Workspace.create(
@@ -319,8 +323,7 @@ class WorkspaceInvitationRepositoryIntegrationTest {
                 workspace.getId(),
                 LINK_TOKEN_HASH,
                 INVITE_CODE_HASH,
-                CREATED_AT.plus(WorkspaceInvitation.VALIDITY_PERIOD)
-                        .minusSeconds(1),
+                CREATED_AT,
                 null,
                 CREATED_AT
         );
@@ -329,9 +332,9 @@ class WorkspaceInvitationRepositoryIntegrationTest {
         assertThatThrownBy(action).isInstanceOf(DataIntegrityViolationException.class);
     }
 
-    @DisplayName("만료 시각이 생성 시각으로부터 24시간보다 길면 초대를 저장할 수 없다")
+    @DisplayName("코드 만료 시각이 생성 시각과 같으면 초대를 저장할 수 없다")
     @Test
-    void save_failure_expirationGreaterThanTwentyFourHours() {
+    void save_failure_inviteCodeExpirationAtCreation() {
         // given
         Workspace workspace = saveAndFlush(
                 Workspace.create(
@@ -347,6 +350,35 @@ class WorkspaceInvitationRepositoryIntegrationTest {
                 INVITE_CODE_HASH,
                 CREATED_AT.plus(WorkspaceInvitation.VALIDITY_PERIOD)
                         .plusSeconds(1),
+                CREATED_AT.plus(WorkspaceInvitation.VALIDITY_PERIOD),
+                CREATED_AT,
+                null,
+                CREATED_AT
+        );
+
+        // then
+        assertThatThrownBy(action).isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @DisplayName("코드와 링크 만료 시각 중 하나만 있으면 초대를 저장할 수 없다")
+    @Test
+    void save_failure_incompleteChannelExpirations() {
+        // given
+        Workspace workspace = saveAndFlush(
+                Workspace.create(
+                        "Knot 팀",
+                        CREATED_AT
+                )
+        );
+
+        // when
+        ThrowingCallable action = () -> insertInvitation(
+                workspace.getId(),
+                LINK_TOKEN_HASH,
+                INVITE_CODE_HASH,
+                CREATED_AT.plus(WorkspaceInvitation.VALIDITY_PERIOD),
+                CREATED_AT.plus(WorkspaceInvitation.VALIDITY_PERIOD),
+                null,
                 null,
                 CREATED_AT
         );
@@ -375,6 +407,102 @@ class WorkspaceInvitationRepositoryIntegrationTest {
                 CREATED_AT.minusSeconds(1),
                 CREATED_AT
         );
+
+        // then
+        assertThatThrownBy(action).isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @DisplayName("코드와 링크 만료 시각이 다르면 각각의 만료 판단을 저장하고 조회한다")
+    @Test
+    void saveAndFind_success_independentChannelExpirations() {
+        // given
+        Workspace workspace = saveAndFlush(
+                Workspace.create(
+                        "Knot 팀",
+                        CREATED_AT
+                )
+        );
+        Instant linkTokenExpiresAt = CREATED_AT.plusSeconds(20);
+        Instant inviteCodeExpiresAt = CREATED_AT.plusSeconds(10);
+        insertInvitation(
+                workspace.getId(),
+                LINK_TOKEN_HASH,
+                INVITE_CODE_HASH,
+                CREATED_AT.plusSeconds(10),
+                linkTokenExpiresAt,
+                inviteCodeExpiresAt,
+                null,
+                CREATED_AT
+        );
+        entityManager.clear();
+
+        // when
+        WorkspaceInvitation invitation = workspaceInvitationRepository.findByLinkTokenHash(LINK_TOKEN_HASH)
+                .orElseThrow();
+
+        // then
+        assertThat(invitation.getLinkTokenExpiresAt()).isEqualTo(linkTokenExpiresAt);
+        assertThat(invitation.getInviteCodeExpiresAt()).isEqualTo(inviteCodeExpiresAt);
+        assertThat(invitation.isLinkTokenValidAt(CREATED_AT.plusSeconds(15))).isTrue();
+        assertThat(invitation.isInviteCodeValidAt(CREATED_AT.plusSeconds(15))).isFalse();
+    }
+
+    @DisplayName("수단별 만료 컬럼을 모르는 기존 INSERT Row는 기존 만료 시각으로 유효성을 판단한다")
+    @Test
+    void saveAndFind_success_legacyInsertWithoutChannelExpirations() {
+        // given
+        Workspace workspace = saveAndFlush(
+                Workspace.create(
+                        "Knot 팀",
+                        CREATED_AT
+                )
+        );
+        Instant expiresAt = CREATED_AT.plus(WorkspaceInvitation.VALIDITY_PERIOD);
+        insertLegacyInvitationWithoutChannelExpirations(
+                workspace.getId(),
+                LINK_TOKEN_HASH,
+                INVITE_CODE_HASH,
+                expiresAt,
+                null,
+                CREATED_AT
+        );
+        entityManager.clear();
+
+        // when
+        WorkspaceInvitation invitation = workspaceInvitationRepository.findByInviteCodeHash(INVITE_CODE_HASH)
+                .orElseThrow();
+
+        // then
+        assertThat(invitation.getLinkTokenExpiresAt()).isEqualTo(expiresAt);
+        assertThat(invitation.getInviteCodeExpiresAt()).isEqualTo(expiresAt);
+        assertThat(invitation.isLinkTokenValidAt(expiresAt.minusSeconds(1))).isTrue();
+        assertThat(invitation.isInviteCodeValidAt(expiresAt.minusSeconds(1))).isTrue();
+    }
+
+    @DisplayName("워크스페이스 초대 이력이 있으면 워크스페이스를 물리 삭제할 수 없다")
+    @Test
+    void deleteWorkspace_failure_restrictedByInvitationHistory() {
+        // given
+        Long workspaceId = insertWorkspace("이력 보존 팀");
+        insertInvitation(
+                workspaceId,
+                LINK_TOKEN_HASH,
+                INVITE_CODE_HASH,
+                CREATED_AT.plus(WorkspaceInvitation.VALIDITY_PERIOD),
+                null,
+                CREATED_AT
+        );
+
+        // when
+        ThrowingCallable action = () -> jdbcClient.sql("""
+                DELETE FROM workspaces
+                WHERE id = :workspaceId
+                """)
+                .param(
+                        "workspaceId",
+                        workspaceId
+                )
+                .update();
 
         // then
         assertThatThrownBy(action).isInstanceOf(DataIntegrityViolationException.class);
@@ -510,10 +638,10 @@ class WorkspaceInvitationRepositoryIntegrationTest {
                 .isEqualTo(CREATED_AT.plusSeconds(1));
     }
 
-    @DisplayName("같은 워크스페이스에 미무효화 초대를 동시에 저장해도 하나만 성공한다")
+    @DisplayName("같은 워크스페이스에 미무효화 초대를 동시에 저장하면 둘 다 성공한다")
     @Test
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
-    void save_failure_concurrentUninvalidatedInvitation() throws Exception {
+    void save_success_concurrentUninvalidatedInvitation() throws Exception {
         // given
         Workspace workspace = workspaceRepository.save(
                 Workspace.create(
@@ -554,9 +682,9 @@ class WorkspaceInvitationRepositoryIntegrationTest {
             // then
             assertThat(results).containsExactlyInAnyOrder(
                     true,
-                    false
+                    true
             );
-            assertThat(countInvitations(workspace.getId())).isEqualTo(1);
+            assertThat(countInvitations(workspace.getId())).isEqualTo(2);
         } finally {
             executorService.shutdownNow();
         }
@@ -645,6 +773,94 @@ class WorkspaceInvitationRepositoryIntegrationTest {
     }
 
     private void insertInvitation(
+            Long workspaceId,
+            String linkTokenHash,
+            String inviteCodeHash,
+            Instant expiresAt,
+            Instant invalidatedAt,
+            Instant createdAt
+    ) {
+        insertInvitation(
+                workspaceId,
+                linkTokenHash,
+                inviteCodeHash,
+                expiresAt,
+                null,
+                null,
+                invalidatedAt,
+                createdAt
+        );
+    }
+
+    private void insertInvitation(
+            Long workspaceId,
+            String linkTokenHash,
+            String inviteCodeHash,
+            Instant expiresAt,
+            Instant linkTokenExpiresAt,
+            Instant inviteCodeExpiresAt,
+            Instant invalidatedAt,
+            Instant createdAt
+    ) {
+        jdbcClient.sql("""
+                INSERT INTO workspace_invitations (
+                    workspace_id,
+                    link_token_hash,
+                    invite_code_hash,
+                    expires_at,
+                    link_token_expires_at,
+                    invite_code_expires_at,
+                    invalidated_at,
+                    created_at,
+                    version
+                ) VALUES (
+                    :workspaceId,
+                    :linkTokenHash,
+                    :inviteCodeHash,
+                    :expiresAt,
+                    :linkTokenExpiresAt,
+                    :inviteCodeExpiresAt,
+                    :invalidatedAt,
+                    :createdAt,
+                    0
+                )
+                """)
+                .param(
+                        "workspaceId",
+                        workspaceId
+                )
+                .param(
+                        "linkTokenHash",
+                        linkTokenHash
+                )
+                .param(
+                        "inviteCodeHash",
+                        inviteCodeHash
+                )
+                .param(
+                        "expiresAt",
+                        toOffsetDateTime(expiresAt)
+                )
+                .param(
+                        "linkTokenExpiresAt",
+                        toOffsetDateTime(linkTokenExpiresAt)
+                )
+                .param(
+                        "inviteCodeExpiresAt",
+                        toOffsetDateTime(inviteCodeExpiresAt)
+                )
+                .param(
+                        "invalidatedAt",
+                        toOffsetDateTime(invalidatedAt)
+                )
+                .param(
+                        "createdAt",
+                        toOffsetDateTime(createdAt)
+                )
+                .update();
+    }
+
+    private void insertLegacyInvitationWithoutChannelExpirations(
             Long workspaceId,
             String linkTokenHash,
             String inviteCodeHash,
