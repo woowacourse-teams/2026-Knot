@@ -1,0 +1,415 @@
+{
+  "title": "PROD 05 RDS·별도 AWS DB",
+  "uid": "knot-prod-rds",
+  "schemaVersion": 41,
+  "version": 1,
+  "tags": [
+    "knot",
+    "prod",
+    "rds"
+  ],
+  "refresh": "30s",
+  "timezone": "Asia/Seoul",
+  "time": {
+    "from": "now-30m",
+    "to": "now"
+  },
+  "templating": {
+    "list": []
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "text",
+      "title": "PROD · 이 화면 읽는 법",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 4
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "**PROD RDS: `knot-database`**의 CloudWatch 5분 평균입니다.\n\n**현재 프로토타입의 실제 DB는 별도 Docker PostgreSQL입니다. 이 RDS 그래프가 앱 DB 상태를 뜻하지 않습니다.** 프로토타입 DB 문제는 앱 로그와 실제 DB 컨테이너에서 확인하세요."
+      }
+    },
+    {
+      "id": 2,
+      "title": "RDS CPU 사용률",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "knot-prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 4,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "noValue": "데이터 없음"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "description": "RDS 자체의 CloudWatch 5분 평균입니다. 실시간 순간값이나 앱의 Hikari 연결 수가 아닙니다. 해당 DB 식별자의 로그·이벤트와 함께 확인하세요.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "aws_rds_cpuutilization_average{env=\"prod\",dimension_DBInstanceIdentifier=\"knot-database\"} < +Inf",
+          "legendFormat": "{{env}} {{dimension_DBInstanceIdentifier}}"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "RDS DB connections",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "knot-prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 4,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "min": 0,
+          "noValue": "데이터 없음"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "description": "RDS 자체의 CloudWatch 5분 평균입니다. 실시간 순간값이나 앱의 Hikari 연결 수가 아닙니다. 해당 DB 식별자의 로그·이벤트와 함께 확인하세요.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "aws_rds_database_connections_average{env=\"prod\",dimension_DBInstanceIdentifier=\"knot-database\"} < +Inf",
+          "legendFormat": "{{env}} {{dimension_DBInstanceIdentifier}}"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "RDS 가용 메모리",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "knot-prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 12,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "min": 0,
+          "noValue": "데이터 없음"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "description": "RDS 자체의 CloudWatch 5분 평균입니다. 실시간 순간값이나 앱의 Hikari 연결 수가 아닙니다. 해당 DB 식별자의 로그·이벤트와 함께 확인하세요.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "aws_rds_freeable_memory_average{env=\"prod\",dimension_DBInstanceIdentifier=\"knot-database\"} < +Inf",
+          "legendFormat": "{{env}} {{dimension_DBInstanceIdentifier}}"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "RDS 가용 스토리지",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "knot-prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 12,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "min": 0,
+          "noValue": "데이터 없음"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "description": "RDS 자체의 CloudWatch 5분 평균입니다. 실시간 순간값이나 앱의 Hikari 연결 수가 아닙니다. 해당 DB 식별자의 로그·이벤트와 함께 확인하세요.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "aws_rds_free_storage_space_average{env=\"prod\",dimension_DBInstanceIdentifier=\"knot-database\"} < +Inf",
+          "legendFormat": "{{env}} {{dimension_DBInstanceIdentifier}}"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "RDS read latency",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "knot-prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 20,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0,
+          "noValue": "데이터 없음"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "description": "RDS 자체의 CloudWatch 5분 평균입니다. 실시간 순간값이나 앱의 Hikari 연결 수가 아닙니다. 해당 DB 식별자의 로그·이벤트와 함께 확인하세요.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "aws_rds_read_latency_average{env=\"prod\",dimension_DBInstanceIdentifier=\"knot-database\"} < +Inf",
+          "legendFormat": "{{env}} {{dimension_DBInstanceIdentifier}}"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "RDS write latency",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "knot-prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 20,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0,
+          "noValue": "데이터 없음"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "description": "RDS 자체의 CloudWatch 5분 평균입니다. 실시간 순간값이나 앱의 Hikari 연결 수가 아닙니다. 해당 DB 식별자의 로그·이벤트와 함께 확인하세요.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "aws_rds_write_latency_average{env=\"prod\",dimension_DBInstanceIdentifier=\"knot-database\"} < +Inf",
+          "legendFormat": "{{env}} {{dimension_DBInstanceIdentifier}}"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "title": "RDS read IOPS",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "knot-prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 28,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "iops",
+          "min": 0,
+          "noValue": "데이터 없음"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "description": "RDS 자체의 CloudWatch 5분 평균입니다. 실시간 순간값이나 앱의 Hikari 연결 수가 아닙니다. 해당 DB 식별자의 로그·이벤트와 함께 확인하세요.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "aws_rds_read_iops_average{env=\"prod\",dimension_DBInstanceIdentifier=\"knot-database\"} < +Inf",
+          "legendFormat": "{{env}} {{dimension_DBInstanceIdentifier}}"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "title": "RDS write IOPS",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "knot-prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 28,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "iops",
+          "min": 0,
+          "noValue": "데이터 없음"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "description": "RDS 자체의 CloudWatch 5분 평균입니다. 실시간 순간값이나 앱의 Hikari 연결 수가 아닙니다. 해당 DB 식별자의 로그·이벤트와 함께 확인하세요.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "aws_rds_write_iops_average{env=\"prod\",dimension_DBInstanceIdentifier=\"knot-database\"} < +Inf",
+          "legendFormat": "{{env}} {{dimension_DBInstanceIdentifier}}"
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "title": "RDS disk queue depth",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "knot-prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 36,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "min": 0,
+          "noValue": "데이터 없음"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "description": "RDS 자체의 CloudWatch 5분 평균입니다. 실시간 순간값이나 앱의 Hikari 연결 수가 아닙니다. 해당 DB 식별자의 로그·이벤트와 함께 확인하세요.",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "aws_rds_disk_queue_depth_average{env=\"prod\",dimension_DBInstanceIdentifier=\"knot-database\"} < +Inf",
+          "legendFormat": "{{env}} {{dimension_DBInstanceIdentifier}}"
+        }
+      ]
+    }
+  ],
+  "links": [
+    {
+      "title": "01 전체 상태",
+      "type": "link",
+      "url": "/d/knot-prod-overview",
+      "keepTime": true,
+      "includeVars": false
+    },
+    {
+      "title": "02 API 요청·오류",
+      "type": "link",
+      "url": "/d/knot-prod-api",
+      "keepTime": true,
+      "includeVars": false
+    },
+    {
+      "title": "03 로그",
+      "type": "link",
+      "url": "/d/knot-prod-logs",
+      "keepTime": true,
+      "includeVars": false
+    },
+    {
+      "title": "04 서버 자원",
+      "type": "link",
+      "url": "/d/knot-prod-infra",
+      "keepTime": true,
+      "includeVars": false
+    },
+    {
+      "title": "05 RDS·별도 AWS DB",
+      "type": "link",
+      "url": "/d/knot-prod-rds",
+      "keepTime": true,
+      "includeVars": false
+    },
+    {
+      "title": "DEV로 이동",
+      "type": "link",
+      "url": "/d/knot-dev-overview",
+      "keepTime": true,
+      "includeVars": false
+    }
+  ],
+  "description": "PROD 전용 RDS. 환경이 쿼리에 고정되어 URL 변수로 다른 환경을 섞지 않습니다."
+}
