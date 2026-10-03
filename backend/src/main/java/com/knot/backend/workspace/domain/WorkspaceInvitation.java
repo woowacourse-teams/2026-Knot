@@ -10,6 +10,7 @@ import jakarta.persistence.Version;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import lombok.AccessLevel;
 import lombok.Getter;
 
 @Getter
@@ -42,6 +43,14 @@ public class WorkspaceInvitation {
     @Column(name = "expires_at", nullable = false, updatable = false)
     private Instant expiresAt;
 
+    @Getter(AccessLevel.NONE)
+    @Column(name = "code_expires_at", updatable = false)
+    private Instant codeExpiresAt;
+
+    @Getter(AccessLevel.NONE)
+    @Column(name = "link_token_expires_at", updatable = false)
+    private Instant linkTokenExpiresAt;
+
     @Column(name = "invalidated_at")
     private Instant invalidatedAt;
 
@@ -60,7 +69,9 @@ public class WorkspaceInvitation {
             String inviteCodeHash,
             String linkTokenCiphertext,
             String inviteCodeCiphertext,
-            Instant createdAt
+            Instant createdAt,
+            Instant codeExpiresAt,
+            Instant linkTokenExpiresAt
     ) {
         validateWorkspaceId(workspaceId);
         validateLinkTokenHash(linkTokenHash);
@@ -70,13 +81,25 @@ public class WorkspaceInvitation {
                 inviteCodeCiphertext
         );
         validateCreatedAt(createdAt);
+        Instant databasePrecisionCreatedAt = truncateToDatabasePrecision(createdAt);
+        Instant databasePrecisionCodeExpiresAt = truncateExpiresAtToDatabasePrecision(codeExpiresAt);
+        Instant databasePrecisionLinkTokenExpiresAt = truncateExpiresAtToDatabasePrecision(linkTokenExpiresAt);
+        validateExpiresAt(
+                databasePrecisionCreatedAt,
+                databasePrecisionCodeExpiresAt
+        );
+        validateExpiresAt(
+                databasePrecisionCreatedAt,
+                databasePrecisionLinkTokenExpiresAt
+        );
         this.workspaceId = workspaceId;
         this.linkTokenHash = linkTokenHash;
         this.inviteCodeHash = inviteCodeHash;
         this.linkTokenCiphertext = linkTokenCiphertext;
         this.inviteCodeCiphertext = inviteCodeCiphertext;
-        Instant databasePrecisionCreatedAt = truncateToDatabasePrecision(createdAt);
         this.expiresAt = databasePrecisionCreatedAt.plus(VALIDITY_PERIOD);
+        this.codeExpiresAt = databasePrecisionCodeExpiresAt;
+        this.linkTokenExpiresAt = databasePrecisionLinkTokenExpiresAt;
         this.createdAt = databasePrecisionCreatedAt;
     }
 
@@ -94,7 +117,9 @@ public class WorkspaceInvitation {
                 inviteCodeHash,
                 linkTokenCiphertext,
                 inviteCodeCiphertext,
-                createdAt
+                createdAt,
+                defaultExpiresAt(createdAt),
+                defaultExpiresAt(createdAt)
         );
     }
 
@@ -110,16 +135,64 @@ public class WorkspaceInvitation {
                 inviteCodeHash,
                 null,
                 null,
-                createdAt
+                createdAt,
+                defaultExpiresAt(createdAt),
+                defaultExpiresAt(createdAt)
+        );
+    }
+
+    public static WorkspaceInvitation createWithExpirations(
+            Long workspaceId,
+            String linkTokenHash,
+            String inviteCodeHash,
+            String linkTokenCiphertext,
+            String inviteCodeCiphertext,
+            Instant createdAt,
+            Instant codeExpiresAt,
+            Instant linkTokenExpiresAt
+    ) {
+        return new WorkspaceInvitation(
+                workspaceId,
+                linkTokenHash,
+                inviteCodeHash,
+                linkTokenCiphertext,
+                inviteCodeCiphertext,
+                createdAt,
+                codeExpiresAt,
+                linkTokenExpiresAt
         );
     }
 
     public boolean isValidAt(Instant pointInTime) {
         validatePointInTime(pointInTime);
-        boolean issued = !pointInTime.isBefore(createdAt);
-        boolean unexpired = pointInTime.isBefore(expiresAt);
-        boolean uninvalidated = invalidatedAt == null;
-        return issued && unexpired && uninvalidated;
+        return isValidAt(
+                pointInTime,
+                expiresAt
+        );
+    }
+
+    public boolean isCodeValidAt(Instant pointInTime) {
+        validatePointInTime(pointInTime);
+        return isValidAt(
+                pointInTime,
+                getCodeExpiresAt()
+        );
+    }
+
+    public boolean isLinkTokenValidAt(Instant pointInTime) {
+        validatePointInTime(pointInTime);
+        return isValidAt(
+                pointInTime,
+                getLinkTokenExpiresAt()
+        );
+    }
+
+    public Instant getCodeExpiresAt() {
+        return expiresAtOrLegacy(codeExpiresAt);
+    }
+
+    public Instant getLinkTokenExpiresAt() {
+        return expiresAtOrLegacy(linkTokenExpiresAt);
     }
 
     public void invalidate(Instant invalidatedAt) {
@@ -166,9 +239,18 @@ public class WorkspaceInvitation {
         return envelope != null && !envelope.isBlank() && envelope.length() <= MAX_SECRET_ENVELOPE_LENGTH;
     }
 
-    private void validateCreatedAt(Instant createdAt) {
+    private static void validateCreatedAt(Instant createdAt) {
         if (createdAt == null) {
             throw new WorkspaceException(WorkspaceErrorCode.INVALID_WORKSPACE_INVITATION_CREATED_AT);
+        }
+    }
+
+    private void validateExpiresAt(
+            Instant createdAt,
+            Instant expiresAt
+    ) {
+        if (expiresAt == null || !expiresAt.isAfter(createdAt)) {
+            throw new WorkspaceException(WorkspaceErrorCode.INVALID_WORKSPACE_INVITATION_EXPIRES_AT);
         }
     }
 
@@ -184,7 +266,37 @@ public class WorkspaceInvitation {
         }
     }
 
+    private boolean isValidAt(
+            Instant pointInTime,
+            Instant expiresAt
+    ) {
+        boolean issued = !pointInTime.isBefore(createdAt);
+        boolean unexpired = pointInTime.isBefore(expiresAt);
+        boolean uninvalidated = invalidatedAt == null;
+        return issued && unexpired && uninvalidated;
+    }
+
+    private Instant expiresAtOrLegacy(Instant channelExpiresAt) {
+        if (channelExpiresAt != null) {
+            return channelExpiresAt;
+        }
+        return expiresAt;
+    }
+
     private Instant truncateToDatabasePrecision(Instant instant) {
         return instant.truncatedTo(ChronoUnit.MICROS);
+    }
+
+    private Instant truncateExpiresAtToDatabasePrecision(Instant expiresAt) {
+        if (expiresAt == null) {
+            throw new WorkspaceException(WorkspaceErrorCode.INVALID_WORKSPACE_INVITATION_EXPIRES_AT);
+        }
+        return truncateToDatabasePrecision(expiresAt);
+    }
+
+    private static Instant defaultExpiresAt(Instant createdAt) {
+        validateCreatedAt(createdAt);
+        return createdAt.truncatedTo(ChronoUnit.MICROS)
+                .plus(VALIDITY_PERIOD);
     }
 }

@@ -84,6 +84,12 @@ public enum WorkspaceErrorCode implements ErrorCode {
             "워크스페이스 초대 생성 시각이 올바르지 않습니다"
     ),
 
+    INVALID_WORKSPACE_INVITATION_EXPIRES_AT(
+            ErrorCategory.INVALID_INPUT,
+            "INVALID_WORKSPACE_INVITATION_EXPIRES_AT",
+            "워크스페이스 초대 만료 시각이 올바르지 않습니다"
+    ),
+
     INVALID_WORKSPACE_INVITATION_POINT_IN_TIME(
             ErrorCategory.INVALID_INPUT,
             "INVALID_WORKSPACE_INVITATION_POINT_IN_TIME",
