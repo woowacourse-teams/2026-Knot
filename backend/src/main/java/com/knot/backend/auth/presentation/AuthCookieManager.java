@@ -3,6 +3,8 @@ package com.knot.backend.auth.presentation;
 import com.knot.backend.global.config.JwtProperties;
 import com.knot.backend.auth.domain.AuthErrorCode;
 import com.knot.backend.auth.domain.AuthException;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.time.Duration;
 import java.util.LinkedHashSet;
@@ -47,6 +49,27 @@ public class AuthCookieManager {
                 token,
                 maxAge
         );
+    }
+
+    public String findRefreshToken(HttpServletRequest request) {
+        Cookie[] cookies = request.getCookies();
+        if (cookies == null) {
+            return null;
+        }
+        String refreshCookieName = cookieNameForSecurity(jwtProperties.getRefreshCookieName());
+        String refreshToken = null;
+        boolean found = false;
+        for (Cookie cookie : cookies) {
+            if (!refreshCookieName.equals(cookie.getName())) {
+                continue;
+            }
+            if (found) {
+                throw new AuthException(AuthErrorCode.INVALID_JWT);
+            }
+            found = true;
+            refreshToken = cookie.getValue();
+        }
+        return refreshToken;
     }
 
     public void addNicknameToken(

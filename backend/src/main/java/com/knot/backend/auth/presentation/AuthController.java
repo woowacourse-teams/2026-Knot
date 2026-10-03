@@ -1,12 +1,15 @@
 package com.knot.backend.auth.presentation;
 
 import com.knot.backend.auth.application.AuthService;
+import com.knot.backend.auth.application.AuthRefreshService;
 import com.knot.backend.auth.application.dto.command.CompleteNicknameCommand;
+import com.knot.backend.auth.application.dto.result.AuthRefreshResult;
 import com.knot.backend.auth.application.dto.result.AuthLoginResult;
 import com.knot.backend.auth.domain.AuthenticatedMember;
 import com.knot.backend.auth.presentation.dto.request.CompleteNicknameRequest;
 import com.knot.backend.auth.presentation.dto.response.AuthenticatedMemberResponse;
 import com.knot.backend.auth.presentation.dto.response.CsrfTokenResponse;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -27,6 +30,7 @@ import org.springframework.web.bind.annotation.RestController;
 @Tag(name = "인증", description = "회원가입, 로그인, 리프레쉬, 로그아웃, 확인")
 public class AuthController {
     private final AuthService authService;
+    private final AuthRefreshService authRefreshService;
     private final AuthCookieManager authCookieManager;
 
     @GetMapping("/me")
@@ -37,6 +41,25 @@ public class AuthController {
     @GetMapping("/csrf")
     public CsrfTokenResponse csrf(CsrfToken csrfToken) {
         return new CsrfTokenResponse(csrfToken.getToken());
+    }
+
+    @PostMapping("/refresh")
+    public ResponseEntity<Void> refresh(
+            HttpServletRequest request,
+            HttpServletResponse response
+    ) {
+        AuthRefreshResult result = authRefreshService.refresh(authCookieManager.findRefreshToken(request));
+        authCookieManager.addAccessToken(
+                response,
+                result.accessToken()
+        );
+        authCookieManager.addRefreshToken(
+                response,
+                result.refreshToken(),
+                result.refreshMaxAge()
+        );
+        return ResponseEntity.noContent()
+                .build();
     }
 
     @PostMapping("/nickname")
