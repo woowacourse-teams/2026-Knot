@@ -11,8 +11,7 @@ interface RetryNoticeProps {
 /**
  * 잠깐의 실패를 알리고 다시 시도하게 하는 안내.
  *
- * 언제 쓰고 언제 쓰지 않는지는 스토리북 `Shared/RetryNotice`에서 확인해요.
- * 낭독기가 바로 읽도록 `role="alert"`를 붙였어요.
+ * 동작 규칙은 스토리북 `Shared/RetryNotice`에서 확인해요.
  */
 export default function RetryNotice({ message, onRetry }: RetryNoticeProps) {
   return (

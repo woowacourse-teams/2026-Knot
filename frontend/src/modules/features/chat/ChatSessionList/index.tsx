@@ -6,9 +6,7 @@ import EmptyChatSessionList from "./ui/EmptyChatSessionList";
 /**
  * 워크스페이스에 쌓인 대화 목록.
  *
- * 자세한 내용은 스토리북 `Chat/ChatSessionList`에서 확인해요.
- *
- * @see https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=580-1961
+ * 동작 규칙은 스토리북 `Chat/ChatSessionList`에서 확인해요.
  */
 export default function ChatSessionList() {
   const { groups, openedSessionId, handleSelectSession } = useChatSessionList();

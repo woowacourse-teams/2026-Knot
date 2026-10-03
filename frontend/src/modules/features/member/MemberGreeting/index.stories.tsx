@@ -11,13 +11,17 @@ import MemberGreeting from ".";
  * **동작 규칙**
  * - 닉네임은 로그인한 회원 정보에서 와요. 정보가 오기 전에는 `반가워요`만 보여 자리를 지키고, 닉네임이 오면 `반가워요, {닉네임} 님`으로 채워요.
  * - 회원 정보를 못 받아도 여기서는 따로 안내하지 않아요. 로그인이 풀렸다면 같은 화면의 워크스페이스 조회도 실패해 로그인 화면으로 옮겨 가기 때문이에요.
- *
- * **디자인 원본**: [홈 화면 인사](https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=600-10083)
  */
 const meta = {
   title: "Member/MemberGreeting",
   component: MemberGreeting,
-  parameters: { layout: "centered" },
+  parameters: {
+    layout: "centered",
+    design: {
+      type: "figma",
+      url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=600-10083",
+    },
+  },
 } satisfies Meta<typeof MemberGreeting>;
 
 export default meta;

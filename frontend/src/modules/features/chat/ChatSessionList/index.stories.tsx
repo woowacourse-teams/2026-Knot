@@ -31,18 +31,33 @@ const fromNow = (elapsed: number) =>
  * - 대화를 마지막 메시지 시각으로 「오늘 / 이번 주 / 지난 30일 / 이전」에 묶어요. 오늘은 날짜가 같은지로, 나머지는 지금으로부터 지난 시간으로 가르고, 대화가 없는 묶음은 감춰요.
  * - 같은 묶음 안에서는 마지막 메시지가 최근인 대화가 위로 와요.
  * - 한 줄에는 대화 제목과 마지막으로 오간 시각을 보여 주고, 제목이 길면 한 줄에서 말줄임표로 잘라요.
- * - 지금 보고 있는 대화(주소의 대화 ID)는 채워진 모양으로 표시해요. 다른 대화를 누르면 그 대화 화면으로 옮겨 가요.
- * - 대화가 하나도 없으면 목록 자리에 빈 안내를 띄워요. 목록을 받아 오는 중이거나 받아 오지 못했을 때도 같은 안내가 보여요.
- *
- * **디자인 원본**: [대화 목록](https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=580-1961) ·
- * [기간 묶음](https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=580-1533) ·
- * [SessionRow](https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=1379-8248) ·
- * [빈 목록](https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=1254-5857)
+ * - 지금 보고 있는 대화(주소의 대화 ID)는 채워진 모양으로 표시하고, 화면 낭독기에도 지금 보고 있는 대화라고 알려요. 다른 대화를 누르면 그 대화 화면으로 옮겨 가요.
+ * - 대화가 하나도 없으면 목록 자리에 빈 안내를 띄워요. 대화가 없는 게 오류가 아니라는 것과, 새 대화를 시작하면 목록이 채워진다는 것을 알려 줘요. 목록을 받아 오는 중이거나 받아 오지 못했을 때도 같은 안내가 보여요.
  */
 const meta = {
   title: "Chat/ChatSessionList",
   component: ChatSessionList,
-  parameters: { layout: "padded", initialPath: SESSION_PATH },
+  parameters: {
+    layout: "padded",
+    initialPath: SESSION_PATH,
+    design: [
+      {
+        name: "대화 목록",
+        type: "figma",
+        url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=580-1961",
+      },
+      {
+        name: "기간 묶음",
+        type: "figma",
+        url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=580-1533",
+      },
+      {
+        name: "SessionRow",
+        type: "figma",
+        url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=1379-8248",
+      },
+    ],
+  },
   decorators: [
     (Story, { parameters }) => (
       <MemoryRouter initialEntries={[parameters.initialPath]}>
@@ -107,6 +122,10 @@ export const AllPeriods: Story = {
 /** 워크스페이스에 아직 나눈 대화가 없을 때예요. 예: 워크스페이스를 막 만든 직후 */
 export const Empty: Story = {
   parameters: {
+    design: {
+      type: "figma",
+      url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=1254-5857",
+    },
     msw: {
       handlers: {
         conversations: http.get(CONVERSATIONS_URL, () => HttpResponse.json([])),

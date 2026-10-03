@@ -10,7 +10,7 @@ interface AvatarProps {
   src?: string;
   /** 이미지를 못 쓸 때 첫 글자를 딸 이름. 이것도 없으면 기본 글리프를 그려요 */
   name?: string;
-  /** 지름(px). 사이드바 워크스페이스는 24, GNB는 32 */
+  /** 지름(px) */
   size?: number;
   className?: string;
 }
@@ -18,8 +18,7 @@ interface AvatarProps {
 /**
  * 원형 아바타.
  *
- * 무엇을 어떤 순서로 그리는지는 스토리북 `Shared/Avatar`에서 확인해요.
- * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=587-516 Avatar}
+ * 동작 규칙은 스토리북 `Shared/Avatar`에서 확인해요.
  */
 export default function Avatar({
   label,
@@ -72,7 +71,6 @@ const Image = styled.img`
   object-fit: cover;
 `;
 
-/** 24px 아바타는 caption01, 32px 아바타는 caption02 크기를 써요 */
 const Initial = styled.span<{ $size: number }>`
   ${({ theme, $size }) =>
     $size >= 32 ? theme.text.caption02 : theme.text.caption01};

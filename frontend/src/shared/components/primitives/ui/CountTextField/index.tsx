@@ -11,8 +11,7 @@ interface CountTextFieldProps extends ComponentProps<typeof TextField> {
 /**
  * 글자 수 카운터가 달린 입력 필드.
  *
- * 상태별 모양과 동작 규칙은 스토리북 `Shared/CountTextField`에서 확인해요.
- * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=424-1193 온보딩/닉네임 입력}
+ * 동작 규칙은 스토리북 `Shared/CountTextField`에서 확인해요.
  */
 export default function CountTextField({
   value,

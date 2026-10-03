@@ -12,12 +12,16 @@ import ConfirmDialog from ".";
  *
  * **동작 규칙**
  * - 카드 모양만 그려요. 화면 가운데 띄우기·ESC·포커스 가두기는 없어서, 쓰는 쪽이 `Dim` 위에 올리고 `role`·`aria-*`도 함께 넘겨요.
- *
- * **디자인 원본**: [Dialog 유형=확인](https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=2024-11427)
  */
 const meta = {
   title: "Shared/ConfirmDialog",
   component: ConfirmDialog,
+  parameters: {
+    design: {
+      type: "figma",
+      url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=2024-11427",
+    },
+  },
   args: {
     title: "녹음을 끝낼까요?",
     description: "끝낸 녹음은 다시 이어 갈 수 없어요.",

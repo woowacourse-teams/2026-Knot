@@ -12,12 +12,16 @@ import Stepper from ".";
  * - 첫 항목에서는 이전 버튼을, 마지막 항목에서는 다음 버튼을 막아요.
  * - 지금 순서는 쓰는 쪽이 들고 있고, 버튼을 누르면 `onPrev`·`onNext`로 알리기만 해요.
  * - 숫자마다 폭이 달라 넘길 때마다 흔들리지 않도록 모든 숫자를 같은 폭으로 그려요.
- *
- * **디자인 원본**: [Stepper/RecordingDocs](https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=1750-743)
  */
 const meta = {
   title: "Shared/Stepper",
   component: Stepper,
+  parameters: {
+    design: {
+      type: "figma",
+      url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=1750-743",
+    },
+  },
   args: {
     current: 1,
     total: 3,

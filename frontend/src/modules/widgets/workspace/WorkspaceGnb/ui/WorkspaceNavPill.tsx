@@ -2,11 +2,9 @@ import styled from "@emotion/styled";
 import useWorkspaceNav from "@hooks/domain/workspace/useWorkspaceNav";
 
 /**
- * GNB 가운데의 내비 필. 홈과 탐색을 오가고 지금 화면을 채워진 모양으로 알려줘요.
+ * GNB 가운데에서 홈과 탐색을 오가는 내비 필.
  *
- * Figma의 `문서` 슬롯은 아직 화면이 없어 그리지 않아요.
- *
- * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=1364-839 Pill}
+ * 스토리북 `Workspace/WorkspaceGnb`
  */
 export default function WorkspaceNavPill() {
   const { isHomeActive, isChatActive, navigateToHome, navigateToExplore } =

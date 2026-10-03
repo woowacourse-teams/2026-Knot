@@ -22,18 +22,16 @@ import Input, { type InputStatus, type InputVariant } from ".";
  * - 값이 비었는지·에러인지를 스스로 판단하지 않고 `status`로 받아 그리기만 해요. 판단은 값을 들고 있는 쪽이 해요. 그래서 직접 입력해도 색이 바뀌지 않으니 `status` 컨트롤로 바꿔 보세요.
  * - `status`는 색(배경·테두리)만, `variant`는 형태·글자만 정해서 둘을 자유롭게 섞을 수 있어요.
  * - `error`이면 `aria-invalid`가 붙어 스크린리더도 잘못된 값임을 읽어요.
- *
- * **디자인 원본**: [Field/TextField](https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=424-596) ·
- * [입력 전](https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=424-595) ·
- * [입력 중](https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=424-597) ·
- * [입력 에러](https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=432-1325) ·
- * [Field/TextField/Code](https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=443-910) ·
- * [인증 완료](https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=664-552) ·
- * [Field/Copy](https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=484-4925)
  */
 const meta = {
   title: "Shared/Input",
   component: Input,
+  parameters: {
+    design: {
+      type: "figma",
+      url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=424-596",
+    },
+  },
   args: {
     value: "",
     status: "empty",
@@ -64,16 +62,35 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 /** 아직 입력하지 않은 처음 모양이에요. */
-export const Empty: Story = {};
+export const Empty: Story = {
+  parameters: {
+    design: {
+      type: "figma",
+      url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=424-595",
+    },
+  },
+};
 
 /** 값이 들어 있을 때예요. */
 export const Filled: Story = {
   args: { value: "knot", status: "filled" },
+  parameters: {
+    design: {
+      type: "figma",
+      url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=424-597",
+    },
+  },
 };
 
 /** 유효하지 않은 값이에요. 예: 워크스페이스 이름에 쓸 수 없는 문자를 넣었을 때 */
 export const WithError: Story = {
   args: { value: "knot!", status: "error" },
+  parameters: {
+    design: {
+      type: "figma",
+      url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=432-1325",
+    },
+  },
 };
 
 /** 검증을 통과한 값이에요. 예: 확인된 초대 코드 */
@@ -83,6 +100,12 @@ export const Success: Story = {
     value: "AB12CD",
     status: "success",
     "aria-label": "참여 코드",
+  },
+  parameters: {
+    design: {
+      type: "figma",
+      url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=664-552",
+    },
   },
 };
 
@@ -94,6 +117,12 @@ export const Code: Story = {
     maxLength: 6,
     "aria-label": "참여 코드",
   },
+  parameters: {
+    design: {
+      type: "figma",
+      url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=443-910",
+    },
+  },
 };
 
 /** 복사용 읽기 전용 링크예요. 예: 팀원 초대 화면의 초대 링크 */
@@ -104,6 +133,12 @@ export const Copy: Story = {
     value: `${window.location.origin}/invite/AB12CD`,
     readOnly: true,
     "aria-label": "초대 링크",
+  },
+  parameters: {
+    design: {
+      type: "figma",
+      url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=484-4925",
+    },
   },
 };
 

@@ -37,15 +37,31 @@ const JOIN_STATE: WorkspaceJoinState = {
  * - 그 밖의 실패(서버 오류·네트워크 끊김)는 화면을 옮기지 않고 버튼을 다시 열어 다시 누를 수 있게 해요.
  * - 위 이동은 모두 방문 기록을 바꿔치기해서, 뒤로 가기를 눌러도 이 카드로 돌아오지 않아요.
  * - 로고와 화면 가운데 배치는 화면 레이아웃이 맡아요. 이 카드는 카드 모양만 그려요.
- *
- * **디자인 원본**: [초대 링크로 워크스페이스 입장](https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=600-10180) ·
- * [초대 코드 입력/워크스페이스 입장](https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=600-10176) ·
- * [Card/Onboarding & Workspace](https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=443-801)
  */
 const meta = {
   title: "Workspace/WorkspaceJoinCard",
   component: WorkspaceJoinCard,
-  parameters: { layout: "centered", joinState: JOIN_STATE },
+  parameters: {
+    layout: "centered",
+    joinState: JOIN_STATE,
+    design: [
+      {
+        name: "초대 링크로 워크스페이스 입장",
+        type: "figma",
+        url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=600-10180",
+      },
+      {
+        name: "초대 코드 입력/워크스페이스 입장",
+        type: "figma",
+        url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=600-10176",
+      },
+      {
+        name: "Card/Onboarding & Workspace",
+        type: "figma",
+        url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=443-801",
+      },
+    ],
+  },
   decorators: [
     (Story, { parameters }) => (
       <MemoryRouter

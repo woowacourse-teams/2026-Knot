@@ -13,11 +13,6 @@ const SUCCESS_MESSAGE = "확인됐어요. 곧 다음 단계로 이동해요.";
  * 초대 코드 입력 카드.
  *
  * 동작 규칙은 스토리북 `Workspace/WorkspaceCodeCard`에서 확인해요.
- *
- * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=600-10168 초대 코드 입력}
- * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=600-10172 초대 코드 입력/입력 에러}
- * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=443-910 Field/TextField/Code}
- * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=664-552 Field/TextField/Code status=인증 완료}
  */
 export default function WorkspaceCodeCard() {
   const { inputCode, isVerifying, isVerified, errorMessage, handleChange } =

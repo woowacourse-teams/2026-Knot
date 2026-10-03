@@ -11,12 +11,16 @@ import RecordingCard from ".";
  *
  * **동작 규칙**
  * - 닉네임은 로그인한 회원 정보(`GET /auth/me`)에서 올 예정이에요. 아직 연결 전이라 지금은 임시 이름이 보입니다.
- *
- * **디자인 원본**: [Card/Recording](https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=2241-530)
  */
 const meta = {
   title: "Recording/RecordingCard",
   component: RecordingCard,
+  parameters: {
+    design: {
+      type: "figma",
+      url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=2241-530",
+    },
+  },
   decorators: [
     // 녹음 화면의 가운데 열 너비(최대 960px)에 맞춰요
     (Story) => (

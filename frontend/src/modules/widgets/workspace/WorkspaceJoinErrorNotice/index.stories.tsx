@@ -11,13 +11,17 @@ import WorkspaceJoinErrorNotice from ".";
  * - 카드 없이 그림·제목·설명만 보여 줘요.
  * - 「초대 코드 직접 입력하기」를 누르면 초대 코드 입력 화면(`/workspace/code`)으로 이어져요.
  * - 로고와 화면 가운데 배치는 화면 레이아웃이 맡아요. 이 안내는 로고 아래 내용만 그려요.
- *
- * **디자인 원본**: [올바르지 않은 초대 링크 접근](https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=600-10148)
  */
 const meta = {
   title: "Workspace/WorkspaceJoinErrorNotice",
   component: WorkspaceJoinErrorNotice,
-  parameters: { layout: "centered" },
+  parameters: {
+    layout: "centered",
+    design: {
+      type: "figma",
+      url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=600-10148",
+    },
+  },
   decorators: [
     (Story) => (
       <MemoryRouter initialEntries={[PATH_ROUTE.JOIN_ERROR]}>

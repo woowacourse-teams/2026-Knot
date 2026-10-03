@@ -18,15 +18,29 @@ import Button, { type ButtonVariant } from ".";
  * - 로딩 중에는 누를 수 없어요. 연속 클릭으로 같은 요청이 두 번 가는 것을 막습니다.
  * - 로딩 중에도 라벨이 자리를 지켜 버튼 너비가 변하지 않아요. 라벨은 보이지 않게만 감춰서 스크린리더는 계속 버튼 이름을 읽습니다.
  * - 높이는 padding으로 만들어요. 사용자가 글꼴을 키워도 글자가 잘리지 않습니다.
- *
- * **디자인 원본**: [Button/CTA/L](https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=422-440) ·
- * [M](https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=511-284) ·
- * [S](https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=484-4907) ·
- * [복사됨(accent)](https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=484-4926)
  */
 const meta = {
   title: "Shared/Button",
   component: Button,
+  parameters: {
+    design: [
+      {
+        name: "Button/CTA/M",
+        type: "figma",
+        url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=511-284",
+      },
+      {
+        name: "Button/CTA/L",
+        type: "figma",
+        url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=422-440",
+      },
+      {
+        name: "Button/CTA/S",
+        type: "figma",
+        url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=484-4907",
+      },
+    ],
+  },
   args: {
     children: "워크스페이스 만들기",
     size: "md",
@@ -59,6 +73,12 @@ export const Outline: Story = {
 /** 방금 끝난 일을 알릴 때 써요. 예: 초대 코드를 복사한 뒤의 「복사됨」 */
 export const Accent: Story = {
   args: { variant: "accent", children: "복사됨" },
+  parameters: {
+    design: {
+      type: "figma",
+      url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=484-4926",
+    },
+  },
 };
 
 /** 되돌릴 수 없는 동작에 써요. 예: 워크스페이스 나가기 */

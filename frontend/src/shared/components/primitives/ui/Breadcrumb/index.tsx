@@ -13,7 +13,6 @@ interface BreadcrumbProps {
  * 지금 보고 있는 화면이 어디인지 보여주는 2단 경로.
  *
  * 동작 규칙은 스토리북 `Shared/Breadcrumb`에서 확인해요.
- * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=1814-16211 Doc/Breadcrumb}
  */
 export default function Breadcrumb({ parent, current }: BreadcrumbProps) {
   return (

@@ -8,12 +8,9 @@ import TeammateIcon from "@/assets/icons/teammate.svg";
 import { useWorkspaceInviteMemberCard } from "./model/useWorkspaceInviteMemberCard";
 
 /**
- * 홈의 팀원 초대 카드. 현재 워크스페이스의 초대 링크와 초대 코드를 복사해요.
+ * 초대 링크와 초대 코드를 복사하는 홈의 팀원 초대 카드.
  *
  * 동작 규칙은 스토리북 `Workspace/WorkspaceInviteMemberCard`에서 확인해요.
- *
- * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=600-10087 Card/InviteMember}
- * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=600-10089 홈 화면/초대 링크 복사}
  */
 export default function WorkspaceInviteMemberCard() {
   const {
@@ -118,7 +115,6 @@ const Content = styled.div`
   gap: 0.75rem; /* 12px */
 `;
 
-/** @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=484-4925 Field/Copy} */
 const LinkField = styled.div`
   position: relative;
   display: flex;

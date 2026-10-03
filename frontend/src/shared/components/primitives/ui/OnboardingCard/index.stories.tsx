@@ -18,12 +18,16 @@ import OnboardingCard from ".";
  * **쓰는 법**
  * - 자식 사이 간격은 자리마다 달라서(12, 24) 카드가 정하지 않아요. 쓰는 쪽에서 `Spacing`으로 벌려요.
  * - 홈 화면 카드와는 여백·간격이 달라서(48/12 vs 20/32) 같은 컴포넌트로 묶지 않았어요.
- *
- * **디자인 원본**: [Card/Onboarding & Workspace](https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=424-1193)
  */
 const meta = {
   title: "Shared/OnboardingCard",
   component: OnboardingCard,
+  parameters: {
+    design: {
+      type: "figma",
+      url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=424-1193",
+    },
+  },
   args: {
     children: (
       <>

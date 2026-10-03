@@ -11,36 +11,16 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   isFullWidth?: boolean;
 }
 
-/** 버튼 크기. 피그마 Button/CTA의 L·M·S에 대응해요. */
+/** 피그마 Button/CTA의 L·M·S에 대응해요. */
 export type ButtonSize = "lg" | "md" | "sm";
 type ButtonSizeToken =
-  | "paddingX"
-  | "paddingY"
-  | "borderRadius"
-  | "gap"
-  | "iconSize"
-  | "spinnerSize";
+  "paddingX" | "paddingY" | "borderRadius" | "gap" | "iconSize" | "spinnerSize";
 
-/** 버튼의 겉모양. variant별 쓰임새는 스토리북 `Shared/Button`에 있어요. */
 export type ButtonVariant = "filled" | "outline" | "accent" | "danger";
 
-/**
- * 버튼이 그려야 할 상태. prop이 아니라 `isLoading`·`disabled`로 계산해요.
- *
- * - `active` : 누를 수 있음
- * - `loading` : 처리 중. 스피너가 뜨고 누를 수 없음
- * - `inactive` : 비활성
- *
- * 둘 다 참이면 `loading`이 이깁니다.
- */
 type ButtonStatus = "active" | "loading" | "inactive";
 
-/**
- * 사이즈별 치수. 주석의 px이 피그마 원본 값이에요.
- *
- * height를 지정하지 않고 paddingY로 높이를 만듭니다.
- * 사용자가 글꼴 크기를 키워도 버튼이 함께 커져서 글자가 잘리지 않아요.
- */
+/** 주석의 px이 피그마 원본 값이에요. */
 const BUTTON_SIZE = {
   lg: {
     paddingX: "1.25rem" /* 20px */,
@@ -68,11 +48,6 @@ const BUTTON_SIZE = {
   },
 } as const satisfies Record<ButtonSize, Record<ButtonSizeToken, string>>;
 
-/**
- * variant × status 조합별 색상.
- *
- * `loading`은 `active`와 같은 색입니다.
- */
 const buttonAppearance = (theme: Theme) => {
   return {
     filled: {
@@ -140,11 +115,7 @@ const buttonAppearance = (theme: Theme) => {
 /**
  * 액션을 실행하는 버튼.
  *
- * 상태별 모양과 쓰임새, 동작 규칙은 스토리북 `Shared/Button`에서 확인해요.
- * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=422-440 Button/CTA/L}
- * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=511-284 Button/CTA/M}
- * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=484-4907 Button/CTA/S}
- * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=484-4926 Field/Copy status=copied (`accent`)}
+ * 동작 규칙은 스토리북 `Shared/Button`에서 확인해요.
  */
 export default function Button({
   size = "md",

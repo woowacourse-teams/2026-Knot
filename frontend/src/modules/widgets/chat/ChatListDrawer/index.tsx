@@ -6,11 +6,9 @@ import { useParams } from "react-router";
 import PlusIcon from "@/assets/icons/plus.svg";
 
 /**
- * 대화 목록 드로어. 목록은 `ChatSessionList`가 그리고, 여기서는 드로어 껍데기와 새 채팅 버튼만 얹어요.
+ * 대화 목록 드로어.
  *
- * 자세한 내용은 스토리북 `Chat/ChatListDrawer`에서 확인해요.
- *
- * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=526-772 탐색 결과/채팅 세션 목록}
+ * 동작 규칙은 스토리북 `Chat/ChatListDrawer`에서 확인해요.
  */
 export default function ChatListDrawer() {
   const { workspaceId } = useParams();
@@ -27,8 +25,7 @@ export default function ChatListDrawer() {
       <DrawerHead>
         <Title>대화</Title>
         <NewChatButton type="button" onClick={handleStartNewChat}>
-          <PlusIcon size={14} />
-          새 채팅
+          <PlusIcon size={14} />새 채팅
         </NewChatButton>
       </DrawerHead>
 
@@ -50,7 +47,6 @@ const Container = styled.aside`
   box-shadow: ${({ theme }) => theme.shadow03};
 `;
 
-/** @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=1379-8238 DrawerHead} */
 const DrawerHead = styled.div`
   display: flex;
   flex-shrink: 0;
@@ -64,7 +60,6 @@ const Title = styled.h2`
   ${({ theme }) => theme.text.label01};
 `;
 
-/** @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=1379-8240 Btn/새채팅} */
 const NewChatButton = styled.button`
   display: flex;
   flex-shrink: 0;

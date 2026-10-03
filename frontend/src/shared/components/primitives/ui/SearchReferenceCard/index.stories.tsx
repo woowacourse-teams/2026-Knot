@@ -11,15 +11,34 @@ import SearchReferenceCard from ".";
  * - 제목은 두 줄까지 보이고 넘치면 말줄임돼요.
  * - 마우스를 올리면 오른쪽 위에 「외부에서 열기」 아이콘이 나타나요.
  * - 이동은 카드가 아니라 감싸는 `LinkTo`가 맡아요.
- *
- * **디자인 원본**: [1](https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=720-563) ·
- * [2](https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=720-573) ·
- * [3](https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=720-584) ·
- * [4](https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=988-7115)
  */
 const meta = {
   title: "Shared/SearchReferenceCard",
   component: SearchReferenceCard,
+  parameters: {
+    design: [
+      {
+        name: "720-563",
+        type: "figma",
+        url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=720-563",
+      },
+      {
+        name: "720-573",
+        type: "figma",
+        url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=720-573",
+      },
+      {
+        name: "720-584",
+        type: "figma",
+        url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=720-584",
+      },
+      {
+        name: "988-7115",
+        type: "figma",
+        url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=988-7115",
+      },
+    ],
+  },
   args: {
     title: "2026 H2 로드맵",
     documentPath: "제품/로드맵",

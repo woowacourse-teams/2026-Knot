@@ -24,15 +24,16 @@ import TextField from ".";
  * - `rightComponent`로 입력창 오른쪽에 스피너·아이콘 같은 표시를 붙일 수 있어요.
  * - 바깥 `label`과 연결해야 할 때만 `id`를 넘기면 돼요. 넘기지 않으면 알아서 만들어요.
  * - 모양(`variant`)은 `Shared/Input`과 같아요.
- *
- * **디자인 원본**: [Field/TextField](https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=424-596) ·
- * [입력 에러](https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=432-1325) ·
- * [Code 로딩](https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=627-2967) ·
- * [Code 인증 완료](https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=664-552)
  */
 const meta = {
   title: "Shared/TextField",
   component: TextField,
+  parameters: {
+    design: {
+      type: "figma",
+      url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=424-596",
+    },
+  },
   args: {
     value: "",
     variant: "text",
@@ -79,6 +80,12 @@ export const WithError: Story = {
     value: "knot!",
     errorMessage: "한글, 영어와 공백만 사용할 수 있어요.",
   },
+  parameters: {
+    design: {
+      type: "figma",
+      url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=432-1325",
+    },
+  },
 };
 
 /** 초대 코드를 입력하는 모양이에요. */
@@ -100,6 +107,12 @@ export const Verifying: Story = {
     "aria-busy": true,
     rightComponent: <Spinner />,
   },
+  parameters: {
+    design: {
+      type: "figma",
+      url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=627-2967",
+    },
+  },
 };
 
 /** 검증을 통과했을 때예요. 성공 색과 메시지를 보여줘요. 예: 확인된 초대 코드 */
@@ -112,6 +125,12 @@ export const Verified: Story = {
     rightComponent: (
       <CheckIcon size={20} style={{ color: theme.sub.accent[500] }} />
     ),
+  },
+  parameters: {
+    design: {
+      type: "figma",
+      url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=664-552",
+    },
   },
 };
 

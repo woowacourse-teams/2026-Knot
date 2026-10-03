@@ -13,10 +13,6 @@ import { useWorkspaceInvite } from "./model/useWorkspaceInvite";
  * 팀원 초대 카드.
  *
  * 동작 규칙은 스토리북 `Workspace/WorkspaceInviteCard`에서 확인해요.
- *
- * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=432-1868 새 워크스페이스 생성/참여 코드 및 링크 공유}
- * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=679-3120 새 워크스페이스 생성/참여 코드 복사}
- * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=704-3182 새 워크스페이스 생성/참여 코드 복사 완료}
  */
 export default function WorkspaceInviteCard() {
   const {
@@ -139,7 +135,6 @@ const ShareOptions = styled.div`
   width: 100%;
 `;
 
-/** @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=691-1746 Card/CodeBox} */
 const CodeBox = styled.button`
   position: relative;
   display: flex;
@@ -184,7 +179,6 @@ const Code = styled.span`
   white-space: nowrap;
 `;
 
-/** @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=484-4925 Field/Copy} */
 const LinkField = styled.div`
   position: relative;
   display: flex;

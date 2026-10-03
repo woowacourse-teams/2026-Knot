@@ -57,15 +57,35 @@ const invitationFails = (status: number) => ({
  *   그 밖의 실패는 그 자리에 머물고 코드 상자가 빈 채로 남아요.
  * - 「다음」은 이 워크스페이스의 노션 연동 화면(`/workspace/:workspaceId/notion-connection`)으로 이어져요. 초대 조회 결과와 상관없이 누를 수 있어요.
  * - 로고와 화면 가운데 배치는 화면 레이아웃이 맡아요. 이 카드는 카드 모양만 그려요.
- *
- * **디자인 원본**: [참여 코드 및 링크 공유](https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=432-1868) ·
- * [참여 코드 복사](https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=679-3120) ·
- * [참여 코드 복사 완료](https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=704-3182)
  */
 const meta = {
   title: "Workspace/WorkspaceInviteCard",
   component: WorkspaceInviteCard,
-  parameters: { layout: "centered" },
+  parameters: {
+    layout: "centered",
+    design: [
+      {
+        name: "새 워크스페이스 생성/참여 코드 및 링크 공유",
+        type: "figma",
+        url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=432-1868",
+      },
+      {
+        name: "새 워크스페이스 생성/참여 코드 복사",
+        type: "figma",
+        url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=679-3120",
+      },
+      {
+        name: "Card/CodeBox",
+        type: "figma",
+        url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=691-1746",
+      },
+      {
+        name: "Field/Copy",
+        type: "figma",
+        url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=484-4925",
+      },
+    ],
+  },
   decorators: [
     (Story) => (
       <MemoryRouter initialEntries={[INVITE_PATH]}>
@@ -112,6 +132,12 @@ export const Loading: Story = {
 
 /** 코드 상자를 눌러 참여 코드를 복사한 직후예요. 아이콘이 2초 동안 체크로 바뀌어요. */
 export const CodeCopied: Story = {
+  parameters: {
+    design: {
+      type: "figma",
+      url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=704-3182",
+    },
+  },
   beforeEach: fakeCopy,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);

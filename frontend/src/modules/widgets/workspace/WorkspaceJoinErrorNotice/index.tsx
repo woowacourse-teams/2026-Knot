@@ -8,8 +8,6 @@ import InvalidInvitationUrlIllustration from "@/assets/illustrations/invalidInvi
  * 초대 링크 오류 안내.
  *
  * 동작 규칙은 스토리북 `Workspace/WorkspaceJoinErrorNotice`에서 확인해요.
- *
- * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=600-10148 올바르지 않은 초대 링크 접근}
  */
 export default function WorkspaceJoinErrorNotice() {
   const { navigateToWorkspaceCode } = useNavigateToWorkspaceCode();

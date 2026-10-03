@@ -9,12 +9,16 @@ import Chip from ".";
  *   예: `<Chip>{formatDurationFromSeconds(durationSeconds)}</Chip>`
  * - 다른 요소 옆에 붙여 쓰므로 간격은 쓰는 쪽이 정해요.
  * - 글자가 길어도 줄을 바꾸지 않아요.
- *
- * **디자인 원본**: [Chip/Duration](https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=2062-7288)
  */
 const meta = {
   title: "Shared/Chip",
   component: Chip,
+  parameters: {
+    design: {
+      type: "figma",
+      url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=2062-7288",
+    },
+  },
   args: {
     children: "25분",
   },

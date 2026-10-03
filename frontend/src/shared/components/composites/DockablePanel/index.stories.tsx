@@ -44,10 +44,6 @@ const PanelContent = styled.ul`
  *
  * 어떤 내용을 담을지는 쓰는 쪽이 정하므로 이 컴포넌트는 도메인을 알지 못해요.
  * 패널의 껍데기(너비·배경·라운드)도 넘기는 내용이 스스로 가져요.
- *
- * **디자인 원본**: [GNB/Floating](https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=1364-6863) ·
- * [Sidebar/Drawer](https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=1382-2171) ·
- * [Btn/사이드바](https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=1364-836)
  */
 const meta = {
   title: "Shared/DockablePanel",
@@ -69,6 +65,23 @@ const meta = {
     children: { control: false },
   },
   parameters: {
+    design: [
+      {
+        name: "GNB/Floating",
+        type: "figma",
+        url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=1364-6863",
+      },
+      {
+        name: "Sidebar/Drawer",
+        type: "figma",
+        url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=1382-2171",
+      },
+      {
+        name: "Btn/사이드바",
+        type: "figma",
+        url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=1364-836",
+      },
+    ],
     layout: "fullscreen",
     // 겹쳐 뜬 패널이 화면 기준으로 놓이므로 문서 페이지에서도 스토리마다 따로 그려요
     docs: { story: { inline: false, iframeHeight: 480 } },
@@ -113,9 +126,8 @@ function SharedDockTargetDemo() {
     null,
   );
 
-  const pickPanel =
-    (panel: "sidebar" | "chatList") => (isDocked: boolean) =>
-      setDockedPanel(isDocked ? panel : null);
+  const pickPanel = (panel: "sidebar" | "chatList") => (isDocked: boolean) =>
+    setDockedPanel(isDocked ? panel : null);
 
   return (
     <>

@@ -7,8 +7,6 @@ import Divider from "@primitives/ui/Divider";
  * 워크스페이스 생성 및 참여 선택 카드.
  *
  * 동작 규칙은 스토리북 `Workspace/WorkspaceEntryCard`에서 확인해요.
- *
- * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=432-1750 Card/Onboarding/Workspace}
  */
 export default function WorkspaceEntryCard() {
   return (

@@ -7,12 +7,9 @@ import NotionIcon from "@/assets/icons/notion.svg";
 import { useNotionConnect } from "./model/useNotionConnect";
 
 /**
- * 노션 연동 카드. 워크스페이스 생성 플로우의 마지막 단계로, 노션에 쌓아둔 기록을 knot로 옮길지 물어요.
+ * 노션에 쌓아둔 기록을 knot로 옮길지 묻는 노션 연동 카드.
  *
- * 자세한 내용은 스토리북 `Notion/NotionConnectCard`에서 확인해요.
- *
- * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=432-1946 새 워크스페이스 생성/노션에서 가져오기}
- * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=432-1949 Card/Onboarding & Workspace}
+ * 동작 규칙은 스토리북 `Notion/NotionConnectCard`에서 확인해요.
  */
 export default function NotionConnectCard() {
   const { isFailed, isConnecting, errorMessage, handleConnect, handleGoHome } =
@@ -90,7 +87,6 @@ const Container = styled.section`
   box-shadow: ${({ theme }) => theme.shadow02};
 `;
 
-/** @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=542-261 Icon/Notion size=48} */
 const Icon = styled(NotionIcon)`
   flex-shrink: 0;
   width: 3rem; /* 48px */

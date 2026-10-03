@@ -8,12 +8,16 @@ import ChatBubble from ".";
  * - 너비는 내용에 맞춰 늘어나되 630px에서 멈춰요.
  * - 입력창에서 넣은 줄바꿈을 그대로 보여줘요.
  * - 긴 URL처럼 끊을 곳이 없는 글자도 말풍선을 뚫고 나가지 않고 줄을 바꿔요.
- *
- * **디자인 원본**: [ChatBubble](https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=1209-807)
  */
 const meta = {
   title: "Shared/ChatBubble",
   component: ChatBubble,
+  parameters: {
+    design: {
+      type: "figma",
+      url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=1209-807",
+    },
+  },
   args: {
     children: "DB 기술 선정 관련해서 정리된 문서 있어?",
   },

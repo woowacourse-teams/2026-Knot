@@ -12,7 +12,7 @@ interface LoadingIndicatorProps extends HTMLAttributes<HTMLDivElement> {
 /**
  * 무언가를 기다리는 중임을 알리는 표시.
  *
- * 쓰임새와 동작 규칙은 스토리북 `Shared/LoadingIndicator`에서 확인해요.
+ * 동작 규칙은 스토리북 `Shared/LoadingIndicator`에서 확인해요.
  */
 export default function LoadingIndicator({
   label = "불러오는 중",

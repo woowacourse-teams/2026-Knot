@@ -14,12 +14,16 @@ import OAuthErrorNotice from ".";
  * - 실패 사유는 사용자가 손쓸 수 있는 것이 아니라서 구분하지 않고 한 문구로 알려요.
  *   다시 시도는 바로 아래의 로그인 버튼으로 합니다.
  * - 문구가 보일 때만 아래 간격(12px)도 함께 차지해요. 화면 쪽에서 간격을 따로 두면 문구가 없을 때도 빈 자리가 남기 때문이에요.
- *
- * **쓰이는 화면**: [로그인 & 회원가입](https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=414-7)
  */
 const meta = {
   title: "Auth/OAuthErrorNotice",
   component: OAuthErrorNotice,
+  parameters: {
+    design: {
+      type: "figma",
+      url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=414-7",
+    },
+  },
   decorators: [
     // 로그인 화면의 버튼 영역 너비(최대 360px)에 맞춰요
     (Story) => (

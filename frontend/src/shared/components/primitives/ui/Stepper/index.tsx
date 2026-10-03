@@ -6,19 +6,15 @@ import ChevronRightIcon from "@/assets/icons/chevronRight.svg";
 interface StepperProps {
   /** 지금 보고 있는 순서. 화면에 그대로 보여주므로 1부터 세요. */
   current: number;
-  /** 전체 개수 */
   total: number;
-  /** 이전 버튼을 눌렀을 때 실행할 동작 */
   onPrev: () => void;
-  /** 다음 버튼을 눌렀을 때 실행할 동작 */
   onNext: () => void;
 }
 
 /**
  * 여러 항목을 이전·다음으로 하나씩 넘기는 컨트롤.
  *
- * 쓰는 자리와 동작 규칙은 스토리북 `Shared/Stepper`에서 확인해요.
- * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=1750-743 Stepper/RecordingDocs}
+ * 동작 규칙은 스토리북 `Shared/Stepper`에서 확인해요.
  */
 export default function Stepper({
   current,
@@ -77,7 +73,6 @@ const Count = styled.div`
   background-color: ${({ theme }) => theme.neutral[0]};
 
   ${({ theme }) => theme.text.label01};
-  /* 숫자마다 폭이 달라 넘길 때마다 전체 폭이 흔들리므로 모든 숫자를 같은 폭으로 그려요 */
   font-variant-numeric: tabular-nums;
 `;
 

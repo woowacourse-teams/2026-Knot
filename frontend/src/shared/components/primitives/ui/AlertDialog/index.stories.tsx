@@ -14,12 +14,16 @@ import AlertDialog from ".";
  *
  * **동작 규칙**
  * - 카드 모양만 그려요. 화면 가운데 띄우기·ESC·포커스 가두기는 없어서, 쓰는 쪽이 `Dim` 위에 올리고 `role`·`aria-*`도 함께 넘겨요.
- *
- * **디자인 원본**: [Dialog 유형=알림](https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=1814-5058)
  */
 const meta = {
   title: "Shared/AlertDialog",
   component: AlertDialog,
+  parameters: {
+    design: {
+      type: "figma",
+      url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=1814-5058",
+    },
+  },
   args: {
     title: "녹음을 저장하고 있어요",
     description: "저장이 끝나면 저절로 닫혀요.",

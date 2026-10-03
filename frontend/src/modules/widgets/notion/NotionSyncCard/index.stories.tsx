@@ -24,9 +24,7 @@ const START_URL = `*${NOTION_IMPORTS_API_PATH(WORKSPACE_ID)}`;
 const STATUS_URL = `*${NOTION_IMPORT_STATUS_API_PATH(notionImportStartResponse.id)}`;
 
 /** 연결 상태 조회가 이 상태로 응답하게 해요. */
-const respondConnectionStatus = (
-  status: "NOT_CONNECTED" | "REAUTH_REQUIRED",
-) =>
+const respondConnectionStatus = (status: "NOT_CONNECTED" | "REAUTH_REQUIRED") =>
   http.get(CONNECTION_URL, () =>
     HttpResponse.json({ ...notionConnectionResponse, status }),
   );
@@ -52,14 +50,25 @@ const clickSync = async (canvasElement: HTMLElement) => {
  * - 「완료」는 누를 수 없지만 강조색 글자·아이콘으로 방금 끝난 일을 알려요.
  *
  * 결과 스토리는 버튼을 눌러 보여 주므로 2초 뒤 처음 상태로 돌아가요. 다시 보려면 「지금 동기화」를 눌러요.
- *
- * **디자인 원본**: [Card/NotionImport status=기본](https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=600-10086) ·
- * [홈 화면/노션 연동 완료](https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=600-10101)
  */
 const meta = {
   title: "Notion/NotionSyncCard",
   component: NotionSyncCard,
-  parameters: { layout: "centered" },
+  parameters: {
+    layout: "centered",
+    design: [
+      {
+        name: "Card/NotionImport status=기본",
+        type: "figma",
+        url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=600-10086",
+      },
+      {
+        name: "홈 화면/노션 연동 완료",
+        type: "figma",
+        url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=600-10101",
+      },
+    ],
+  },
   decorators: [
     (Story) => (
       <MemoryRouter initialEntries={[HOME_PATH]}>

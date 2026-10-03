@@ -10,8 +10,7 @@ interface SourceButtonProps extends ComponentProps<"button"> {
 /**
  * 답변의 근거 문서를 여는 버튼.
  *
- * 상태별 모양은 스토리북 `Shared/SourceButton`에서 확인해요.
- * @see https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=1170-697
+ * 동작 규칙은 스토리북 `Shared/SourceButton`에서 확인해요.
  */
 export default function SourceButton({
   isSelected = false,

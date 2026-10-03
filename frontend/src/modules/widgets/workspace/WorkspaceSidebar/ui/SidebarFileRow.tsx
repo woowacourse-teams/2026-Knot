@@ -9,13 +9,9 @@ interface SidebarFileRowProps {
 }
 
 /**
- * 사이드바 폴더 하위 문서 행. 문서 열기는 아직 없어 이름만 보여줘요.
+ * 사이드바 폴더 하위 문서 행.
  *
- * 들여쓰기는 같은 깊이의 폴더 행보다 2px 더 들어가요.
- * 부모 폴더 행의 들여쓰기(8px + 18px × (depth − 1))에 chevron 12px과 간격 8px을 더한 값이라,
- * 문서 아이콘이 부모 폴더 아이콘 아래 정렬돼요.
- *
- * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=588-523 Sidebar/FileRow}
+ * 스토리북 `Workspace/WorkspaceSidebar`
  */
 export default function SidebarFileRow({ depth, name }: SidebarFileRowProps) {
   return (
@@ -26,6 +22,11 @@ export default function SidebarFileRow({ depth, name }: SidebarFileRowProps) {
   );
 }
 
+/**
+ * 들여쓰기는 같은 깊이의 폴더 행보다 2px 더 들어가요.
+ * 부모 폴더 행의 들여쓰기(8px + 18px × (depth − 1))에 chevron 12px과 간격 8px을 더한 값이라,
+ * 문서 아이콘이 부모 폴더 아이콘 아래 정렬돼요.
+ */
 const Row = styled.div<{ $depth: number }>`
   display: flex;
   align-items: center;

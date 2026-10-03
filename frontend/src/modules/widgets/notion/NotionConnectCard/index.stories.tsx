@@ -38,15 +38,28 @@ const clickConnect = async (canvasElement: HTMLElement) => {
  * - 로고와 화면 가운데 배치는 화면 레이아웃이 맡아요. 이 카드는 카드 모양만 그려요.
  *
  * 스토리북에서는 실제 Notion으로 넘어가지 않도록 연결 시작 응답을 붙잡아 둬요. 「노션 연결하기」를 누르면 이동 직전처럼 버튼이 로딩에 머물러요.
- *
- * **디자인 원본**: [새 워크스페이스 생성/노션에서 가져오기](https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=432-1946) ·
- * [Card/Onboarding & Workspace](https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=432-1949) ·
- * [Icon/Notion size=48](https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=542-261)
  */
 const meta = {
   title: "Notion/NotionConnectCard",
   component: NotionConnectCard,
   parameters: {
+    design: [
+      {
+        name: "새 워크스페이스 생성/노션에서 가져오기",
+        type: "figma",
+        url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=432-1946",
+      },
+      {
+        name: "Card/Onboarding & Workspace",
+        type: "figma",
+        url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=432-1949",
+      },
+      {
+        name: "Icon/Notion size=48",
+        type: "figma",
+        url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=542-261",
+      },
+    ],
     layout: "centered",
     search: "",
     msw: {

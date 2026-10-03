@@ -46,15 +46,17 @@ const failSubmitWith = (status: number) =>
  * - 비어 있거나 형식이 틀리면 「확인」을 누를 수 없어요. 누르면 등록이 끝날 때까지 버튼이 로딩으로 잠겨요.
  * - 등록이 실패하면 형식 에러와 같은 자리에 이유를 띄우고, 입력창으로 커서를 되돌려 바로 고칠 수 있게 해요. 값을 고치면 그 문구는 지워요.
  * - 로그인이 풀려 등록할 수 없으면 문구 대신 로그인 화면으로 돌려보내요.
- *
- * **디자인 원본**: [닉네임 입력 전](https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=422-390) ·
- * [닉네임 입력 중](https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=424-628) ·
- * [닉네임 입력 에러](https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=424-1237)
  */
 const meta = {
   title: "Member/NicknameCard",
   component: NicknameCard,
-  parameters: { layout: "centered" },
+  parameters: {
+    layout: "centered",
+    design: {
+      type: "figma",
+      url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=422-390",
+    },
+  },
   decorators: [
     (Story) => (
       <MemoryRouter initialEntries={[PATH_ROUTE.ONBOARDING]}>
@@ -84,6 +86,12 @@ export const Default: Story = {};
 
 /** 쓸 수 있는 닉네임을 적은 상태예요. 「확인」을 누를 수 있게 돼요. */
 export const Filled: Story = {
+  parameters: {
+    design: {
+      type: "figma",
+      url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=424-628",
+    },
+  },
   play: async ({ canvasElement }) => {
     await typeNickname(canvasElement, NICKNAME);
   },
@@ -91,6 +99,12 @@ export const Filled: Story = {
 
 /** 닉네임에 공백을 넣었을 때예요. 다른 금지 문자보다 먼저 공백을 알려요. */
 export const WhitespaceError: Story = {
+  parameters: {
+    design: {
+      type: "figma",
+      url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=424-1237",
+    },
+  },
   play: async ({ canvasElement }) => {
     await typeNickname(canvasElement, "노 티드");
   },
@@ -98,6 +112,12 @@ export const WhitespaceError: Story = {
 
 /** 한글·영어와 `(`, `)`, `-` 밖의 문자를 넣었을 때예요. 예: 느낌표, 숫자 */
 export const InvalidCharacterError: Story = {
+  parameters: {
+    design: {
+      type: "figma",
+      url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=424-1237",
+    },
+  },
   play: async ({ canvasElement }) => {
     await typeNickname(canvasElement, "노티드!");
   },

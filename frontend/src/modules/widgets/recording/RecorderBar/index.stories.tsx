@@ -29,14 +29,19 @@ const resetRecording = () => {
  * - 「녹음 끝내기」를 누르면 녹음을 처음 상태로 되돌리고 워크스페이스 홈으로 나가요. 끝난 녹음이 남은 화면에 머물면 새 녹음이 시작된 것처럼 헷갈리기 때문이에요.
  * - 녹음을 시작한 사람 혼자 쓰는 화면이라 권한에 따른 구분은 없어요.
  * - 시간이 한 시간을 넘으면 `분:초`에서 `시:분:초`로 바뀌어요. 시간이 길어져도 상태 글자 칸은 폭이 고정이라 옆 글자가 밀리지 않아요.
- * - 아직 마이크·업로드를 연결하지 않은 UI 단계라 시간과 상태만 바뀌고, 파형은 정해 둔 모양을 그리는 장식이에요.
- *
- * **디자인 원본**: [Recorder/Bar](https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=1705-3280)
+ * - 아직 마이크·업로드를 연결하지 않은 UI 단계라 시간과 상태만 바뀌고, 파형은 정해 둔 모양을 그리는 장식이에요. 장식이라 화면 낭독기에서는 읽지 않아요.
+ * - 바의 폭이 좁아지면 파형이 끝부터 잘려요.
  */
 const meta = {
   title: "Recording/RecorderBar",
   component: RecorderBar,
-  parameters: { layout: "padded" },
+  parameters: {
+    layout: "padded",
+    design: {
+      type: "figma",
+      url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=1705-3280",
+    },
+  },
   beforeEach: resetRecording,
   decorators: [
     (Story) => (
@@ -57,7 +62,7 @@ export default meta;
 
 type Story = StoryObj<typeof meta>;
 
-/** 녹음 화면에 막 들어와 녹음이 시작된 상태예요. 시간이 1초마다 늘어나요. */
+/** 녹음 화면에 막 들어와 녹음이 시작된 상태예요. 시간이 1초마다 늘어나고, 파형은 끝의 몇 개 막대만 흐려요. */
 export const Recording: Story = {};
 
 /**

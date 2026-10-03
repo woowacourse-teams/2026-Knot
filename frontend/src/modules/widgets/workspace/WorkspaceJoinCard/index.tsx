@@ -6,13 +6,9 @@ import EnterWorkspaceIllustration from "@/assets/illustrations/enterWorkspace.sv
 import { useWorkspaceJoin } from "./model/useWorkspaceJoin";
 
 /**
- * 워크스페이스 입장 확인 카드. 합류할 워크스페이스를 보여주고 참여를 처리해요.
+ * 합류할 워크스페이스를 보여 주고 참여를 처리하는 입장 확인 카드.
  *
  * 동작 규칙은 스토리북 `Workspace/WorkspaceJoinCard`에서 확인해요.
- *
- * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=600-10180 초대 링크로 워크스페이스 입장}
- * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=600-10176 초대 코드 입력/워크스페이스 입장}
- * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=443-801 Card/Onboarding & Workspace}
  */
 export default function WorkspaceJoinCard() {
   const { workspaceName, isPending, handleJoin } = useWorkspaceJoin();

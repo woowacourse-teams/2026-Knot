@@ -7,9 +7,6 @@ import LinkTo from "@/shared/components/primitives/ui/LinkTo";
  * AI 탐색 답변의 근거가 된 문서 리스트를 보여주는 List UI.
  *
  * 동작 규칙은 스토리북 `Search/SearchReferenceList`에서 확인해요.
- *
- * @see https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=506-7219&t=NtCKbgE8RjHqh556-11
- * @see https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=606-2921&t=NtCKbgE8RjHqh556-11
  */
 
 export default function SearchReferenceList() {

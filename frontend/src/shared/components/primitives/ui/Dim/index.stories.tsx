@@ -13,12 +13,16 @@ import Dim from ".";
  * - 바깥을 눌렀을 때 할 일 같은 동작은 없어요. 필요하면 쓰는 쪽이 `onClick`으로 붙여요.
  *
  * 실제 화면에서는 화면 전체를 덮어요. 스토리북에서는 문서 페이지를 가리지 않도록 정해진 틀 안에만 그려요.
- *
- * **디자인 원본**: [Dim](https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=2024-11436)
  */
 const meta = {
   title: "Shared/Dim",
   component: Dim,
+  parameters: {
+    design: {
+      type: "figma",
+      url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=2024-11436",
+    },
+  },
   decorators: [
     // transform이 있는 틀 안에서는 position: fixed가 화면이 아니라 틀을 기준으로 잡혀요
     (Story) => (

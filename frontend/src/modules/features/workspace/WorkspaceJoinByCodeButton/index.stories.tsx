@@ -10,12 +10,16 @@ import WorkspaceJoinByCodeButton from ".";
  * 그래서 테두리만 있는 모양이고, 위에는 「또는」 구분선을 사이에 두고 주요 동작인 `Workspace/WorkspaceCreateButton`이 와요.
  *
  * - 누르면 화면만 옮기고 API는 부르지 않아요. 스토리북에서는 눌러도 화면이 바뀌지 않습니다.
- *
- * **쓰이는 화면**: [Card/Onboarding/Workspace](https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=432-1750)
  */
 const meta = {
   title: "Workspace/WorkspaceJoinByCodeButton",
   component: WorkspaceJoinByCodeButton,
+  parameters: {
+    design: {
+      type: "figma",
+      url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=432-1750",
+    },
+  },
   decorators: [
     // 워크스페이스 생성 및 참여 카드의 내용 너비(460px - 좌우 여백 48px)에 맞춰 가로를 꽉 채워요
     (Story) => (

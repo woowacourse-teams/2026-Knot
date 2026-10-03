@@ -9,8 +9,7 @@ interface OnboardingCardProps extends HTMLAttributes<HTMLDivElement> {
 /**
  * 온보딩 플로우에서 내용을 담는 흰 카드.
  *
- * 크기 규칙과 쓰는 법은 스토리북 `Shared/OnboardingCard`에서 확인해요.
- * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=424-1193 Card/Onboarding & Workspace}
+ * 동작 규칙은 스토리북 `Shared/OnboardingCard`에서 확인해요.
  */
 export default function OnboardingCard({
   children,

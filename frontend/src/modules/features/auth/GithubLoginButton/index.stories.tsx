@@ -13,12 +13,16 @@ import GithubLoginButton from ".";
  *   신규 사용자는 온보딩 토큰 쿠키를 받아 닉네임 입력 화면(`/onboarding`)으로 돌아옵니다.
  * - 서버가 허용한 출처에서만 동작해요. 스토리북과 `localhost`에서는 눌러도 로그인되지 않으니 배포된 주소에서 확인해야 합니다.
  * - 로그인이 실패해 돌아오면 버튼 바로 위에 `Auth/OAuthErrorNotice`가 실패 문구를 띄우고, 이 버튼으로 다시 시도해요.
- *
- * **쓰이는 화면**: [로그인 & 회원가입](https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=414-7)
  */
 const meta = {
   title: "Auth/GithubLoginButton",
   component: GithubLoginButton,
+  parameters: {
+    design: {
+      type: "figma",
+      url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=414-7",
+    },
+  },
   decorators: [
     // 로그인 화면의 버튼 영역 너비(최대 360px)에 맞춰 가로를 꽉 채워요
     (Story) => (

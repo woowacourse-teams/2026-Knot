@@ -7,12 +7,16 @@ import Textarea from ".";
  *
  * - 브라우저 기본 모양(테두리·여백·포커스 테두리·크기 조절 손잡이)만 지운 바탕이에요.
  * - 배경, 테두리, 글자, 높이 제한은 쓰는 쪽에서 `styled(Textarea)`로 정해요.
- *
- * **디자인 원본**: [Textarea](https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=506-7322)
  */
 const meta = {
   title: "Shared/Textarea",
   component: Textarea,
+  parameters: {
+    design: {
+      type: "figma",
+      url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=506-7322",
+    },
+  },
   args: {
     placeholder: "무엇이든 요청하세요",
     "aria-label": "요청 입력",

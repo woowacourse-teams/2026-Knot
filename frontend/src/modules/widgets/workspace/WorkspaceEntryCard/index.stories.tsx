@@ -11,13 +11,17 @@ import WorkspaceEntryCard from ".";
  * - 「새 워크스페이스 만들기」는 워크스페이스 생성 화면(`/workspace/create`)으로, 「초대 코드로 참여하기」는 초대 코드 입력 화면(`/workspace/code`)으로 이어져요.
  * - 서버에 요청하지 않고 두 화면으로 나눠 보내기만 해요.
  * - 로고와 화면 가운데 배치는 화면 레이아웃이 맡아요. 이 카드는 카드 모양만 그려요.
- *
- * **디자인 원본**: [Card/Onboarding/Workspace](https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=432-1750)
  */
 const meta = {
   title: "Workspace/WorkspaceEntryCard",
   component: WorkspaceEntryCard,
-  parameters: { layout: "centered" },
+  parameters: {
+    layout: "centered",
+    design: {
+      type: "figma",
+      url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=432-1750",
+    },
+  },
   decorators: [
     (Story) => (
       <MemoryRouter initialEntries={[PATH_ROUTE.WORKSPACE]}>

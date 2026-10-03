@@ -10,14 +10,25 @@ import SearchReferenceList from ".";
  * - 문서는 관련도가 높은 순서로 위에서부터 놓여요.
  * - 카드를 누르면 원본 문서(노션 페이지)가 새 탭에서 열려요.
  * - 아직 탐색 API를 연결하지 않아 예시 문서 두 개를 그려요. 그중 하나는 제목이 아주 긴 문서예요.
- *
- * **디자인 원본**: [찾은 문서](https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=506-7219) ·
- * [찾은 문서 목록](https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=606-2921)
  */
 const meta = {
   title: "Search/SearchReferenceList",
   component: SearchReferenceList,
-  parameters: { layout: "padded" },
+  parameters: {
+    layout: "padded",
+    design: [
+      {
+        name: "찾은 문서",
+        type: "figma",
+        url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=506-7219",
+      },
+      {
+        name: "찾은 문서 목록",
+        type: "figma",
+        url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=606-2921",
+      },
+    ],
+  },
   decorators: [
     (Story) => (
       <MemoryRouter>

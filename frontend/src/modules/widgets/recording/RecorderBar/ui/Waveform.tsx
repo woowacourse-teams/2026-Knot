@@ -13,8 +13,7 @@ interface WaveformProps {
 /**
  * 녹음 시간 옆의 파형.
  *
- * 실제 소리를 받지 않는 UI 단계라 정해 둔 모양을 그리는 장식이므로 낭독기에서는 숨겨요.
- * 녹음 중이면 끝의 몇 개만 흐리고, 일시정지면 전부 흐려요.
+ * 스토리북 `Recording/RecorderBar`
  */
 export default function Waveform({ isActive }: WaveformProps) {
   const activeBarCount = isActive

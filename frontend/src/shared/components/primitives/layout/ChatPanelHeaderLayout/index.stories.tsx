@@ -16,12 +16,16 @@ import ChatPanelHeaderLayout from ".";
  * 묶지 않고 셋 이상을 넘기면 사이사이가 똑같이 벌어져 의도와 다르게 놓여요.
  *
  * 배치만 맡으므로 색·간격 같은 안쪽 스타일은 쓰는 쪽에서 정해요.
- *
- * **디자인 원본**: [채팅 패널 헤더](https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=603-2867&t=NtCKbgE8RjHqh556-11)
  */
 const meta = {
   title: "Shared/Layout/ChatPanelHeaderLayout",
   component: ChatPanelHeaderLayout,
+  parameters: {
+    design: {
+      type: "figma",
+      url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=603-2867",
+    },
+  },
   args: {
     children: (
       <>

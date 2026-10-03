@@ -37,15 +37,26 @@ const DOCK_RAIL_ID = "story-dock-rail";
  * - 지금 있는 화면의 버튼은 눌러도 이동하지 않아 뒤로 가기 기록이 같은 화면으로 쌓이지 않아요. 탐색 화면은 대화를 연 상태여도 탐색으로 표시돼요.
  * - Figma의 「문서」 자리는 아직 화면이 없어 그리지 않았어요.
  * - 프로필은 정보를 받기 전에는 기본 모양으로, 이미지가 없거나 불러오지 못하면 닉네임 첫 글자로 대신해요.
- *
- * **디자인 원본**: [GNB/Floating nav=홈](https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=1364-6863) ·
- * [GNB/Floating nav=탐색](https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=1364-7028) ·
- * [Pill](https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=1364-839)
  */
 const meta = {
   title: "Workspace/WorkspaceGnb",
   component: WorkspaceGnb,
-  parameters: { layout: "fullscreen", initialPath: HOME_PATH },
+  parameters: {
+    layout: "fullscreen",
+    initialPath: HOME_PATH,
+    design: [
+      {
+        name: "GNB/Floating nav=홈",
+        type: "figma",
+        url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=1364-6863",
+      },
+      {
+        name: "Pill",
+        type: "figma",
+        url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=1364-839",
+      },
+    ],
+  },
   args: {
     children: (
       <DockablePanel
@@ -94,7 +105,13 @@ export const OnHomeScreen: Story = {};
 
 /** 탐색 화면에서 보이는 모양이에요. 내비 필의 「탐색」이 채워져 있어요. */
 export const OnChatScreen: Story = {
-  parameters: { initialPath: CHAT_PATH },
+  parameters: {
+    initialPath: CHAT_PATH,
+    design: {
+      type: "figma",
+      url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=1364-7028",
+    },
+  },
 };
 
 /** 프로필 정보를 받아 오는 중이에요. 오른쪽 아바타가 기본 모양으로 보여요. */

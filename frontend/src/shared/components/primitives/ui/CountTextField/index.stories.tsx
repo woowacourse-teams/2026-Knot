@@ -13,12 +13,16 @@ import CountTextField from ".";
  * **동작 규칙**
  * - `maxLength`를 입력창에도 그대로 넘겨서 최대 글자 수를 넘겨 입력할 수 없어요. 그래서 카운터가 분모를 넘는 일은 생기지 않아요.
  * - 입력창의 색과 메시지 규칙은 `Shared/TextField`와 같아요.
- *
- * **디자인 원본**: [온보딩/닉네임 입력](https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=424-1193)
  */
 const meta = {
   title: "Shared/CountTextField",
   component: CountTextField,
+  parameters: {
+    design: {
+      type: "figma",
+      url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=424-1193",
+    },
+  },
   args: {
     value: "",
     maxLength: 20,

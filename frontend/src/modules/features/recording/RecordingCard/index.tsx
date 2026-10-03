@@ -4,9 +4,7 @@ import Divider from "@primitives/ui/Divider";
 /**
  * 녹음 화면 카드.
  *
- * 무엇을 보여 주는지와 동작 규칙은 스토리북 `Recording/RecordingCard`에서 확인해요.
- *
- * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=2241-530 Card/Recording}
+ * 동작 규칙은 스토리북 `Recording/RecordingCard`에서 확인해요.
  */
 export default function RecordingCard() {
   const me = "홍길동";

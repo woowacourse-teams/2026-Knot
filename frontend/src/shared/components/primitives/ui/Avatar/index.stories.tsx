@@ -11,12 +11,16 @@ import Avatar from ".";
  *
  * **크기**
  * - 사이드바 워크스페이스는 24, GNB 내 프로필은 32를 써요. 24에서는 첫 글자도 한 단계 작은 글자로 그려요.
- *
- * **디자인 원본**: [Avatar](https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=587-516)
  */
 const meta = {
   title: "Shared/Avatar",
   component: Avatar,
+  parameters: {
+    design: {
+      type: "figma",
+      url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=587-516",
+    },
+  },
   args: {
     label: "내 프로필",
     name: "흑곰",

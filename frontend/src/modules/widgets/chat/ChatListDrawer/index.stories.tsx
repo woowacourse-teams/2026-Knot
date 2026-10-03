@@ -22,15 +22,30 @@ const SESSION_PATH = getRouterPath({
  * - 버튼에 마우스를 올리면 화면 위에 겹쳐 뜨고, 누르면 왼쪽에 자리를 잡아요. 이 여닫기는 감싸는 `Shared/DockablePanel`이 맡아요.
  * - 목록은 `Chat/ChatSessionList`가 그대로 그리고, 드로어는 제목과 「새 채팅」 버튼만 얹어요.
  * - 「새 채팅」을 누르면 고른 대화 없이 탐색 화면으로 옮겨 가 새 대화를 시작해요.
- *
- * **디자인 원본**: [탐색 결과/채팅 세션 목록](https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=526-772) ·
- * [DrawerHead](https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=1379-8238) ·
- * [Btn/새채팅](https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=1379-8240)
  */
 const meta = {
   title: "Chat/ChatListDrawer",
   component: ChatListDrawer,
-  parameters: { layout: "padded" },
+  parameters: {
+    layout: "padded",
+    design: [
+      {
+        name: "탐색 결과/채팅 세션 목록",
+        type: "figma",
+        url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=526-772",
+      },
+      {
+        name: "DrawerHead",
+        type: "figma",
+        url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=1379-8238",
+      },
+      {
+        name: "Btn/새채팅",
+        type: "figma",
+        url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=1379-8240",
+      },
+    ],
+  },
   decorators: [
     (Story) => (
       <MemoryRouter initialEntries={[SESSION_PATH]}>

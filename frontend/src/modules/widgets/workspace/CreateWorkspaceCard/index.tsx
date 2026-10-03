@@ -9,10 +9,6 @@ import { useCreateWorkspace } from "./models/useCreateWorkspace";
  * 새 워크스페이스 이름 입력 카드.
  *
  * 동작 규칙은 스토리북 `Workspace/CreateWorkspaceCard`에서 확인해요.
- *
- * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=431-1294 새 워크스페이스 생성/입력 전}
- * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=432-1576 새 워크스페이스 생성/입력 중}
- * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=432-1594 새 워크스페이스 생성/입력 에러}
  */
 export default function CreateWorkspaceCard() {
   const {

@@ -6,10 +6,7 @@ import { DOCK_HINT_TEXT } from "../constants/dockHint";
 /**
  * 독 위에 떠서 채팅을 시작하는 방법을 알려주는 말풍선.
  *
- * 독을 가리키는 꼬리가 아래에 달려 있어요. 읽기만 하는 안내라 포인터를 통과시켜
- * 아래에 있는 독을 그대로 누를 수 있어요. 언제 몇 번 띄울지는 `useDockHint`가 정해요.
- *
- * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=1422-28 Tooltip · 독 안내}
+ * 스토리북 `Workspace/WorkspaceDock`
  */
 export default function DockHintTooltip() {
   return <Bubble>{DOCK_HINT_TEXT}</Bubble>;

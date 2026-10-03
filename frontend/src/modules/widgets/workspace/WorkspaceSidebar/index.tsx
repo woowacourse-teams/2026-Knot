@@ -10,11 +10,9 @@ import SidebarTreeList from "./ui/SidebarTreeList";
 import { toWorkspaceTree } from "./utils/toWorkspaceTree";
 
 /**
- * 워크스페이스 사이드바 드로어. 워크스페이스 이름과 Notion 페이지 트리를 보여줘요.
+ * 워크스페이스 이름과 Notion 페이지 트리를 보여주는 사이드바 드로어.
  *
  * 동작 규칙은 스토리북 `Workspace/WorkspaceSidebar`에서 확인해요.
- *
- * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=1382-2171 Sidebar/Drawer}
  */
 export default function WorkspaceSidebar() {
   const { workspaceId } = useParams();
@@ -73,7 +71,6 @@ const Container = styled.aside`
   overflow-y: auto;
 `;
 
-/** @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=580-1442 Sidebar/Workspace} */
 const WorkspaceHeader = styled.div`
   display: flex;
   flex-shrink: 0;
@@ -99,7 +96,6 @@ const WorkspaceName = styled.span`
   ${({ theme }) => theme.text.label01};
 `;
 
-/** @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=1381-5285 Sidebar/FolderHead} */
 const FolderHead = styled.div`
   display: flex;
   flex-shrink: 0;

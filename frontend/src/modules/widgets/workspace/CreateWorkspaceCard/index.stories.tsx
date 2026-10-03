@@ -53,15 +53,17 @@ const createWorkspaceFails = (status: number) => ({
  * - 실패하면 이유를 입력창 아래 같은 자리에 띄우고 커서를 입력창으로 되돌려요. 이름을 고치면 이 문구는 사라져요.
  *   로그인이 풀린 경우(401)만 문구 없이 로그인 화면으로 보내요.
  * - 로고와 화면 가운데 배치는 화면 레이아웃이 맡아요. 이 카드는 카드 모양만 그려요.
- *
- * **디자인 원본**: [입력 전](https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=431-1294) ·
- * [입력 중](https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=432-1576) ·
- * [입력 에러](https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=432-1594)
  */
 const meta = {
   title: "Workspace/CreateWorkspaceCard",
   component: CreateWorkspaceCard,
-  parameters: { layout: "centered" },
+  parameters: {
+    layout: "centered",
+    design: {
+      type: "figma",
+      url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=431-1294",
+    },
+  },
   decorators: [
     (Story) => (
       <MemoryRouter initialEntries={[PATH_ROUTE.WORKSPACE_CREATE]}>
@@ -90,11 +92,23 @@ export const Empty: Story = {};
 
 /** 쓸 수 있는 이름을 적은 상태예요. 버튼을 누를 수 있게 돼요. */
 export const Filled: Story = {
+  parameters: {
+    design: {
+      type: "figma",
+      url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=432-1576",
+    },
+  },
   play: ({ canvasElement }) => typeName(canvasElement, WORKSPACE_NAME),
 };
 
 /** 쓸 수 없는 글자를 적은 상태예요. 예: 숫자나 기호가 섞인 이름 */
 export const InvalidName: Story = {
+  parameters: {
+    design: {
+      type: "figma",
+      url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=432-1594",
+    },
+  },
   play: ({ canvasElement }) => typeName(canvasElement, "knot!"),
 };
 
@@ -120,7 +134,13 @@ export const Created: Story = {
 
 /** 화면 검사를 통과한 이름을 서버가 형식 오류(400)로 거절한 상태예요. 이름 규칙 문구를 다시 보여 줘요. */
 export const RejectedName: Story = {
-  parameters: createWorkspaceFails(400),
+  parameters: {
+    ...createWorkspaceFails(400),
+    design: {
+      type: "figma",
+      url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=432-1594",
+    },
+  },
   play: ({ canvasElement }) => submitName(canvasElement),
 };
 

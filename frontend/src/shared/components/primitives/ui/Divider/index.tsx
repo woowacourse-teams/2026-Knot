@@ -9,8 +9,7 @@ interface DividerProps extends HTMLAttributes<HTMLDivElement> {
 /**
  * 콘텐츠를 가로로 나누는 구분선.
  *
- * 쓰임새는 스토리북 `Shared/Divider`에서 확인해요.
- * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=432-1738 Divider}
+ * 동작 규칙은 스토리북 `Shared/Divider`에서 확인해요.
  */
 export default function Divider({ label, ...props }: DividerProps) {
   return (

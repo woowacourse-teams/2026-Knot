@@ -29,16 +29,44 @@ const folderRowName = (name: string) => new RegExp(`^${name}`);
  * - 위쪽에는 지금 보고 있는 워크스페이스의 이름이 나와요. 이름을 받아 오기 전에는 이름 자리를 비워 둬요.
  * - 「폴더」 아래에는 마지막으로 Notion에서 가져온 페이지들이 트리로 나와요.
  * - 하위 페이지가 있는 페이지는 폴더 행이에요. 오른쪽에 딸린 문서 수가 붙고, 누르면 펼치고 다시 누르면 접어요.
+ * - 펼친 폴더 아래에는 하위 페이지가 한 단계 더 들여써져 나오고, 그 왼쪽에 부모 폴더 화살표의 가운데를 지나는 세로 안내선이 그어져요.
  * - 하위 페이지가 없는 페이지는 문서 행이에요. 아직 문서를 여는 기능이 없어 이름만 보여요.
  * - 처음에는 모든 폴더가 접혀 있어요. 사이드바를 닫았다 다시 열어도 펼쳐 둔 폴더는 그대로예요.
  * - 가져온 페이지가 없으면 「폴더」 라벨만 남아요.
- *
- * **디자인 원본**: [Sidebar/Drawer](https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=1382-2171)
  */
 const meta = {
   title: "Workspace/WorkspaceSidebar",
   component: WorkspaceSidebar,
-  parameters: { layout: "padded" },
+  parameters: {
+    layout: "padded",
+    design: [
+      {
+        name: "Sidebar/Drawer",
+        type: "figma",
+        url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=1382-2171",
+      },
+      {
+        name: "Sidebar/Workspace",
+        type: "figma",
+        url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=580-1442",
+      },
+      {
+        name: "Sidebar/FolderHead",
+        type: "figma",
+        url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=1381-5285",
+      },
+      {
+        name: "Sidebar/FolderRow",
+        type: "figma",
+        url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=580-1444",
+      },
+      {
+        name: "Sidebar/FileRow",
+        type: "figma",
+        url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=588-523",
+      },
+    ],
+  },
   decorators: [
     (Story) => (
       <MemoryRouter initialEntries={[HOME_PATH]}>
@@ -98,10 +126,13 @@ export const Loading: Story = {
   parameters: {
     msw: {
       handlers: {
-        workspace: http.get(`*${WORKSPACE_API_PATH(WORKSPACE_ID)}`, async () => {
-          await delay("infinite");
-          return HttpResponse.json(workspaceDetailResponse);
-        }),
+        workspace: http.get(
+          `*${WORKSPACE_API_PATH(WORKSPACE_ID)}`,
+          async () => {
+            await delay("infinite");
+            return HttpResponse.json(workspaceDetailResponse);
+          },
+        ),
         notionPageTree: http.get(
           `*${WORKSPACE_NOTION_PAGE_TREE_API_PATH(WORKSPACE_ID)}`,
           async () => {

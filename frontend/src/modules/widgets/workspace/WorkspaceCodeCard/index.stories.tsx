@@ -47,16 +47,25 @@ const previewFails = (status: number) => ({
  *   없거나 만료된 코드(404), 너무 잦은 시도(429), 그 밖의 실패를 나눠 알려요. 그 밖의 실패는 코드가 틀렸다고 단정할 수 없어 확인하지 못했다고만 알려요.
  * - 입력은 서버 계약(ADR 243)과 같이 대문자로 보여 주고, 7자째부터는 입력되지 않아요.
  * - 로고와 화면 가운데 배치는 화면 레이아웃이 맡아요. 이 카드는 카드 모양만 그려요.
- *
- * **디자인 원본**: [초대 코드 입력](https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=600-10168) ·
- * [입력 에러](https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=600-10172) ·
- * [Field/TextField/Code](https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=443-910) ·
- * [인증 완료](https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=664-552)
  */
 const meta = {
   title: "Workspace/WorkspaceCodeCard",
   component: WorkspaceCodeCard,
-  parameters: { layout: "centered" },
+  parameters: {
+    layout: "centered",
+    design: [
+      {
+        name: "초대 코드 입력",
+        type: "figma",
+        url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=600-10168",
+      },
+      {
+        name: "Field/TextField/Code",
+        type: "figma",
+        url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=443-910",
+      },
+    ],
+  },
   decorators: [
     (Story) => (
       <MemoryRouter initialEntries={[PATH_ROUTE.WORKSPACE_CODE]}>
@@ -96,12 +105,24 @@ export const Verifying: Story = {
 
 /** 맞는 코드라 확인을 마친 상태예요. 1.5초 뒤 입장 확인 화면으로 넘어가요. */
 export const Verified: Story = {
+  parameters: {
+    design: {
+      type: "figma",
+      url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=664-552",
+    },
+  },
   play: typeCode,
 };
 
 /** 없거나 만료된 코드예요(404). 예: 오타, 재발급 전의 옛 코드 */
 export const InvalidCode: Story = {
-  parameters: previewFails(404),
+  parameters: {
+    ...previewFails(404),
+    design: {
+      type: "figma",
+      url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=600-10172",
+    },
+  },
   play: typeCode,
 };
 

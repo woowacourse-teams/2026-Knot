@@ -8,12 +8,16 @@ import SourceButton from ".";
  *
  * - 지금 열려 있으면 `isSelected`로 채워진 모양이 돼요. 스크린리더에도 눌린 상태로 알려요.
  * - 라벨 문구는 쓰는 쪽이 정해 `children`으로 넘겨요.
- *
- * **디자인 원본**: [SourceButton](https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=1170-697)
  */
 const meta = {
   title: "Shared/SourceButton",
   component: SourceButton,
+  parameters: {
+    design: {
+      type: "figma",
+      url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=1170-697",
+    },
+  },
   args: {
     children: "근거 문서 3개",
     isSelected: false,

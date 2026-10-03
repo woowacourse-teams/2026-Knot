@@ -15,12 +15,16 @@ import Spinner from ".";
  * **접근성**
  * - 장식이라 스크린리더가 읽지 않아요. 로딩 중이라는 사실은 부모가 `aria-busy`로 알려요.
  * - 화면이나 구획 전체를 기다릴 때는 스크린리더에도 알리는 `LoadingIndicator`를 써요.
- *
- * **디자인 원본**: [loading spinner](https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=422-263)
  */
 const meta = {
   title: "Shared/Spinner",
   component: Spinner,
+  parameters: {
+    design: {
+      type: "figma",
+      url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=422-263",
+    },
+  },
 } satisfies Meta<typeof Spinner>;
 
 export default meta;

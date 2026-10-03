@@ -23,14 +23,30 @@ const HOME_PATH = getRouterPath({
  * - 복사 결과를 알림창으로 띄우지 않아요. 클립보드에 쓰지 못하면 화면 변화 없이 넘어가요.
  * - 초대를 받아 오기 전에는 두 버튼을 모두 막아 빈 값이 복사되지 않게 해요.
  * - 초대를 받아 오지 못해도 카드는 그대로 두고 버튼만 막아요. 다른 화면으로 보낼지는 워크스페이스 화면 전체가 정해요.
- *
- * **디자인 원본**: [Card/InviteMember](https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=600-10087) ·
- * [홈 화면/초대 링크 복사](https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=600-10089)
  */
 const meta = {
   title: "Workspace/WorkspaceInviteMemberCard",
   component: WorkspaceInviteMemberCard,
-  parameters: { layout: "centered" },
+  parameters: {
+    layout: "centered",
+    design: [
+      {
+        name: "Card/InviteMember",
+        type: "figma",
+        url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=600-10087",
+      },
+      {
+        name: "홈 화면/초대 링크 복사",
+        type: "figma",
+        url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=600-10089",
+      },
+      {
+        name: "Field/Copy",
+        type: "figma",
+        url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=484-4925",
+      },
+    ],
+  },
   decorators: [
     (Story) => (
       <MemoryRouter initialEntries={[HOME_PATH]}>

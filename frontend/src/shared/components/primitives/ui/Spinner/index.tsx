@@ -12,8 +12,7 @@ interface SpinnerProps extends HTMLAttributes<HTMLSpanElement> {
 /**
  * 회전하는 로딩 표시.
  *
- * 색·크기 규칙과 접근성은 스토리북 `Shared/Spinner`에서 확인해요.
- * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=422-263 loading spinner}
+ * 동작 규칙은 스토리북 `Shared/Spinner`에서 확인해요.
  */
 export default function Spinner({ size = "1.5rem", ...props }: SpinnerProps) {
   return <Root $size={size} aria-hidden {...props} />;

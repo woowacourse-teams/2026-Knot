@@ -8,13 +8,9 @@ import { NICKNAME_MAX_LENGTH } from "./constants/nickname";
 import { useSignUp } from "./model/useSignUp";
 
 /**
- * 닉네임을 입력받아 회원가입을 완료하는 카드. 입력값과 제출은 `useSignUp`이 맡고, 이 파일은 화면만 그려요.
+ * 닉네임을 입력받아 회원가입을 완료하는 카드.
  *
- * 자세한 내용은 스토리북 `Member/NicknameCard`에서 확인해요.
- *
- * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=422-390 닉네임 입력 전}
- * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=424-628 닉네임 입력 중}
- * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=424-1237 닉네임 입력 에러}
+ * 동작 규칙은 스토리북 `Member/NicknameCard`에서 확인해요.
  */
 export default function NicknameCard() {
   const {

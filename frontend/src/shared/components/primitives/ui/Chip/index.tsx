@@ -9,8 +9,7 @@ interface ChipProps extends HTMLAttributes<HTMLSpanElement> {
 /**
  * 짧은 정보를 담는 작은 칩.
  *
- * 사용 예시는 스토리북 `Shared/Chip`에서 확인해요.
- * @see {@link https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=2062-7288 Chip/Duration}
+ * 동작 규칙은 스토리북 `Shared/Chip`에서 확인해요.
  */
 export default function Chip({ children, ...props }: ChipProps) {
   return <Root {...props}>{children}</Root>;

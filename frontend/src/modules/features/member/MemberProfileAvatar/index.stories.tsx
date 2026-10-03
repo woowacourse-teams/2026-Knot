@@ -15,13 +15,17 @@ const BROKEN_PROFILE_IMAGE_URL = "https://avatars.githubusercontent.com/u/0";
  * - 이미지를 불러오지 못하면 닉네임 첫 글자로 대신해요.
  * - 회원 정보를 받아 오기 전에는 닉네임도 없어 기본 사람 모양을 그려요.
  * - 지금은 보여 주기만 하고 누르는 동작은 없어요.
- *
- * **디자인 원본**: [Avatar size=32](https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=587-516)
  */
 const meta = {
   title: "Member/MemberProfileAvatar",
   component: MemberProfileAvatar,
-  parameters: { layout: "centered" },
+  parameters: {
+    layout: "centered",
+    design: {
+      type: "figma",
+      url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=587-516",
+    },
+  },
 } satisfies Meta<typeof MemberProfileAvatar>;
 
 export default meta;
