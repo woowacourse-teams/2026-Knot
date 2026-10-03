@@ -188,4 +188,95 @@ class AuthSessionTest {
         assertThat(session.remainingRefreshLifetime(NOW.plus(Duration.ofDays(7)))).isEqualTo(Duration.ZERO);
         assertThat(session.remainingRefreshLifetime(null)).isEqualTo(Duration.ZERO);
     }
+
+    @Test
+    @DisplayName("refresh 회전은 이전 해시를 반환하고 비활성 만료를 연장한다")
+    void rotateRefreshToken_success() {
+        // given
+        AuthSession session = AuthSession.create(
+                1L,
+                HASH,
+                NOW
+        );
+        String newHash = "b".repeat(64);
+        Instant rotatedAt = NOW.plus(Duration.ofDays(3));
+
+        // when
+        String previousHash = session.rotateRefreshToken(
+                newHash,
+                rotatedAt
+        );
+
+        // then
+        assertThat(previousHash).isEqualTo(HASH);
+        assertThat(session.getRefreshTokenHash()).isEqualTo(newHash);
+        assertThat(session.getExpiresAt()).isEqualTo(rotatedAt.plus(Duration.ofDays(7)));
+        assertThat(session.getAbsoluteExpiresAt()).isEqualTo(NOW.plus(Duration.ofDays(30)));
+        assertThat(session.remainingRefreshLifetime(rotatedAt)).isEqualTo(Duration.ofDays(7));
+    }
+
+    @Test
+    @DisplayName("refresh 회전의 비활성 만료는 최초 OAuth 로그인 후 30일을 넘지 않는다")
+    void rotateRefreshToken_success_capsAtAbsoluteExpiry() {
+        // given
+        Instant firstOAuthLoginAt = NOW.minus(Duration.ofDays(29));
+        AuthSession session = AuthSession.create(
+                1L,
+                HASH,
+                NOW,
+                firstOAuthLoginAt
+        );
+        Instant rotatedAt = NOW.plus(Duration.ofHours(12));
+
+        // when
+        session.rotateRefreshToken(
+                "b".repeat(64),
+                rotatedAt
+        );
+
+        // then
+        assertThat(session.getExpiresAt()).isEqualTo(firstOAuthLoginAt.plus(Duration.ofDays(30)));
+        assertThat(session.getAbsoluteExpiresAt()).isEqualTo(firstOAuthLoginAt.plus(Duration.ofDays(30)));
+    }
+
+    @Test
+    @DisplayName("폐기된 로그인 세션은 refresh 회전할 수 없다")
+    void rotateRefreshToken_failure_revokedSession() {
+        // given
+        AuthSession session = AuthSession.create(
+                1L,
+                HASH,
+                NOW
+        );
+        session.revoke(NOW.plusSeconds(1));
+
+        // when & then
+        assertThatThrownBy(
+                () -> session.rotateRefreshToken(
+                        "b".repeat(64),
+                        NOW.plusSeconds(2)
+                )
+        ).isInstanceOf(AuthException.class);
+        assertThat(session.getRefreshTokenHash()).isEqualTo(HASH);
+    }
+
+    @Test
+    @DisplayName("비활성 만료된 로그인 세션은 refresh 회전할 수 없다")
+    void rotateRefreshToken_failure_expiredSession() {
+        // given
+        AuthSession session = AuthSession.create(
+                1L,
+                HASH,
+                NOW
+        );
+
+        // when & then
+        assertThatThrownBy(
+                () -> session.rotateRefreshToken(
+                        "b".repeat(64),
+                        NOW.plus(Duration.ofDays(7))
+                )
+        ).isInstanceOf(AuthException.class);
+        assertThat(session.getRefreshTokenHash()).isEqualTo(HASH);
+    }
 }
