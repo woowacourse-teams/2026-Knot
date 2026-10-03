@@ -33,18 +33,6 @@ const fakeCopy = () => {
   };
 };
 
-/** 초대 조회가 이 상태 코드로 실패하게 해요. */
-const invitationFails = (status: number) => ({
-  msw: {
-    handlers: {
-      workspaceInvitations: http.post(
-        WORKSPACE_INVITATIONS_URL,
-        () => new HttpResponse(null, { status }),
-      ),
-    },
-  },
-});
-
 /**
  * 워크스페이스를 만든 직후 팀원을 부르는 카드예요. 팀원 초대 화면(`/workspace/:workspaceId/invite`)에 놓여요.
  *
@@ -75,6 +63,11 @@ const meta = {
         url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=679-3120",
       },
       {
+        name: "새 워크스페이스 생성/참여 코드 복사 완료",
+        type: "figma",
+        url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=704-3182",
+      },
+      {
         name: "Card/CodeBox",
         type: "figma",
         url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=691-1746",
@@ -94,14 +87,6 @@ const meta = {
           <Route
             path={PATH_ROUTE.WORKSPACE_NOTION_CONNECTION}
             element={<p>노션 연동 화면으로 이동했어요.</p>}
-          />
-          <Route
-            path={PATH_ROUTE.WORKSPACE}
-            element={<p>워크스페이스 선택 화면으로 이동했어요.</p>}
-          />
-          <Route
-            path={PATH_ROUTE.LOGIN}
-            element={<p>로그인 화면으로 이동했어요.</p>}
           />
         </Routes>
       </MemoryRouter>
@@ -130,26 +115,6 @@ export const Loading: Story = {
   },
 };
 
-/** 코드 상자를 눌러 참여 코드를 복사한 직후예요. 아이콘이 2초 동안 체크로 바뀌어요. */
-export const CodeCopied: Story = {
-  parameters: {
-    design: {
-      type: "figma",
-      url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=704-3182",
-    },
-  },
-  beforeEach: fakeCopy,
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-
-    await userEvent.click(
-      await canvas.findByRole("button", {
-        name: `참여 코드 ${workspaceInvitationResponse.code} 복사`,
-      }),
-    );
-  },
-};
-
 /** 링크의 「복사」를 눌러 초대 링크를 복사한 직후예요. 버튼이 2초 동안 「복사됨」으로 바뀌어요. */
 export const LinkCopied: Story = {
   beforeEach: fakeCopy,
@@ -160,19 +125,4 @@ export const LinkCopied: Story = {
     await canvas.findByText(workspaceInvitationResponse.code);
     await userEvent.click(canvas.getByRole("button", { name: "복사" }));
   },
-};
-
-/** 서버 오류로 초대를 받지 못한 상태예요. 화면에 머물고 코드 상자가 빈 채로 잠겨요. */
-export const LoadFailed: Story = {
-  parameters: invitationFails(500),
-};
-
-/** 멤버가 아닌 워크스페이스의 초대 화면에 들어온 상태(403)예요. 워크스페이스 선택 화면으로 보내요. */
-export const AccessDenied: Story = {
-  parameters: invitationFails(403),
-};
-
-/** 로그인이 풀린 채 들어온 상태(401)예요. 로그인 화면으로 보내요. */
-export const SessionExpired: Story = {
-  parameters: invitationFails(401),
 };

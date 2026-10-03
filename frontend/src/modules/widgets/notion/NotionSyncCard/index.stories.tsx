@@ -105,20 +105,6 @@ export const ReauthRequired: Story = {
   },
 };
 
-/** 연결 상태를 받아 오는 중이에요. 안내 문구 자리가 비어 있어요. */
-export const ConnectionLoading: Story = {
-  parameters: {
-    msw: {
-      handlers: {
-        connection: http.get(CONNECTION_URL, async () => {
-          await delay("infinite");
-          return HttpResponse.json(notionConnectionResponse);
-        }),
-      },
-    },
-  },
-};
-
 /** 연결 상태를 받아 오지 못했을 때예요. */
 export const ConnectionError: Story = {
   parameters: {

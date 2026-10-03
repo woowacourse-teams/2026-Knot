@@ -81,17 +81,3 @@ export const Loading: Story = {
     },
   },
 };
-
-/** 초대를 받아 오지 못했을 때예요. 예: 서버 오류. 링크 칸은 비어 있고 두 버튼 모두 누를 수 없어요. */
-export const LoadFailed: Story = {
-  parameters: {
-    msw: {
-      handlers: {
-        workspaceInvitations: http.post(
-          `*${WORKSPACE_INVITATIONS_API_PATH(WORKSPACE_ID)}`,
-          () => new HttpResponse(null, { status: 500 }),
-        ),
-      },
-    },
-  },
-};

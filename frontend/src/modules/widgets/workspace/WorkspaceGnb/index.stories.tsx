@@ -1,10 +1,7 @@
-import { AUTH_ME_API_PATH } from "@api/fetch/api/v1/auth/me";
-import { meResponse } from "@api/mock/responses/auth";
 import DockablePanel from "@composites/DockablePanel";
 import { getRouterPath, PATH_ROUTE } from "@routes/PATH_ROUTE";
 import type { Meta, StoryObj } from "@storybook/react-webpack5";
 import WorkspaceSidebar from "@widgets/workspace/WorkspaceSidebar";
-import { delay, http, HttpResponse } from "msw";
 import { MemoryRouter, Route, Routes } from "react-router";
 
 import SidebarIcon from "@/assets/icons/sidebar.svg";
@@ -110,33 +107,6 @@ export const OnChatScreen: Story = {
     design: {
       type: "figma",
       url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=1364-7028",
-    },
-  },
-};
-
-/** 프로필 정보를 받아 오는 중이에요. 오른쪽 아바타가 기본 모양으로 보여요. */
-export const ProfileLoading: Story = {
-  parameters: {
-    msw: {
-      handlers: {
-        me: http.get(`*${AUTH_ME_API_PATH}`, async () => {
-          await delay("infinite");
-          return HttpResponse.json(meResponse);
-        }),
-      },
-    },
-  },
-};
-
-/** 프로필 이미지가 없는 사람이에요. 닉네임 첫 글자로 대신해요. 예: 「노티드」 → 「노」 */
-export const WithoutProfileImage: Story = {
-  parameters: {
-    msw: {
-      handlers: {
-        me: http.get(`*${AUTH_ME_API_PATH}`, () =>
-          HttpResponse.json({ ...meResponse, profileImageUrl: "" }),
-        ),
-      },
     },
   },
 };

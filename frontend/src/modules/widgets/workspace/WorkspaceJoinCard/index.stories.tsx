@@ -43,7 +43,6 @@ const meta = {
   component: WorkspaceJoinCard,
   parameters: {
     layout: "centered",
-    joinState: JOIN_STATE,
     design: [
       {
         name: "초대 링크로 워크스페이스 입장",
@@ -63,27 +62,15 @@ const meta = {
     ],
   },
   decorators: [
-    (Story, { parameters }) => (
+    (Story) => (
       <MemoryRouter
-        initialEntries={[{ pathname: JOIN_PATH, state: parameters.joinState }]}
+        initialEntries={[{ pathname: JOIN_PATH, state: JOIN_STATE }]}
       >
         <Routes>
           <Route path={PATH_ROUTE.WORKSPACE_JOIN} element={<Story />} />
           <Route
             path={PATH_ROUTE.WORKSPACE_HOME}
             element={<p>워크스페이스 홈으로 이동했어요.</p>}
-          />
-          <Route
-            path={PATH_ROUTE.WORKSPACE}
-            element={<p>워크스페이스 선택 화면으로 이동했어요.</p>}
-          />
-          <Route
-            path={PATH_ROUTE.JOIN_ERROR}
-            element={<p>초대 링크 오류 화면으로 이동했어요.</p>}
-          />
-          <Route
-            path={PATH_ROUTE.LOGIN}
-            element={<p>로그인 화면으로 이동했어요.</p>}
           />
         </Routes>
       </MemoryRouter>
@@ -122,55 +109,4 @@ export const Joining: Story = {
     },
   },
   play: clickJoin,
-};
-
-/** 카드를 띄워 둔 사이 초대가 만료되었거나 취소됐을 때예요. 너무 자주 시도했을 때도 같은 곳으로 가요. */
-export const InvitationRejected: Story = {
-  parameters: {
-    msw: {
-      handlers: {
-        acceptInvitation: http.post(
-          `*${INVITATIONS_ACCEPT_API_PATH}`,
-          () => new HttpResponse(null, { status: 404 }),
-        ),
-      },
-    },
-  },
-  play: clickJoin,
-};
-
-/** 카드를 띄워 둔 사이 로그인이 풀렸을 때예요. */
-export const LoggedOut: Story = {
-  parameters: {
-    msw: {
-      handlers: {
-        acceptInvitation: http.post(
-          `*${INVITATIONS_ACCEPT_API_PATH}`,
-          () => new HttpResponse(null, { status: 401 }),
-        ),
-      },
-    },
-  },
-  play: clickJoin,
-};
-
-/** 서버 오류처럼 일시적으로 참여하지 못했을 때예요. 화면은 그대로 두고 버튼을 다시 열어 다시 누를 수 있어요. */
-export const JoinFailed: Story = {
-  parameters: {
-    msw: {
-      handlers: {
-        acceptInvitation: http.post(
-          `*${INVITATIONS_ACCEPT_API_PATH}`,
-          () => new HttpResponse(null, { status: 500 }),
-        ),
-      },
-    },
-  },
-  play: clickJoin,
-};
-
-/** 새로고침하거나 주소를 직접 입력해 들어왔을 때예요. 카드를 그리지 않고 워크스페이스 선택 화면으로 돌려보내요. */
-export const WithoutJoinState: Story = {
-  // undefined는 meta의 값을 덮지 못해 null로 비워요
-  parameters: { joinState: null },
 };

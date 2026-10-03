@@ -51,14 +51,6 @@ const meta = {
       <MemoryRouter initialEntries={[INVITE_PATH]}>
         <Routes>
           <Route path={PATH_ROUTE.INVITE} element={<Story />} />
-          <Route
-            path={PATH_ROUTE.WORKSPACE_JOIN}
-            element={<p>입장 확인 화면으로 이동했어요.</p>}
-          />
-          <Route
-            path={PATH_ROUTE.JOIN_ERROR}
-            element={<p>초대 링크 오류 화면으로 이동했어요.</p>}
-          />
         </Routes>
       </MemoryRouter>
     ),
@@ -82,27 +74,6 @@ export const Checking: Story = {
           },
         ),
       },
-    },
-  },
-};
-
-/** 유효한 초대 링크를 열었을 때예요. 확인이 끝나면 바로 입장 확인 화면으로 넘어가요. */
-export const ValidLink: Story = {};
-
-/** 만료되었거나 잘못된 초대 링크를 열었을 때예요. 서버 오류·네트워크 끊김도 같은 곳으로 가요. */
-export const InvalidLink: Story = {
-  parameters: {
-    msw: {
-      handlers: {
-        invitationPreview: http.get(
-          `*${INVITATION_PREVIEW_API_PATH(TOKEN)}`,
-          () => new HttpResponse(null, { status: 404 }),
-        ),
-      },
-    },
-    design: {
-      type: "figma",
-      url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=600-10148",
     },
   },
 };

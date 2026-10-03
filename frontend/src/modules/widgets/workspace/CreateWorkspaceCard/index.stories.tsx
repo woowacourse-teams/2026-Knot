@@ -73,10 +73,6 @@ const meta = {
             path={PATH_ROUTE.WORKSPACE_INVITE}
             element={<p>팀원 초대 화면으로 이동했어요.</p>}
           />
-          <Route
-            path={PATH_ROUTE.LOGIN}
-            element={<p>로그인 화면으로 이동했어요.</p>}
-          />
         </Routes>
       </MemoryRouter>
     ),
@@ -101,17 +97,6 @@ export const Filled: Story = {
   play: ({ canvasElement }) => typeName(canvasElement, WORKSPACE_NAME),
 };
 
-/** 쓸 수 없는 글자를 적은 상태예요. 예: 숫자나 기호가 섞인 이름 */
-export const InvalidName: Story = {
-  parameters: {
-    design: {
-      type: "figma",
-      url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=432-1594",
-    },
-  },
-  play: ({ canvasElement }) => typeName(canvasElement, "knot!"),
-};
-
 /** 생성 요청을 보내고 응답을 기다리는 상태예요. 버튼이 로딩으로 잠겨 두 번 보내지 않아요. */
 export const Submitting: Story = {
   parameters: {
@@ -124,11 +109,6 @@ export const Submitting: Story = {
       },
     },
   },
-  play: ({ canvasElement }) => submitName(canvasElement),
-};
-
-/** 워크스페이스가 만들어져 팀원 초대 화면으로 넘어간 상태예요. */
-export const Created: Story = {
   play: ({ canvasElement }) => submitName(canvasElement),
 };
 
@@ -153,11 +133,5 @@ export const SecurityCheckFailed: Story = {
 /** 서버 오류처럼 이유를 알 수 없이 실패한 상태예요. 잠시 후 다시 시도하라고 안내해요. */
 export const ServerError: Story = {
   parameters: createWorkspaceFails(500),
-  play: ({ canvasElement }) => submitName(canvasElement),
-};
-
-/** 로그인이 풀린 채 보낸 상태(401)예요. 문구 없이 로그인 화면으로 돌려보내요. */
-export const SessionExpired: Story = {
-  parameters: createWorkspaceFails(401),
   play: ({ canvasElement }) => submitName(canvasElement),
 };

@@ -7,10 +7,6 @@ import { MemoryRouter, Route, Routes } from "react-router";
 import ChatSessionList from ".";
 
 const WORKSPACE_ID = "1";
-const CHAT_PATH = getRouterPath({
-  routeKey: "CHAT",
-  params: { workspaceId: WORKSPACE_ID },
-});
 const SESSION_PATH = getRouterPath({
   routeKey: "CHAT_SESSION",
   params: {
@@ -39,7 +35,6 @@ const meta = {
   component: ChatSessionList,
   parameters: {
     layout: "padded",
-    initialPath: SESSION_PATH,
     design: [
       {
         name: "대화 목록",
@@ -56,11 +51,16 @@ const meta = {
         type: "figma",
         url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=1379-8248",
       },
+      {
+        name: "빈 목록",
+        type: "figma",
+        url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=1254-5857",
+      },
     ],
   },
   decorators: [
-    (Story, { parameters }) => (
-      <MemoryRouter initialEntries={[parameters.initialPath]}>
+    (Story) => (
+      <MemoryRouter initialEntries={[SESSION_PATH]}>
         <Routes>
           {[PATH_ROUTE.CHAT, PATH_ROUTE.CHAT_SESSION].map((path) => (
             <Route
@@ -87,11 +87,6 @@ type Story = StoryObj<typeof meta>;
 /** 대화 하나를 보고 있는 탐색 화면이에요. 보고 있는 대화가 채워진 모양으로 표시돼요. */
 export const Default: Story = {};
 
-/** 새 채팅을 시작해 아직 고른 대화가 없는 탐색 화면이에요. */
-export const NothingOpened: Story = {
-  parameters: { initialPath: CHAT_PATH },
-};
-
 /** 대화가 여러 기간에 걸쳐 쌓인 워크스페이스예요. 묶음이 최근 기간부터 나오고, 긴 제목은 말줄임표로 잘려요. */
 export const AllPeriods: Story = {
   parameters: {
@@ -114,21 +109,6 @@ export const AllPeriods: Story = {
             },
           ]),
         ),
-      },
-    },
-  },
-};
-
-/** 워크스페이스에 아직 나눈 대화가 없을 때예요. 예: 워크스페이스를 막 만든 직후 */
-export const Empty: Story = {
-  parameters: {
-    design: {
-      type: "figma",
-      url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=1254-5857",
-    },
-    msw: {
-      handlers: {
-        conversations: http.get(CONVERSATIONS_URL, () => HttpResponse.json([])),
       },
     },
   },

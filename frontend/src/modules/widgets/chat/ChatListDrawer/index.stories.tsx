@@ -1,7 +1,6 @@
 import { chatSessionsResponse } from "@api/mock/responses/chatSession";
 import { PATH_ROUTE, getRouterPath } from "@routes/PATH_ROUTE";
 import type { Meta, StoryObj } from "@storybook/react-webpack5";
-import { http, HttpResponse } from "msw";
 import { MemoryRouter, Route, Routes } from "react-router";
 
 import ChatListDrawer from ".";
@@ -74,17 +73,3 @@ type Story = StoryObj<typeof meta>;
 
 /** 대화 하나를 보고 있는 탐색 화면에서 연 드로어예요. */
 export const Default: Story = {};
-
-/** 아직 나눈 대화가 없는 워크스페이스에서 연 드로어예요. 예: 워크스페이스를 막 만든 직후 */
-export const Empty: Story = {
-  parameters: {
-    msw: {
-      handlers: {
-        conversations: http.get(
-          "*/api/v1/workspaces/:workspaceId/conversations",
-          () => HttpResponse.json([]),
-        ),
-      },
-    },
-  },
-};

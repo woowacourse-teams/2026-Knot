@@ -1,10 +1,8 @@
-import { WORKSPACE_API_PATH } from "@api/fetch/api/v1/workspaces/[workspaceId]";
 import { WORKSPACE_NOTION_PAGE_TREE_API_PATH } from "@api/fetch/api/v1/workspaces/[workspaceId]/notionPages/tree";
 import { notionPageTreeResponse } from "@api/mock/responses/notionPage";
-import { workspaceDetailResponse } from "@api/mock/responses/workspace";
 import { getRouterPath, PATH_ROUTE } from "@routes/PATH_ROUTE";
 import type { Meta, StoryObj } from "@storybook/react-webpack5";
-import { delay, http, HttpResponse } from "msw";
+import { http, HttpResponse } from "msw";
 import { MemoryRouter, Route, Routes } from "react-router";
 import { userEvent, within } from "storybook/test";
 
@@ -115,30 +113,6 @@ export const NoPages: Story = {
         notionPageTree: http.get(
           `*${WORKSPACE_NOTION_PAGE_TREE_API_PATH(WORKSPACE_ID)}`,
           () => HttpResponse.json([]),
-        ),
-      },
-    },
-  },
-};
-
-/** 워크스페이스 이름과 페이지를 받아 오는 중이에요. 이름 자리와 폴더 목록이 비어 있어요. */
-export const Loading: Story = {
-  parameters: {
-    msw: {
-      handlers: {
-        workspace: http.get(
-          `*${WORKSPACE_API_PATH(WORKSPACE_ID)}`,
-          async () => {
-            await delay("infinite");
-            return HttpResponse.json(workspaceDetailResponse);
-          },
-        ),
-        notionPageTree: http.get(
-          `*${WORKSPACE_NOTION_PAGE_TREE_API_PATH(WORKSPACE_ID)}`,
-          async () => {
-            await delay("infinite");
-            return HttpResponse.json(notionPageTreeResponse);
-          },
         ),
       },
     },
