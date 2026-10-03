@@ -11,8 +11,8 @@ code·linkToken·expiresAt을 반환한다. 코드와 링크는 생성 24시간 
 원문 재표시용 암호화와 기능 플래그를 제거했다. 신규 행의 암호문 컬럼은 NULL이며 V4 제약이
 허용한다. 과거 재발급으로 무효화된 초대는 `invalidated_at` 판정으로 계속 무효다.
 
-V19는 Workspace별 단일 미무효화 UNIQUE만 제거한다. hash UNIQUE·24시간 CHECK·FK는 유지한다.
-Workspace 잠금과 hash 충돌 시 최대 3회의 새 transaction 재시도는 기존 구현을 재사용한다.
+V20은 Workspace별 단일 미무효화 UNIQUE만 제거한다. hash UNIQUE·24시간 CHECK·FK는 유지한다.
+hash 충돌 시 최대 3회의 새 transaction 재시도는 기존 구현을 재사용한다.
 
 ## 배포 조건
 

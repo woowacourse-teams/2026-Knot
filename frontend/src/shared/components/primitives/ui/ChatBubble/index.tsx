@@ -7,10 +7,6 @@ interface ChatBubbleProps {
 
 /**
  * 사용자가 보낸 말풍선.
- *
- * 너비는 내용에 맞춰 늘어나되 630px에서 멈춥니다.
- *
- * @see https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=1209-807
  */
 export default function ChatBubble({ children }: ChatBubbleProps) {
   return <Root>{children}</Root>;

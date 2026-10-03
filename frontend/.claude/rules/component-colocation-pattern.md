@@ -37,7 +37,7 @@ index.tsx 파일에서 컴포넌트의 메인 구현을 익스포트하며, 다�
 - 폴더 + `index.ts(x)` 형태는 컴포넌트 폴더 자체에만 적용. **세그먼트 내부에서는 폴더 + `index.ts`를 다시 쓰지 않고 구현체 이름의 플랫 파일로 둠.**
   - 서브 컴포넌트·훅·유틸은 세그먼트 폴더 바로 아래의 플랫 파일. (예: `ui/LoadingFallback.tsx`, `model/useCalendar.ts`, `utils/formatDate.ts`)
   - 타입 파일은 항상 `types/` 폴더 안에 `types/user.ts`처럼 내용을 나타내는 이름으로 작성.
-  - 통합 테스트(`test.tsx`)는 세그먼트 밖, 컴포넌트 폴더 바로 아래의 일반 파일. 단위 테스트는 `utils/formatDate.test.ts`처럼 구현 파일 옆에 둠.
+  - 통합 테스트(`test.tsx`)와 스토리(`index.stories.tsx`)는 세그먼트 밖, 컴포넌트 폴더 바로 아래의 일반 파일. 단위 테스트는 `utils/formatDate.test.ts`처럼 구현 파일 옆에 둠.
 
 ### 폴더 구조 예시
 
@@ -62,6 +62,7 @@ src/
 │   │           │   └── customerCenterContext.tsx  # (선택) 이 섹션 전용 컨텍스트
 │   │           ├── types/
 │   │           │   └── customerCenter.ts
+│   │           ├── index.stories.tsx           # 스토리북 스토리
 │   │           └── test.tsx                    # 통합 테스트 (패칭부터 UI까지 유저 플로우 전체)
 │   └── features/
 │       └── auth/
@@ -99,7 +100,7 @@ src/
 
 - 각 컴포넌트는 자신의 폴더를 가져야 함. `modules/*`, `shared/components/*` 폴더 내에 컴포넌트 파일이 직접 위치하지 않도록 함. (단, `ui` 세그먼트 안의 서브 컴포넌트는 폴더 없이 플랫 파일로 둠)
 - 컴포넌트 폴더 내에 index.tsx 파일이 반드시 존재해야 하며, 이 파일에서 컴포넌트의 메인을 구현.
-- 컴포넌트 관련 모든 파일은 반드시 해당 컴포넌트 폴더의 세그먼트(`ui` / `model` / `utils` / `types` / `constants` / `context`) 내에 위치. (예외: 통합 테스트 `test.tsx`는 세그먼트 밖, 컴포넌트 폴더 바로 아래에 둠)
+- 컴포넌트 관련 모든 파일은 반드시 해당 컴포넌트 폴더의 세그먼트(`ui` / `model` / `utils` / `types` / `constants` / `context`) 내에 위치. (예외: 통합 테스트 `test.tsx`와 스토리 `index.stories.tsx`는 세그먼트 밖, 컴포넌트 폴더 바로 아래에 둠)
 - 컴포넌트 폴더 내에서만 사용되는 파일들은 외부에서 임포트되지 않도록 주의.
 - `ui/` 내부의 서브 컴포넌트도 **부모 컴포넌트의 추상화 레벨 규칙을 그대로 따름**.
   - 예: `primitives` 컴포넌트의 서브 컴포넌트는 `composites`·`features`·`widgets`를 사용할 수 없음.

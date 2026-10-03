@@ -18,17 +18,6 @@ interface SpacingProps {
 
 /**
  * 형제 요소 사이에 빈 간격을 두는 레이아웃 프리미티브.
- *
- * 색·모양 같은 실체는 없고 위치만 잡아요.
- * 요소 자체의 여백(`margin`)을 건드리지 않고 간격을 주고 싶을 때 씁니다.
- *
- * @example
- * <Title />
- * <Spacing size={1} />
- * <Description />
- *
- * @example
- * <Spacing direction="horizontal" size="16px" />
  */
 export default styled.div<SpacingProps>`
   flex-shrink: 0;
