@@ -222,6 +222,8 @@ class ApiDocumentationAcceptanceTest {
                 )
                 .andExpect(jsonPath(listPath + ".security[*].accessTokenCookie").exists())
                 .andExpect(jsonPath(lastViewedWorkspaceIdSchemaPath).exists())
+                .andExpect(jsonPath(listResponsePropertiesPath + ".length()").value(2))
+                .andExpect(jsonPath(listResponsePropertiesPath + ".createdWorkspaceCount").doesNotExist())
                 .andExpect(jsonPath(lastViewedWorkspaceIdSchemaPath + ".type").value(hasItem("null")))
                 .andExpect(jsonPath(workspacesSchemaPath + ".type").value("array"))
                 .andExpect(jsonPath(workspacesSchemaPath + ".items['$ref']").value(listItemResponseRef))

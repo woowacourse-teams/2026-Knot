@@ -80,6 +80,11 @@ public class OpenApiConfig {
 
     private void customizeWorkspaceListOperation(Operation operation) {
         operation.summary("내 워크스페이스 목록 조회")
+                .description(
+                        "현재 참여 중인 삭제되지 않은 워크스페이스를 최근 참여 순서로 반환합니다. "
+                                + "재가입은 새 참여 시각을 사용하며, 탈퇴·삭제된 마지막 조회 대상은 null로 반환합니다. "
+                                + "조회로 다른 워크스페이스를 선택하거나 저장된 상태를 변경하지 않습니다."
+                )
                 .responses(workspaceListResponses());
         operation.security(List.of(new SecurityRequirement().addList(ACCESS_TOKEN_COOKIE)));
     }
