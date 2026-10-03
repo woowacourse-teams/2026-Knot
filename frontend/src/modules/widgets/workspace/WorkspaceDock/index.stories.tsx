@@ -182,6 +182,17 @@ export const OnRecordingScreen: Story = {
   },
 };
 
+/** 녹음 화면이 아닌 곳에서 녹음이 이어지고 있는 독이에요. 마이크를 누르면 권한을 다시 묻지 않고 녹음 화면으로 가기만 해서, 마이크 이름이 「녹음 화면으로 이동」으로 바뀌어요. */
+export const RecordingOnOtherScreen: Story = {
+  beforeEach: () => {
+    useRecordingStore.setState({
+      status: "recording",
+      accumulatedMs: 0,
+      resumedAt: Date.now(),
+    });
+  },
+};
+
 /**
  * 회의 녹음을 눌렀지만 마이크 권한을 받지 못한 상태예요. 모달로 알리고 지금 화면에 남아요.
  * 예: 주소창에서 마이크 권한을 꺼 둔 사용자
