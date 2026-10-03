@@ -1,5 +1,4 @@
 import { ThemeProvider } from "@emotion/react";
-import { ChatStreamProvider } from "@provider/context/chatStreamContext";
 import { theme } from "@provider/themeProvider";
 import { getRouterPath, PATH_ROUTE } from "@routes/PATH_ROUTE";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -23,7 +22,6 @@ const QUESTION = "지난주 회의에서 정해진 것만 뽑아 줘";
 
 /**
  * 실제로는 두 화면이 공유하는 레이아웃에 놓이므로, 홈·탐색을 함께 덮어 화면이 바뀌어도 같은 독이 남게 해요.
- * 탐색에서는 독이 대화의 입력창이라 진행 중인 대화(`ChatStreamProvider`)도 함께 필요해요.
  */
 const renderDock = (initialPath = HOME_PATH) => {
   const queryClient = new QueryClient({
@@ -33,11 +31,7 @@ const renderDock = (initialPath = HOME_PATH) => {
     [
       {
         path: `${PATH_ROUTE.WORKSPACE_HOME}/*`,
-        element: (
-          <ChatStreamProvider>
-            <WorkspaceDock />
-          </ChatStreamProvider>
-        ),
+        element: <WorkspaceDock />,
       },
     ],
     { initialEntries: [initialPath] },
@@ -121,6 +115,19 @@ describe("WorkspaceDock", () => {
     expect(
       screen.getByRole("textbox", { name: "무엇이든 요청하세요" }),
     ).toHaveValue("");
+  });
+
+  it("탐색 화면에서 보내면 그 화면에 머물고 입력창만 비워진다", async () => {
+    const { router } = renderDock(CHAT_PATH);
+    const field = screen.getByRole("textbox", { name: "무엇이든 요청하세요" });
+
+    fireEvent.change(field, { target: { value: QUESTION } });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "보내기" }));
+    });
+
+    expect(router.state.location.pathname).toBe(CHAT_PATH);
+    expect(field).toHaveValue("");
   });
 
   it("탐색 화면에서는 처음부터 입력창이 열려 있다", () => {

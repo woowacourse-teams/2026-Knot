@@ -10,6 +10,7 @@ import com.knot.backend.workspace.domain.WorkspaceMemberRepository;
 import com.knot.backend.workspace.domain.WorkspaceMemberRole;
 import com.knot.backend.workspace.domain.WorkspaceRepository;
 import jakarta.persistence.EntityManager;
+import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.List;
 import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
@@ -122,9 +123,9 @@ class WorkspaceMemberRepositoryIntegrationTest {
         assertThat(foundWorkspaceMember.isLastViewed()).isTrue();
     }
 
-    @DisplayName("멤버십을 삭제하면 마지막 조회 상태도 함께 사라진다")
+    @DisplayName("멤버십을 탈퇴하면 마지막 조회 상태도 함께 사라진다")
     @Test
-    void findLastViewedByMemberId_success_deletedMembership() {
+    void findLastViewedByMemberId_success_leftMembership() {
         // given
         long memberId = saveMember(3L);
         Workspace workspace = saveAndFlush(
@@ -141,10 +142,18 @@ class WorkspaceMemberRepositoryIntegrationTest {
         );
         workspaceMember.markLastViewed();
         WorkspaceMember savedWorkspaceMember = saveAndFlush(workspaceMember);
-        jdbcClient.sql("DELETE FROM workspace_members WHERE id = :workspaceMemberId")
+        jdbcClient.sql("""
+                UPDATE workspace_members
+                SET last_viewed = FALSE, left_at = :leftAt
+                WHERE id = :workspaceMemberId
+                """)
                 .param(
                         "workspaceMemberId",
                         savedWorkspaceMember.getId()
+                )
+                .param(
+                        "leftAt",
+                        Timestamp.from(JOINED_AT.plusSeconds(1))
                 )
                 .update();
         entityManager.clear();
@@ -155,6 +164,83 @@ class WorkspaceMemberRepositoryIntegrationTest {
 
         // then
         assertThat(exists).isFalse();
+    }
+
+    @DisplayName("탈퇴한 멤버십은 같은 워크스페이스에 새 활성 멤버십을 다시 저장할 수 있다")
+    @Test
+    void save_success_rejoinAfterLeftMembership() {
+        // given
+        long memberId = saveMember(8L);
+        Workspace workspace = saveAndFlush(
+                Workspace.create(
+                        "재가입 팀",
+                        CREATED_AT
+                )
+        );
+        WorkspaceMember leftWorkspaceMember = WorkspaceMember.create(
+                workspace.getId(),
+                memberId,
+                WorkspaceMemberRole.MEMBER,
+                JOINED_AT
+        );
+        leftWorkspaceMember.leave(
+                JOINED_AT.plusSeconds(1),
+                2L
+        );
+        saveAndFlush(leftWorkspaceMember);
+        WorkspaceMember rejoinedWorkspaceMember = WorkspaceMember.create(
+                workspace.getId(),
+                memberId,
+                WorkspaceMemberRole.MEMBER,
+                JOINED_AT.plusSeconds(2)
+        );
+
+        // when
+        WorkspaceMember savedWorkspaceMember = saveAndFlush(rejoinedWorkspaceMember);
+
+        // then
+        assertThat(savedWorkspaceMember.getLeftAt()).isNull();
+        assertThat(
+                workspaceMemberRepository.existsByWorkspaceIdAndMemberId(
+                        workspace.getId(),
+                        memberId
+                )
+        ).isTrue();
+    }
+
+    @DisplayName("탈퇴한 멤버십은 활성 멤버십 조회와 활성 수에서 제외한다")
+    @Test
+    void activeQueries_success_excludeLeftMemberships() {
+        // given
+        long memberId = saveMember(9L);
+        Workspace workspace = saveAndFlush(
+                Workspace.create(
+                        "탈퇴 팀",
+                        CREATED_AT
+                )
+        );
+        WorkspaceMember workspaceMember = WorkspaceMember.create(
+                workspace.getId(),
+                memberId,
+                WorkspaceMemberRole.MEMBER,
+                JOINED_AT
+        );
+        workspaceMember.leave(
+                JOINED_AT.plusSeconds(1),
+                2L
+        );
+        saveAndFlush(workspaceMember);
+        entityManager.clear();
+
+        // when
+        boolean exists = workspaceMemberRepository.existsByWorkspaceIdAndMemberId(
+                workspace.getId(),
+                memberId
+        );
+
+        // then
+        assertThat(exists).isFalse();
+        assertThat(workspaceMemberRepository.countActiveByWorkspaceId(workspace.getId())).isZero();
     }
 
     @DisplayName("멤버의 워크스페이스 멤버십을 ID 오름차순으로 잠금 조회한다")
@@ -201,6 +287,136 @@ class WorkspaceMemberRepositoryIntegrationTest {
                         firstWorkspaceMember.getId(),
                         secondWorkspaceMember.getId()
                 );
+    }
+
+    @DisplayName("삭제된 워크스페이스의 활성 행도 멤버 권한으로 인정하지 않는다")
+    @Test
+    void existsByWorkspaceIdAndMemberId_failure_deletedWorkspace() {
+        // given
+        long memberId = saveMember(10L);
+        Workspace workspace = saveAndFlush(
+                Workspace.create(
+                        "삭제 팀",
+                        CREATED_AT
+                )
+        );
+        WorkspaceMember membership = saveAndFlush(
+                WorkspaceMember.create(
+                        workspace.getId(),
+                        memberId,
+                        WorkspaceMemberRole.OWNER,
+                        JOINED_AT
+                )
+        );
+        membership.markLastViewed();
+        workspace.delete(JOINED_AT.plusSeconds(1));
+        entityManager.flush();
+        entityManager.clear();
+
+        // when
+        boolean exists = workspaceMemberRepository.existsByWorkspaceIdAndMemberId(
+                workspace.getId(),
+                memberId
+        );
+
+        // then
+        assertThat(exists).isFalse();
+    }
+
+    @DisplayName("삭제된 워크스페이스의 OWNER 행은 활성 역할 검사에서 제외한다")
+    @Test
+    void existsByWorkspaceIdAndMemberIdAndRole_failure_deletedWorkspace() {
+        // given
+        long memberId = saveMember(11L);
+        Workspace workspace = saveAndFlush(
+                Workspace.create(
+                        "삭제 팀",
+                        CREATED_AT
+                )
+        );
+        saveAndFlush(
+                WorkspaceMember.create(
+                        workspace.getId(),
+                        memberId,
+                        WorkspaceMemberRole.OWNER,
+                        JOINED_AT
+                )
+        );
+        workspace.delete(JOINED_AT.plusSeconds(1));
+        entityManager.flush();
+        entityManager.clear();
+
+        // when
+        boolean exists = workspaceMemberRepository.existsByWorkspaceIdAndMemberIdAndRole(
+                workspace.getId(),
+                memberId,
+                WorkspaceMemberRole.OWNER
+        );
+
+        // then
+        assertThat(exists).isFalse();
+    }
+
+    @DisplayName("삭제된 워크스페이스는 마지막 조회 포인터에서 제외한다")
+    @Test
+    void findLastViewedByMemberId_success_excludesDeletedWorkspace() {
+        // given
+        long memberId = saveMember(12L);
+        Workspace workspace = saveAndFlush(
+                Workspace.create(
+                        "삭제 팀",
+                        CREATED_AT
+                )
+        );
+        WorkspaceMember membership = saveAndFlush(
+                WorkspaceMember.create(
+                        workspace.getId(),
+                        memberId,
+                        WorkspaceMemberRole.OWNER,
+                        JOINED_AT
+                )
+        );
+        membership.markLastViewed();
+        workspace.delete(JOINED_AT.plusSeconds(1));
+        entityManager.flush();
+        entityManager.clear();
+
+        // when
+        boolean exists = workspaceMemberRepository.findLastViewedByMemberId(memberId)
+                .isPresent();
+
+        // then
+        assertThat(exists).isFalse();
+    }
+
+    @DisplayName("삭제된 워크스페이스는 마지막 조회 갱신 잠금 목록에서 제외한다")
+    @Test
+    void findAllByMemberIdForUpdate_success_excludesDeletedWorkspace() {
+        // given
+        long memberId = saveMember(13L);
+        Workspace workspace = saveAndFlush(
+                Workspace.create(
+                        "삭제 팀",
+                        CREATED_AT
+                )
+        );
+        saveAndFlush(
+                WorkspaceMember.create(
+                        workspace.getId(),
+                        memberId,
+                        WorkspaceMemberRole.OWNER,
+                        JOINED_AT
+                )
+        );
+        workspace.delete(JOINED_AT.plusSeconds(1));
+        entityManager.flush();
+        entityManager.clear();
+
+        // when
+        List<WorkspaceMember> memberships = workspaceMemberRepository.findAllByMemberIdForUpdate(memberId);
+
+        // then
+        assertThat(memberships).isEmpty();
     }
 
     private long saveMember(long memberNumber) {

@@ -2,7 +2,6 @@ import { authCsrfHandlers } from "./api/v1/auth/csrf";
 import { authMeHandlers } from "./api/v1/auth/me";
 import { authNicknameHandlers } from "./api/v1/auth/nickname";
 import { chatMessagesHandlers } from "./api/v1/conversations/[sessionId]";
-import { sendChatMessageHandlers } from "./api/v1/conversations/[sessionId]/messages";
 import { notionImportStatusHandlers } from "./api/v1/imports/[importRunId]";
 import { invitationPreviewHandlers } from "./api/v1/invitations/[tokenOrCode]";
 import { invitationAcceptHandlers } from "./api/v1/invitations/accept";
@@ -38,5 +37,4 @@ export const handlers = [
   ...invitationAcceptHandlers,
   ...invitationPreviewHandlers,
   ...chatMessagesHandlers,
-  ...sendChatMessageHandlers,
 ];

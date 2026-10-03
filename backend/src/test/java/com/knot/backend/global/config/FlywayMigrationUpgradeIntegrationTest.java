@@ -15,8 +15,8 @@ import org.flywaydb.core.Flyway;
 import org.flywaydb.core.api.MigrationInfo;
 import org.flywaydb.core.api.MigrationVersion;
 import org.flywaydb.core.api.output.MigrateResult;
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.junit.jupiter.Container;
@@ -34,21 +34,7 @@ class FlywayMigrationUpgradeIntegrationTest {
             .withUsername("knot")
             .withPassword("knot");
 
-    @BeforeEach
-    void cleanSchema() {
-        Flyway.configure()
-                .dataSource(
-                        POSTGRESQL.getJdbcUrl(),
-                        POSTGRESQL.getUsername(),
-                        POSTGRESQL.getPassword()
-                )
-                .locations(MIGRATION_LOCATION)
-                .cleanDisabled(false)
-                .load()
-                .clean();
-    }
-
-    @DisplayName("V9 스키마를 V13까지 업그레이드하고 기존 이관 규칙을 유지한다")
+    @DisplayName("V9 스키마를 V13으로 업그레이드하고 진행 중 가져오기 데이터를 보존한다")
     @Test
     void migrate_success_v9ToV13() throws SQLException {
         // given
@@ -262,23 +248,37 @@ class FlywayMigrationUpgradeIntegrationTest {
 
     }
 
+    @BeforeEach
+    void clearSchema() {
+        Flyway.configure()
+                .dataSource(
+                        POSTGRESQL.getJdbcUrl(),
+                        POSTGRESQL.getUsername(),
+                        POSTGRESQL.getPassword()
+                )
+                .locations(MIGRATION_LOCATION)
+                .cleanDisabled(false)
+                .load()
+                .clean();
+    }
+
     @Test
-    @DisplayName("V14는 V1 이관 데이터를 제거하고 멤버와 워크스페이스 데이터를 보존한다")
-    void migrate_success_v13ToV14() throws SQLException {
+    @DisplayName("V13 기존 데이터를 보존하며 V17로 업그레이드한다")
+    void migrate_success_preservesRetainedDataThroughV17() throws SQLException {
         // given
         configureFlyway(MigrationVersion.fromVersion("13")).migrate();
         insertImportRun(
-                "cleanup-running",
-                "RUNNING"
+                "existing-data",
+                "PENDING"
         );
-        Flyway currentFlyway = configureFlyway(MigrationVersion.fromVersion("14"));
 
         // when
+        Flyway currentFlyway = configureFlyway(MigrationVersion.fromVersion("17"));
         MigrateResult cleanupResult = currentFlyway.migrate();
 
         // then
         assertThat(cleanupResult.success).isTrue();
-        assertThat(cleanupResult.migrationsExecuted).isEqualTo(1);
+        assertThat(cleanupResult.migrationsExecuted).isEqualTo(4);
         assertThat(appliedVersions(currentFlyway)).containsExactly(
                 "1",
                 "2",
@@ -291,7 +291,10 @@ class FlywayMigrationUpgradeIntegrationTest {
                 "11",
                 "12",
                 "13",
-                "14"
+                "14",
+                "15",
+                "16",
+                "17"
         );
         List<String> tablesAfterCleanup = schemaObjectNames("""
                 SELECT table_name
@@ -324,14 +327,47 @@ class FlywayMigrationUpgradeIntegrationTest {
         assertThat(queryBoolean("SELECT EXISTS (SELECT 1 FROM members)")).isTrue();
         assertThat(queryBoolean("SELECT EXISTS (SELECT 1 FROM workspaces)")).isTrue();
         assertThat(queryBoolean("SELECT EXISTS (SELECT 1 FROM workspace_members)")).isTrue();
+        assertThat(schemaObjectNames("""
+                SELECT column_name
+                FROM information_schema.columns
+                WHERE table_schema = 'public'
+                    AND table_name = 'workspaces'
+                ORDER BY ordinal_position
+                """)).contains("deleted_at");
+        assertThat(schemaObjectNames("""
+                SELECT column_name
+                FROM information_schema.columns
+                WHERE table_schema = 'public'
+                    AND table_name = 'workspace_members'
+                ORDER BY ordinal_position
+                """)).contains("left_at");
+        assertThat(schemaObjectNames("""
+                SELECT indexname
+                FROM pg_indexes
+                WHERE schemaname = 'public'
+                ORDER BY indexname
+                """)).contains(
+                "uk_workspace_members_active_workspace_member",
+                "uk_workspace_members_member_last_viewed"
+        );
 
     }
 
     @Test
-    @DisplayName("빈 스키마를 V17까지 생성하고 녹음 테이블과 기존 유지 테이블을 구성한다")
+    @DisplayName("빈 스키마에 V17까지 전체 마이그레이션을 적용한다")
     void migrate_success_freshSchemaToV17() throws SQLException {
         // given
-        Flyway freshFlyway = configureFlyway();
+        Flyway cleanableFlyway = Flyway.configure()
+                .dataSource(
+                        POSTGRESQL.getJdbcUrl(),
+                        POSTGRESQL.getUsername(),
+                        POSTGRESQL.getPassword()
+                )
+                .locations(MIGRATION_LOCATION)
+                .cleanDisabled(false)
+                .load();
+        cleanableFlyway.clean();
+        Flyway freshFlyway = configureFlyway(MigrationVersion.fromVersion("17"));
 
         // when
         MigrateResult freshResult = freshFlyway.migrate();
@@ -367,8 +403,7 @@ class FlywayMigrationUpgradeIntegrationTest {
                 "oauth_identities",
                 "workspaces",
                 "workspace_members",
-                "workspace_invitations",
-                "recording_sessions"
+                "workspace_invitations"
         );
         assertThat(freshTables).doesNotContain(
                 "search_references",
@@ -388,15 +423,15 @@ class FlywayMigrationUpgradeIntegrationTest {
     }
 
     @Test
-    @DisplayName("V16의 기존 사용자 데이터를 보존하면서 V17 녹음 스키마를 추가한다")
-    void migrate_success_v16ToV17() throws SQLException {
+    @DisplayName("V17의 기존 사용자 데이터를 보존하면서 V18 녹음 스키마를 추가한다")
+    void migrate_success_v17ToV18() throws SQLException {
         // given
         configureFlyway(MigrationVersion.fromVersion("13")).migrate();
         insertImportRun(
                 "recording-upgrade",
                 "RUNNING"
         );
-        configureFlyway(MigrationVersion.fromVersion("16")).migrate();
+        configureFlyway(MigrationVersion.fromVersion("17")).migrate();
         Flyway currentFlyway = configureFlyway();
 
         // when
@@ -405,7 +440,7 @@ class FlywayMigrationUpgradeIntegrationTest {
         // then
         assertThat(result.success).isTrue();
         assertThat(result.migrationsExecuted).isEqualTo(1);
-        assertThat(appliedVersions(currentFlyway)).endsWith("17");
+        assertThat(appliedVersions(currentFlyway)).endsWith("18");
         assertThat(queryBoolean("SELECT EXISTS (SELECT 1 FROM members)")).isTrue();
         assertThat(queryBoolean("SELECT EXISTS (SELECT 1 FROM workspaces)")).isTrue();
         assertThat(queryBoolean("SELECT EXISTS (SELECT 1 FROM workspace_members)")).isTrue();
