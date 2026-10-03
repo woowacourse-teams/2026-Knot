@@ -6,12 +6,18 @@ import com.knot.backend.auth.domain.AuthTokenProvider;
 import com.knot.backend.auth.domain.AuthenticatedMember;
 import com.knot.backend.auth.domain.OAuthProvider;
 import com.knot.backend.auth.domain.OAuthUser;
+import com.knot.backend.auth.domain.RefreshToken;
+import com.knot.backend.auth.domain.RefreshTokenProvider;
 import com.knot.backend.global.config.JwtProperties;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.HexFormat;
+import java.util.UUID;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
@@ -27,12 +33,13 @@ import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 import org.springframework.stereotype.Component;
 
 @Component
-public class JwtProvider implements AuthTokenProvider {
+public class JwtProvider implements AuthTokenProvider, RefreshTokenProvider {
     private static final MacAlgorithm MAC_ALGORITHM = MacAlgorithm.HS256;
     private static final String HMAC_ALGORITHM = "HmacSHA256";
     private static final int MINIMUM_SECRET_BYTES = 32;
     private static final String ACCESS_TOKEN_TYPE = "ACCESS";
     private static final String ONBOARDING_TOKEN_TYPE = "ONBOARDING";
+    private static final String REFRESH_TOKEN_TYPE = "REFRESH";
 
     private final JwtProperties properties;
     private final JwtEncoder encoder;
@@ -61,6 +68,68 @@ public class JwtProvider implements AuthTokenProvider {
         timestampValidator.setAllowEmptyExpiryClaim(false);
         jwtDecoder.setJwtValidator(timestampValidator);
         this.decoder = jwtDecoder;
+    }
+
+    @Override
+    public RefreshToken issue(Instant expiresAt) {
+        Instant issuedAt = Instant.now(clock);
+        if (expiresAt == null || !expiresAt.isAfter(issuedAt)) {
+            throw new AuthException(AuthErrorCode.AUTHENTICATION_INTERNAL_ERROR);
+        }
+        JwtClaimsSet claims = JwtClaimsSet.builder()
+                .id(
+                        UUID.randomUUID()
+                                .toString()
+                )
+                .issuer(properties.getIssuer())
+                .audience(List.of(properties.getAudience()))
+                .issuedAt(issuedAt)
+                .expiresAt(expiresAt)
+                .claim(
+                        "token_type",
+                        REFRESH_TOKEN_TYPE
+                )
+                .build();
+        String value = encode(claims);
+        return RefreshToken.of(
+                value,
+                hash(value)
+        );
+    }
+
+    @Override
+    public RefreshToken identify(String value) {
+        if (value == null || value.isBlank()) {
+            throw new AuthException(AuthErrorCode.UNAUTHENTICATED);
+        }
+        return RefreshToken.of(
+                value,
+                hash(value)
+        );
+    }
+
+    @Override
+    public void validate(RefreshToken token) {
+        if (token == null) {
+            throw new AuthException(AuthErrorCode.UNAUTHENTICATED);
+        }
+        try {
+            authenticateRefreshToken(token.getValue());
+        } catch (AuthException exception) {
+            throw new AuthException(
+                    AuthErrorCode.UNAUTHENTICATED,
+                    exception
+            );
+        }
+    }
+
+    public void authenticateRefreshToken(String token) {
+        Jwt jwt = decodeAndValidate(token);
+        validateTokenType(
+                jwt,
+                REFRESH_TOKEN_TYPE
+        );
+        requiredClaim(jwt.getId());
     }
 
     @Override
@@ -319,5 +388,19 @@ public class JwtProvider implements AuthTokenProvider {
                 )
         )
                 .getTokenValue();
+    }
+
+    private String hash(String value) {
+        try {
+            byte[] digest = MessageDigest.getInstance("SHA-256")
+                    .digest(value.getBytes(StandardCharsets.UTF_8));
+            return HexFormat.of()
+                    .formatHex(digest);
+        } catch (NoSuchAlgorithmException exception) {
+            throw new AuthException(
+                    AuthErrorCode.AUTHENTICATION_INTERNAL_ERROR,
+                    exception
+            );
+        }
     }
 }
