@@ -22,6 +22,19 @@ interface WorkspaceMemberJpaRepository extends JpaRepository<WorkspaceMember, Lo
     List<WorkspaceMember> findAllActiveByMemberIdForUpdate(Long memberId);
 
     @Query(value = """
+            SELECT wm.* FROM workspace_members wm
+            WHERE wm.workspace_id = :workspaceId
+              AND wm.member_id IN (:memberIds)
+              AND wm.left_at IS NULL
+            ORDER BY wm.id
+            FOR UPDATE OF wm
+            """, nativeQuery = true)
+    List<WorkspaceMember> findAllActiveByWorkspaceIdAndMemberIdsForUpdate(
+            Long workspaceId,
+            List<Long> memberIds
+    );
+
+    @Query(value = """
             SELECT wm.*
             FROM workspace_members wm
             JOIN workspaces w ON w.id = wm.workspace_id
