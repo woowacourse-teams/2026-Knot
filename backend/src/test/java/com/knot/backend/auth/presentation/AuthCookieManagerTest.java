@@ -9,6 +9,7 @@ import jakarta.servlet.http.Cookie;
 import java.time.Duration;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 
 class AuthCookieManagerTest {
@@ -151,6 +152,51 @@ class AuthCookieManagerTest {
         assertThat(cookie.getValue()).isEqualTo("refresh-token");
         assertThat(cookie.getSecure()).isFalse();
         assertThat(response.getCookie("__Host-KNOT_REFRESH_TOKEN")).isNull();
+    }
+
+    @Test
+    @DisplayName("Secure가 꺼져 있으면 Host 접두사가 제거된 refresh 쿠키를 읽는다")
+    void findRefreshToken_success_localCookieName() {
+        // given
+        JwtProperties properties = new JwtProperties();
+        properties.setSecure(false);
+        AuthCookieManager manager = new AuthCookieManager(properties);
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setCookies(
+                new Cookie(
+                        "KNOT_REFRESH_TOKEN",
+                        "refresh-token"
+                )
+        );
+
+        // when
+        String refreshToken = manager.findRefreshToken(request);
+
+        // then
+        assertThat(refreshToken).isEqualTo("refresh-token");
+    }
+
+    @Test
+    @DisplayName("refresh 쿠키가 중복되면 하나를 임의로 선택하지 않는다")
+    void findRefreshToken_failure_duplicateCookie() {
+        // given
+        JwtProperties properties = new JwtProperties();
+        properties.setSecure(false);
+        AuthCookieManager manager = new AuthCookieManager(properties);
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setCookies(
+                new Cookie(
+                        "KNOT_REFRESH_TOKEN",
+                        "first-token"
+                ),
+                new Cookie(
+                        "KNOT_REFRESH_TOKEN",
+                        "second-token"
+                )
+        );
+
+        // when & then
+        assertThatThrownBy(() -> manager.findRefreshToken(request)).isInstanceOf(AuthException.class);
     }
 
     @Test
