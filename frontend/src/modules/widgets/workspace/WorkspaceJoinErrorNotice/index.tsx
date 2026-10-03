@@ -6,8 +6,6 @@ import InvalidInvitationUrlIllustration from "@/assets/illustrations/invalidInvi
 
 /**
  * 초대 링크 오류 안내.
- *
- * 동작 규칙은 스토리북 `Workspace/WorkspaceJoinErrorNotice`에서 확인해요.
  */
 export default function WorkspaceJoinErrorNotice() {
   const { navigateToWorkspaceCode } = useNavigateToWorkspaceCode();

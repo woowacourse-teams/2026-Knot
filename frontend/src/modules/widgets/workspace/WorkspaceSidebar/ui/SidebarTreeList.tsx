@@ -16,7 +16,9 @@ interface SidebarTreeListProps {
 /**
  * 폴더·문서 행을 깊이만큼 들여써서 나열하는 재귀 목록.
  *
- * 스토리북 `Workspace/WorkspaceSidebar`
+ * 하위 페이지를 가진 페이지는 펼칠 수 있는 폴더 행으로, 없는 페이지는 문서 행으로 그려요.
+ * 펼쳐진 폴더 아래에는 같은 목록을 한 단계 깊게 다시 그리고,
+ * 그 하위 목록 왼쪽에는 부모 폴더의 chevron 중앙을 지나는 들여쓰기 가이드를 세워요.
  */
 export default function SidebarTreeList({
   nodes,

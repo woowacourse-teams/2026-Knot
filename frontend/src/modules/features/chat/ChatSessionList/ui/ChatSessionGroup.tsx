@@ -12,8 +12,6 @@ interface ChatSessionGroupProps {
 
 /**
  * "오늘"처럼 같은 기간에 묶인 대화를 기간 이름과 함께 보여줍니다.
- *
- * 스토리북 `Chat/ChatSessionList`
  */
 export default function ChatSessionGroup({
   label,

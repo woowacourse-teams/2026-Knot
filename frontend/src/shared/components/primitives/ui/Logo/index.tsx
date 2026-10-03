@@ -12,13 +12,14 @@ interface LogoProps extends Omit<SVGProps<SVGSVGElement>, "width" | "height"> {
   width?: number | string;
 }
 
-/** `logo.svg`의 viewBox 비율. */
+/** `logo.svg`의 viewBox 비율. 가로 값만 정하면 세로는 여기서 따라옵니다. */
 const ASPECT_RATIO = "117.56 / 41.04";
 
 /**
  * knot 워드마크 로고.
  *
- * 동작 규칙은 스토리북 `Shared/Logo`에서 확인해요.
+ * SVGR이 `<svg>`에 `width`·`height`를 같은 값으로 박아두기 때문에 그대로 쓰면
+ * 정사각형으로 찌그러져요. 그래서 CSS로 덮어쓰고 `aspect-ratio`로 비율을 잡습니다.
  */
 export default function Logo({ width = 7.0625, ...props }: LogoProps) {
   return (
@@ -30,9 +31,6 @@ export default function Logo({ width = 7.0625, ...props }: LogoProps) {
 }
 
 /**
- * SVGR이 `<svg>`에 `width`·`height`를 같은 값으로 박아두기 때문에 그대로 쓰면
- * 정사각형으로 찌그러져요. 그래서 CSS로 덮어쓰고 `aspect-ratio`로 비율을 잡습니다.
- *
  * `logo.svg`가 `fill="currentColor"`로 그려져 있어서 `color`가 그대로 로고 색이 돼요.
  * CSS는 SVG 속성보다 세기 때문에, 넘어온 `color`를 여기서 다시 써줘야 반영됩니다.
  */

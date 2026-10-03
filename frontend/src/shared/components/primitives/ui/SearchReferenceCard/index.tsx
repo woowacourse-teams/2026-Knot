@@ -11,9 +11,8 @@ interface SearchReferenceCardProps {
 
 /**
  * AI 탐색 답변의 근거가 된 문서를 보여주는 Card UI.
- *
- * 동작 규칙은 스토리북 `Shared/SearchReferenceCard`에서 확인해요.
  */
+
 export default function SearchReferenceCard({
   title,
   documentPath,

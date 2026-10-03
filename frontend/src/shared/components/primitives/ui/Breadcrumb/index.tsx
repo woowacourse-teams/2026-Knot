@@ -11,8 +11,6 @@ interface BreadcrumbProps {
 
 /**
  * 지금 보고 있는 화면이 어디인지 보여주는 2단 경로.
- *
- * 동작 규칙은 스토리북 `Shared/Breadcrumb`에서 확인해요.
  */
 export default function Breadcrumb({ parent, current }: BreadcrumbProps) {
   return (

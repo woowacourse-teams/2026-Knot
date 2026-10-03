@@ -3,8 +3,6 @@ import Divider from "@primitives/ui/Divider";
 
 /**
  * 녹음 화면 카드.
- *
- * 동작 규칙은 스토리북 `Recording/RecordingCard`에서 확인해요.
  */
 export default function RecordingCard() {
   const me = "홍길동";

@@ -8,9 +8,7 @@ import TeammateIcon from "@/assets/icons/teammate.svg";
 import { useWorkspaceInviteMemberCard } from "./model/useWorkspaceInviteMemberCard";
 
 /**
- * 초대 링크와 초대 코드를 복사하는 홈의 팀원 초대 카드.
- *
- * 동작 규칙은 스토리북 `Workspace/WorkspaceInviteMemberCard`에서 확인해요.
+ * 홈의 팀원 초대 카드. 현재 워크스페이스의 초대 링크와 초대 코드를 복사해요.
  */
 export default function WorkspaceInviteMemberCard() {
   const {

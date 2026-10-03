@@ -18,8 +18,6 @@ interface SpacingProps {
 
 /**
  * 형제 요소 사이에 빈 간격을 두는 레이아웃 프리미티브.
- *
- * 동작 규칙은 스토리북 `Shared/Layout/Spacing`에서 확인해요.
  */
 export default styled.div<SpacingProps>`
   flex-shrink: 0;

@@ -12,14 +12,14 @@ interface AlertDialogProps extends Omit<
   title: ReactNode;
   /** 제목 아래 안내. 한 줄이 기본이고 최대 두 줄이에요. 줄바꿈은 의미 단위로 직접 넣어요 */
   description: ReactNode;
+  /** 버튼 문구. 예: `확인` */
   confirmLabel: string;
+  /** 버튼을 눌렀을 때 할 일 */
   onConfirm: () => void;
 }
 
 /**
  * 일어난 일을 알리는 알림 모달 카드.
- *
- * 동작 규칙은 스토리북 `Shared/AlertDialog`에서 확인해요.
  */
 export default function AlertDialog({
   icon,

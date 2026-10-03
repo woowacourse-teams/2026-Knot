@@ -5,8 +5,6 @@ import Divider from "@primitives/ui/Divider";
 
 /**
  * 워크스페이스 생성 및 참여 선택 카드.
- *
- * 동작 규칙은 스토리북 `Workspace/WorkspaceEntryCard`에서 확인해요.
  */
 export default function WorkspaceEntryCard() {
   return (

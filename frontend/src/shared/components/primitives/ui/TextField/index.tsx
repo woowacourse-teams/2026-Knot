@@ -14,6 +14,7 @@ interface TextFieldProps extends Omit<ComponentProps<"input">, "value"> {
   errorMessage?: string;
   /** 검증을 통과했을 때 아래에 보여줄 메시지. `errorMessage`가 있으면 에러가 우선해요 */
   successMessage?: string;
+  /** 우측에 표시할 컴포넌트 */
   rightComponent?: React.ReactNode;
 }
 
@@ -32,7 +33,8 @@ const getStatus = ({ isError, isSuccess, value }: GetStatusParams) => {
 /**
  * 에러 메시지까지 함께 다루는 입력 필드.
  *
- * 동작 규칙은 스토리북 `Shared/TextField`에서 확인해요.
+ * 값과 에러 메시지로 입력창의 `status`를 계산해 넘기므로,
+ * `Input`은 상태 판단 없이 받은 status만 그려요.
  */
 export default function TextField({
   value,

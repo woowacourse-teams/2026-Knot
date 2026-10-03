@@ -8,8 +8,6 @@ interface DividerProps extends HTMLAttributes<HTMLDivElement> {
 
 /**
  * 콘텐츠를 가로로 나누는 구분선.
- *
- * 동작 규칙은 스토리북 `Shared/Divider`에서 확인해요.
  */
 export default function Divider({ label, ...props }: DividerProps) {
   return (

@@ -8,8 +8,6 @@ interface OnboardingCardProps extends HTMLAttributes<HTMLDivElement> {
 
 /**
  * 온보딩 플로우에서 내용을 담는 흰 카드.
- *
- * 동작 규칙은 스토리북 `Shared/OnboardingCard`에서 확인해요.
  */
 export default function OnboardingCard({
   children,

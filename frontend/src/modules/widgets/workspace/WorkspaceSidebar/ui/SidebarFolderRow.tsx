@@ -14,9 +14,7 @@ interface SidebarFolderRowProps {
 }
 
 /**
- * 누르면 하위 항목을 펼치거나 접는 사이드바 폴더 행.
- *
- * 스토리북 `Workspace/WorkspaceSidebar`
+ * 사이드바 폴더 행. 누르면 하위 항목을 펼치거나 접어요.
  */
 export default function SidebarFolderRow({
   depth,

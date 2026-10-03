@@ -13,8 +13,6 @@ interface SkeletonProps {
 
 /**
  * 아직 오지 않은 내용의 자리를 대신 채워 두는 회색 덩어리.
- *
- * 동작 규칙은 스토리북 `Shared/Skeleton`에서 확인해요.
  */
 export default function Skeleton({
   width = "100%",

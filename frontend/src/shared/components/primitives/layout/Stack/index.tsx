@@ -43,8 +43,6 @@ const JUSTIFY = {
 
 /**
  * 자식을 세로로 쌓는 레이아웃 프리미티브.
- *
- * 동작 규칙은 스토리북 `Shared/Layout/Stack`에서 확인해요.
  */
 export default function Stack({ align, justify, gap, ...props }: StackProps) {
   return <Root $align={align} $justify={justify} $gap={gap} {...props} />;

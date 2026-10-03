@@ -11,8 +11,6 @@ interface SpinnerProps extends HTMLAttributes<HTMLSpanElement> {
 
 /**
  * 회전하는 로딩 표시.
- *
- * 동작 규칙은 스토리북 `Shared/Spinner`에서 확인해요.
  */
 export default function Spinner({ size = "1.5rem", ...props }: SpinnerProps) {
   return <Root $size={size} aria-hidden {...props} />;

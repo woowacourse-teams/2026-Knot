@@ -10,8 +10,6 @@ interface CountTextFieldProps extends ComponentProps<typeof TextField> {
 
 /**
  * 글자 수 카운터가 달린 입력 필드.
- *
- * 동작 규칙은 스토리북 `Shared/CountTextField`에서 확인해요.
  */
 export default function CountTextField({
   value,

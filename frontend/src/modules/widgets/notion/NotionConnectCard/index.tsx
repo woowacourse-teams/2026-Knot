@@ -7,9 +7,7 @@ import NotionIcon from "@/assets/icons/notion.svg";
 import { useNotionConnect } from "./model/useNotionConnect";
 
 /**
- * 노션에 쌓아둔 기록을 knot로 옮길지 묻는 노션 연동 카드.
- *
- * 동작 규칙은 스토리북 `Notion/NotionConnectCard`에서 확인해요.
+ * 노션 연동 카드. 워크스페이스 생성 플로우의 마지막 단계로, 노션에 쌓아둔 기록을 knot로 옮길지 물어요.
  */
 export default function NotionConnectCard() {
   const { isFailed, isConnecting, errorMessage, handleConnect, handleGoHome } =

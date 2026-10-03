@@ -3,7 +3,7 @@ import styled from "@emotion/styled";
 /**
  * 워크스페이스에 아직 대화가 하나도 없을 때 목록 자리에 놓이는 안내.
  *
- * 스토리북 `Chat/ChatSessionList`
+ * 대화가 없는 게 오류가 아니라는 것과, 어떻게 하면 목록이 채워지는지를 알려줍니다.
  */
 export default function EmptyChatSessionList() {
   return (

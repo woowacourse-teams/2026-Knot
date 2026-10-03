@@ -10,7 +10,7 @@ interface ChatSessionRowProps {
 /**
  * 대화 목록의 한 줄. 대화 제목과 마지막으로 오간 시각을 보여줍니다.
  *
- * 스토리북 `Chat/ChatSessionList`
+ * 지금 보고 있는 대화는 `isSelected`로 채워진 모양이 되며, 이 상태를 `aria-current`로도 알립니다.
  */
 export default function ChatSessionRow({
   title,

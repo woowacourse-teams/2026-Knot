@@ -8,9 +8,7 @@ interface LinkToProps extends AnchorHTMLAttributes<HTMLAnchorElement> {
 }
 
 /**
- * 링크 이동만 책임지는 컴포넌트.
- *
- * 동작 규칙은 스토리북 `Shared/LinkTo`에서 확인해요.
+ * 링크 이동만 책임지는 컴포넌트. 스타일을 갖지 않으므로 어떤 UI든 감쌀 수 있어요.
  */
 export default function LinkTo({ href, children, ...props }: LinkToProps) {
   if (isExternalHref(href)) {

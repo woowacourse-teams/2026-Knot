@@ -10,9 +10,7 @@ import SidebarTreeList from "./ui/SidebarTreeList";
 import { toWorkspaceTree } from "./utils/toWorkspaceTree";
 
 /**
- * 워크스페이스 이름과 Notion 페이지 트리를 보여주는 사이드바 드로어.
- *
- * 동작 규칙은 스토리북 `Workspace/WorkspaceSidebar`에서 확인해요.
+ * 워크스페이스 사이드바 드로어. 워크스페이스 이름과 Notion 페이지 트리를 보여줘요.
  */
 export default function WorkspaceSidebar() {
   const { workspaceId } = useParams();

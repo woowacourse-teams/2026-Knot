@@ -10,15 +10,13 @@ interface AvatarProps {
   src?: string;
   /** 이미지를 못 쓸 때 첫 글자를 딸 이름. 이것도 없으면 기본 글리프를 그려요 */
   name?: string;
-  /** 지름(px) */
+  /** 지름(px). 사이드바 워크스페이스는 24, GNB는 32 */
   size?: number;
   className?: string;
 }
 
 /**
  * 원형 아바타.
- *
- * 동작 규칙은 스토리북 `Shared/Avatar`에서 확인해요.
  */
 export default function Avatar({
   label,
@@ -71,6 +69,7 @@ const Image = styled.img`
   object-fit: cover;
 `;
 
+/** 24px 아바타는 caption01, 32px 아바타는 caption02 크기를 써요 */
 const Initial = styled.span<{ $size: number }>`
   ${({ theme, $size }) =>
     $size >= 32 ? theme.text.caption02 : theme.text.caption01};

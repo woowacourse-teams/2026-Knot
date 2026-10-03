@@ -11,8 +11,6 @@ import { useWorkspaceInvite } from "./model/useWorkspaceInvite";
 
 /**
  * 팀원 초대 카드.
- *
- * 동작 규칙은 스토리북 `Workspace/WorkspaceInviteCard`에서 확인해요.
  */
 export default function WorkspaceInviteCard() {
   const {

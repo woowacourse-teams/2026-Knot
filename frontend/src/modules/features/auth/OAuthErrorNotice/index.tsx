@@ -9,8 +9,6 @@ import {
 
 /**
  * GitHub 로그인이 실패해 돌아왔을 때 그 사실을 알립니다.
- *
- * 동작 규칙은 스토리북 `Auth/OAuthErrorNotice`에서 확인해요.
  */
 export default function OAuthErrorNotice() {
   const [searchParams] = useSearchParams();
@@ -20,6 +18,10 @@ export default function OAuthErrorNotice() {
   return <Root role="alert">{OAUTH_ERROR_MESSAGE}</Root>;
 }
 
+/**
+ * 실패했을 때만 자리를 차지하므로 아래 간격도 함께 가집니다.
+ * 쓰는 쪽에서 `Spacing`으로 띄우면 알릴 것이 없을 때도 빈 자리가 남아요.
+ */
 const Root = styled.p`
   ${({ theme }) => theme.text.body02};
   width: 100%;

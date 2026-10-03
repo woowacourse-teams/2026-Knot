@@ -12,9 +12,7 @@ import {
 import { useNotionSync } from "./model/useNotionSync";
 
 /**
- * Notion 연결 상태를 보여주고 동기화(Import)를 시작하는 홈의 Notion 동기화 카드.
- *
- * 동작 규칙은 스토리북 `Notion/NotionSyncCard`에서 확인해요.
+ * 홈의 Notion 동기화 카드. Notion 연결 상태를 보여주고, 동기화(Import)를 시작해 결과를 알려요.
  */
 export default function NotionSyncCard() {
   const {
@@ -111,6 +109,7 @@ const Description = styled.p`
   ${({ theme }) => theme.text.body01};
 `;
 
+/** 완료는 비활성이지만 Figma대로 강조색 글자·아이콘으로 방금 끝난 일을 알려요. */
 const DoneButton = styled(Button)`
   &:disabled {
     color: ${({ theme }) => theme.sub.accent[500]};

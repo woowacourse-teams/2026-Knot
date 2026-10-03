@@ -6,9 +6,7 @@ import { useParams } from "react-router";
 import PlusIcon from "@/assets/icons/plus.svg";
 
 /**
- * 대화 목록 드로어.
- *
- * 동작 규칙은 스토리북 `Chat/ChatListDrawer`에서 확인해요.
+ * 대화 목록 드로어. 목록은 `ChatSessionList`가 그리고, 여기서는 드로어 껍데기와 새 채팅 버튼만 얹어요.
  */
 export default function ChatListDrawer() {
   const { workspaceId } = useParams();

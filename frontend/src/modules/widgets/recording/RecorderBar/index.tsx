@@ -9,8 +9,6 @@ import Waveform from "./ui/Waveform";
 
 /**
  * 녹음 화면 상단 바.
- *
- * 동작 규칙은 스토리북 `Recording/RecorderBar`에서 확인해요.
  */
 export default function RecorderBar() {
   const { isPaused, elapsedTime, handlePause, handleResume, handleEnd } =
@@ -74,9 +72,10 @@ const Info = styled.div`
   align-items: center;
   gap: 1rem; /* 16px */
   min-width: 0;
-  overflow: hidden;
+  overflow: hidden; /* 좁아지면 파형 끝부터 잘려요 */
 `;
 
+/** 시간이 자라도 옆 글자가 밀리지 않게 상태 칸은 폭을 고정해요. */
 const Status = styled.p<{ $isPaused: boolean }>`
   display: flex;
   flex-shrink: 0;
@@ -89,6 +88,7 @@ const Status = styled.p<{ $isPaused: boolean }>`
   ${({ theme }) => theme.text.label01};
 `;
 
+/** 상태 글자 앞의 점. 일시정지면 글자보다 한 단계 옅은 회색이에요. */
 const RecDot = styled.span<{ $isPaused: boolean }>`
   flex-shrink: 0;
   width: 0.625rem; /* 10px */
@@ -118,6 +118,8 @@ const ControlButton = styled(Button)`
 `;
 
 /**
+ * 버튼 안 아이콘 자리.
+ *
  * `Button`은 바로 아래 svg를 18px로 맞추는데, Figma의 일시정지·재생 아이콘은 14px이라
  * 18px 칸 가운데에 원래 크기로 놓아요.
  */
@@ -130,6 +132,7 @@ const IconBox = styled.span`
   height: 1.125rem;
 `;
 
+/** 녹음 끝내기(■). 모서리가 둥근 11px 사각형이에요. */
 const StopMark = styled.span`
   width: 0.6875rem; /* 11px */
   height: 0.6875rem;

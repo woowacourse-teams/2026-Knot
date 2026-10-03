@@ -5,8 +5,6 @@ import EmptyChatSessionList from "./ui/EmptyChatSessionList";
 
 /**
  * 워크스페이스에 쌓인 대화 목록.
- *
- * 동작 규칙은 스토리북 `Chat/ChatSessionList`에서 확인해요.
  */
 export default function ChatSessionList() {
   const { groups, openedSessionId, handleSelectSession } = useChatSessionList();

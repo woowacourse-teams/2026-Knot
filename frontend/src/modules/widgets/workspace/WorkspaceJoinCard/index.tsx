@@ -6,9 +6,7 @@ import EnterWorkspaceIllustration from "@/assets/illustrations/enterWorkspace.sv
 import { useWorkspaceJoin } from "./model/useWorkspaceJoin";
 
 /**
- * 합류할 워크스페이스를 보여 주고 참여를 처리하는 입장 확인 카드.
- *
- * 동작 규칙은 스토리북 `Workspace/WorkspaceJoinCard`에서 확인해요.
+ * 워크스페이스 입장 확인 카드. 합류할 워크스페이스를 보여주고 참여를 처리해요.
  */
 export default function WorkspaceJoinCard() {
   const { workspaceName, isPending, handleJoin } = useWorkspaceJoin();

@@ -8,9 +8,7 @@ import { NICKNAME_MAX_LENGTH } from "./constants/nickname";
 import { useSignUp } from "./model/useSignUp";
 
 /**
- * 닉네임을 입력받아 회원가입을 완료하는 카드.
- *
- * 동작 규칙은 스토리북 `Member/NicknameCard`에서 확인해요.
+ * 닉네임을 입력받아 회원가입을 완료하는 카드. 입력값과 제출은 `useSignUp`이 맡고, 이 파일은 화면만 그려요.
  */
 export default function NicknameCard() {
   const {

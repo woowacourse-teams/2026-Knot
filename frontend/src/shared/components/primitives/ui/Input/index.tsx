@@ -2,8 +2,23 @@ import { css, type Theme } from "@emotion/react";
 import styled from "@emotion/styled";
 import type { ComponentProps } from "react";
 
+/**
+ * 입력창이 그려야 할 상태.
+ *
+ * - `empty` : 아직 입력하지 않음 (피그마 status=입력 전)
+ * - `filled` : 값이 들어 있음 (피그마 status=입력 중)
+ * - `error` : 유효하지 않은 값 (피그마 status=입력 에러)
+ * - `success` : 검증을 통과한 값 (피그마 Field/TextField/Code status=인증 완료)
+ */
 export type InputStatus = "empty" | "filled" | "error" | "success";
 
+/**
+ * 입력창의 형태·타이포 묶음.
+ *
+ * - `text` : 좌측 정렬 본문 텍스트, 높이 52 (피그마 Field/TextField)
+ * - `code` : 중앙 정렬·넓은 자간의 코드 텍스트, 높이 60 (피그마 Field/TextField/Code)
+ * - `copy` : 복사용 읽기 전용 링크 텍스트, 높이 52 (피그마 Field/Copy). `readOnly`와 함께 써요
+ */
 export type InputVariant = "text" | "code" | "copy";
 
 /**
@@ -19,14 +34,14 @@ interface InputProps extends ComponentProps<"input"> {
 const VARIANT_STYLE = {
   text: (theme: Theme) => css`
     ${theme.text.body01};
-    padding: 0.96875rem 1rem; /* 15.5px 16px, 높이 52px */
+    padding: 0.96875rem 1rem; /* 15.5px 16px */
 
     &::placeholder {
       ${theme.text.caption02};
     }
   `,
   code: (theme: Theme) => css`
-    padding: 0.6875rem 1rem; /* 높이 60px */
+    padding: 0.6875rem 1rem;
     text-align: center;
     font-size: 1.5rem; /* 24px */
     font-weight: 700;
@@ -38,7 +53,7 @@ const VARIANT_STYLE = {
     }
   `,
   copy: (theme: Theme) => css`
-    padding: 0.71875rem 0.75rem; /* 높이 52px */
+    padding: 0.71875rem 0.75rem;
     color: ${theme.neutral[700]};
     ${theme.text.body02};
   `,
@@ -91,8 +106,6 @@ const STATUS_STYLE = {
 
 /**
  * 단일 줄 텍스트 입력 UI.
- *
- * 동작 규칙은 스토리북 `Shared/Input`에서 확인해요.
  */
 export default function Input({
   status,

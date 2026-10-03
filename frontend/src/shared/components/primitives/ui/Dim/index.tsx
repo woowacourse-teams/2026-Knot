@@ -2,8 +2,6 @@ import styled from "@emotion/styled";
 
 /**
  * 모달 뒤를 덮는 배경 막(스크림).
- *
- * 동작 규칙은 스토리북 `Shared/Dim`에서 확인해요.
  */
 const Dim = styled.div`
   position: fixed;

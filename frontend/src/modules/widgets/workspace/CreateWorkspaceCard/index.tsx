@@ -7,8 +7,6 @@ import { useCreateWorkspace } from "./models/useCreateWorkspace";
 
 /**
  * 새 워크스페이스 이름 입력 카드.
- *
- * 동작 규칙은 스토리북 `Workspace/CreateWorkspaceCard`에서 확인해요.
  */
 export default function CreateWorkspaceCard() {
   const {

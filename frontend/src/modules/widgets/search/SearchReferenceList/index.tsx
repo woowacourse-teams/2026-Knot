@@ -5,8 +5,6 @@ import LinkTo from "@/shared/components/primitives/ui/LinkTo";
 
 /**
  * AI 탐색 답변의 근거가 된 문서 리스트를 보여주는 List UI.
- *
- * 동작 규칙은 스토리북 `Search/SearchReferenceList`에서 확인해요.
  */
 
 export default function SearchReferenceList() {

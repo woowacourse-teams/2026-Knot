@@ -11,8 +11,6 @@ const SUCCESS_MESSAGE = "확인됐어요. 곧 다음 단계로 이동해요.";
 
 /**
  * 초대 코드 입력 카드.
- *
- * 동작 규칙은 스토리북 `Workspace/WorkspaceCodeCard`에서 확인해요.
  */
 export default function WorkspaceCodeCard() {
   const { inputCode, isVerifying, isVerified, errorMessage, handleChange } =
