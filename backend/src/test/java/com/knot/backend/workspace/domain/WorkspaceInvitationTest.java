@@ -3,12 +3,12 @@ package com.knot.backend.workspace.domain;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.lang.reflect.Field;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.test.util.ReflectionTestUtils;
 
 class WorkspaceInvitationTest {
     private static final Instant CREATED_AT = Instant.parse("2026-08-29T00:00:00Z");
@@ -224,9 +224,8 @@ class WorkspaceInvitationTest {
     void isValidAt_failure_invalidated() {
         // given
         WorkspaceInvitation invitation = createInvitation();
-        ReflectionTestUtils.setField(
+        setInvalidatedAt(
                 invitation,
-                "invalidatedAt",
                 CREATED_AT.plusSeconds(1)
         );
 
@@ -260,5 +259,24 @@ class WorkspaceInvitationTest {
                 INVITE_CODE_HASH,
                 CREATED_AT
         );
+    }
+
+    private void setInvalidatedAt(
+            WorkspaceInvitation invitation,
+            Instant invalidatedAt
+    ) {
+        try {
+            Field field = WorkspaceInvitation.class.getDeclaredField("invalidatedAt");
+            field.setAccessible(true);
+            field.set(
+                    invitation,
+                    invalidatedAt
+            );
+        } catch (NoSuchFieldException | IllegalAccessException exception) {
+            throw new IllegalStateException(
+                    "과거 무효화 행 fixture를 만들 수 없습니다",
+                    exception
+            );
+        }
     }
 }
