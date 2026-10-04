@@ -9,6 +9,7 @@ import SendIcon from "@/assets/icons/send.svg";
 import { useDockRecording } from "./model/useDockRecording";
 import { useWorkspaceDock } from "./model/useWorkspaceDock";
 import DockHintTooltip from "./ui/DockHintTooltip";
+import DockRecordingChip from "./ui/DockRecordingChip";
 
 /** 폭이 벌어지는 동안 안의 내용이 뒤따라 나타나는 모션 */
 const fadeIn = keyframes`
@@ -31,6 +32,7 @@ const fadeIn = keyframes`
  *
  * 질문을 보내면 어느 화면에 있었든 그 질문을 들고 탐색 화면으로 옮겨 가요.
  * 접혀 있든 펼쳐 있든 회의 녹음(마이크) 슬롯을 두고, 누르면 마이크 권한을 받아 녹음을 시작해요.
+ * 녹음 화면이 아닌 곳에서 녹음이 이어지고 있으면 마이크 자리에 녹음 칩을 둬요. 접힌 독에는 중지 버튼도 함께 둬요.
  * 녹음 화면에서는 마이크를 숨겨요. Figma에서 숨겨져 있는 글 작성 슬롯은 만들지 않아요.
  *
  * 화면 어디에 놓을지는 이 독을 쓰는 레이아웃이 정해요.
@@ -48,13 +50,22 @@ export default function WorkspaceDock() {
     handleKeyDown,
     handleSubmit,
   } = useWorkspaceDock();
-  const { isMicVisible, micLabel, handleMicClick } = useDockRecording();
+  const {
+    isMicVisible,
+    isRecordingChipVisible,
+    isRecordingPaused,
+    elapsedTime,
+    handleMicClick,
+    handleOpenRecording,
+    handleStopRecording,
+  } = useDockRecording();
 
   return (
     <Bar
       ref={formRef}
       $isExpanded={isExpanded}
       $hasMic={isMicVisible}
+      $hasRecordingChip={isRecordingChipVisible}
       onSubmit={handleSubmit}
     >
       {isHintVisible && <DockHintTooltip />}
@@ -81,12 +92,20 @@ export default function WorkspaceDock() {
                 <ControlDivider aria-hidden="true" />
                 <MicButton
                   type="button"
-                  aria-label={micLabel}
+                  aria-label="회의 녹음 시작"
                   onClick={handleMicClick}
                 >
                   <MicIcon size={24} />
                 </MicButton>
               </>
+            )}
+
+            {isRecordingChipVisible && (
+              <DockRecordingChip
+                elapsedTime={elapsedTime}
+                isPaused={isRecordingPaused}
+                onOpen={handleOpenRecording}
+              />
             )}
 
             <SubmitButton
@@ -111,11 +130,23 @@ export default function WorkspaceDock() {
           {isMicVisible && (
             <MicButton
               type="button"
-              aria-label={micLabel}
+              aria-label="회의 녹음 시작"
               onClick={handleMicClick}
             >
               <MicIcon size={24} />
             </MicButton>
+          )}
+
+          {isRecordingChipVisible && (
+            <>
+              <ControlDivider aria-hidden="true" />
+              <DockRecordingChip
+                elapsedTime={elapsedTime}
+                isPaused={isRecordingPaused}
+                onOpen={handleOpenRecording}
+                onStop={handleStopRecording}
+              />
+            </>
           )}
         </>
       )}
@@ -129,15 +160,21 @@ export default function WorkspaceDock() {
  * 두 모양을 다른 요소로 두면 갈아 끼우느라 모션이 끊기므로, 한 요소의 폭만 바꿔 늘어나고 줄어들게 해요.
  * 안의 내용은 그 자리에서 갈리므로 폭이 벌어지는 동안 뒤따라 나타나도록 살짝 흐리게 시작해요.
  */
-const Bar = styled.form<{ $isExpanded: boolean; $hasMic: boolean }>`
+const Bar = styled.form<{
+  $isExpanded: boolean;
+  $hasMic: boolean;
+  $hasRecordingChip: boolean;
+}>`
   position: relative; /* 안내 말풍선이 이 자리를 기준으로 위에 놓여요 */
   display: flex;
   align-items: flex-end; /* 여러 줄로 자라도 보내기 버튼은 아래에 남아요 */
   gap: ${({ $isExpanded }) =>
     $isExpanded ? "0.625rem" : "0.25rem"}; /* 10px : 4px */
-  /* 접혔을 때는 슬롯(40px) 개수만큼: 마이크까지 있으면 108px, 없으면 64px */
-  width: ${({ $isExpanded, $hasMic }) => {
+  /* 접혔을 때는 슬롯(40px) 개수만큼: 마이크까지 있으면 108px, 없으면 64px.
+     녹음 칩은 시간이 길어지면 폭이 늘어 내용만큼 둬요 */
+  width: ${({ $isExpanded, $hasMic, $hasRecordingChip }) => {
     if ($isExpanded) return "min(45rem, 100%)"; /* 720px */
+    if ($hasRecordingChip) return "auto";
 
     return $hasMic ? "6.75rem" : "4rem";
   }};
@@ -158,7 +195,8 @@ const Bar = styled.form<{ $isExpanded: boolean; $hasMic: boolean }>`
 
   /* 말풍선은 제 모션이 따로 있으므로 한 줄에 놓이는 것들만 뒤따라 나타나게 해요 */
   & > div,
-  & > button {
+  & > button,
+  & > span {
     animation: ${fadeIn} 0.28s ease-out;
   }
 
@@ -166,7 +204,8 @@ const Bar = styled.form<{ $isExpanded: boolean; $hasMic: boolean }>`
     transition: none;
 
     & > div,
-    & > button {
+    & > button,
+    & > span {
       animation: none;
     }
   }
@@ -243,11 +282,13 @@ const Controls = styled.div`
 `;
 
 /**
- * 입력창과 마이크 사이의 세로 구분선. 8×28 칸 가운데의 1.5px 선이에요.
+ * 입력창과 마이크, 접힌 독의 탐색 버튼과 녹음 칩 사이의 세로 구분선. 8×28 칸 가운데의 1.5px 선이에요.
  *
  * Figma 값(#474747)과 같은 토큰이 없어 어두운 독 위에서 가장 가까운 Neutral/700을 써요.
  */
 const ControlDivider = styled.span`
+  flex-shrink: 0;
+  align-self: center;
   width: 0.5rem; /* 8px */
   height: 1.75rem; /* 28px */
   background: linear-gradient(

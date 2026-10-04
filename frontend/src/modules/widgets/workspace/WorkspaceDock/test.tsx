@@ -405,6 +405,71 @@ describe("WorkspaceDock", () => {
       expect(router.state.location.pathname).toBe(RECORDING_PATH);
     });
 
+    describe("녹음 화면이 아닌 곳에서 녹음 중이면", () => {
+      beforeEach(async () => {
+        await act(async () => {
+          await useRecordingStore.getState().startRecording();
+        });
+      });
+
+      it("접힌 독과 펼친 독 모두 마이크 대신 녹음한 시간을 보여준다", () => {
+        renderDock();
+
+        expect(
+          screen.queryByRole("button", { name: "회의 녹음 시작" }),
+        ).not.toBeInTheDocument();
+        expect(
+          screen.getByRole("button", { name: "녹음 화면으로 이동" }),
+        ).toHaveTextContent("00:00");
+
+        expandDock();
+
+        expect(
+          screen.queryByRole("button", { name: "회의 녹음 시작" }),
+        ).not.toBeInTheDocument();
+        expect(
+          screen.getByRole("button", { name: "녹음 화면으로 이동" }),
+        ).toHaveTextContent("00:00");
+      });
+
+      it("중지 버튼은 접힌 독에만 있다", () => {
+        renderDock();
+
+        expect(
+          screen.getByRole("button", { name: "녹음 끝내기" }),
+        ).toBeInTheDocument();
+
+        expandDock();
+
+        expect(
+          screen.queryByRole("button", { name: "녹음 끝내기" }),
+        ).not.toBeInTheDocument();
+      });
+
+      it("중지를 누르면 녹음을 끝내고 제자리에서 마이크로 돌아간다", () => {
+        const { router } = renderDock();
+
+        fireEvent.click(screen.getByRole("button", { name: "녹음 끝내기" }));
+
+        expect(useRecordingStore.getState().status).toBe("idle");
+        expect(router.state.location.pathname).toBe(HOME_PATH);
+        expect(
+          screen.getByRole("button", { name: "회의 녹음 시작" }),
+        ).toBeInTheDocument();
+      });
+
+      it("녹음 화면에서는 녹음 칩도 숨긴다", () => {
+        renderDock(RECORDING_PATH);
+
+        expect(
+          screen.queryByRole("button", { name: "녹음 화면으로 이동" }),
+        ).not.toBeInTheDocument();
+        expect(
+          screen.queryByRole("button", { name: "녹음 끝내기" }),
+        ).not.toBeInTheDocument();
+      });
+    });
+
     describe("녹음 중 마이크가 끊기면", () => {
       const startAndDisconnect = async () => {
         const getUserMedia = vi.spyOn(navigator.mediaDevices, "getUserMedia");
