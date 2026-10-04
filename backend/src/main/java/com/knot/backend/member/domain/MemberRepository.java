@@ -6,5 +6,7 @@ public interface MemberRepository {
 
     Optional<Member> findById(long memberId);
 
+    Optional<Member> findByIdForUpdate(long memberId);
+
     Member save(Member member);
 }
