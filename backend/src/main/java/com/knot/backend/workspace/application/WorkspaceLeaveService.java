@@ -1,5 +1,7 @@
 package com.knot.backend.workspace.application;
 
+import com.knot.backend.recording.domain.RecordingSession;
+import com.knot.backend.recording.domain.RecordingSessionRepository;
 import com.knot.backend.workspace.domain.Workspace;
 import com.knot.backend.workspace.domain.WorkspaceErrorCode;
 import com.knot.backend.workspace.domain.WorkspaceException;
@@ -9,6 +11,7 @@ import com.knot.backend.workspace.domain.WorkspaceRepository;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class WorkspaceLeaveService {
     private final WorkspaceRepository workspaceRepository;
     private final WorkspaceMemberRepository workspaceMemberRepository;
+    private final RecordingSessionRepository recordingSessionRepository;
     private final Clock clock;
 
     public void leave(
@@ -48,6 +52,38 @@ public class WorkspaceLeaveService {
             workspaceRepository.save(workspace);
         }
         workspaceMemberRepository.save(actor);
+        discardActiveRecordings(
+                findActiveRecordings(
+                        workspaceId,
+                        memberId,
+                        activeMemberCount
+                ),
+                leftAt
+        );
+    }
+
+    private List<RecordingSession> findActiveRecordings(
+            long workspaceId,
+            long memberId,
+            long activeMemberCount
+    ) {
+        if (isLastActiveMember(activeMemberCount)) {
+            return recordingSessionRepository.findAllActiveByWorkspaceIdForUpdate(workspaceId);
+        }
+        return recordingSessionRepository.findAllActiveByWorkspaceIdAndMemberIdForUpdate(
+                workspaceId,
+                memberId
+        );
+    }
+
+    private void discardActiveRecordings(
+            List<RecordingSession> recordingSessions,
+            Instant discardedAt
+    ) {
+        for (RecordingSession recordingSession : recordingSessions) {
+            recordingSession.discard(discardedAt);
+            recordingSessionRepository.save(recordingSession);
+        }
     }
 
     private boolean isLastActiveMember(long activeMemberCount) {
