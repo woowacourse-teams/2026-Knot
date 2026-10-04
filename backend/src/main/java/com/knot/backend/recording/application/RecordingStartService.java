@@ -77,6 +77,9 @@ public class RecordingStartService {
             long workspaceId,
             long memberId
     ) {
+        if (workspaceId <= 0) {
+            throw new WorkspaceException(WorkspaceErrorCode.INVALID_WORKSPACE_ID);
+        }
         workspaceRepository.findByIdForUpdate(workspaceId)
                 .orElseThrow(() -> new WorkspaceException(WorkspaceErrorCode.WORKSPACE_NOT_FOUND));
         if (!workspaceMemberRepository.existsByWorkspaceIdAndMemberId(

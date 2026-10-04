@@ -17,6 +17,7 @@ import com.knot.backend.recording.domain.RecordingSession;
 import com.knot.backend.recording.domain.RecordingSessionRepository;
 import com.knot.backend.recording.domain.RecordingStatus;
 import com.knot.backend.workspace.domain.Workspace;
+import com.knot.backend.workspace.domain.WorkspaceErrorCode;
 import com.knot.backend.workspace.domain.WorkspaceException;
 import com.knot.backend.workspace.domain.WorkspaceMemberRepository;
 import com.knot.backend.workspace.domain.WorkspaceRepository;
@@ -132,6 +133,34 @@ class RecordingStartServiceTest {
                 .existsActiveByMemberId(MEMBER_ID);
         order.verify(recordingSessionRepository)
                 .save(any(RecordingSession.class));
+    }
+
+    @Test
+    @DisplayName("워크스페이스 ID가 양수가 아니면 조회 없이 거부한다")
+    void start_failure_invalidWorkspaceId() {
+        // given
+        long invalidWorkspaceId = 0L;
+
+        // when
+        Throwable failure = catchThrowable(
+                () -> service.start(
+                        invalidWorkspaceId,
+                        MEMBER_ID,
+                        command
+                )
+        );
+
+        // then
+        assertThat(failure).isInstanceOfSatisfying(
+                WorkspaceException.class,
+                exception -> assertThat(exception.getErrorCode()).isEqualTo(WorkspaceErrorCode.INVALID_WORKSPACE_ID)
+        );
+        verifyNoInteractions(
+                workspaceRepository,
+                memberRepository,
+                recordingSessionRepository,
+                hasher
+        );
     }
 
     @Test
