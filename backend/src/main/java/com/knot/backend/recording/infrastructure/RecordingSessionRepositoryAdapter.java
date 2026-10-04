@@ -5,6 +5,7 @@ import com.knot.backend.recording.domain.RecordingSessionRepository;
 import com.knot.backend.recording.domain.RecordingErrorCode;
 import com.knot.backend.recording.domain.RecordingException;
 import com.knot.backend.recording.domain.RecordingStatus;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -45,6 +46,26 @@ public class RecordingSessionRepositoryAdapter implements RecordingSessionReposi
     @Override
     public boolean existsActiveByMemberId(long memberId) {
         return recordingSessionJpaRepository.existsByMemberIdAndStatusIn(
+                memberId,
+                RecordingStatus.ACTIVE_STATUSES
+        );
+    }
+
+    @Override
+    public List<RecordingSession> findAllActiveByWorkspaceIdForUpdate(long workspaceId) {
+        return recordingSessionJpaRepository.findAllByWorkspaceIdAndStatusInOrderByIdAsc(
+                workspaceId,
+                RecordingStatus.ACTIVE_STATUSES
+        );
+    }
+
+    @Override
+    public List<RecordingSession> findAllActiveByWorkspaceIdAndMemberIdForUpdate(
+            long workspaceId,
+            long memberId
+    ) {
+        return recordingSessionJpaRepository.findAllByWorkspaceIdAndMemberIdAndStatusInOrderByIdAsc(
+                workspaceId,
                 memberId,
                 RecordingStatus.ACTIVE_STATUSES
         );

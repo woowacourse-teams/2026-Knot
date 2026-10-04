@@ -11,6 +11,7 @@ import com.knot.backend.recording.domain.RecordingErrorCode;
 import com.knot.backend.testsupport.TestcontainersConfiguration;
 import jakarta.persistence.EntityManager;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
@@ -18,6 +19,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
@@ -245,6 +247,175 @@ class RecordingSessionRepositoryIntegrationTest {
         assertThat(failure).isInstanceOf(RecordingException.class)
                 .extracting("errorCode")
                 .isEqualTo(RecordingErrorCode.RECORDING_START_REQUEST_CONFLICT);
+    }
+
+    @Test
+    @DisplayName("폐기한 녹음은 DISCARDED로 저장되고 활성 녹음 제약에서 제외된다")
+    void save_success_afterDiscardedRecording() {
+        // given
+        long memberId = saveMember("discard-member");
+        long workspaceId = saveWorkspaceWithMember(
+                memberId,
+                "폐기 팀"
+        );
+        RecordingSession discarded = startRecording(
+                workspaceId,
+                memberId,
+                UUID.randomUUID()
+        );
+        discarded.discard(STARTED_AT.plusSeconds(10));
+        long discardedId = saveAndFlush(discarded).getId();
+        RecordingSession next = startRecording(
+                workspaceId,
+                memberId,
+                UUID.randomUUID()
+        );
+
+        // when
+        RecordingSession saved = saveAndFlush(next);
+
+        // then
+        assertThat(saved.getId()).isPositive();
+        assertThat(storedStatus(discardedId)).isEqualTo("DISCARDED");
+    }
+
+    @Test
+    @DisplayName("DB는 중단 시각이 없는 폐기 녹음을 거부한다")
+    void update_failure_discardedWithoutEndedAt() {
+        // given
+        long memberId = saveMember("check-member");
+        long workspaceId = saveWorkspaceWithMember(
+                memberId,
+                "제약 팀"
+        );
+        long recordingSessionId = saveAndFlush(
+                startRecording(
+                        workspaceId,
+                        memberId,
+                        UUID.randomUUID()
+                )
+        ).getId();
+
+        // when
+        Throwable failure = catchThrowable(
+                () -> jdbcClient.sql("""
+                        UPDATE recording_sessions
+                        SET status = 'DISCARDED', current_interval_started_at = NULL
+                        WHERE id = :recordingSessionId
+                        """)
+                        .param(
+                                "recordingSessionId",
+                                recordingSessionId
+                        )
+                        .update()
+        );
+
+        // then
+        assertThat(failure).isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    @DisplayName("멤버별 활성 녹음 조회는 해당 Workspace의 본인 진행 중 녹음만 반환한다")
+    void findAllActiveByWorkspaceIdAndMemberIdForUpdate_success() {
+        // given
+        long memberId = saveMember("leaving-member");
+        long otherMemberId = saveMember("staying-member");
+        long workspaceId = saveWorkspaceWithMember(
+                memberId,
+                "탈퇴 팀"
+        );
+        RecordingSession own = saveAndFlush(
+                startRecording(
+                        workspaceId,
+                        memberId,
+                        UUID.randomUUID()
+                )
+        );
+        saveAndFlush(
+                startRecording(
+                        workspaceId,
+                        otherMemberId,
+                        UUID.randomUUID()
+                )
+        );
+        entityManager.clear();
+
+        // when
+        List<RecordingSession> found = recordingSessionRepository.findAllActiveByWorkspaceIdAndMemberIdForUpdate(
+                workspaceId,
+                memberId
+        );
+
+        // then
+        assertThat(found).extracting(RecordingSession::getId)
+                .containsExactly(own.getId());
+    }
+
+    @Test
+    @DisplayName("Workspace 활성 녹음 조회는 다른 Workspace와 종료된 녹음을 제외한다")
+    void findAllActiveByWorkspaceIdForUpdate_success() {
+        // given
+        long firstMemberId = saveMember("first-member");
+        long secondMemberId = saveMember("second-member");
+        long endedMemberId = saveMember("ended-member");
+        long otherMemberId = saveMember("other-member");
+        long workspaceId = saveWorkspaceWithMember(
+                firstMemberId,
+                "삭제 팀"
+        );
+        long otherWorkspaceId = saveWorkspaceWithMember(
+                otherMemberId,
+                "다른 팀"
+        );
+        RecordingSession recording = saveAndFlush(
+                startRecording(
+                        workspaceId,
+                        firstMemberId,
+                        UUID.randomUUID()
+                )
+        );
+        RecordingSession paused = startRecording(
+                workspaceId,
+                secondMemberId,
+                UUID.randomUUID()
+        );
+        paused.pause(STARTED_AT.plusSeconds(10));
+        saveAndFlush(paused);
+        RecordingSession ended = startRecording(
+                workspaceId,
+                endedMemberId,
+                UUID.randomUUID()
+        );
+        ended.end(STARTED_AT.plusSeconds(10));
+        saveAndFlush(ended);
+        saveAndFlush(
+                startRecording(
+                        otherWorkspaceId,
+                        otherMemberId,
+                        UUID.randomUUID()
+                )
+        );
+        entityManager.clear();
+
+        // when
+        List<RecordingSession> found = recordingSessionRepository.findAllActiveByWorkspaceIdForUpdate(workspaceId);
+
+        // then
+        assertThat(found).extracting(RecordingSession::getId)
+                .containsExactly(
+                        recording.getId(),
+                        paused.getId()
+                );
+    }
+
+    private String storedStatus(long recordingSessionId) {
+        return jdbcClient.sql("SELECT status FROM recording_sessions WHERE id = :recordingSessionId")
+                .param(
+                        "recordingSessionId",
+                        recordingSessionId
+                )
+                .query(String.class)
+                .single();
     }
 
     private RecordingSession saveAndFlush(RecordingSession recordingSession) {

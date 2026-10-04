@@ -1,5 +1,6 @@
 package com.knot.backend.recording.domain;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -15,4 +16,11 @@ public interface RecordingSessionRepository {
     );
 
     boolean existsActiveByMemberId(long memberId);
+
+    List<RecordingSession> findAllActiveByWorkspaceIdForUpdate(long workspaceId);
+
+    List<RecordingSession> findAllActiveByWorkspaceIdAndMemberIdForUpdate(
+            long workspaceId,
+            long memberId
+    );
 }
