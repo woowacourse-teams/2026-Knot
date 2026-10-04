@@ -59,14 +59,16 @@ public class WorkspaceInvitationAcceptanceService {
                 credential.kind(),
                 credential.secret()
         );
-        Instant now = currentTime();
         WorkspaceInvitation invitation = findInvitation(
                 credential,
                 secretHash
-        ).filter(candidate -> candidate.isValidAt(now))
-                .orElseThrow(this::notFound);
+        ).orElseThrow(this::notFound);
         Workspace workspace = workspaceRepository.findByIdForUpdate(invitation.getWorkspaceId())
                 .orElseThrow(this::notFound);
+        Instant now = currentTime();
+        if (!invitation.isValidAt(now)) {
+            throw notFound();
+        }
         boolean created = joinWorkspace(
                 invitation.getWorkspaceId(),
                 memberId,
