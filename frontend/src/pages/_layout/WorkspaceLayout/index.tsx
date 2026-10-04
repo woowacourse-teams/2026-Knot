@@ -1,5 +1,6 @@
 import DockablePanel from "@composites/DockablePanel";
 import styled from "@emotion/styled";
+import useRecordingLeaveWarning from "@hooks/domain/recording/useRecordingLeaveWarning";
 import useWorkspaceEntry from "@hooks/domain/workspace/useWorkspaceEntry";
 import useWorkspaceNav from "@hooks/domain/workspace/useWorkspaceNav";
 import DockColumn from "@primitives/layout/DockColumn";
@@ -33,6 +34,8 @@ import type { DockedPanelName } from "./types/dockedPanel";
  * 들어갈 수 있는 워크스페이스인지도 이 레이아웃 범위에서 한 번만 판정한다(`useWorkspaceEntry`).
  * 조회에 성공하기 전에는 본문 대신 스피너를 두고, 401은 로그인으로, 403·404는 선택 화면으로 보낸다.
  *
+ * 녹음은 레이아웃 안의 어느 화면에서나 이어지므로, 녹음 중 새로고침·탭 닫기 경고도 이 범위에서 건다.
+ *
  * @see https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=1364-6863 GNB/Floating
  * @see https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=526-772 탐색 결과/채팅 세션 목록
  * @see https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=2106-28974 탐색/대화 목록 고정 + 찾은 기록 열림
@@ -42,6 +45,8 @@ export default function WorkspaceLayout() {
   const { isReady } = useWorkspaceEntry({ workspaceId: Number(workspaceId) });
   const { isChatActive } = useWorkspaceNav();
   const [pickedPanel, setPickedPanel] = useState<DockedPanelName>(null);
+
+  useRecordingLeaveWarning();
 
   // 대화 목록 버튼은 탐색 화면에만 있으므로, 홈으로 나가면 고른 적 없던 것으로 봐요
   const dockedPanel =
