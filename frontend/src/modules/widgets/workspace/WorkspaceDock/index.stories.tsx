@@ -41,6 +41,15 @@ const resetDock = () => {
   useRecordingStore.getState().endRecording();
 };
 
+/** 12분 48초째 녹음 중인 상태로 만들어요. */
+const startRecordingAt12m48s = () => {
+  useRecordingStore.setState({
+    status: "recording",
+    accumulatedMs: 768_000,
+    resumedAt: Date.now(),
+  });
+};
+
 /** 마이크 권한을 받지 못한 브라우저처럼 마이크 요청을 거절해요. */
 const denyMicrophone = () => {
   const spy = spyOn(navigator.mediaDevices, "getUserMedia").mockRejectedValue(
@@ -64,7 +73,9 @@ const denyMicrophone = () => {
  * - 탐색 화면은 채팅이 곧 화면이라 독을 늘 펼쳐 둬요. 그 화면에서 보낸 질문은 아직 받을 곳이 없어 입력만 비워요. 탐색 v2에서 대화와 다시 연결해요.
  * - 접혀 있든 펼쳐 있든 회의 녹음(마이크) 버튼을 둬요. 누르면 녹음 화면에 들어가기 전에 마이크 권한을 받아 녹음을 시작하고 녹음 화면으로 옮겨 가요.
  * - 마이크 권한을 받지 못하면 모달로 알리고 지금 화면에 남아요. 「다시 시도」는 권한을 다시 묻고, 「닫기」나 `Esc`는 모달만 닫아요.
- * - 이미 녹음 중이면 권한을 다시 묻지 않고 녹음 화면으로 가기만 해요. 녹음 화면에서는 갈 곳이 없어 마이크를 숨겨요.
+ * - 녹음 화면이 아닌 곳에서 녹음 중이면 마이크 자리에 녹음한 시간 칩을 둬요. 칩을 누르면 권한을 다시 묻지 않고 녹음 화면으로 가요.
+ * - 접힌 독은 칩 옆에 중지 버튼을 둬요. 누르면 녹음을 끝내고 지금 화면에 남아요. 펼친 독은 옆에 보내기 버튼이 있어 중지 버튼을 두지 않아요.
+ * - 녹음 화면에서는 갈 곳이 없어 마이크와 녹음 칩을 숨겨요.
  * - 녹음 중에 마이크가 빠지면 어느 화면에 있든 같은 모달로 알리고, 녹음은 일시정지로 남겨요.
  * - Figma에 숨겨져 있는 글 작성 자리는 만들지 않았어요.
  */
@@ -173,24 +184,30 @@ export const OnRecordingScreen: Story = {
   parameters: {
     initialPath: RECORDING_PATH,
   },
-  beforeEach: () => {
-    useRecordingStore.setState({
-      status: "recording",
-      accumulatedMs: 0,
-      resumedAt: Date.now(),
-    });
-  },
+  beforeEach: startRecordingAt12m48s,
 };
 
-/** 녹음 화면이 아닌 곳에서 녹음이 이어지고 있는 독이에요. 마이크를 누르면 권한을 다시 묻지 않고 녹음 화면으로 가기만 해서, 마이크 이름이 「녹음 화면으로 이동」으로 바뀌어요. */
+/** 녹음 화면이 아닌 곳에서 녹음이 이어지고 있는 접힌 독이에요. 마이크 자리에 녹음한 시간 칩과 중지 버튼이 놓여요. */
 export const RecordingOnOtherScreen: Story = {
-  beforeEach: () => {
-    useRecordingStore.setState({
-      status: "recording",
-      accumulatedMs: 0,
-      resumedAt: Date.now(),
-    });
+  parameters: {
+    design: {
+      type: "figma",
+      url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=1632-661",
+    },
   },
+  beforeEach: startRecordingAt12m48s,
+};
+
+/** 탐색 화면처럼 펼친 독에서 녹음이 이어지는 상태예요. 옆에 보내기 버튼이 있어 칩만 두고 중지 버튼은 두지 않아요. */
+export const RecordingOnChatScreen: Story = {
+  parameters: {
+    initialPath: CHAT_PATH,
+    design: {
+      type: "figma",
+      url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=1673-730",
+    },
+  },
+  beforeEach: startRecordingAt12m48s,
 };
 
 /**
