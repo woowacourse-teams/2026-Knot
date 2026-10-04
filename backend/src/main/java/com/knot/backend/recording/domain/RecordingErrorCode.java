@@ -24,6 +24,12 @@ public enum RecordingErrorCode implements ErrorCode {
             "이미 종료된 녹음입니다"
     ),
 
+    RECORDING_ALREADY_DISCARDED(
+            ErrorCategory.CONFLICT,
+            "RECORDING_ALREADY_DISCARDED",
+            "이미 폐기된 녹음입니다"
+    ),
+
     ACTIVE_RECORDING_ALREADY_EXISTS(
             ErrorCategory.CONFLICT,
             "ACTIVE_RECORDING_ALREADY_EXISTS",
