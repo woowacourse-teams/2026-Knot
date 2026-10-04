@@ -20,6 +20,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
@@ -399,6 +400,32 @@ class WorkspaceLeaveServiceIntegrationTest {
         }
     }
 
+    @DisplayName("초대 발급이 Workspace 잠금 대기 중 마지막 멤버 탈퇴로 삭제되면 초대를 저장하지 않는다")
+    @Test
+    void leave_success_blocksInvitationIssueUntilDeletedWorkspaceRejected() throws Exception {
+        // given
+        long ownerMemberId = saveMember("owner");
+        long workspaceId = saveWorkspace("탈퇴 발급 경합 팀");
+        saveWorkspaceMember(
+                workspaceId,
+                ownerMemberId,
+                "OWNER"
+        );
+
+        // when
+        IssueWhileDeletingWorkspaceResult result = issueWhileDeletingLockedWorkspace(
+                ownerMemberId,
+                workspaceId
+        );
+
+        // then
+        assertThat(result.issueWaitedForWorkspaceLock()).isTrue();
+        assertThat(result.issueErrorCode()).isEqualTo(WorkspaceErrorCode.WORKSPACE_NOT_FOUND);
+        assertThat(invitationCount(workspaceId)).isZero();
+        assertThat(workspaceDeletedAt(workspaceId)).isNotNull();
+        assertThat(activeMembershipCount(workspaceId)).isZero();
+    }
+
     @DisplayName("마지막 멤버 탈퇴 후 같은 트랜잭션에서 예외가 나면 멤버십 탈퇴와 워크스페이스 삭제를 함께 롤백한다")
     @Test
     void leave_failure_rollsBackLastMemberLeaveWhenOuterTransactionFails() {
@@ -556,6 +583,122 @@ class WorkspaceLeaveServiceIntegrationTest {
                         TimeUnit.SECONDS
                 )
         );
+    }
+
+    private IssueWhileDeletingWorkspaceResult issueWhileDeletingLockedWorkspace(
+            long memberId,
+            long workspaceId
+    ) throws Exception {
+        ExecutorService executorService = Executors.newSingleThreadExecutor();
+        AtomicReference<Future<WorkspaceErrorCode>> issueFuture = new AtomicReference<>();
+        try {
+            boolean issueWaitedForWorkspaceLock = transactionTemplate.execute(status -> {
+                int holderBackendPid = lockWorkspace(workspaceId);
+                Future<WorkspaceErrorCode> submittedIssue = executorService.submit(
+                        () -> issueErrorCode(
+                                workspaceId,
+                                memberId
+                        )
+                );
+                issueFuture.set(submittedIssue);
+                boolean waitedForLock = waitUntilBlockedByHolder(
+                        submittedIssue,
+                        holderBackendPid
+                );
+                workspaceLeaveService.leave(
+                        memberId,
+                        workspaceId
+                );
+                return waitedForLock;
+            });
+            return new IssueWhileDeletingWorkspaceResult(
+                    issueFuture.get()
+                            .get(
+                                    10,
+                                    TimeUnit.SECONDS
+                            ),
+                    issueWaitedForWorkspaceLock
+            );
+        } finally {
+            executorService.shutdownNow();
+        }
+    }
+
+    private WorkspaceErrorCode issueErrorCode(
+            long workspaceId,
+            long memberId
+    ) {
+        try {
+            workspaceInvitationService.issue(
+                    workspaceId,
+                    memberId
+            );
+            return null;
+        } catch (WorkspaceException exception) {
+            return (WorkspaceErrorCode) exception.getErrorCode();
+        }
+    }
+
+    private int lockWorkspace(long workspaceId) {
+        return jdbcClient.sql("""
+                SELECT pg_backend_pid()
+                FROM workspaces
+                WHERE id = :workspaceId
+                FOR UPDATE
+                """)
+                .param(
+                        "workspaceId",
+                        workspaceId
+                )
+                .query(Integer.class)
+                .single();
+    }
+
+    private boolean waitUntilBlockedByHolder(
+            Future<WorkspaceErrorCode> issueFuture,
+            int holderBackendPid
+    ) {
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+        while (System.nanoTime() < deadline) {
+            if (issueFuture.isDone()) {
+                return false;
+            }
+            if (blockedByHolderExists(holderBackendPid)) {
+                return true;
+            }
+            awaitNextLockProbe();
+        }
+        return false;
+    }
+
+    private boolean blockedByHolderExists(int holderBackendPid) {
+        return jdbcClient.sql("""
+                SELECT EXISTS (
+                    SELECT 1
+                    FROM pg_stat_activity
+                    WHERE pid <> pg_backend_pid()
+                      AND :holderBackendPid = ANY(pg_blocking_pids(pid))
+                )
+                """)
+                .param(
+                        "holderBackendPid",
+                        holderBackendPid
+                )
+                .query(Boolean.class)
+                .single();
+    }
+
+    private void awaitNextLockProbe() {
+        try {
+            TimeUnit.MILLISECONDS.sleep(50);
+        } catch (InterruptedException exception) {
+            Thread.currentThread()
+                    .interrupt();
+            throw new IllegalStateException(
+                    "Workspace 잠금 대기 확인 중 인터럽트되었습니다",
+                    exception
+            );
+        }
     }
 
     private long saveMember(String nickname) {
@@ -828,6 +971,20 @@ class WorkspaceLeaveServiceIntegrationTest {
                 .single();
     }
 
+    private long invitationCount(long workspaceId) {
+        return jdbcClient.sql("""
+                SELECT count(*)
+                FROM workspace_invitations
+                WHERE workspace_id = :workspaceId
+                """)
+                .param(
+                        "workspaceId",
+                        workspaceId
+                )
+                .query(Long.class)
+                .single();
+    }
+
     private long activeOwnerCount(long workspaceId) {
         return jdbcClient.sql("""
                 SELECT count(*)
@@ -867,6 +1024,12 @@ class WorkspaceLeaveServiceIntegrationTest {
     private record LeaveAcceptRaceResult(
             WorkspaceErrorCode leaveErrorCode,
             AcceptOutcome acceptOutcome
+    ) {
+    }
+
+    private record IssueWhileDeletingWorkspaceResult(
+            WorkspaceErrorCode issueErrorCode,
+            boolean issueWaitedForWorkspaceLock
     ) {
     }
 

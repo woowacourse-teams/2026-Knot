@@ -79,7 +79,7 @@ class WorkspaceInvitationServiceTest {
     @Test
     void issue_success_createsInvitation() {
         // given
-        allowMemberWithLock();
+        allowMemberWithWorkspaceLock();
         prepareNewInvitation();
 
         // when
@@ -117,7 +117,7 @@ class WorkspaceInvitationServiceTest {
         )
                 .when(transactionExecutor)
                 .execute(any());
-        allowMemberWithLock();
+        allowMemberWithWorkspaceLock();
         prepareNewInvitation();
 
         // when
@@ -187,7 +187,7 @@ class WorkspaceInvitationServiceTest {
     @Test
     void issue_failure_nonMember() {
         // given
-        when(workspaceRepository.findById(WORKSPACE_ID)).thenReturn(
+        when(workspaceRepository.findByIdForUpdate(WORKSPACE_ID)).thenReturn(
                 Optional.of(
                         Workspace.create(
                                 "Knot 팀",
@@ -221,8 +221,8 @@ class WorkspaceInvitationServiceTest {
         ).generate();
     }
 
-    private void allowMemberWithLock() {
-        when(workspaceRepository.findById(WORKSPACE_ID)).thenReturn(
+    private void allowMemberWithWorkspaceLock() {
+        when(workspaceRepository.findByIdForUpdate(WORKSPACE_ID)).thenReturn(
                 Optional.of(
                         Workspace.create(
                                 "Knot 팀",

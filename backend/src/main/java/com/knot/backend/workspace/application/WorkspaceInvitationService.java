@@ -69,7 +69,7 @@ public class WorkspaceInvitationService {
             long memberId
     ) {
         validateWorkspaceId(workspaceId);
-        validateIssueAllowed(
+        validateIssueAllowedWithLock(
                 workspaceId,
                 memberId
         );
@@ -150,11 +150,11 @@ public class WorkspaceInvitationService {
         return workspaceInvitationRepository.findByLinkTokenHash(secretHash);
     }
 
-    private void validateIssueAllowed(
+    private void validateIssueAllowedWithLock(
             Long workspaceId,
             long memberId
     ) {
-        workspaceRepository.findById(workspaceId)
+        workspaceRepository.findByIdForUpdate(workspaceId)
                 .orElseThrow(() -> new WorkspaceException(WorkspaceErrorCode.WORKSPACE_NOT_FOUND));
         validateMembership(
                 workspaceId,
