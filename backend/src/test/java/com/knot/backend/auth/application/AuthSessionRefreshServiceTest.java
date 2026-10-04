@@ -18,8 +18,8 @@ import com.knot.backend.auth.domain.AuthSessionRepository;
 import com.knot.backend.auth.domain.AuthTokenProvider;
 import com.knot.backend.auth.domain.AuthenticatedMember;
 import com.knot.backend.auth.domain.RefreshToken;
-import com.knot.backend.auth.domain.RefreshTokenHistory;
-import com.knot.backend.auth.domain.RefreshTokenHistoryRepository;
+import com.knot.backend.auth.domain.ConsumedRefreshToken;
+import com.knot.backend.auth.domain.ConsumedRefreshTokenRepository;
 import com.knot.backend.auth.domain.RefreshTokenProvider;
 import com.knot.backend.member.application.MemberService;
 import com.knot.backend.member.domain.Member;
@@ -41,7 +41,9 @@ class AuthSessionRefreshServiceTest {
     private static final String NEXT_TOKEN_HASH = "b".repeat(64);
 
     private final AuthSessionRepository authSessionRepository = mock(AuthSessionRepository.class);
-    private final RefreshTokenHistoryRepository historyRepository = mock(RefreshTokenHistoryRepository.class);
+    private final ConsumedRefreshTokenRepository consumedRefreshTokenRepository = mock(
+            ConsumedRefreshTokenRepository.class
+    );
     private final RefreshTokenProvider refreshTokenProvider = mock(RefreshTokenProvider.class);
     private final AuthTokenProvider authTokenProvider = mock(AuthTokenProvider.class);
     private final MemberService memberService = mock(MemberService.class);
@@ -51,7 +53,7 @@ class AuthSessionRefreshServiceTest {
     );
     private final AuthSessionRefreshService service = new AuthSessionRefreshService(
             authSessionRepository,
-            historyRepository,
+            consumedRefreshTokenRepository,
             refreshTokenProvider,
             authTokenProvider,
             memberService,
@@ -73,7 +75,7 @@ class AuthSessionRefreshServiceTest {
         );
         Member member = activeMember(session.getMemberId());
         when(refreshTokenProvider.identify(CURRENT_TOKEN_VALUE)).thenReturn(currentToken);
-        when(historyRepository.findByRefreshTokenHash(CURRENT_TOKEN_HASH)).thenReturn(Optional.empty());
+        when(consumedRefreshTokenRepository.findByRefreshTokenHash(CURRENT_TOKEN_HASH)).thenReturn(Optional.empty());
         when(authSessionRepository.findByRefreshTokenHashForUpdate(CURRENT_TOKEN_HASH))
                 .thenReturn(Optional.of(session));
         when(memberService.findById(session.getMemberId())).thenReturn(Optional.of(member));
@@ -93,18 +95,19 @@ class AuthSessionRefreshServiceTest {
         );
         assertThat(session.getRefreshTokenHash()).isEqualTo(NEXT_TOKEN_HASH);
         assertThat(session.getExpiresAt()).isEqualTo(NOW.plus(Duration.ofDays(7)));
-        ArgumentCaptor<RefreshTokenHistory> historyCaptor = ArgumentCaptor.forClass(RefreshTokenHistory.class);
-        verify(historyRepository).save(historyCaptor.capture());
+        ArgumentCaptor<ConsumedRefreshToken> consumedRefreshTokenCaptor = ArgumentCaptor
+                .forClass(ConsumedRefreshToken.class);
+        verify(consumedRefreshTokenRepository).save(consumedRefreshTokenCaptor.capture());
         assertThat(
-                historyCaptor.getValue()
+                consumedRefreshTokenCaptor.getValue()
                         .getAuthSessionId()
         ).isEqualTo(session.getId());
         assertThat(
-                historyCaptor.getValue()
+                consumedRefreshTokenCaptor.getValue()
                         .getRefreshTokenHash()
         ).isEqualTo(CURRENT_TOKEN_HASH);
         assertThat(
-                historyCaptor.getValue()
+                consumedRefreshTokenCaptor.getValue()
                         .getConsumedAt()
         ).isEqualTo(NOW);
         verify(authSessionRepository).save(session);
@@ -116,7 +119,7 @@ class AuthSessionRefreshServiceTest {
     void refresh_success_replayRevokesSessionFamily() {
         // given
         AuthSession session = activeSession();
-        RefreshTokenHistory history = RefreshTokenHistory.create(
+        ConsumedRefreshToken consumedRefreshToken = ConsumedRefreshToken.create(
                 session.getId(),
                 CURRENT_TOKEN_HASH,
                 NOW.minusSeconds(1)
@@ -127,7 +130,8 @@ class AuthSessionRefreshServiceTest {
                         CURRENT_TOKEN_HASH
                 )
         );
-        when(historyRepository.findByRefreshTokenHash(CURRENT_TOKEN_HASH)).thenReturn(Optional.of(history));
+        when(consumedRefreshTokenRepository.findByRefreshTokenHash(CURRENT_TOKEN_HASH))
+                .thenReturn(Optional.of(consumedRefreshToken));
         when(authSessionRepository.findByIdForUpdate(session.getId())).thenReturn(Optional.of(session));
 
         // when
@@ -160,15 +164,15 @@ class AuthSessionRefreshServiceTest {
                 CURRENT_TOKEN_VALUE,
                 CURRENT_TOKEN_HASH
         );
-        RefreshTokenHistory history = RefreshTokenHistory.create(
+        ConsumedRefreshToken consumedRefreshToken = ConsumedRefreshToken.create(
                 session.getId(),
                 CURRENT_TOKEN_HASH,
                 NOW
         );
         when(refreshTokenProvider.identify(CURRENT_TOKEN_VALUE)).thenReturn(token);
-        when(historyRepository.findByRefreshTokenHash(CURRENT_TOKEN_HASH)).thenReturn(
+        when(consumedRefreshTokenRepository.findByRefreshTokenHash(CURRENT_TOKEN_HASH)).thenReturn(
                 Optional.empty(),
-                Optional.of(history)
+                Optional.of(consumedRefreshToken)
         );
         when(authSessionRepository.findByRefreshTokenHashForUpdate(CURRENT_TOKEN_HASH)).thenReturn(Optional.empty());
         when(authSessionRepository.findByIdForUpdate(session.getId())).thenReturn(Optional.of(session));
@@ -192,7 +196,7 @@ class AuthSessionRefreshServiceTest {
                 CURRENT_TOKEN_HASH
         );
         when(refreshTokenProvider.identify(CURRENT_TOKEN_VALUE)).thenReturn(token);
-        when(historyRepository.findByRefreshTokenHash(CURRENT_TOKEN_HASH)).thenReturn(Optional.empty());
+        when(consumedRefreshTokenRepository.findByRefreshTokenHash(CURRENT_TOKEN_HASH)).thenReturn(Optional.empty());
         doThrow(new AuthException(AuthErrorCode.UNAUTHENTICATED)).when(refreshTokenProvider)
                 .validate(token);
 
@@ -220,7 +224,7 @@ class AuthSessionRefreshServiceTest {
                 CURRENT_TOKEN_HASH
         );
         when(refreshTokenProvider.identify(CURRENT_TOKEN_VALUE)).thenReturn(token);
-        when(historyRepository.findByRefreshTokenHash(CURRENT_TOKEN_HASH)).thenReturn(Optional.empty());
+        when(consumedRefreshTokenRepository.findByRefreshTokenHash(CURRENT_TOKEN_HASH)).thenReturn(Optional.empty());
         when(authSessionRepository.findByRefreshTokenHashForUpdate(CURRENT_TOKEN_HASH)).thenReturn(Optional.empty());
 
         // when
@@ -250,7 +254,7 @@ class AuthSessionRefreshServiceTest {
                         CURRENT_TOKEN_HASH
                 )
         );
-        when(historyRepository.findByRefreshTokenHash(CURRENT_TOKEN_HASH)).thenReturn(Optional.empty());
+        when(consumedRefreshTokenRepository.findByRefreshTokenHash(CURRENT_TOKEN_HASH)).thenReturn(Optional.empty());
         when(authSessionRepository.findByRefreshTokenHashForUpdate(CURRENT_TOKEN_HASH))
                 .thenReturn(Optional.of(session));
         when(memberService.findById(session.getMemberId())).thenReturn(Optional.of(member));

@@ -8,8 +8,8 @@ import com.knot.backend.auth.domain.AuthSessionRepository;
 import com.knot.backend.auth.domain.AuthTokenProvider;
 import com.knot.backend.auth.domain.AuthenticatedMember;
 import com.knot.backend.auth.domain.RefreshToken;
-import com.knot.backend.auth.domain.RefreshTokenHistory;
-import com.knot.backend.auth.domain.RefreshTokenHistoryRepository;
+import com.knot.backend.auth.domain.ConsumedRefreshToken;
+import com.knot.backend.auth.domain.ConsumedRefreshTokenRepository;
 import com.knot.backend.auth.domain.RefreshTokenProvider;
 import com.knot.backend.member.application.MemberService;
 import com.knot.backend.member.domain.Member;
@@ -24,7 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class AuthSessionRefreshService {
     private final AuthSessionRepository authSessionRepository;
-    private final RefreshTokenHistoryRepository historyRepository;
+    private final ConsumedRefreshTokenRepository consumedRefreshTokenRepository;
     private final RefreshTokenProvider refreshTokenProvider;
     private final AuthTokenProvider authTokenProvider;
     private final MemberService memberService;
@@ -93,10 +93,10 @@ public class AuthSessionRefreshService {
             RefreshToken token,
             Instant now
     ) {
-        return historyRepository.findByRefreshTokenHash(token.getHash())
+        return consumedRefreshTokenRepository.findByRefreshTokenHash(token.getHash())
                 .map(
-                        history -> revokeSessionForReplay(
-                                history,
+                        consumedRefreshToken -> revokeSessionForReplay(
+                                consumedRefreshToken,
                                 now
                         )
                 )
@@ -104,10 +104,10 @@ public class AuthSessionRefreshService {
     }
 
     private boolean revokeSessionForReplay(
-            RefreshTokenHistory history,
+            ConsumedRefreshToken consumedRefreshToken,
             Instant now
     ) {
-        AuthSession session = authSessionRepository.findByIdForUpdate(history.getAuthSessionId())
+        AuthSession session = authSessionRepository.findByIdForUpdate(consumedRefreshToken.getAuthSessionId())
                 .orElseThrow(() -> new AuthException(AuthErrorCode.AUTHENTICATION_INTERNAL_ERROR));
         session.revoke(now);
         authSessionRepository.save(session);
@@ -134,8 +134,8 @@ public class AuthSessionRefreshService {
                 nextToken.getHash(),
                 now
         );
-        historyRepository.save(
-                RefreshTokenHistory.create(
+        consumedRefreshTokenRepository.save(
+                ConsumedRefreshToken.create(
                         session.getId(),
                         consumedTokenHash,
                         now

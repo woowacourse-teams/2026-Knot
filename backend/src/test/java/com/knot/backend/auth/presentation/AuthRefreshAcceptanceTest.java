@@ -381,7 +381,7 @@ class AuthRefreshAcceptanceTest {
 
     private int consumedTokenCount(String refreshTokenHash) {
         return jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM auth_session_refresh_token_history WHERE refresh_token_hash = ?",
+                "SELECT COUNT(*) FROM auth_session_consumed_refresh_tokens WHERE refresh_token_hash = ?",
                 Integer.class,
                 refreshTokenHash
         );

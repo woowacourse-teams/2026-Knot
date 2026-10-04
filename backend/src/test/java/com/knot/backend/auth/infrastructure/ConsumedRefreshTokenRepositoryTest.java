@@ -6,8 +6,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.knot.backend.auth.domain.AuthException;
 import com.knot.backend.auth.domain.AuthSession;
 import com.knot.backend.auth.domain.AuthSessionRepository;
-import com.knot.backend.auth.domain.RefreshTokenHistory;
-import com.knot.backend.auth.domain.RefreshTokenHistoryRepository;
+import com.knot.backend.auth.domain.ConsumedRefreshToken;
+import com.knot.backend.auth.domain.ConsumedRefreshTokenRepository;
 import com.knot.backend.member.domain.Member;
 import com.knot.backend.testsupport.TestApplicationProperties;
 import com.knot.backend.testsupport.TestcontainersConfiguration;
@@ -25,23 +25,23 @@ import org.springframework.test.context.TestConstructor.AutowireMode;
 
 @Tag("integration")
 @DataJpaTest(properties = "spring.jpa.hibernate.ddl-auto=validate")
-@Import({AuthSessionRepositoryImpl.class, RefreshTokenHistoryRepositoryImpl.class, TestcontainersConfiguration.class})
+@Import({AuthSessionRepositoryImpl.class, ConsumedRefreshTokenRepositoryImpl.class, TestcontainersConfiguration.class})
 @TestApplicationProperties
 @TestConstructor(autowireMode = AutowireMode.ALL)
-class RefreshTokenHistoryRepositoryTest {
+class ConsumedRefreshTokenRepositoryTest {
     private final AuthSessionRepository authSessionRepository;
-    private final RefreshTokenHistoryRepository historyRepository;
+    private final ConsumedRefreshTokenRepository consumedRefreshTokenRepository;
     private final EntityManager entityManager;
     private final JdbcTemplate jdbcTemplate;
 
-    RefreshTokenHistoryRepositoryTest(
+    ConsumedRefreshTokenRepositoryTest(
             AuthSessionRepository authSessionRepository,
-            RefreshTokenHistoryRepository historyRepository,
+            ConsumedRefreshTokenRepository consumedRefreshTokenRepository,
             EntityManager entityManager,
             JdbcTemplate jdbcTemplate
     ) {
         this.authSessionRepository = authSessionRepository;
-        this.historyRepository = historyRepository;
+        this.consumedRefreshTokenRepository = consumedRefreshTokenRepository;
         this.entityManager = entityManager;
         this.jdbcTemplate = jdbcTemplate;
     }
@@ -53,8 +53,8 @@ class RefreshTokenHistoryRepositoryTest {
         AuthSession session = createSession("a".repeat(64));
         String consumedHash = "b".repeat(64);
         Instant consumedAt = Instant.parse("2026-10-01T00:00:00Z");
-        historyRepository.save(
-                RefreshTokenHistory.create(
+        consumedRefreshTokenRepository.save(
+                ConsumedRefreshToken.create(
                         session.getId(),
                         consumedHash,
                         consumedAt
@@ -63,13 +63,13 @@ class RefreshTokenHistoryRepositoryTest {
         entityManager.clear();
 
         // when
-        RefreshTokenHistory history = historyRepository.findByRefreshTokenHash(consumedHash)
+        ConsumedRefreshToken consumedRefreshToken = consumedRefreshTokenRepository.findByRefreshTokenHash(consumedHash)
                 .orElseThrow();
 
         // then
-        assertThat(history.getAuthSessionId()).isEqualTo(session.getId());
-        assertThat(history.getConsumedAt()).isEqualTo(consumedAt);
-        assertThat(history.getRefreshTokenHash()).isEqualTo(consumedHash);
+        assertThat(consumedRefreshToken.getAuthSessionId()).isEqualTo(session.getId());
+        assertThat(consumedRefreshToken.getConsumedAt()).isEqualTo(consumedAt);
+        assertThat(consumedRefreshToken.getRefreshTokenHash()).isEqualTo(consumedHash);
     }
 
     @Test
@@ -78,8 +78,8 @@ class RefreshTokenHistoryRepositoryTest {
         // given
         AuthSession session = createSession("a".repeat(64));
         String consumedHash = "b".repeat(64);
-        historyRepository.save(
-                RefreshTokenHistory.create(
+        consumedRefreshTokenRepository.save(
+                ConsumedRefreshToken.create(
                         session.getId(),
                         consumedHash,
                         Instant.parse("2026-10-01T00:00:00Z")
@@ -89,8 +89,8 @@ class RefreshTokenHistoryRepositoryTest {
 
         // when & then
         assertThatThrownBy(
-                () -> historyRepository.save(
-                        RefreshTokenHistory.create(
+                () -> consumedRefreshTokenRepository.save(
+                        ConsumedRefreshToken.create(
                                 session.getId(),
                                 consumedHash,
                                 Instant.parse("2026-10-01T00:00:01Z")
@@ -105,7 +105,7 @@ class RefreshTokenHistoryRepositoryTest {
         // given
         Set<String> columns = Set.copyOf(
                 jdbcTemplate.queryForList(
-                        "SELECT column_name FROM information_schema.columns WHERE table_name = 'auth_session_refresh_token_history'",
+                        "SELECT column_name FROM information_schema.columns WHERE table_name = 'auth_session_consumed_refresh_tokens'",
                         String.class
                 )
         );
@@ -124,8 +124,8 @@ class RefreshTokenHistoryRepositoryTest {
     void save_failure_missingAuthSession() {
         // when & then
         assertThatThrownBy(
-                () -> historyRepository.save(
-                        RefreshTokenHistory.create(
+                () -> consumedRefreshTokenRepository.save(
+                        ConsumedRefreshToken.create(
                                 999999L,
                                 "b".repeat(64),
                                 Instant.parse("2026-10-01T00:00:00Z")

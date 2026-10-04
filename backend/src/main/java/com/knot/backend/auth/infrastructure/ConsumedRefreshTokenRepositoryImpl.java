@@ -2,8 +2,8 @@ package com.knot.backend.auth.infrastructure;
 
 import com.knot.backend.auth.domain.AuthErrorCode;
 import com.knot.backend.auth.domain.AuthException;
-import com.knot.backend.auth.domain.RefreshTokenHistory;
-import com.knot.backend.auth.domain.RefreshTokenHistoryRepository;
+import com.knot.backend.auth.domain.ConsumedRefreshToken;
+import com.knot.backend.auth.domain.ConsumedRefreshTokenRepository;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataAccessException;
@@ -11,13 +11,13 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 @RequiredArgsConstructor
-public class RefreshTokenHistoryRepositoryImpl implements RefreshTokenHistoryRepository {
-    private final RefreshTokenHistoryJpaRepository jpaRepository;
+public class ConsumedRefreshTokenRepositoryImpl implements ConsumedRefreshTokenRepository {
+    private final ConsumedRefreshTokenJpaRepository jpaRepository;
 
     @Override
-    public RefreshTokenHistory save(RefreshTokenHistory history) {
+    public ConsumedRefreshToken save(ConsumedRefreshToken consumedRefreshToken) {
         try {
-            return jpaRepository.saveAndFlush(history);
+            return jpaRepository.saveAndFlush(consumedRefreshToken);
         } catch (DataAccessException exception) {
             throw new AuthException(
                     AuthErrorCode.AUTHENTICATION_INTERNAL_ERROR,
@@ -27,7 +27,7 @@ public class RefreshTokenHistoryRepositoryImpl implements RefreshTokenHistoryRep
     }
 
     @Override
-    public Optional<RefreshTokenHistory> findByRefreshTokenHash(String refreshTokenHash) {
+    public Optional<ConsumedRefreshToken> findByRefreshTokenHash(String refreshTokenHash) {
         try {
             return jpaRepository.findByRefreshTokenHash(refreshTokenHash);
         } catch (DataAccessException exception) {

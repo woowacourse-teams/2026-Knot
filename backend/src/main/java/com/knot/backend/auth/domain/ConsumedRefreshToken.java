@@ -11,8 +11,8 @@ import lombok.Getter;
 
 @Getter
 @Entity
-@Table(name = "auth_session_refresh_token_history")
-public class RefreshTokenHistory {
+@Table(name = "auth_session_consumed_refresh_tokens")
+public class ConsumedRefreshToken {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id", nullable = false)
@@ -27,9 +27,9 @@ public class RefreshTokenHistory {
     @Column(name = "consumed_at", nullable = false)
     private Instant consumedAt;
 
-    protected RefreshTokenHistory() {}
+    protected ConsumedRefreshToken() {}
 
-    private RefreshTokenHistory(
+    private ConsumedRefreshToken(
             long authSessionId,
             String refreshTokenHash,
             Instant consumedAt
@@ -43,12 +43,12 @@ public class RefreshTokenHistory {
         this.consumedAt = consumedAt;
     }
 
-    public static RefreshTokenHistory create(
+    public static ConsumedRefreshToken create(
             long authSessionId,
             String refreshTokenHash,
             Instant consumedAt
     ) {
-        return new RefreshTokenHistory(
+        return new ConsumedRefreshToken(
                 authSessionId,
                 refreshTokenHash,
                 consumedAt
