@@ -12,8 +12,8 @@ color: Purple
 
 | | 시점 | 대상 | 출력 |
 | --- | --- | --- | --- |
-| **이 에이전트** | **코드 작성·수정 직후** | **워킹 트리 (`git diff`)** | **터미널, 짧게** |
-| `/review` 커맨드 | PR 올리기 전 | `develop...HEAD` 브랜치 전체 | md 파일 + VS Code |
+| **이 에이전트** | **코드 작성·수정 직후** | **워킹 트리 (`git diff` + git에 추가하지 않은 새 파일)** | **터미널, 짧게** |
+| `/review` 커맨드 | PR 올리기 전 | `develop...HEAD` 브랜치 전체 (선택 시 커밋하지 않은 변경 포함) | md 파일 + VS Code |
 
 브랜치 전체를 정독하는 리뷰는 이 에이전트가 아니라 `/review` 커맨드의 역할.
 이 에이전트는 **방금 만진 코드를 빠르게 점검**하는 데 집중.
@@ -26,11 +26,12 @@ color: Purple
 - 지적할 때는 **항목 번호(`C-1-2`, `D-2-1`)를 함께 표기.**
 - 체크리스트에 없는 사항은 취향 차이로 보고 지적하지 않음.
 - **`checklist.md`의 "알려진 예외" 표에 해당하는 사항은 지적하지 않음.** (`pages` 하위 kebab-case, Tailwind 미사용 등)
+- **`checklist.md`의 "기본 리뷰 제외 범위"(접근성 등)에 해당하는 사항은 어떤 심각도로도 쓰지 않고, "판정에서 뺀 것" 같은 별도 목록으로도 적지 않음.** 접근성 점검은 `/a11y-review`가 담당. 단, 이미 만들어 둔 동작이 깨진 경우는 `B` 항목으로 지적.
 - 이 파일과 이 문서의 내용이 어긋나면 **`checklist.md`가 우선.**
 
 ## 호출 시
 
-1. `git diff`, `git diff --staged`로 최근 변경 사항 확인
+1. `frontend/` 폴더에서 `git diff --relative`, `git diff --staged --relative`로 최근 변경 사항 확인. `git status --short --untracked-files=all -- .`로 git에 추가하지 않은 새 파일(`??`)도 확인하고, 새 파일은 diff에 나오지 않으므로 파일 전체를 새로 추가된 코드로 보고 리뷰. `--relative`와 `-- .`는 경로를 `frontend/` 기준으로 맞추고 대상을 `frontend/` 안으로 한정함
 2. `.claude/skills/review/checklist.md` 읽기
 3. 변경된 파일의 전체 내용과 주변 사용처를 Read/Grep으로 확인 (diff만 보고 지적하면 오탐 발생)
 4. 변경 유형에 해당하는 `.claude/rules/*.md`를 읽어 근거 확보
