@@ -422,6 +422,38 @@ class FlywayMigrationUpgradeIntegrationTest {
                 """)).isFalse();
     }
 
+    @Test
+    @DisplayName("V17의 기존 사용자 데이터를 보존하면서 V18 녹음 스키마를 추가한다")
+    void migrate_success_v17ToV18() throws SQLException {
+        // given
+        configureFlyway(MigrationVersion.fromVersion("13")).migrate();
+        insertImportRun(
+                "recording-upgrade",
+                "RUNNING"
+        );
+        configureFlyway(MigrationVersion.fromVersion("17")).migrate();
+        Flyway currentFlyway = configureFlyway();
+
+        // when
+        MigrateResult result = currentFlyway.migrate();
+
+        // then
+        assertThat(result.success).isTrue();
+        assertThat(appliedVersions(currentFlyway)).endsWith("18");
+        assertThat(queryBoolean("SELECT EXISTS (SELECT 1 FROM members)")).isTrue();
+        assertThat(queryBoolean("SELECT EXISTS (SELECT 1 FROM workspaces)")).isTrue();
+        assertThat(queryBoolean("SELECT EXISTS (SELECT 1 FROM workspace_members)")).isTrue();
+        assertThat(schemaObjectNames("""
+                SELECT constraint_name
+                FROM information_schema.table_constraints
+                WHERE table_schema = 'public' AND table_name = 'recording_sessions'
+                """)).contains(
+                "fk_recording_sessions_workspace",
+                "fk_recording_sessions_member",
+                "uk_recording_sessions_member_request"
+        );
+    }
+
     private void insertImportRun(
             String label,
             String status
