@@ -20,7 +20,7 @@ const fadeIn = keyframes`
 `;
 
 /**
- * 화면 하단 가운데에 고정으로 놓이는 독. 화면 어디에 놓을지는 이 독을 쓰는 레이아웃이 정해요.
+ * 화면 하단 가운데에 놓이는 독. 놓일 자리와 펼친 폭은 이 독을 쓰는 레이아웃이 정해요.
  */
 export default function WorkspaceDock() {
   const {
@@ -76,16 +76,15 @@ export default function WorkspaceDock() {
 /**
  * 접힘·펼침을 오가는 독 껍데기.
  *
- * 두 모양을 다른 요소로 두면 갈아 끼우느라 모션이 끊기므로, 한 요소의 폭만 바꿔 늘어나고 줄어들게 해요.
- * 안의 내용은 그 자리에서 갈리므로 폭이 벌어지는 동안 뒤따라 나타나도록 살짝 흐리게 시작해요.
+ * 두 모양을 다른 요소로 두면 모션이 끊기므로, 한 요소의 폭만 바꿔 늘고 줄게 해요.
  */
 const Bar = styled.form<{ $isExpanded: boolean }>`
   position: relative; /* 안내 말풍선이 이 자리를 기준으로 위에 놓여요 */
   display: flex;
   align-items: flex-end; /* 여러 줄로 자라도 보내기 버튼은 아래에 남아요 */
   gap: 0.625rem; /* 10px */
-  width: ${({ $isExpanded }) =>
-    $isExpanded ? "min(45rem, 100%)" : "4rem"}; /* 720px : 64px */
+  /* 펼치면 놓인 자리(대화 열과 같은 폭)를 다 채워요 */
+  width: ${({ $isExpanded }) => ($isExpanded ? "100%" : "4rem")}; /* 64px */
   min-height: 3.75rem; /* 60px — 여러 줄이면 이만큼에서부터 늘어나요 */
   padding: ${({ $isExpanded }) =>
     $isExpanded
@@ -133,12 +132,7 @@ const CollapsedButton = styled.button`
   }
 `;
 
-/**
- * 고스트 아이콘과 입력창을 한 덩어리로 묶는 자리.
- *
- * 한 줄일 때는 덩어리째 가운데에 놓여 36px짜리 보내기 버튼과 눈높이가 맞고,
- * 여러 줄로 자라면 아이콘이 첫 줄에 붙어요. 보내기 버튼만 아래에 남습니다.
- */
+/** 고스트 아이콘과 입력창을 묶는 자리. 여러 줄로 자라면 아이콘은 첫 줄에 붙어요. */
 const InputContainer = styled.div`
   display: flex;
   flex: 1;
