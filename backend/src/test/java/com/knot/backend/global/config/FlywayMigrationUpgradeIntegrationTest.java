@@ -432,7 +432,7 @@ class FlywayMigrationUpgradeIntegrationTest {
                 "RUNNING"
         );
         configureFlyway(MigrationVersion.fromVersion("17")).migrate();
-        Flyway currentFlyway = configureFlyway();
+        Flyway currentFlyway = configureFlyway(MigrationVersion.fromVersion("18"));
 
         // when
         MigrateResult result = currentFlyway.migrate();

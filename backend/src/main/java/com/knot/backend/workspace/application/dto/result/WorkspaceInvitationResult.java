@@ -5,7 +5,6 @@ import java.time.Instant;
 public record WorkspaceInvitationResult(
         String code,
         String linkToken,
-        Instant expiresAt,
-        boolean created
+        Instant expiresAt
 ) {
 }

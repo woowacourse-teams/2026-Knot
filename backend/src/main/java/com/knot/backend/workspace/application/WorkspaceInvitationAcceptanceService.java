@@ -59,38 +59,26 @@ public class WorkspaceInvitationAcceptanceService {
                 credential.kind(),
                 credential.secret()
         );
-        Long workspaceId = findWorkspaceId(
-                credential,
-                secretHash
-        ).orElseThrow(this::notFound);
-        Workspace workspace = workspaceRepository.findByIdForUpdate(workspaceId)
-                .orElseThrow(this::notFound);
-        Instant now = currentTime();
         WorkspaceInvitation invitation = findInvitation(
                 credential,
                 secretHash
-        ).filter(candidate -> candidate.isValidAt(now))
+        ).orElseThrow(this::notFound);
+        Workspace workspace = workspaceRepository.findByIdForUpdate(invitation.getWorkspaceId())
                 .orElseThrow(this::notFound);
+        Instant now = currentTime();
+        if (!invitation.isValidAt(now)) {
+            throw notFound();
+        }
         boolean created = joinWorkspace(
                 invitation.getWorkspaceId(),
                 memberId,
                 now
         );
         return new WorkspaceInvitationAcceptanceResult(
-                workspaceId,
+                invitation.getWorkspaceId(),
                 workspace.getName(),
                 created
         );
-    }
-
-    private Optional<Long> findWorkspaceId(
-            WorkspaceInvitationCredential credential,
-            String secretHash
-    ) {
-        if (credential.kind() == WorkspaceInvitationSecretKind.INVITE_CODE) {
-            return workspaceInvitationRepository.findWorkspaceIdByInviteCodeHash(secretHash);
-        }
-        return workspaceInvitationRepository.findWorkspaceIdByLinkTokenHash(secretHash);
     }
 
     private Optional<WorkspaceInvitation> findInvitation(
