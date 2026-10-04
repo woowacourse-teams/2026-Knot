@@ -262,6 +262,7 @@ class WorkspaceInvitationAcceptanceServiceTest {
                 )
         ).thenReturn(CODE_HASH);
         when(workspaceInvitationRepository.findByInviteCodeHash(CODE_HASH)).thenReturn(Optional.of(invitation));
+        when(workspaceRepository.findByIdForUpdate(WORKSPACE_ID)).thenReturn(Optional.of(workspace()));
 
         // when
         ThrowingCallable action = () -> service.accept(
@@ -274,6 +275,58 @@ class WorkspaceInvitationAcceptanceServiceTest {
         assertThatThrownBy(action).isInstanceOf(WorkspaceException.class)
                 .extracting(exception -> ((WorkspaceException) exception).getErrorCode())
                 .isEqualTo(WorkspaceErrorCode.WORKSPACE_INVITATION_PREVIEW_NOT_FOUND);
+        verifyNoInteractions(workspaceMemberRepository);
+    }
+
+    @DisplayName("Workspace 잠금을 기다리는 동안 만료된 초대는 잠금 뒤 시각으로 거절한다")
+    @Test
+    void accept_failure_expiredWhileWaitingForLock() {
+        // given
+        Clock clock = mock(Clock.class);
+        WorkspaceInvitationAcceptanceService lockWaitingService = new WorkspaceInvitationAcceptanceService(
+                workspaceRepository,
+                workspaceMemberRepository,
+                workspaceInvitationRepository,
+                secretProtector,
+                rateLimiter,
+                clock
+        );
+        WorkspaceInvitation invitation = WorkspaceInvitation.create(
+                WORKSPACE_ID,
+                LINK_TOKEN_HASH,
+                CODE_HASH,
+                NOW.minus(WorkspaceInvitation.VALIDITY_PERIOD)
+                        .plusSeconds(1)
+        );
+        when(
+                secretProtector.hash(
+                        WorkspaceInvitationSecretKind.INVITE_CODE,
+                        CODE
+                )
+        ).thenReturn(CODE_HASH);
+        when(workspaceInvitationRepository.findByInviteCodeHash(CODE_HASH)).thenReturn(Optional.of(invitation));
+        when(workspaceRepository.findByIdForUpdate(WORKSPACE_ID)).thenReturn(Optional.of(workspace()));
+        when(clock.instant()).thenReturn(NOW.plusSeconds(1));
+
+        // when
+        ThrowingCallable action = () -> lockWaitingService.accept(
+                CODE,
+                REMOTE_ADDRESS,
+                MEMBER_ID
+        );
+
+        // then
+        assertThatThrownBy(action).isInstanceOf(WorkspaceException.class)
+                .extracting(exception -> ((WorkspaceException) exception).getErrorCode())
+                .isEqualTo(WorkspaceErrorCode.WORKSPACE_INVITATION_PREVIEW_NOT_FOUND);
+        InOrder inOrder = inOrder(
+                workspaceRepository,
+                clock
+        );
+        inOrder.verify(workspaceRepository)
+                .findByIdForUpdate(WORKSPACE_ID);
+        inOrder.verify(clock)
+                .instant();
         verifyNoInteractions(workspaceMemberRepository);
     }
 
