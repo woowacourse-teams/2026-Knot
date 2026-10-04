@@ -2,7 +2,9 @@
 
 ## 상태
 
-Proposed
+Superseded
+
+- 원문 재조회용 암호문 저장은 ADR 399가 대체했다. 암호문 경로는 #444, 컬럼과 암호화 key는 #458에서 제거했다. HMAC lookup hash와 보안 난수는 유지한다.
 
 ## 관련 Issue
 
