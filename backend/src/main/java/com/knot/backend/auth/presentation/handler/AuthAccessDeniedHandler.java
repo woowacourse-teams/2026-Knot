@@ -20,6 +20,7 @@ import tools.jackson.databind.ObjectMapper;
 @RequiredArgsConstructor
 public class AuthAccessDeniedHandler implements AccessDeniedHandler {
     private static final String NICKNAME_SETUP_PATH = "/api/v1/auth/nickname";
+    private static final String TOKEN_REFRESH_PATH = "/api/v1/auth/refresh";
 
     private final ObjectMapper objectMapper;
 
@@ -29,12 +30,17 @@ public class AuthAccessDeniedHandler implements AccessDeniedHandler {
             HttpServletResponse response,
             AccessDeniedException accessDeniedException
     ) throws IOException, ServletException {
-        ErrorCode errorCode = request.getRequestURI()
-                .endsWith(NICKNAME_SETUP_PATH) ? AuthErrorCode.CSRF_INVALID : CommonErrorCode.FORBIDDEN;
+        ErrorCode errorCode = isAuthRequest(request.getRequestURI())
+                ? AuthErrorCode.CSRF_INVALID
+                : CommonErrorCode.FORBIDDEN;
         writeErrorResponse(
                 response,
                 errorCode
         );
+    }
+
+    private boolean isAuthRequest(String requestUri) {
+        return requestUri.endsWith(NICKNAME_SETUP_PATH) || requestUri.endsWith(TOKEN_REFRESH_PATH);
     }
 
     private void writeErrorResponse(

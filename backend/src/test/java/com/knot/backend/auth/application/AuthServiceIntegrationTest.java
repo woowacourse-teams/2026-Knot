@@ -79,7 +79,7 @@ class AuthServiceIntegrationTest {
         // given
         registerMember();
         when(tokens.issue(any())).thenReturn("access-token");
-        when(refreshTokens.issue()).thenReturn(
+        when(refreshTokens.issue(any(Instant.class))).thenReturn(
                 RefreshToken.of(
                         "private-refresh",
                         "a".repeat(64)
@@ -132,7 +132,7 @@ class AuthServiceIntegrationTest {
         // given
         registerMember();
         when(tokens.issue(any())).thenReturn(" ");
-        when(refreshTokens.issue()).thenReturn(
+        when(refreshTokens.issue(any(Instant.class))).thenReturn(
                 RefreshToken.of(
                         "refresh",
                         "a".repeat(64)
@@ -151,7 +151,7 @@ class AuthServiceIntegrationTest {
         // given
         registerMember();
         when(tokens.issue(any())).thenReturn("access");
-        when(refreshTokens.issue()).thenReturn(
+        when(refreshTokens.issue(any(Instant.class))).thenReturn(
                 RefreshToken.of(
                         "refresh",
                         "a".repeat(64)
