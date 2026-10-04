@@ -35,9 +35,11 @@ JSON 본문은 세 필드를 모두 요구한다.
 
 - 새 요청은 `201 Created`이며 `status=RECORDING`이다.
 - 같은 Member의 같은 `requestId`와 같은 Workspace·탭·증명은 `200 OK`다.
-  기존 `recordingId`·`startedAt`을 유지하고 현재 `RECORDING`·`PAUSED`·`ENDED` 상태를 반환한다.
-- 재전송은 상태·생존 시각을 갱신하지 않는다. 종료된 키를 보내도 새 세션을 만들거나 재개하지 않는다.
-- 기존 세션이 종료되면 새 `requestId`로 시작할 수 있다. 종료된 키의 이력은 세션과 함께 유지한다.
+  기존 `recordingId`·`startedAt`을 유지하고 현재 `RECORDING`·`PAUSED`·`ENDED`·`DISCARDED` 상태를 반환한다.
+- 재전송은 상태·생존 시각을 갱신하지 않는다. 종료·폐기된 키를 보내도 새 세션을 만들거나 재개하지 않는다.
+- 기존 세션이 종료·폐기되면 새 `requestId`로 시작할 수 있다. 종료·폐기된 키의 이력은 세션과 함께 유지한다.
+- `DISCARDED`는 Workspace 탈퇴·승계 후 탈퇴·마지막 멤버 탈퇴로 진행 중 녹음을 저장 없이 폐기한 상태다.
+  FE는 `ENDED`와 같이 수집을 멈추고, 임시 오디오를 저장하지 않고 버린다.
 
 조회 API는 아직 구현하지 않아 `Location`을 제공하지 않는다.
 `startedAt`은 서버 UTC 시각이며 PostgreSQL 저장과 응답 모두 마이크로초 정밀도를 사용한다.
