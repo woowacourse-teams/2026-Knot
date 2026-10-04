@@ -43,7 +43,7 @@ class WorkspaceLeaveMigrationIntegrationTest {
         cleanAndMigrate(MigrationVersion.fromVersion("14"));
 
         // when
-        MigrateResult result = configureFlyway().migrate();
+        MigrateResult result = configureFlyway(MigrationVersion.fromVersion("17")).migrate();
 
         // then
         assertThat(result.success).isTrue();

@@ -18,6 +18,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
@@ -261,10 +263,13 @@ class WorkspaceQueryAcceptanceTest {
         // then
         result.andExpect(status().isOk())
                 .andExpect(jsonPath("$.lastViewedWorkspaceId").value(tiedLowerWorkspaceId))
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$.createdWorkspaceCount").doesNotExist())
                 .andExpect(jsonPath("$.workspaces").isArray())
                 .andExpect(jsonPath("$.workspaces.length()").value(3))
                 .andExpect(jsonPath("$.workspaces[0].id").value(tiedHigherWorkspaceId))
                 .andExpect(jsonPath("$.workspaces[0].name").value("최근 두 팀"))
+                .andExpect(jsonPath("$.workspaces[0].length()").value(2))
                 .andExpect(jsonPath("$.workspaces[0].role").doesNotExist())
                 .andExpect(jsonPath("$.workspaces[0].joinedAt").doesNotExist())
                 .andExpect(jsonPath("$.workspaces[0].createdAt").doesNotExist())
@@ -274,6 +279,131 @@ class WorkspaceQueryAcceptanceTest {
                 .andExpect(jsonPath("$.workspaces[2].name").value("이전 팀"));
         assertThat(workspaceSnapshots()).isEqualTo(workspaceSnapshot);
         assertThat(workspaceMemberSnapshots()).isEqualTo(workspaceMemberSnapshot);
+    }
+
+    @Test
+    @DisplayName("재가입한 워크스페이스는 새 참여 시각으로 한 번만 반환하고 과거 이력은 변경하지 않는다")
+    void list_success_sortsRejoinedMembershipWithoutDuplicates() throws Exception {
+        // given
+        long memberId = saveMember();
+        long rejoinedWorkspaceId = saveWorkspace("재가입 팀");
+        long otherWorkspaceId = saveWorkspace("계속 참여한 팀");
+        saveWorkspaceMember(
+                rejoinedWorkspaceId,
+                memberId,
+                WorkspaceMemberRole.OWNER,
+                JOINED_AT
+        );
+        markLastViewed(
+                rejoinedWorkspaceId,
+                memberId
+        );
+        markMembershipLeft(
+                rejoinedWorkspaceId,
+                memberId
+        );
+        saveWorkspaceMember(
+                otherWorkspaceId,
+                memberId,
+                WorkspaceMemberRole.MEMBER,
+                RECENT_JOINED_AT
+        );
+        saveWorkspaceMember(
+                rejoinedWorkspaceId,
+                memberId,
+                WorkspaceMemberRole.MEMBER,
+                RECENT_JOINED_AT.plusSeconds(1)
+        );
+        String token = accessToken(memberId);
+        List<String> workspacesBefore = workspaceSnapshots();
+        List<String> membershipsBefore = workspaceMemberSnapshots();
+
+        // when
+        ResultActions result = mockMvc.perform(
+                get("/api/v1/workspaces").cookie(
+                        new Cookie(
+                                JWT_COOKIE_NAME,
+                                token
+                        )
+                )
+        );
+
+        // then
+        result.andExpect(status().isOk())
+                .andExpect(jsonPath("$.lastViewedWorkspaceId").value(nullValue()))
+                .andExpect(jsonPath("$.workspaces.length()").value(2))
+                .andExpect(jsonPath("$.workspaces[0].id").value(rejoinedWorkspaceId))
+                .andExpect(jsonPath("$.workspaces[0].name").value("재가입 팀"))
+                .andExpect(jsonPath("$.workspaces[1].id").value(otherWorkspaceId));
+        assertThat(workspaceSnapshots()).isEqualTo(workspacesBefore);
+        assertThat(workspaceMemberSnapshots()).isEqualTo(membershipsBefore);
+    }
+
+    @ParameterizedTest(name = "Workspace 삭제={0}, 다른 활성 Workspace 존재={1}")
+    @CsvSource({"false, false", "false, true", "true, false", "true, true"})
+    @DisplayName("탈퇴하거나 삭제된 마지막 대상은 목록에서 제외하고 선택 복구 없이 null을 반환한다")
+    void list_success_excludesUnavailableLastViewedWithoutRepair(
+            boolean deletedWorkspace,
+            boolean hasActiveWorkspace
+    ) throws Exception {
+        // given
+        long memberId = saveMember();
+        long unavailableWorkspaceId = saveWorkspace("이전 마지막 팀");
+        saveWorkspaceMember(
+                unavailableWorkspaceId,
+                memberId
+        );
+        markLastViewed(
+                unavailableWorkspaceId,
+                memberId
+        );
+        if (deletedWorkspace) {
+            jdbcClient.sql("UPDATE workspaces SET deleted_at = CAST(:deletedAt AS TIMESTAMPTZ) WHERE id = :workspaceId")
+                    .param(
+                            "deletedAt",
+                            RECENT_JOINED_AT.toString()
+                    )
+                    .param(
+                            "workspaceId",
+                            unavailableWorkspaceId
+                    )
+                    .update();
+        } else {
+            markMembershipLeft(
+                    unavailableWorkspaceId,
+                    memberId
+            );
+        }
+        long activeWorkspaceId = saveWorkspace("남아 있는 팀");
+        if (hasActiveWorkspace) {
+            saveWorkspaceMember(
+                    activeWorkspaceId,
+                    memberId
+            );
+        }
+        String token = accessToken(memberId);
+        List<String> workspacesBefore = workspaceSnapshots();
+        List<String> membershipsBefore = workspaceMemberSnapshots();
+
+        // when
+        ResultActions result = mockMvc.perform(
+                get("/api/v1/workspaces").cookie(
+                        new Cookie(
+                                JWT_COOKIE_NAME,
+                                token
+                        )
+                )
+        );
+
+        // then
+        result.andExpect(status().isOk())
+                .andExpect(jsonPath("$.lastViewedWorkspaceId").value(nullValue()))
+                .andExpect(jsonPath("$.workspaces.length()").value(hasActiveWorkspace ? 1 : 0));
+        if (hasActiveWorkspace) {
+            result.andExpect(jsonPath("$.workspaces[0].id").value(activeWorkspaceId));
+        }
+        assertThat(workspaceSnapshots()).isEqualTo(workspacesBefore);
+        assertThat(workspaceMemberSnapshots()).isEqualTo(membershipsBefore);
     }
 
     @Test
@@ -393,8 +523,8 @@ class WorkspaceQueryAcceptanceTest {
 
     private List<String> workspaceSnapshots() {
         return jdbcClient.sql("""
-                SELECT id::text || '|' || name || '|' || created_at::text
-                FROM workspaces
+                SELECT row_to_json(w)::text
+                FROM workspaces w
                 ORDER BY id
                 """)
                 .query(String.class)
@@ -403,9 +533,8 @@ class WorkspaceQueryAcceptanceTest {
 
     private List<String> workspaceMemberSnapshots() {
         return jdbcClient.sql("""
-                SELECT id::text || '|' || workspace_id::text || '|' || member_id::text || '|' || role || '|'
-                    || joined_at::text || '|' || last_viewed::text
-                FROM workspace_members
+                SELECT row_to_json(wm)::text
+                FROM workspace_members wm
                 ORDER BY id
                 """)
                 .query(String.class)
@@ -456,6 +585,30 @@ class WorkspaceQueryAcceptanceTest {
                 SET last_viewed = TRUE
                 WHERE workspace_id = :workspaceId AND member_id = :memberId
                 """)
+                .param(
+                        "workspaceId",
+                        workspaceId
+                )
+                .param(
+                        "memberId",
+                        memberId
+                )
+                .update();
+    }
+
+    private void markMembershipLeft(
+            long workspaceId,
+            long memberId
+    ) {
+        jdbcClient.sql("""
+                UPDATE workspace_members
+                SET left_at = CAST(:leftAt AS TIMESTAMPTZ), last_viewed = FALSE
+                WHERE workspace_id = :workspaceId AND member_id = :memberId AND left_at IS NULL
+                """)
+                .param(
+                        "leftAt",
+                        RECENT_JOINED_AT.toString()
+                )
                 .param(
                         "workspaceId",
                         workspaceId
