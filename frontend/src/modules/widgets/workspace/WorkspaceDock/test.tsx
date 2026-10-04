@@ -1,10 +1,12 @@
 import { ThemeProvider } from "@emotion/react";
+import { DialogProvider } from "@provider/context/dialogContext";
 import { theme } from "@provider/themeProvider";
 import { getRouterPath, PATH_ROUTE } from "@routes/PATH_ROUTE";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { createMemoryRouter, RouterProvider } from "react-router";
-import { beforeEach, describe, expect, it } from "vitest";
+import { useRecordingStore } from "@store/recordingStore";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import WorkspaceDock from ".";
 import { DOCK_HINT_MAX_SEEN_COUNT, DOCK_HINT_TEXT } from "./constants/dockHint";
@@ -16,6 +18,10 @@ const HOME_PATH = getRouterPath({
 });
 const CHAT_PATH = getRouterPath({
   routeKey: "CHAT",
+  params: { workspaceId: WORKSPACE_ID },
+});
+const RECORDING_PATH = getRouterPath({
+  routeKey: "RECORDING",
   params: { workspaceId: WORKSPACE_ID },
 });
 const QUESTION = "지난주 회의에서 정해진 것만 뽑아 줘";
@@ -40,7 +46,9 @@ const renderDock = (initialPath = HOME_PATH) => {
   const { unmount } = render(
     <ThemeProvider theme={theme}>
       <QueryClientProvider client={queryClient}>
-        <RouterProvider router={router} />
+        <DialogProvider>
+          <RouterProvider router={router} />
+        </DialogProvider>
       </QueryClientProvider>
     </ThemeProvider>,
   );
@@ -282,5 +290,166 @@ describe("WorkspaceDock", () => {
     });
 
     expect(router.state.location.pathname).toBe(HOME_PATH);
+  });
+
+  describe("회의 녹음 마이크", () => {
+    const MIC_UNAVAILABLE = "마이크를 사용할 수 없어요";
+
+    afterEach(() => {
+      // 전역 저장소라 테스트끼리 녹음이 새지 않도록 처음 상태로 되돌려요
+      useRecordingStore.getState().endRecording();
+    });
+
+    const clickMic = async (name = "회의 녹음 시작") => {
+      await act(async () => {
+        fireEvent.click(screen.getByRole("button", { name }));
+      });
+    };
+
+    const denyMicrophoneOnce = () =>
+      vi
+        .spyOn(navigator.mediaDevices, "getUserMedia")
+        .mockRejectedValueOnce(new DOMException("", "NotAllowedError"));
+
+    it("접힌 독과 펼친 독 모두에 마이크가 있다", () => {
+      renderDock();
+
+      expect(
+        screen.getByRole("button", { name: "회의 녹음 시작" }),
+      ).toBeInTheDocument();
+
+      expandDock();
+
+      expect(
+        screen.getByRole("button", { name: "회의 녹음 시작" }),
+      ).toBeInTheDocument();
+    });
+
+    it("마이크를 누르면 권한을 받아 녹음을 시작하고 녹음 화면으로 간다", async () => {
+      const getUserMedia = vi.spyOn(navigator.mediaDevices, "getUserMedia");
+      const { router } = renderDock();
+
+      await clickMic();
+
+      expect(getUserMedia).toHaveBeenCalledWith({ audio: true });
+      expect(useRecordingStore.getState().status).toBe("recording");
+      expect(router.state.location.pathname).toBe(RECORDING_PATH);
+    });
+
+    it("녹음 화면에서는 마이크를 숨긴다", () => {
+      renderDock(RECORDING_PATH);
+
+      expect(
+        screen.queryByRole("button", { name: "회의 녹음 시작" }),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: "녹음 화면으로 이동" }),
+      ).not.toBeInTheDocument();
+    });
+
+    it("권한을 받지 못하면 모달을 띄우고 제자리에 남는다", async () => {
+      denyMicrophoneOnce();
+      const { router } = renderDock();
+
+      await clickMic();
+
+      expect(
+        screen.getByRole("dialog", { name: MIC_UNAVAILABLE }),
+      ).toBeInTheDocument();
+      expect(useRecordingStore.getState().status).toBe("idle");
+      expect(router.state.location.pathname).toBe(HOME_PATH);
+    });
+
+    it("모달의 닫기는 모달만 닫고 제자리에 남는다", async () => {
+      denyMicrophoneOnce();
+      const { router } = renderDock();
+      await clickMic();
+
+      fireEvent.click(screen.getByRole("button", { name: "닫기" }));
+
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      expect(router.state.location.pathname).toBe(HOME_PATH);
+    });
+
+    it("ESC를 눌러도 닫기와 같다", async () => {
+      denyMicrophoneOnce();
+      renderDock();
+      await clickMic();
+
+      fireEvent.keyDown(document, { key: "Escape" });
+
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    });
+
+    it("모달의 다시 시도로 권한을 받으면 녹음 화면으로 간다", async () => {
+      denyMicrophoneOnce();
+      const { router } = renderDock();
+      await clickMic();
+
+      await clickMic("다시 시도");
+
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      expect(router.state.location.pathname).toBe(RECORDING_PATH);
+    });
+
+    it("이미 녹음 중이면 권한을 다시 묻지 않고 녹음 화면으로 간다", async () => {
+      await act(async () => {
+        await useRecordingStore.getState().startRecording();
+      });
+      const getUserMedia = vi.spyOn(navigator.mediaDevices, "getUserMedia");
+      const { router } = renderDock();
+
+      await clickMic("녹음 화면으로 이동");
+
+      expect(getUserMedia).not.toHaveBeenCalled();
+      expect(router.state.location.pathname).toBe(RECORDING_PATH);
+    });
+
+    describe("녹음 중 마이크가 끊기면", () => {
+      const startAndDisconnect = async () => {
+        const getUserMedia = vi.spyOn(navigator.mediaDevices, "getUserMedia");
+        await act(async () => {
+          await useRecordingStore.getState().startRecording();
+        });
+        const stream: MediaStream = await getUserMedia.mock.results[0].value;
+        renderDock();
+
+        act(() => {
+          const [track] = stream.getTracks();
+          track.stop();
+          track.dispatchEvent(new Event("ended"));
+        });
+
+        return { getUserMedia };
+      };
+
+      it("일시정지하고 모달을 띄운다", async () => {
+        await startAndDisconnect();
+
+        expect(useRecordingStore.getState().status).toBe("paused");
+        expect(
+          screen.getByRole("dialog", { name: MIC_UNAVAILABLE }),
+        ).toBeInTheDocument();
+      });
+
+      it("닫기를 누르면 일시정지를 유지한다", async () => {
+        await startAndDisconnect();
+
+        fireEvent.click(screen.getByRole("button", { name: "닫기" }));
+
+        expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+        expect(useRecordingStore.getState().status).toBe("paused");
+      });
+
+      it("다시 시도로 마이크를 받으면 녹음을 이어 간다", async () => {
+        const { getUserMedia } = await startAndDisconnect();
+
+        await clickMic("다시 시도");
+
+        expect(getUserMedia).toHaveBeenCalledTimes(2);
+        expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+        expect(useRecordingStore.getState().status).toBe("recording");
+      });
+    });
   });
 });
