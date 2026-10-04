@@ -26,8 +26,8 @@ interface RecordingActions {
   resumeRecording: () => Promise<boolean>;
   /** 녹음을 버리고 마이크를 꺼요 */
   endRecording: () => void;
-  /** 마이크가 끊겼다는 알림을 확인했어요 */
-  acknowledgeMicrophoneLost: () => void;
+  /** 마이크가 끊겼다는 표시(`isMicrophoneLost`)를 지워요 */
+  clearMicrophoneLost: () => void;
 }
 
 const IDLE_STATE: RecordingState = {
@@ -123,6 +123,6 @@ export const useRecordingStore = create<RecordingState & RecordingActions>()((
       set(IDLE_STATE);
     },
 
-    acknowledgeMicrophoneLost: () => set({ isMicrophoneLost: false }),
+    clearMicrophoneLost: () => set({ isMicrophoneLost: false }),
   };
 });

@@ -28,8 +28,8 @@ const useRecording = () => {
   const endRecording = useRecordingStore((state) => state.endRecording);
   const analyser = useRecordingStore((state) => state.analyser);
   const isMicrophoneLost = useRecordingStore((state) => state.isMicrophoneLost);
-  const acknowledgeMicrophoneLost = useRecordingStore(
-    (state) => state.acknowledgeMicrophoneLost,
+  const clearMicrophoneLost = useRecordingStore(
+    (state) => state.clearMicrophoneLost,
   );
 
   const [now, setNow] = useState(() => Date.now());
@@ -58,7 +58,7 @@ const useRecording = () => {
     pauseRecording,
     resumeRecording,
     endRecording,
-    acknowledgeMicrophoneLost,
+    clearMicrophoneLost,
   };
 };
 

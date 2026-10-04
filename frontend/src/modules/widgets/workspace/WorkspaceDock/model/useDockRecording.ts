@@ -26,15 +26,15 @@ export const useDockRecording = () => {
     isMicrophoneLost,
     startRecording,
     resumeRecording,
-    acknowledgeMicrophoneLost,
+    clearMicrophoneLost,
   } = useRecording();
 
   // 녹음 중 마이크가 끊기면 다시 시도 모달을 띄워요
   useEffect(() => {
     if (!isMicrophoneLost) return;
 
-    // 알림은 한 번만 띄우도록 바로 확인 처리해요. 녹음은 일시정지로 남아요
-    acknowledgeMicrophoneLost();
+    // 알림은 한 번만 띄우도록 끊김 표시를 바로 지워요. 녹음은 일시정지로 남아요
+    clearMicrophoneLost();
 
     const retryResume = async () => {
       const isResumed = await resumeRecording();
@@ -45,7 +45,7 @@ export const useDockRecording = () => {
 
     openMicrophoneUnavailableDialog({ onRetry: retryResume });
   }, [
-    acknowledgeMicrophoneLost,
+    clearMicrophoneLost,
     isMicrophoneLost,
     openMicrophoneUnavailableDialog,
     resumeRecording,
