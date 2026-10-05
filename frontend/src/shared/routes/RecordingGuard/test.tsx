@@ -69,7 +69,7 @@ describe("RecordingGuard", () => {
     expect(screen.getByText(RECORDING_TEXT)).toBeInTheDocument();
   });
 
-  it("녹음을 끝내면 홈으로 나간다", async () => {
+  it("들어온 뒤 녹음을 끝내도 끝낸 쪽의 이동을 덮어쓰지 않는다", async () => {
     await startRecording();
     const { router } = renderGuard();
 
@@ -77,6 +77,6 @@ describe("RecordingGuard", () => {
       useRecordingStore.getState().endRecording();
     });
 
-    expect(router.state.location.pathname).toBe(HOME_PATH);
+    expect(router.state.location.pathname).toBe(RECORDING_PATH);
   });
 });
