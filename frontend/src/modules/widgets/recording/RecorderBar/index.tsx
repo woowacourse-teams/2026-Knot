@@ -9,10 +9,20 @@ import Waveform from "./ui/Waveform";
 
 /**
  * 녹음 화면 상단 바.
+ *
+ * 왼쪽에 녹음 상태·녹음한 시간·파형을, 오른쪽에 일시정지(이어서 녹음)와 녹음 끝내기 버튼을 둬요.
+ * 녹음을 시작한 사람 혼자 쓰는 화면이라 권한에 따른 구분은 없어요.
+ * 파형은 마이크 소리 크기를 따라 움직이고, 녹음 파일 업로드는 아직 연결하지 않았어요.
  */
 export default function RecorderBar() {
-  const { isPaused, elapsedTime, handlePause, handleResume, handleEnd } =
-    useRecorderBar();
+  const {
+    isPaused,
+    elapsedTime,
+    analyser,
+    handlePause,
+    handleResume,
+    handleEnd,
+  } = useRecorderBar();
 
   return (
     <Container aria-label="녹음 조작">
@@ -24,7 +34,7 @@ export default function RecorderBar() {
 
         <ElapsedTime aria-label="녹음한 시간">{elapsedTime}</ElapsedTime>
 
-        <Waveform isActive={!isPaused} />
+        <Waveform analyser={analyser} isActive={!isPaused} />
       </Info>
 
       <Controls>

@@ -31,7 +31,11 @@ public class RefreshTokenIssuer implements RefreshTokenProvider {
         );
     }
 
-    private String hash(String value) {
+    @Override
+    public String hash(String value) {
+        if (value == null || value.isBlank()) {
+            throw new AuthException(AuthErrorCode.INVALID_JWT);
+        }
         try {
             byte[] digest = MessageDigest.getInstance("SHA-256")
                     .digest(value.getBytes(StandardCharsets.UTF_8));

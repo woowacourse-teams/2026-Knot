@@ -1,14 +1,12 @@
-/**
- * 파형 막대의 높이(px). Figma Recorder/Bar의 Waveform을 그대로 옮겼어요.
- *
- * 마이크를 아직 연결하지 않아 실제 소리 크기가 아니라 녹음 중임을 보여주는 장식이에요.
- *
- * 지금은 정적인 UI만 보여주지만, 녹음 기능을 추가할 때 실제 소리 크기에 따라 높이가 바뀌도록 변경할 예정입니다.
- */
-export const WAVEFORM_BAR_HEIGHTS = [
-  7, 6, 20, 19, 4, 27, 9, 8, 8, 15, 24, 13, 25, 4, 7, 6, 20, 19, 21, 22, 9, 4,
-  4, 17, 6, 22,
-] as const;
+/** 파형 막대 수. Figma Recorder/Bar의 Waveform과 같아요. */
+export const WAVEFORM_BAR_COUNT = 26;
 
 /** 끝에서 이만큼은 아직 들어오지 않은 소리 자리라 녹음 중에도 흐리게 둬요. */
 export const WAVEFORM_PENDING_BAR_COUNT = 3;
+
+/** 막대 높이(px). 소리가 없으면 가장 낮게, 가장 크면 파형 높이를 꽉 채워요. */
+export const WAVEFORM_MIN_BAR_HEIGHT = 4;
+export const WAVEFORM_MAX_BAR_HEIGHT = 30;
+
+/** 소리 크기를 재는 간격(ms). 막대가 한 칸씩 왼쪽으로 흘러가는 속도예요. */
+export const WAVEFORM_SAMPLE_INTERVAL_MS = 120;

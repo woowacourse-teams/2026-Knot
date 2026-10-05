@@ -55,6 +55,7 @@ class KnotApplicationTests {
     private static final String LOCAL_FRONTEND_ORIGIN = "http://localhost:3000";
     private static final String UNALLOWED_ORIGIN = "https://attacker.example";
     private static final String JWT_COOKIE_NAME = "KNOT_ACCESS_TOKEN";
+    private static final String REFRESH_COOKIE_NAME = "KNOT_REFRESH_TOKEN";
     private static final String NICKNAME_COOKIE_NAME = "KNOT_NICKNAME_TOKEN";
     private static final String CSRF_COOKIE_NAME = "XSRF-TOKEN";
 
@@ -583,6 +584,10 @@ class KnotApplicationTests {
                                 token
                         ),
                         new Cookie(
+                                REFRESH_COOKIE_NAME,
+                                "refresh-token"
+                        ),
+                        new Cookie(
                                 NICKNAME_COOKIE_NAME,
                                 "nickname-token"
                         )
@@ -595,13 +600,19 @@ class KnotApplicationTests {
         );
 
         // then
-        result.andExpect(status().isFound())
+        result.andExpect(status().isNoContent())
                 .andExpect(resultActions -> {
                     List<String> cookies = resultActions.getResponse()
                             .getHeaders("Set-Cookie");
                     assertThat(cookies).anySatisfy(
                             cookie -> assertThat(cookie).contains(
                                     JWT_COOKIE_NAME + "=",
+                                    "Max-Age=0"
+                            )
+                    );
+                    assertThat(cookies).anySatisfy(
+                            cookie -> assertThat(cookie).contains(
+                                    REFRESH_COOKIE_NAME + "=",
                                     "Max-Age=0"
                             )
                     );

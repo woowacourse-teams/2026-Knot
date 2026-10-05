@@ -39,6 +39,32 @@ class RefreshTokenIssuerTest {
     }
 
     @Test
+    @DisplayName("refresh 토큰 원문을 저장용 SHA-256 해시로 변환한다")
+    void hash_success() throws Exception {
+        // given
+        RefreshTokenIssuer issuer = new RefreshTokenIssuer();
+        String refreshToken = "opaque-refresh-token";
+        String expectedHash = HexFormat.of()
+                .formatHex(
+                        MessageDigest.getInstance("SHA-256")
+                                .digest(refreshToken.getBytes(StandardCharsets.UTF_8))
+                );
+
+        // when & then
+        assertThat(issuer.hash(refreshToken)).isEqualTo(expectedHash);
+    }
+
+    @Test
+    @DisplayName("비어 있는 refresh 토큰 원문은 해시할 수 없다")
+    void hash_failure_missingValue() {
+        // given
+        RefreshTokenIssuer issuer = new RefreshTokenIssuer();
+
+        // when & then
+        assertThatThrownBy(() -> issuer.hash(" ")).isInstanceOf(AuthException.class);
+    }
+
+    @Test
     @DisplayName("값이나 해시가 없는 refresh 토큰은 생성할 수 없다")
     void create_failure_missingCredential() {
         // when & then

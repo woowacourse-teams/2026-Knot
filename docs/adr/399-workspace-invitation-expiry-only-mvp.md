@@ -44,7 +44,7 @@ Proposed
 - legacy expires_at과 invalidated_at의 효력을 보존하고 발급자를 추측하지 않는다
 - I01은 공통 만료 회귀와 FK RESTRICT를 검증한다. 독립 만료 컬럼·생성 경로·fallback은 제거한다. 공통 expires_at과 고정24시간 CHECK를 유지하고 단수 UNIQUE·구 API는 후속 전환까지 유지한다
 - FE가 발급·미리보기만 사용하므로 기능 플래그 없이 구 재발급·원문 조회 API를 제거한다. 기존 숫자 코드는 만료 전까지 서버에서 인정한다
-- Superseded 범위: ADR171의 단일 초대·재발급 무효화 정책. 공통 24시간 만료는 유지한다. ADR229의 HMAC·난수는 유지하고 원문 재조회용 AES-GCM 암호문 저장은 대체한다. 기존 암호문 컬럼 삭제는 후속 migration이다
+- Superseded 범위: ADR171의 단일 초대·재발급 무효화 정책. 공통 24시간 만료는 유지한다. ADR229의 HMAC·난수는 유지하고 원문 재조회용 AES-GCM 암호문 저장은 대체한다. 기존 암호문 컬럼과 암호화 key는 #458의 V22 migration과 배포 설정 정리로 제거했다
 - Workspace 삭제는 별도 접근 차단이다. 만료 전 개별 취소가 없는 위험을 수용한다
 
 ## 다시 논의해야 할 조건

@@ -2,10 +2,17 @@ import { LAST_VIEWED_WORKSPACE_API_PATH } from "@api/fetch/api/v1/members/me/las
 import { workspaceDetailResponse } from "@api/mock/responses/workspace";
 import { mockServer } from "@api/mock/server";
 import { ThemeProvider } from "@emotion/react";
+import { DialogProvider } from "@provider/context/dialogContext";
 import { theme } from "@provider/themeProvider";
 import { getRouterPath, PATH_ROUTE } from "@routes/PATH_ROUTE";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { delay, http, HttpResponse } from "msw";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { describe, expect, it } from "vitest";
@@ -54,7 +61,9 @@ const renderLayout = (initialPath = HOME_PATH) => {
   render(
     <ThemeProvider theme={theme}>
       <QueryClientProvider client={queryClient}>
-        <RouterProvider router={router} />
+        <DialogProvider>
+          <RouterProvider router={router} />
+        </DialogProvider>
       </QueryClientProvider>
     </ThemeProvider>,
   );
@@ -208,14 +217,18 @@ describe("WorkspaceLayout", () => {
     expect(
       screen.queryByRole("button", { name: "대화 목록" }),
     ).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "사이드바" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "사이드바" }),
+    ).toBeInTheDocument();
   });
 
   it("탐색 화면에서는 사이드바와 대화 목록을 둘 다 열 수 있다", async () => {
     renderLayout(CHAT_PATH);
 
     expect(await screen.findByText(CHAT_TEXT)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "사이드바" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "사이드바" }),
+    ).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "대화 목록" }),
     ).toBeInTheDocument();
