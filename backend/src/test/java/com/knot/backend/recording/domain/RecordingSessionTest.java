@@ -507,6 +507,54 @@ class RecordingSessionTest {
                 .isEqualTo(RecordingErrorCode.RECORDING_CONTROL_DENIED);
     }
 
+    @Test
+    @DisplayName("30분 녹음하고 90분 일시정지한 뒤 재개하면 누적 시간은 30분이고 재개 시각부터 다시 센다")
+    void resume_success_excludesLongPause() {
+        // given
+        RecordingSession session = startRecording();
+        session.pause(STARTED_AT.plusSeconds(30 * 60));
+        Instant resumedAt = STARTED_AT.plusSeconds(120 * 60);
+
+        // when
+        session.resume(resumedAt);
+
+        // then
+        assertThat(session.getStatus()).isEqualTo(RecordingStatus.RECORDING);
+        assertThat(session.getAccumulatedRecordingMillis()).isEqualTo(30 * 60 * 1000L);
+        assertThat(session.getResumedAt()).isEqualTo(resumedAt);
+        assertThat(session.getPausedAt()).isNull();
+        assertThat(session.getRecordingDurationMillis(resumedAt.plusSeconds(60))).isEqualTo(31 * 60 * 1000L);
+    }
+
+    @Test
+    @DisplayName("이미 녹음 중인 세션을 다시 재개하면 처음 재개 시각과 누적 시간을 유지한다")
+    void resume_success_repeatedKeepsResumedAt() {
+        // given
+        RecordingSession session = startRecording();
+        session.pause(STARTED_AT.plusSeconds(10));
+        session.resume(STARTED_AT.plusSeconds(20));
+
+        // when
+        session.resume(STARTED_AT.plusSeconds(40));
+
+        // then
+        assertThat(session.getResumedAt()).isEqualTo(STARTED_AT.plusSeconds(20));
+        assertThat(session.getAccumulatedRecordingMillis()).isEqualTo(10_000L);
+    }
+
+    @Test
+    @DisplayName("일시정지 중에는 재개 시각이 없다")
+    void getResumedAt_success_nullWhilePaused() {
+        // given
+        RecordingSession session = startRecording();
+
+        // when
+        session.pause(STARTED_AT.plusSeconds(10));
+
+        // then
+        assertThat(session.getResumedAt()).isNull();
+    }
+
     private RecordingSession startRecording() {
         return RecordingSession.start(
                 WORKSPACE_ID,
