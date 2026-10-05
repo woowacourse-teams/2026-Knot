@@ -20,6 +20,7 @@ import AuthGuard from "./AuthGuard";
 import EntryRedirect from "./EntryRedirect";
 import GuestGuard from "./GuestGuard";
 import { PATH_ROUTE } from "./PATH_ROUTE";
+import RecordingGuard from "./RecordingGuard";
 
 /**
  * 로그인 여부로 세 구역이 나뉘어요.
@@ -123,8 +124,13 @@ export const routes: RouteObject[] = [
         element: <ChatPage />,
       },
       {
-        path: PATH_ROUTE.RECORDING,
-        element: <RecordingPage />,
+        element: <RecordingGuard />,
+        children: [
+          {
+            path: PATH_ROUTE.RECORDING,
+            element: <RecordingPage />,
+          },
+        ],
       },
     ],
   },

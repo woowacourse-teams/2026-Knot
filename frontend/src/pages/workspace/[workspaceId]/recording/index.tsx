@@ -2,13 +2,11 @@ import styled from "@emotion/styled";
 import RecordingCard from "@features/recording/RecordingCard";
 import RecorderBar from "@widgets/recording/RecorderBar";
 
-import { useRecordingEntryGuard } from "./model/useRecordingEntryGuard";
-
 /**
  * 녹음 화면 (`/workspace/:workspaceId/recording`)
  *
  * 독의 마이크로 시작한 녹음을 보여 주는 화면이에요. 위에는 녹음 조작 바를, 아래에는 녹음 카드를 둬요.
- * 진행 중인 녹음 없이 들어오면 홈으로 보내요.
+ * 진행 중인 녹음 없이 들어오면 라우트의 `RecordingGuard`가 홈으로 보내요.
  * 녹음 상태는 워크스페이스 레이아웃이 들고 있어 다른 화면으로 옮겨 가도 녹음이 이어지고,
  * 그동안 하단 독이 녹음 시간과 이 화면으로 돌아오는 칩을 보여줘요.
  *
@@ -18,8 +16,6 @@ import { useRecordingEntryGuard } from "./model/useRecordingEntryGuard";
  * @see https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=1635-2763 녹음/다른 화면 이동
  */
 export default function RecordingPage() {
-  useRecordingEntryGuard();
-
   return (
     <Container>
       <PageColumn>
