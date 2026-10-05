@@ -23,7 +23,7 @@ class JwtLogoutHandlerTest {
 
     @Test
     @DisplayName("로그아웃 시 JWT 쿠키를 만료시킨다")
-    void logout_success() {
+    void logout_success() throws Exception {
         // given
         JwtProperties properties = new JwtProperties();
         properties.setCookieName("KNOT_ACCESS_TOKEN");
@@ -50,8 +50,14 @@ class JwtLogoutHandlerTest {
                 response,
                 null
         );
+        new AuthLogoutSuccessHandler().onLogoutSuccess(
+                request,
+                response,
+                null
+        );
 
         // then
+        assertThat(response.getStatus()).isEqualTo(204);
         verify(authService).logout("refresh-token");
         List<String> cookies = response.getHeaders("Set-Cookie");
         assertThat(cookies).anySatisfy(
@@ -108,6 +114,11 @@ class JwtLogoutHandlerTest {
 
         // when
         handler.logout(
+                request,
+                response,
+                null
+        );
+        new AuthLogoutSuccessHandler().onLogoutSuccess(
                 request,
                 response,
                 null
