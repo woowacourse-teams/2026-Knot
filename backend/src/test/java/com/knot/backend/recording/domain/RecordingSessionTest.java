@@ -313,6 +313,38 @@ class RecordingSessionTest {
     }
 
     @Test
+    @DisplayName("서버 시계가 뒤로 조정돼 폐기 시각이 마지막 활동보다 이르면 마지막 활동 시각으로 폐기한다")
+    void discard_success_timeBeforeLastSeenUsesLastSeen() {
+        // given
+        RecordingSession session = startRecording();
+        session.pause(STARTED_AT.plusSeconds(10));
+
+        // when
+        session.discard(STARTED_AT.plusSeconds(8));
+
+        // then
+        assertThat(session.getStatus()).isEqualTo(RecordingStatus.DISCARDED);
+        assertThat(session.getEndedAt()).isEqualTo(STARTED_AT.plusSeconds(10));
+        assertThat(session.getLastSeenAt()).isEqualTo(STARTED_AT.plusSeconds(10));
+        assertThat(session.getAccumulatedRecordingMillis()).isEqualTo(10_000);
+    }
+
+    @Test
+    @DisplayName("녹음 중 폐기 시각이 구간 시작보다 이르면 진행 구간을 음수로 누적하지 않고 마지막 활동 시각으로 폐기한다")
+    void discard_success_recordingTimeBeforeLastSeenUsesLastSeen() {
+        // given
+        RecordingSession session = startRecording();
+
+        // when
+        session.discard(STARTED_AT.minusSeconds(2));
+
+        // then
+        assertThat(session.getStatus()).isEqualTo(RecordingStatus.DISCARDED);
+        assertThat(session.getEndedAt()).isEqualTo(STARTED_AT);
+        assertThat(session.getAccumulatedRecordingMillis()).isZero();
+    }
+
+    @Test
     @DisplayName("이미 폐기한 세션을 다시 폐기하면 처음 폐기 시각을 유지한다")
     void discard_success_repeated() {
         // given
