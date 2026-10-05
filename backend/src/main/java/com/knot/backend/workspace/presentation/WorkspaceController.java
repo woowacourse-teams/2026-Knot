@@ -1,6 +1,7 @@
 package com.knot.backend.workspace.presentation;
 
 import com.knot.backend.auth.domain.AuthenticatedMember;
+import com.knot.backend.workspace.application.WorkspaceDeletionService;
 import com.knot.backend.workspace.application.WorkspaceLeaveService;
 import com.knot.backend.workspace.application.WorkspaceService;
 import com.knot.backend.workspace.application.dto.result.WorkspaceCreateResult;
@@ -24,9 +25,10 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/workspaces")
 @RequiredArgsConstructor
 @Tag(name = "워크스페이스", description = "워크스페이스 생성 및 조회")
-public class WorkspaceController implements WorkspaceLeaveApi {
+public class WorkspaceController implements WorkspaceLeaveApi, WorkspaceDeletionApi {
     private final WorkspaceService workspaceService;
     private final WorkspaceLeaveService workspaceLeaveService;
+    private final WorkspaceDeletionService workspaceDeletionService;
 
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<WorkspaceCreateResponse> create(
@@ -50,6 +52,19 @@ public class WorkspaceController implements WorkspaceLeaveApi {
             @AuthenticationPrincipal AuthenticatedMember authenticatedMember
     ) {
         workspaceLeaveService.leave(
+                authenticatedMember.getMemberId(),
+                workspaceId
+        );
+    }
+
+    @Override
+    @DeleteMapping("/{workspaceId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void delete(
+            @PathVariable Long workspaceId,
+            @AuthenticationPrincipal AuthenticatedMember authenticatedMember
+    ) {
+        workspaceDeletionService.delete(
                 authenticatedMember.getMemberId(),
                 workspaceId
         );

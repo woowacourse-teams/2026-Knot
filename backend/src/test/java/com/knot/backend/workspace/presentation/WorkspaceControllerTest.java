@@ -2,6 +2,7 @@ package com.knot.backend.workspace.presentation;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -10,6 +11,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.knot.backend.auth.domain.AuthenticatedMember;
 import com.knot.backend.global.exception.GlobalExceptionHandler;
+import com.knot.backend.workspace.application.WorkspaceDeletionService;
 import com.knot.backend.workspace.application.WorkspaceLeaveService;
 import com.knot.backend.workspace.application.WorkspaceService;
 import com.knot.backend.workspace.application.dto.result.WorkspaceCreateResult;
@@ -32,16 +34,19 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 class WorkspaceControllerTest {
     private WorkspaceService workspaceService;
     private WorkspaceLeaveService workspaceLeaveService;
+    private WorkspaceDeletionService workspaceDeletionService;
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
         workspaceService = mock(WorkspaceService.class);
         workspaceLeaveService = mock(WorkspaceLeaveService.class);
+        workspaceDeletionService = mock(WorkspaceDeletionService.class);
         mockMvc = MockMvcBuilders.standaloneSetup(
                 new WorkspaceController(
                         workspaceService,
-                        workspaceLeaveService
+                        workspaceLeaveService,
+                        workspaceDeletionService
                 )
         )
                 .setControllerAdvice(new GlobalExceptionHandler())
@@ -149,6 +154,61 @@ class WorkspaceControllerTest {
         result.andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("WORKSPACE_OWNER_TRANSFER_REQUIRED"))
                 .andExpect(jsonPath("$.message").value("OWNER 권한을 승계하거나 워크스페이스를 삭제해야 합니다"));
+    }
+
+    @Test
+    @DisplayName("인증된 member가 워크스페이스를 삭제하면 204를 반환한다")
+    void delete_success() throws Exception {
+        // given
+        SecurityContextHolder.getContext()
+                .setAuthentication(memberAuthentication());
+
+        // when
+        ResultActions result = mockMvc.perform(delete("/api/v1/workspaces/7"));
+
+        // then
+        result.andExpect(status().isNoContent());
+        verify(workspaceDeletionService).delete(
+                1L,
+                7L
+        );
+    }
+
+    @Test
+    @DisplayName("OWNER가 아닌 member가 워크스페이스를 삭제하면 WORKSPACE_OWNER_REQUIRED 403 응답을 반환한다")
+    void delete_failure_ownerRequired() throws Exception {
+        // given
+        SecurityContextHolder.getContext()
+                .setAuthentication(memberAuthentication());
+        org.mockito.Mockito.doThrow(new WorkspaceException(WorkspaceErrorCode.WORKSPACE_OWNER_REQUIRED))
+                .when(workspaceDeletionService)
+                .delete(
+                        1L,
+                        7L
+                );
+
+        // when
+        ResultActions result = mockMvc.perform(delete("/api/v1/workspaces/7"));
+
+        // then
+        result.andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("WORKSPACE_OWNER_REQUIRED"))
+                .andExpect(jsonPath("$.message").value("워크스페이스 OWNER 권한이 필요합니다"));
+    }
+
+    @Test
+    @DisplayName("숫자가 아닌 워크스페이스 ID로 삭제하면 400을 반환하고 서비스를 호출하지 않는다")
+    void delete_failure_nonNumericWorkspaceId() throws Exception {
+        // given
+        SecurityContextHolder.getContext()
+                .setAuthentication(memberAuthentication());
+
+        // when
+        ResultActions result = mockMvc.perform(delete("/api/v1/workspaces/abc"));
+
+        // then
+        result.andExpect(status().isBadRequest());
+        verifyNoInteractions(workspaceDeletionService);
     }
 
     private UsernamePasswordAuthenticationToken memberAuthentication() {

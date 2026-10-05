@@ -332,6 +332,46 @@ class ApiDocumentationAcceptanceTest {
     }
 
     @Test
+    @DisplayName("OpenAPI JSON에 워크스페이스 삭제 계약을 공개한다")
+    void openApi_success_workspaceDeletionContract() throws Exception {
+        // given
+        String openApiPath = "/v3/api-docs";
+        String deletePath = "$.paths['/api/v1/workspaces/{workspaceId}'].delete";
+        String errorResponseRef = "#/components/schemas/ErrorResponse";
+
+        // when
+        ResultActions result = mockMvc.perform(get(openApiPath));
+
+        // then
+        result.andExpect(status().isOk())
+                .andExpect(jsonPath(deletePath).exists())
+                .andExpect(jsonPath(deletePath + ".summary").value("워크스페이스 삭제"))
+                .andExpect(jsonPath(deletePath + ".security[*].accessTokenCookie").exists())
+                .andExpect(
+                        jsonPath(deletePath + ".parameters[?(@.name == 'X-XSRF-TOKEN')].required").value(hasItem(true))
+                )
+                .andExpect(jsonPath(deletePath + ".responses['204']").exists())
+                .andExpect(jsonPath(deletePath + ".responses['204'].content").doesNotExist())
+                .andExpect(
+                        jsonPath(deletePath + ".responses['400'].content['application/json'].schema['$ref']")
+                                .value(errorResponseRef)
+                )
+                .andExpect(
+                        jsonPath(deletePath + ".responses['401'].content['application/json'].schema['$ref']")
+                                .value(errorResponseRef)
+                )
+                .andExpect(
+                        jsonPath(deletePath + ".responses['403'].content['application/json'].schema['$ref']")
+                                .value(errorResponseRef)
+                )
+                .andExpect(
+                        jsonPath(deletePath + ".responses['404'].content['application/json'].schema['$ref']")
+                                .value(errorResponseRef)
+                )
+                .andExpect(jsonPath(deletePath + ".responses['409']").doesNotExist());
+    }
+
+    @Test
     @DisplayName("OpenAPI JSON에 워크스페이스 초대 발급·미리보기·참여 계약을 공개한다")
     void openApi_success_workspaceInvitationContract() throws Exception {
         // given
