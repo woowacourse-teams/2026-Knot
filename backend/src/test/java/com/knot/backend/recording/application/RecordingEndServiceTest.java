@@ -51,8 +51,10 @@ class RecordingEndServiceTest {
         workspaceMemberRepository = mock(WorkspaceMemberRepository.class);
         recordingSessionRepository = mock(RecordingSessionRepository.class);
         service = new RecordingEndService(
-                workspaceRepository,
-                workspaceMemberRepository,
+                new RecordingWorkspaceAccessValidator(
+                        workspaceRepository,
+                        workspaceMemberRepository
+                ),
                 recordingSessionRepository,
                 Clock.fixed(
                         NOW,
