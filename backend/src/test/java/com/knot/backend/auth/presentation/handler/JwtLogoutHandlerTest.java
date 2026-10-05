@@ -80,7 +80,7 @@ class JwtLogoutHandlerTest {
 
     @Test
     @DisplayName("세션 폐기에 실패하면 인증 쿠키를 지우지 않고 내부 오류를 반환한다")
-    void logout_failure_sessionStorage() {
+    void logout_failure_sessionStorage() throws Exception {
         // given
         JwtProperties properties = new JwtProperties();
         properties.setSecure(false);
