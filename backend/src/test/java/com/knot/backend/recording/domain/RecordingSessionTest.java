@@ -377,6 +377,64 @@ class RecordingSessionTest {
         assertThat(session.getStatus()).isEqualTo(RecordingStatus.DISCARDED);
     }
 
+    @Test
+    @DisplayName("같은 Workspace의 시작자는 녹음을 제어할 수 있다")
+    void validateControlledBy_success_starter() {
+        // given
+        RecordingSession session = startRecording();
+
+        // when
+        Throwable failure = catchThrowable(
+                () -> session.validateControlledBy(
+                        WORKSPACE_ID,
+                        MEMBER_ID
+                )
+        );
+
+        // then
+        assertThat(failure).isNull();
+    }
+
+    @Test
+    @DisplayName("요청 Workspace가 다르면 녹음이 없는 것으로 거절한다")
+    void validateControlledBy_failure_otherWorkspace() {
+        // given
+        RecordingSession session = startRecording();
+
+        // when
+        Throwable failure = catchThrowable(
+                () -> session.validateControlledBy(
+                        WORKSPACE_ID + 1,
+                        MEMBER_ID
+                )
+        );
+
+        // then
+        assertThat(failure).isInstanceOf(RecordingException.class)
+                .extracting("errorCode")
+                .isEqualTo(RecordingErrorCode.RECORDING_NOT_FOUND);
+    }
+
+    @Test
+    @DisplayName("시작자가 아닌 멤버는 녹음을 제어할 수 없다")
+    void validateControlledBy_failure_otherMember() {
+        // given
+        RecordingSession session = startRecording();
+
+        // when
+        Throwable failure = catchThrowable(
+                () -> session.validateControlledBy(
+                        WORKSPACE_ID,
+                        MEMBER_ID + 1
+                )
+        );
+
+        // then
+        assertThat(failure).isInstanceOf(RecordingException.class)
+                .extracting("errorCode")
+                .isEqualTo(RecordingErrorCode.RECORDING_CONTROL_DENIED);
+    }
+
     private RecordingSession startRecording() {
         return RecordingSession.start(
                 WORKSPACE_ID,

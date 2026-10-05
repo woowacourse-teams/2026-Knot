@@ -18,6 +18,18 @@ public enum RecordingErrorCode implements ErrorCode {
             "녹음 시각이 올바르지 않습니다"
     ),
 
+    RECORDING_NOT_FOUND(
+            ErrorCategory.NOT_FOUND,
+            "RECORDING_NOT_FOUND",
+            "녹음을 찾을 수 없습니다"
+    ),
+
+    RECORDING_CONTROL_DENIED(
+            ErrorCategory.FORBIDDEN,
+            "RECORDING_CONTROL_DENIED",
+            "녹음을 시작한 사용자만 제어할 수 있습니다"
+    ),
+
     RECORDING_ALREADY_ENDED(
             ErrorCategory.CONFLICT,
             "RECORDING_ALREADY_ENDED",

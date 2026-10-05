@@ -120,6 +120,18 @@ public class RecordingSession {
                 && sameControlTokenHash(controlTokenHash);
     }
 
+    public void validateControlledBy(
+            long workspaceId,
+            long memberId
+    ) {
+        if (this.workspaceId != workspaceId) {
+            throw new RecordingException(RecordingErrorCode.RECORDING_NOT_FOUND);
+        }
+        if (this.memberId != memberId) {
+            throw new RecordingException(RecordingErrorCode.RECORDING_CONTROL_DENIED);
+        }
+    }
+
     public void pause(Instant pausedAt) {
         ensureActive();
         if (status == RecordingStatus.PAUSED) {
