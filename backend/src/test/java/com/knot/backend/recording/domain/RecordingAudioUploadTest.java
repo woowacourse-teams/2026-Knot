@@ -102,4 +102,112 @@ class RecordingAudioUploadTest {
         assertThat(upload.getStorageKey()).isEqualTo("recordings/1/key");
         assertThat(upload.getStatus()).isEqualTo(RecordingAudioUploadStatus.RESERVED);
     }
+
+    @Test
+    @DisplayName("저장된 파일의 크기와 형식이 예약과 같으면 업로드를 완료한다")
+    void complete_success_matchingFile() {
+        // given
+        RecordingAudioUpload upload = reserved();
+
+        // when
+        upload.complete(
+                1024L,
+                "audio/webm",
+                RESERVED_AT.plusSeconds(60)
+        );
+
+        // then
+        assertThat(upload.getStatus()).isEqualTo(RecordingAudioUploadStatus.COMPLETED);
+        assertThat(upload.getCompletedAt()).isEqualTo(RESERVED_AT.plusSeconds(60));
+    }
+
+    @Test
+    @DisplayName("저장된 파일의 크기가 예약과 다르면 업로드를 완료하지 않는다")
+    void complete_failure_lengthMismatch() {
+        // given
+        RecordingAudioUpload upload = reserved();
+
+        // when
+        Throwable failure = catchThrowable(
+                () -> upload.complete(
+                        1000L,
+                        "audio/webm",
+                        RESERVED_AT.plusSeconds(60)
+                )
+        );
+
+        // then
+        assertThat(failure).isInstanceOf(RecordingException.class)
+                .extracting("errorCode")
+                .isEqualTo(RecordingErrorCode.AUDIO_UPLOAD_NOT_COMPLETED);
+        assertThat(upload.getStatus()).isEqualTo(RecordingAudioUploadStatus.RESERVED);
+    }
+
+    @Test
+    @DisplayName("저장된 파일의 형식이 예약과 다르면 업로드를 완료하지 않는다")
+    void complete_failure_typeMismatch() {
+        // given
+        RecordingAudioUpload upload = reserved();
+
+        // when
+        Throwable failure = catchThrowable(
+                () -> upload.complete(
+                        1024L,
+                        "audio/mpeg",
+                        RESERVED_AT.plusSeconds(60)
+                )
+        );
+
+        // then
+        assertThat(failure).isInstanceOf(RecordingException.class)
+                .extracting("errorCode")
+                .isEqualTo(RecordingErrorCode.AUDIO_UPLOAD_NOT_COMPLETED);
+    }
+
+    @Test
+    @DisplayName("이미 완료된 업로드는 다시 완료해도 처음 완료 시각을 유지한다")
+    void complete_success_repeatedKeepsCompletedAt() {
+        // given
+        RecordingAudioUpload upload = reserved();
+        upload.complete(
+                1024L,
+                "audio/webm",
+                RESERVED_AT.plusSeconds(60)
+        );
+
+        // when
+        upload.complete(
+                1024L,
+                "audio/webm",
+                RESERVED_AT.plusSeconds(120)
+        );
+
+        // then
+        assertThat(upload.getCompletedAt()).isEqualTo(RESERVED_AT.plusSeconds(60));
+    }
+
+    @Test
+    @DisplayName("다른 녹음의 업로드 예약은 찾을 수 없는 것으로 거절한다")
+    void validateBelongsTo_failure_otherRecording() {
+        // given
+        RecordingAudioUpload upload = reserved();
+
+        // when
+        Throwable failure = catchThrowable(() -> upload.validateBelongsTo(2L));
+
+        // then
+        assertThat(failure).isInstanceOf(RecordingException.class)
+                .extracting("errorCode")
+                .isEqualTo(RecordingErrorCode.AUDIO_UPLOAD_NOT_FOUND);
+    }
+
+    private RecordingAudioUpload reserved() {
+        return RecordingAudioUpload.reserve(
+                1L,
+                "recordings/1/key",
+                "audio/webm",
+                1024L,
+                RESERVED_AT
+        );
+    }
 }
