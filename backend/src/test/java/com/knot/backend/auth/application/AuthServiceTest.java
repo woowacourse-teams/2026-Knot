@@ -636,7 +636,10 @@ class AuthServiceTest {
         service.logout(REFRESH_TOKEN);
 
         // then
-        verify(sessionRepository, never()).save(any());
+        verify(
+                sessionRepository,
+                never()
+        ).save(any());
     }
 
     @Test
@@ -657,7 +660,10 @@ class AuthServiceTest {
 
         // then
         assertThat(session.getRevokedAt()).isNull();
-        verify(sessionRepository, never()).save(any());
+        verify(
+                sessionRepository,
+                never()
+        ).save(any());
     }
 
     @Test
@@ -675,12 +681,10 @@ class AuthServiceTest {
         AuthService service = logoutService();
 
         // when & then
-        assertThatThrownBy(() -> service.logout(REFRESH_TOKEN))
-                .isInstanceOfSatisfying(
-                        AuthException.class,
-                        exception -> assertThat(exception.getErrorCode())
-                                .isEqualTo(AuthErrorCode.AUTHENTICATION_INTERNAL_ERROR)
-                );
+        assertThatThrownBy(() -> service.logout(REFRESH_TOKEN)).isInstanceOfSatisfying(
+                AuthException.class,
+                exception -> assertThat(exception.getErrorCode()).isEqualTo(AuthErrorCode.AUTHENTICATION_INTERNAL_ERROR)
+        );
     }
 
     private AuthService logoutService() {

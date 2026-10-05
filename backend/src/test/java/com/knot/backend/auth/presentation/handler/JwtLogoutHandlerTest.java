@@ -36,7 +36,12 @@ class JwtLogoutHandlerTest {
                 new ObjectMapper()
         );
         MockHttpServletRequest request = new MockHttpServletRequest();
-        request.setCookies(new Cookie("KNOT_REFRESH_TOKEN", "refresh-token"));
+        request.setCookies(
+                new Cookie(
+                        "KNOT_REFRESH_TOKEN",
+                        "refresh-token"
+                )
+        );
         MockHttpServletResponse response = new MockHttpServletResponse();
 
         // when
@@ -85,8 +90,7 @@ class JwtLogoutHandlerTest {
         JwtProperties properties = new JwtProperties();
         properties.setSecure(false);
         AuthService authService = mock(AuthService.class);
-        doThrow(new AuthException(AuthErrorCode.AUTHENTICATION_INTERNAL_ERROR))
-                .when(authService)
+        doThrow(new AuthException(AuthErrorCode.AUTHENTICATION_INTERNAL_ERROR)).when(authService)
                 .logout("refresh-token");
         JwtLogoutHandler handler = new JwtLogoutHandler(
                 new AuthCookieManager(properties),
@@ -94,7 +98,12 @@ class JwtLogoutHandlerTest {
                 new ObjectMapper()
         );
         MockHttpServletRequest request = new MockHttpServletRequest();
-        request.setCookies(new Cookie("KNOT_REFRESH_TOKEN", "refresh-token"));
+        request.setCookies(
+                new Cookie(
+                        "KNOT_REFRESH_TOKEN",
+                        "refresh-token"
+                )
+        );
         MockHttpServletResponse response = new MockHttpServletResponse();
 
         // when

@@ -72,17 +72,23 @@ class AuthLogoutAcceptanceTest {
 
         // when
         MvcResult result = mockMvc.perform(
-                post(LOGOUT_PATH)
-                        .cookie(
-                                new Cookie("KNOT_REFRESH_TOKEN", currentRefreshToken.getValue()),
-                                new Cookie("KNOT_ACCESS_TOKEN", "invalid-access-token"),
-                                csrfCookie
-                        )
+                post(LOGOUT_PATH).cookie(
+                        new Cookie(
+                                "KNOT_REFRESH_TOKEN",
+                                currentRefreshToken.getValue()
+                        ),
+                        new Cookie(
+                                "KNOT_ACCESS_TOKEN",
+                                "invalid-access-token"
+                        ),
+                        csrfCookie
+                )
                         .header(
                                 CSRF_HEADER_NAME,
                                 csrfCookie.getValue()
                         )
-        ).andExpect(status().isNoContent())
+        )
+                .andExpect(status().isNoContent())
                 .andExpect(content().string(emptyString()))
                 .andReturn();
 
@@ -93,16 +99,19 @@ class AuthLogoutAcceptanceTest {
 
         Cookie repeatCsrfCookie = csrfCookie();
         mockMvc.perform(
-                post(LOGOUT_PATH)
-                        .cookie(
-                                new Cookie("KNOT_REFRESH_TOKEN", currentRefreshToken.getValue()),
-                                repeatCsrfCookie
-                        )
+                post(LOGOUT_PATH).cookie(
+                        new Cookie(
+                                "KNOT_REFRESH_TOKEN",
+                                currentRefreshToken.getValue()
+                        ),
+                        repeatCsrfCookie
+                )
                         .header(
                                 CSRF_HEADER_NAME,
                                 repeatCsrfCookie.getValue()
                         )
-        ).andExpect(status().isNoContent());
+        )
+                .andExpect(status().isNoContent());
         assertThat(isRevoked(currentRefreshToken)).isTrue();
     }
 
@@ -114,13 +123,13 @@ class AuthLogoutAcceptanceTest {
 
         // when
         MvcResult result = mockMvc.perform(
-                post(LOGOUT_PATH)
-                        .cookie(csrfCookie)
+                post(LOGOUT_PATH).cookie(csrfCookie)
                         .header(
                                 CSRF_HEADER_NAME,
                                 csrfCookie.getValue()
                         )
-        ).andExpect(status().isNoContent())
+        )
+                .andExpect(status().isNoContent())
                 .andExpect(content().string(emptyString()))
                 .andReturn();
 
@@ -137,16 +146,19 @@ class AuthLogoutAcceptanceTest {
 
         // when
         mockMvc.perform(
-                post(LOGOUT_PATH)
-                        .cookie(
-                                new Cookie("KNOT_REFRESH_TOKEN", refreshToken.getValue()),
-                                csrfCookie
-                        )
+                post(LOGOUT_PATH).cookie(
+                        new Cookie(
+                                "KNOT_REFRESH_TOKEN",
+                                refreshToken.getValue()
+                        ),
+                        csrfCookie
+                )
                         .header(
                                 CSRF_HEADER_NAME,
                                 "invalid-token"
                         )
-        ).andExpect(status().isForbidden())
+        )
+                .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value("CSRF_INVALID"));
 
         // then
@@ -157,21 +169,27 @@ class AuthLogoutAcceptanceTest {
     @DisplayName("만료된 세션이어도 로그아웃 요청은 204로 처리하고 쿠키를 만료한다")
     void logout_success_expiredSession() throws Exception {
         // given
-        RefreshToken expiredRefreshToken = createSession(Instant.now().minus(Duration.ofDays(8)));
+        RefreshToken expiredRefreshToken = createSession(
+                Instant.now()
+                        .minus(Duration.ofDays(8))
+        );
         Cookie csrfCookie = csrfCookie();
 
         // when
         MvcResult result = mockMvc.perform(
-                post(LOGOUT_PATH)
-                        .cookie(
-                                new Cookie("KNOT_REFRESH_TOKEN", expiredRefreshToken.getValue()),
-                                csrfCookie
-                        )
+                post(LOGOUT_PATH).cookie(
+                        new Cookie(
+                                "KNOT_REFRESH_TOKEN",
+                                expiredRefreshToken.getValue()
+                        ),
+                        csrfCookie
+                )
                         .header(
                                 CSRF_HEADER_NAME,
                                 csrfCookie.getValue()
                         )
-        ).andExpect(status().isNoContent())
+        )
+                .andExpect(status().isNoContent())
                 .andExpect(content().string(emptyString()))
                 .andReturn();
 
@@ -182,7 +200,16 @@ class AuthLogoutAcceptanceTest {
 
     private RefreshToken createSession(Instant createdAt) {
         Member member = memberService.create(
-                "lo" + UUID.randomUUID().toString().replaceAll("[0-9-]", "a").substring(0, 14),
+                "lo" + UUID.randomUUID()
+                        .toString()
+                        .replaceAll(
+                                "[0-9-]",
+                                "a"
+                        )
+                        .substring(
+                                0,
+                                14
+                        ),
                 null
         );
         RefreshToken refreshToken = refreshTokenProvider.issue();
@@ -200,7 +227,8 @@ class AuthLogoutAcceptanceTest {
         MvcResult result = mockMvc.perform(get("/api/v1/auth/csrf"))
                 .andExpect(status().isOk())
                 .andReturn();
-        return result.getResponse().getCookie(CSRF_COOKIE_NAME);
+        return result.getResponse()
+                .getCookie(CSRF_COOKIE_NAME);
     }
 
     private boolean isRevoked(RefreshToken refreshToken) {
@@ -212,8 +240,20 @@ class AuthLogoutAcceptanceTest {
     }
 
     private void assertThatExpiredLoginCookies(MvcResult result) {
-        assertThat(result.getResponse().getCookie("KNOT_ACCESS_TOKEN").getMaxAge()).isZero();
-        assertThat(result.getResponse().getCookie("KNOT_REFRESH_TOKEN").getMaxAge()).isZero();
-        assertThat(result.getResponse().getCookie("KNOT_NICKNAME_TOKEN").getMaxAge()).isZero();
+        assertThat(
+                result.getResponse()
+                        .getCookie("KNOT_ACCESS_TOKEN")
+                        .getMaxAge()
+        ).isZero();
+        assertThat(
+                result.getResponse()
+                        .getCookie("KNOT_REFRESH_TOKEN")
+                        .getMaxAge()
+        ).isZero();
+        assertThat(
+                result.getResponse()
+                        .getCookie("KNOT_NICKNAME_TOKEN")
+                        .getMaxAge()
+        ).isZero();
     }
 }
