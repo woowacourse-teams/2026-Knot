@@ -121,7 +121,7 @@ public class RecordingSession {
     }
 
     public void pause(Instant pausedAt) {
-        ensureNotEnded();
+        ensureActive();
         if (status == RecordingStatus.PAUSED) {
             return;
         }
@@ -138,7 +138,7 @@ public class RecordingSession {
     }
 
     public void resume(Instant resumedAt) {
-        ensureNotEnded();
+        ensureActive();
         if (status == RecordingStatus.RECORDING) {
             return;
         }
@@ -152,19 +152,22 @@ public class RecordingSession {
         if (status == RecordingStatus.ENDED) {
             return;
         }
-        validateTimeNotBeforeLastSeen(endedAt);
-        if (status == RecordingStatus.RECORDING) {
-            validateTimeNotBeforeCurrentInterval(endedAt);
-            accumulatedRecordingMillis += Duration.between(
-                    currentIntervalStartedAt,
-                    endedAt
-            )
-                    .toMillis();
+        ensureNotDiscarded();
+        stop(
+                RecordingStatus.ENDED,
+                endedAt
+        );
+    }
+
+    public void discard(Instant discardedAt) {
+        if (status == RecordingStatus.DISCARDED) {
+            return;
         }
-        status = RecordingStatus.ENDED;
-        currentIntervalStartedAt = null;
-        this.endedAt = endedAt;
-        lastSeenAt = endedAt;
+        ensureNotEnded();
+        stop(
+                RecordingStatus.DISCARDED,
+                discardedAt
+        );
     }
 
     public long getRecordingDurationMillis(Instant now) {
@@ -189,9 +192,39 @@ public class RecordingSession {
         );
     }
 
+    private void stop(
+            RecordingStatus stoppedStatus,
+            Instant stoppedAt
+    ) {
+        validateTimeNotBeforeLastSeen(stoppedAt);
+        if (status == RecordingStatus.RECORDING) {
+            validateTimeNotBeforeCurrentInterval(stoppedAt);
+            accumulatedRecordingMillis += Duration.between(
+                    currentIntervalStartedAt,
+                    stoppedAt
+            )
+                    .toMillis();
+        }
+        status = stoppedStatus;
+        currentIntervalStartedAt = null;
+        this.endedAt = stoppedAt;
+        lastSeenAt = stoppedAt;
+    }
+
+    private void ensureActive() {
+        ensureNotEnded();
+        ensureNotDiscarded();
+    }
+
     private void ensureNotEnded() {
         if (status == RecordingStatus.ENDED) {
             throw new RecordingException(RecordingErrorCode.RECORDING_ALREADY_ENDED);
+        }
+    }
+
+    private void ensureNotDiscarded() {
+        if (status == RecordingStatus.DISCARDED) {
+            throw new RecordingException(RecordingErrorCode.RECORDING_ALREADY_DISCARDED);
         }
     }
 

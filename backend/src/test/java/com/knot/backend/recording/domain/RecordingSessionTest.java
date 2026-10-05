@@ -279,6 +279,104 @@ class RecordingSessionTest {
                 .isEqualTo(RecordingErrorCode.INVALID_RECORDING_DATA);
     }
 
+    @Test
+    @DisplayName("녹음 중인 세션을 폐기하면 진행 구간을 누적하고 DISCARDED로 멈춘다")
+    void discard_success_recording() {
+        // given
+        RecordingSession session = startRecording();
+        Instant discardedAt = STARTED_AT.plusSeconds(30);
+
+        // when
+        session.discard(discardedAt);
+
+        // then
+        assertThat(session.getStatus()).isEqualTo(RecordingStatus.DISCARDED);
+        assertThat(session.getEndedAt()).isEqualTo(discardedAt);
+        assertThat(session.getLastSeenAt()).isEqualTo(discardedAt);
+        assertThat(session.getAccumulatedRecordingMillis()).isEqualTo(30_000);
+    }
+
+    @Test
+    @DisplayName("일시정지한 세션을 폐기하면 누적 시간을 유지하고 DISCARDED로 멈춘다")
+    void discard_success_paused() {
+        // given
+        RecordingSession session = startRecording();
+        session.pause(STARTED_AT.plusSeconds(10));
+
+        // when
+        session.discard(STARTED_AT.plusSeconds(40));
+
+        // then
+        assertThat(session.getStatus()).isEqualTo(RecordingStatus.DISCARDED);
+        assertThat(session.getAccumulatedRecordingMillis()).isEqualTo(10_000);
+    }
+
+    @Test
+    @DisplayName("이미 폐기한 세션을 다시 폐기하면 처음 폐기 시각을 유지한다")
+    void discard_success_repeated() {
+        // given
+        RecordingSession session = startRecording();
+        session.discard(STARTED_AT.plusSeconds(10));
+
+        // when
+        session.discard(STARTED_AT.plusSeconds(20));
+
+        // then
+        assertThat(session.getStatus()).isEqualTo(RecordingStatus.DISCARDED);
+        assertThat(session.getEndedAt()).isEqualTo(STARTED_AT.plusSeconds(10));
+    }
+
+    @Test
+    @DisplayName("정상 종료된 세션은 폐기로 바꾸지 않는다")
+    void discard_failure_alreadyEnded() {
+        // given
+        RecordingSession session = startRecording();
+        session.end(STARTED_AT.plusSeconds(10));
+
+        // when
+        Throwable failure = catchThrowable(() -> session.discard(STARTED_AT.plusSeconds(20)));
+
+        // then
+        assertThat(failure).isInstanceOf(RecordingException.class)
+                .extracting("errorCode")
+                .isEqualTo(RecordingErrorCode.RECORDING_ALREADY_ENDED);
+        assertThat(session.getStatus()).isEqualTo(RecordingStatus.ENDED);
+    }
+
+    @Test
+    @DisplayName("폐기된 세션은 정상 종료로 바꾸지 않는다")
+    void end_failure_alreadyDiscarded() {
+        // given
+        RecordingSession session = startRecording();
+        session.discard(STARTED_AT.plusSeconds(10));
+
+        // when
+        Throwable failure = catchThrowable(() -> session.end(STARTED_AT.plusSeconds(20)));
+
+        // then
+        assertThat(failure).isInstanceOf(RecordingException.class)
+                .extracting("errorCode")
+                .isEqualTo(RecordingErrorCode.RECORDING_ALREADY_DISCARDED);
+        assertThat(session.getStatus()).isEqualTo(RecordingStatus.DISCARDED);
+    }
+
+    @Test
+    @DisplayName("폐기된 세션은 다시 재개하지 않는다")
+    void resume_failure_alreadyDiscarded() {
+        // given
+        RecordingSession session = startRecording();
+        session.discard(STARTED_AT.plusSeconds(10));
+
+        // when
+        Throwable failure = catchThrowable(() -> session.resume(STARTED_AT.plusSeconds(20)));
+
+        // then
+        assertThat(failure).isInstanceOf(RecordingException.class)
+                .extracting("errorCode")
+                .isEqualTo(RecordingErrorCode.RECORDING_ALREADY_DISCARDED);
+        assertThat(session.getStatus()).isEqualTo(RecordingStatus.DISCARDED);
+    }
+
     private RecordingSession startRecording() {
         return RecordingSession.start(
                 WORKSPACE_ID,

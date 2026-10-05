@@ -454,6 +454,129 @@ class WorkspaceLeaveServiceIntegrationTest {
         assertThat(activeMembershipCount(workspaceId)).isEqualTo(1);
     }
 
+    @DisplayName("다른 멤버가 남는 탈퇴는 탈퇴자의 진행 중 녹음만 폐기하고 다른 녹음은 보존한다")
+    @Test
+    void leave_success_discardsLeavingMemberActiveRecording() {
+        // given
+        long ownerMemberId = saveMember("owner");
+        long leavingMemberId = saveMember("leaving");
+        long workspaceId = saveWorkspace("녹음 탈퇴 팀");
+        saveWorkspaceMember(
+                workspaceId,
+                ownerMemberId,
+                "OWNER"
+        );
+        long leavingMembershipId = saveWorkspaceMember(
+                workspaceId,
+                leavingMemberId,
+                "MEMBER"
+        );
+        long leavingRecordingId = saveRecording(
+                workspaceId,
+                leavingMemberId,
+                "RECORDING"
+        );
+        long endedRecordingId = saveRecording(
+                workspaceId,
+                leavingMemberId,
+                "ENDED"
+        );
+        long ownerRecordingId = saveRecording(
+                workspaceId,
+                ownerMemberId,
+                "PAUSED"
+        );
+
+        // when
+        workspaceLeaveService.leave(
+                leavingMemberId,
+                workspaceId
+        );
+
+        // then
+        RecordingState discarded = recordingState(leavingRecordingId);
+        assertThat(discarded.status()).isEqualTo("DISCARDED");
+        assertThat(discarded.endedAt()).isEqualTo(membershipState(leavingMembershipId).leftAt());
+        assertThat(recordingState(endedRecordingId).status()).isEqualTo("ENDED");
+        assertThat(recordingState(ownerRecordingId).status()).isEqualTo("PAUSED");
+    }
+
+    @DisplayName("마지막 멤버 탈퇴는 해당 워크스페이스의 모든 진행 중 녹음을 폐기하고 다른 워크스페이스 녹음은 보존한다")
+    @Test
+    void leave_success_lastMemberDiscardsWorkspaceRecordings() {
+        // given
+        long lastMemberId = saveMember("last");
+        long formerMemberId = saveMember("former");
+        long otherMemberId = saveMember("other");
+        long workspaceId = saveWorkspace("녹음 삭제 팀");
+        long otherWorkspaceId = saveWorkspace("다른 팀");
+        saveWorkspaceMember(
+                workspaceId,
+                lastMemberId,
+                "OWNER"
+        );
+        long lastRecordingId = saveRecording(
+                workspaceId,
+                lastMemberId,
+                "RECORDING"
+        );
+        long formerRecordingId = saveRecording(
+                workspaceId,
+                formerMemberId,
+                "PAUSED"
+        );
+        long otherRecordingId = saveRecording(
+                otherWorkspaceId,
+                otherMemberId,
+                "RECORDING"
+        );
+
+        // when
+        workspaceLeaveService.leave(
+                lastMemberId,
+                workspaceId
+        );
+
+        // then
+        assertThat(workspaceDeletedAt(workspaceId)).isNotNull();
+        assertThat(recordingState(lastRecordingId).status()).isEqualTo("DISCARDED");
+        assertThat(recordingState(formerRecordingId).status()).isEqualTo("DISCARDED");
+        assertThat(recordingState(otherRecordingId).status()).isEqualTo("RECORDING");
+    }
+
+    @DisplayName("탈퇴 후 같은 트랜잭션에서 예외가 나면 녹음 폐기도 함께 롤백한다")
+    @Test
+    void leave_failure_rollsBackRecordingDiscardWhenOuterTransactionFails() {
+        // given
+        long memberId = saveMember("discard-rollback");
+        long workspaceId = saveWorkspace("폐기 롤백 팀");
+        saveWorkspaceMember(
+                workspaceId,
+                memberId,
+                "OWNER"
+        );
+        long recordingId = saveRecording(
+                workspaceId,
+                memberId,
+                "RECORDING"
+        );
+
+        // when
+        Throwable thrown = catchThrowable(() -> transactionTemplate.executeWithoutResult(status -> {
+            workspaceLeaveService.leave(
+                    memberId,
+                    workspaceId
+            );
+            throw new IllegalStateException("폐기 후 롤백 검증");
+        }));
+
+        // then
+        assertThat(thrown).isInstanceOf(IllegalStateException.class);
+        RecordingState recording = recordingState(recordingId);
+        assertThat(recording.status()).isEqualTo("RECORDING");
+        assertThat(recording.endedAt()).isNull();
+    }
+
     @DisplayName("마지막 멤버 탈퇴로 삭제된 워크스페이스는 기존 초대 미리보기와 참여를 거절한다")
     @ParameterizedTest
     @ValueSource(strings = {"preview", "accept"})
@@ -763,6 +886,70 @@ class WorkspaceLeaveServiceIntegrationTest {
                 .single();
     }
 
+    private long saveRecording(
+            long workspaceId,
+            long memberId,
+            String status
+    ) {
+        return jdbcClient.sql("""
+                INSERT INTO recording_sessions (
+                    workspace_id, member_id, request_id, tab_id, control_token_hash, status,
+                    started_at, current_interval_started_at, ended_at, last_seen_at
+                )
+                VALUES (
+                    :workspaceId, :memberId, gen_random_uuid(), gen_random_uuid(), repeat('a', 64), :status,
+                    CAST(:startedAt AS TIMESTAMPTZ),
+                    CASE WHEN :status = 'RECORDING' THEN CAST(:startedAt AS TIMESTAMPTZ) END,
+                    CASE WHEN :status = 'ENDED' THEN CAST(:startedAt AS TIMESTAMPTZ) END,
+                    CAST(:startedAt AS TIMESTAMPTZ)
+                )
+                RETURNING id
+                """)
+                .param(
+                        "workspaceId",
+                        workspaceId
+                )
+                .param(
+                        "memberId",
+                        memberId
+                )
+                .param(
+                        "status",
+                        status
+                )
+                .param(
+                        "startedAt",
+                        JOINED_AT.toString()
+                )
+                .query(Long.class)
+                .single();
+    }
+
+    private RecordingState recordingState(long recordingId) {
+        return jdbcClient.sql("SELECT status, ended_at FROM recording_sessions WHERE id = :recordingId")
+                .param(
+                        "recordingId",
+                        recordingId
+                )
+                .query(
+                        (
+                                resultSet,
+                                rowNumber
+                        ) -> new RecordingState(
+                                resultSet.getString("status"),
+                                Optional.ofNullable(
+                                        resultSet.getObject(
+                                                "ended_at",
+                                                OffsetDateTime.class
+                                        )
+                                )
+                                        .map(OffsetDateTime::toInstant)
+                                        .orElse(null)
+                        )
+                )
+                .single();
+    }
+
     private void markLastViewed(long membershipId) {
         jdbcClient.sql("""
                 UPDATE workspace_members
@@ -1004,6 +1191,12 @@ class WorkspaceLeaveServiceIntegrationTest {
     private interface ThrowingOperation {
 
         void run();
+    }
+
+    private record RecordingState(
+            String status,
+            Instant endedAt
+    ) {
     }
 
     private record MembershipState(
