@@ -25,6 +25,7 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -115,6 +116,49 @@ class RecordingCurrentServiceTest {
         assertThat(result).hasValueSatisfying(current -> {
             assertThat(current.status()).isEqualTo(RecordingStatus.PAUSED);
             assertThat(current.elapsedMillis()).isEqualTo(60_000L);
+        });
+    }
+
+    @Test
+    @DisplayName("현재 시각을 확인하기 전에 다른 요청이 재개를 커밋해도 읽은 녹음 기준으로 누적 시간을 계산한다")
+    void findCurrent_success_resumeCommittedBeforeRead() {
+        // given
+        prepareAccess();
+        AtomicReference<Instant> currentTime = new AtomicReference<>(NOW);
+        Clock clock = mock(Clock.class);
+        when(clock.instant()).thenAnswer(invocation -> currentTime.get());
+        Instant resumedAt = NOW.plusMillis(2);
+        RecordingSession session = recordingSession();
+        session.pause(STARTED_AT.plusSeconds(60));
+        when(
+                recordingSessionRepository.findActiveByWorkspaceIdAndMemberId(
+                        WORKSPACE_ID,
+                        MEMBER_ID
+                )
+        ).thenAnswer(invocation -> {
+            session.resume(resumedAt);
+            currentTime.set(resumedAt.plusMillis(1));
+            return Optional.of(session);
+        });
+        RecordingCurrentService racingService = new RecordingCurrentService(
+                new RecordingWorkspaceAccessValidator(
+                        workspaceRepository,
+                        workspaceMemberRepository
+                ),
+                recordingSessionRepository,
+                clock
+        );
+
+        // when
+        Optional<RecordingCurrentResult> result = racingService.findCurrent(
+                WORKSPACE_ID,
+                MEMBER_ID
+        );
+
+        // then
+        assertThat(result).hasValueSatisfying(current -> {
+            assertThat(current.status()).isEqualTo(RecordingStatus.RECORDING);
+            assertThat(current.elapsedMillis()).isEqualTo(60_001L);
         });
     }
 
