@@ -1,92 +1,58 @@
-import { ReactNode } from "react";
 import styled from "@emotion/styled";
-import OpenExternal from "@/assets/icons/openExternal.svg";
-import Spacing from "@primitives/layout/Spacing";
+import { formatDate } from "@utils/formatDate";
 
 interface SearchEvidenceCardProps {
+  /** 문서 제목 */
   title: string;
-  documentPath: string;
-  evidenceSourceIcon: ReactNode;
+  /** 출처(근거가 나온 곳의 종류, v2는 `문서`만) */
+  sourceType: string;
+  /** 문서 날짜(ISO) */
+  createdAt: string;
 }
 
 /**
- * AI 탐색 답변의 근거가 된 문서를 보여주는 Card UI.
+ * 답변의 근거가 된 문서 하나를 보여주는 카드.
+ *
+ * 첫 줄에 문서 제목, 둘째 줄에 출처와 날짜를 그려요. 제목은 두 줄까지 보이고 넘치면 말줄임돼요.
  */
-
 export default function SearchEvidenceCard({
   title,
-  documentPath,
-  evidenceSourceIcon,
+  sourceType,
+  createdAt,
 }: SearchEvidenceCardProps) {
   return (
     <Container>
-      <Header>
-        <EvidenceSourceIconWrapper>
-          {evidenceSourceIcon}
-        </EvidenceSourceIconWrapper>
-
-        <Spacing direction="horizontal" size={0.625} />
-
-        <Title>{title}</Title>
-
-        <ExternalLinkIconWrapper>
-          <OpenExternal />
-        </ExternalLinkIconWrapper>
-      </Header>
-
-      <Location>{documentPath}</Location>
+      <Title>{title}</Title>
+      <Meta>
+        <span>{sourceType}</span>
+        <span>{formatDate(createdAt)}</span>
+      </Meta>
     </Container>
   );
 }
 
-const Container = styled.a`
+const Container = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
-  width: 100%;
-  padding: 1.25rem 1.5rem;
-  border-radius: 1.5rem;
-  background-color: ${({ theme }) => theme.neutral[0]};
-  box-shadow: ${({ theme }) => theme.shadow02};
-
-  &:hover {
-    --external-link-icon-opacity: 1;
-  }
+  gap: 0.625rem; /* 10px */
+  padding: 1rem 1.25rem; /* 16px 20px */
+  border-radius: 0.75rem; /* 12px */
+  background-color: ${({ theme }) => theme.neutral[50]};
 `;
 
-const Header = styled.div`
-  display: flex;
-`;
-
-const IconWrapper = styled.div`
-  display: flex;
-  justify-content: center;
-  align-items: center;
-`;
-const EvidenceSourceIconWrapper = styled(IconWrapper)`
-  width: 1.25rem;
-  height: 1.25rem;
-`;
-const ExternalLinkIconWrapper = styled(IconWrapper)`
-  flex-shrink: 0;
-  width: 1.125rem;
-  height: 1.125rem;
-  opacity: var(--external-link-icon-opacity, 0);
-  transition: opacity 0.3s ease-in;
-  color: ${({ theme }) => theme.neutral[700]};
-`;
-
-const Title = styled.div`
-  flex: 1;
+const Title = styled.p`
   display: -webkit-box;
+  overflow: hidden;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
-  overflow: hidden;
+  overflow-wrap: anywhere;
   ${({ theme }) => theme.text.label01};
   color: ${({ theme }) => theme.neutral[900]};
 `;
 
-const Location = styled.div`
-  ${({ theme }) => theme.text.caption02};
-  color: ${({ theme }) => theme.neutral[400]};
+const Meta = styled.p`
+  display: flex;
+  gap: 0.75rem; /* 12px */
+  ${({ theme }) => theme.text.caption01};
+  color: ${({ theme }) => theme.neutral[500]};
 `;

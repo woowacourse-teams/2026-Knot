@@ -1,35 +1,49 @@
 import styled from "@emotion/styled";
+import useOpenedSearchEvidences from "@hooks/domain/search/useOpenedSearchEvidences";
+import LinkTo from "@primitives/ui/LinkTo";
 import SearchEvidenceCard from "@primitives/ui/SearchEvidenceCard";
-import { useSearchEvidenceList } from "./model/useSearchEvidenceList";
-import LinkTo from "@/shared/components/primitives/ui/LinkTo";
+import { getRouterPath } from "@routes/PATH_ROUTE";
+import { useId } from "react";
+import { useParams } from "react-router";
 
 /**
- * AI 탐색 답변의 근거가 된 문서 리스트를 보여주는 List UI.
+ * 찾은 기록 패널. 지금 펼친 답변의 근거가 된 문서를 관련도 순으로 최대 3개 보여줘요.
+ *
+ * 카드를 누르면 그 문서 보기 화면으로 가요.
+ * 펼친 답변이 없거나 그 답변에 근거가 없으면 아무것도 그리지 않아요.
+ * 여닫기는 답변 아래 버튼과 GNB의 찾은 기록 버튼이 맡으므로 패널 안에는 닫기 버튼을 두지 않아요.
  */
-
 export default function SearchEvidenceList() {
-  const { evidences } = useSearchEvidenceList();
+  const titleId = useId();
+  // 주소 파라미터 이름(sessionId)은 v2의 conversationId와 다르며, 데이터 연결 작업에서 맞춰요
+  const { workspaceId = "", sessionId } = useParams();
+  const { evidences } = useOpenedSearchEvidences({
+    conversationId: sessionId ? Number(sessionId) : undefined,
+  });
+
+  if (evidences.length === 0) return null;
 
   return (
-    <Container>
-      <Header>
-        <Title>찾은 문서</Title>
-        <SortLabel>관련도순</SortLabel>
-      </Header>
+    <Container aria-labelledby={titleId}>
+      <Title id={titleId}>찾은 기록</Title>
 
       <List>
-        {evidences.map(
-          ({ id, title, documentPath, href, EvidenceSourceIcon }) => (
-            <LinkTo href={href}>
+        {evidences.map(({ documentId, title, sourceType, createdAt }) => (
+          <li key={documentId}>
+            <CardLink
+              href={getRouterPath({
+                routeKey: "DOCUMENT",
+                params: { workspaceId, documentId: String(documentId) },
+              })}
+            >
               <SearchEvidenceCard
-                key={id}
                 title={title}
-                documentPath={documentPath}
-                evidenceSourceIcon={<EvidenceSourceIcon />}
+                sourceType={sourceType}
+                createdAt={createdAt}
               />
-            </LinkTo>
-          ),
-        )}
+            </CardLink>
+          </li>
+        ))}
       </List>
     </Container>
   );
@@ -38,27 +52,30 @@ export default function SearchEvidenceList() {
 const Container = styled.section`
   display: flex;
   flex-direction: column;
-  gap: 3.25rem;
-`;
-
-const Header = styled.header`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+  gap: 1rem; /* 16px */
+  padding: 1.5rem; /* 24px */
+  border-radius: 1.25rem; /* 20px */
+  background-color: ${({ theme }) => theme.neutral[0]};
+  box-shadow: ${({ theme }) => theme.shadow03};
 `;
 
 const Title = styled.h2`
-  ${({ theme }) => theme.text.heading01}
-  color: ${({ theme }) => theme.neutral[500]}
+  ${({ theme }) => theme.text.label01};
+  color: ${({ theme }) => theme.neutral[900]};
 `;
 
-const SortLabel = styled.span`
-  ${({ theme }) => theme.text.caption02}
-  color: ${({ theme }) => theme.neutral[400]}
-`;
-
-const List = styled.div`
+const List = styled.ul`
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
+  gap: 0.75rem; /* 12px */
+`;
+
+const CardLink = styled(LinkTo)`
+  display: block;
+  border-radius: 0.75rem; /* 12px */
+
+  &:focus-visible {
+    outline: 2px solid ${({ theme }) => theme.sub.accent[500]};
+    outline-offset: 2px;
+  }
 `;
