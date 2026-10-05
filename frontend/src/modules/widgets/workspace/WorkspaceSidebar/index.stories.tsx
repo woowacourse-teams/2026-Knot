@@ -1,5 +1,6 @@
 import { WORKSPACE_NOTION_PAGE_TREE_API_PATH } from "@api/fetch/api/v1/workspaces/[workspaceId]/notionPages/tree";
 import { notionPageTreeResponse } from "@api/mock/responses/notionPage";
+import { DialogProvider } from "@provider/context/dialogContext";
 import { getRouterPath, PATH_ROUTE } from "@routes/PATH_ROUTE";
 import type { Meta, StoryObj } from "@storybook/react-webpack5";
 import { http, HttpResponse } from "msw";
@@ -25,6 +26,7 @@ const folderRowName = (name: string) => new RegExp(`^${name}`);
  * **동작 규칙**
  * - 상단 메뉴 왼쪽의 사이드바 버튼으로 여닫아요. 버튼에 마우스를 올리면 본문 위에 겹쳐 뜨고, 누르면 왼쪽에 자리를 잡아요. 뜨는 방식과 자리는 감싸는 패널이 정하고, 이 드로어는 껍데기와 내용만 그려요.
  * - 위쪽에는 지금 보고 있는 워크스페이스의 이름이 나와요. 이름을 받아 오기 전에는 이름 자리를 비워 둬요.
+ * - 이름을 누르면 다른 워크스페이스로 옮겨 가거나 새로 만들 수 있는 메뉴가 열려요. 메뉴의 동작은 「Workspace/WorkspaceSwitcher」에 있어요.
  * - 「폴더」 아래에는 마지막으로 Notion에서 가져온 페이지들이 트리로 나와요.
  * - 하위 페이지가 있는 페이지는 폴더 행이에요. 오른쪽에 딸린 문서 수가 붙고, 누르면 펼치고 다시 누르면 접어요.
  * - 펼친 폴더 아래에는 하위 페이지가 한 단계 더 들여써져 나오고, 그 왼쪽에 부모 폴더 화살표의 가운데를 지나는 세로 안내선이 그어져요.
@@ -42,11 +44,6 @@ const meta = {
         name: "Sidebar/Drawer",
         type: "figma",
         url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=1382-2171",
-      },
-      {
-        name: "Sidebar/Workspace",
-        type: "figma",
-        url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=580-1442",
       },
       {
         name: "Sidebar/FolderHead",
@@ -67,19 +64,21 @@ const meta = {
   },
   decorators: [
     (Story) => (
-      <MemoryRouter initialEntries={[HOME_PATH]}>
-        <Routes>
-          <Route
-            path={PATH_ROUTE.WORKSPACE_HOME}
-            element={
-              // 드로어는 감싸는 패널의 높이를 그대로 채우므로 화면 높이만큼 자리를 줘요
-              <div style={{ height: "40rem" }}>
-                <Story />
-              </div>
-            }
-          />
-        </Routes>
-      </MemoryRouter>
+      <DialogProvider>
+        <MemoryRouter initialEntries={[HOME_PATH]}>
+          <Routes>
+            <Route
+              path={PATH_ROUTE.WORKSPACE_HOME}
+              element={
+                // 드로어는 감싸는 패널의 높이를 그대로 채우므로 화면 높이만큼 자리를 줘요
+                <div style={{ height: "40rem" }}>
+                  <Story />
+                </div>
+              }
+            />
+          </Routes>
+        </MemoryRouter>
+      </DialogProvider>
     ),
   ],
 } satisfies Meta<typeof WorkspaceSidebar>;
