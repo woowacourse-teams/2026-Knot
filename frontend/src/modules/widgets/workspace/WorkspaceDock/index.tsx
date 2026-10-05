@@ -23,7 +23,7 @@ const fadeIn = keyframes`
 `;
 
 /**
- * 화면 하단 가운데에 고정으로 놓이는 독.
+ * 화면 하단 가운데에 놓이는 독.
  *
  * 접혀 있을 때는 동그란 버튼 하나이고, 누르면 질문 입력창으로 폭이 벌어지며 펼쳐져요.
  * 화면 아무 데서나 글자를 쳐도 같은 자리로 이어지고, 그 방법은 처음 몇 번 말풍선으로 알려줘요.
@@ -35,7 +35,7 @@ const fadeIn = keyframes`
  * 녹음 화면이 아닌 곳에서 녹음이 이어지고 있으면 마이크 자리에 녹음 칩을 둬요. 접힌 독에는 중지 버튼도 함께 둬요.
  * 녹음 화면에서는 마이크를 숨겨요. Figma에서 숨겨져 있는 글 작성 슬롯은 만들지 않아요.
  *
- * 화면 어디에 놓을지는 이 독을 쓰는 레이아웃이 정해요.
+ * 놓일 자리와 펼친 폭은 이 독을 쓰는 레이아웃이 정해요.
  */
 export default function WorkspaceDock() {
   const {
@@ -157,8 +157,7 @@ export default function WorkspaceDock() {
 /**
  * 접힘·펼침을 오가는 독 껍데기.
  *
- * 두 모양을 다른 요소로 두면 갈아 끼우느라 모션이 끊기므로, 한 요소의 폭만 바꿔 늘어나고 줄어들게 해요.
- * 안의 내용은 그 자리에서 갈리므로 폭이 벌어지는 동안 뒤따라 나타나도록 살짝 흐리게 시작해요.
+ * 두 모양을 다른 요소로 두면 모션이 끊기므로, 한 요소의 폭만 바꿔 늘고 줄게 해요.
  */
 const Bar = styled.form<{
   $isExpanded: boolean;
@@ -170,13 +169,14 @@ const Bar = styled.form<{
   align-items: flex-end; /* 여러 줄로 자라도 보내기 버튼은 아래에 남아요 */
   gap: ${({ $isExpanded }) =>
     $isExpanded ? "0.625rem" : "0.25rem"}; /* 10px : 4px */
-  /* 접혔을 때는 슬롯(40px) 개수만큼: 마이크까지 있으면 108px, 없으면 64px.
+  /* 펼치면 놓인 자리(대화 열과 같은 폭)를 다 채워요.
+     접혔을 때는 슬롯(40px) 개수만큼: 마이크까지 있으면 108px, 없으면 64px.
      녹음 칩은 시간이 길어지면 폭이 늘어 내용만큼 둬요 */
   width: ${({ $isExpanded, $hasMic, $hasRecordingChip }) => {
-    if ($isExpanded) return "min(45rem, 100%)"; /* 720px */
+    if ($isExpanded) return "100%";
     if ($hasRecordingChip) return "auto";
 
-    return $hasMic ? "6.75rem" : "4rem";
+    return $hasMic ? "6.75rem" : "4rem"; /* 108px : 64px */
   }};
   min-height: 3.75rem; /* 60px — 여러 줄이면 이만큼에서부터 늘어나요 */
   padding: ${({ $isExpanded }) =>
@@ -234,12 +234,7 @@ const MicButton = styled(SlotButton)`
   color: ${({ theme }) => theme.neutral[500]};
 `;
 
-/**
- * 고스트 아이콘과 입력창을 한 덩어리로 묶는 자리.
- *
- * 한 줄일 때는 덩어리째 가운데에 놓여 36px짜리 보내기 버튼과 눈높이가 맞고,
- * 여러 줄로 자라면 아이콘이 첫 줄에 붙어요. 보내기 버튼만 아래에 남습니다.
- */
+/** 고스트 아이콘과 입력창을 묶는 자리. 여러 줄로 자라면 아이콘은 첫 줄에 붙어요. */
 const InputContainer = styled.div`
   display: flex;
   flex: 1;
