@@ -21,6 +21,7 @@ import tools.jackson.databind.ObjectMapper;
 public class AuthAccessDeniedHandler implements AccessDeniedHandler {
     private static final String NICKNAME_SETUP_PATH = "/api/v1/auth/nickname";
     private static final String TOKEN_REFRESH_PATH = "/api/v1/auth/refresh";
+    private static final String LOGOUT_PATH = "/api/v1/auth/logout";
 
     private final ObjectMapper objectMapper;
 
@@ -40,7 +41,8 @@ public class AuthAccessDeniedHandler implements AccessDeniedHandler {
     }
 
     private boolean isAuthRequest(String requestUri) {
-        return requestUri.endsWith(NICKNAME_SETUP_PATH) || requestUri.endsWith(TOKEN_REFRESH_PATH);
+        return requestUri.endsWith(NICKNAME_SETUP_PATH) || requestUri.endsWith(TOKEN_REFRESH_PATH)
+                || requestUri.endsWith(LOGOUT_PATH);
     }
 
     private void writeErrorResponse(

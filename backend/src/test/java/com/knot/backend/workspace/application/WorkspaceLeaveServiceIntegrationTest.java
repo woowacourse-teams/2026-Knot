@@ -20,6 +20,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
@@ -399,6 +400,32 @@ class WorkspaceLeaveServiceIntegrationTest {
         }
     }
 
+    @DisplayName("초대 발급이 Workspace 잠금 대기 중 마지막 멤버 탈퇴로 삭제되면 초대를 저장하지 않는다")
+    @Test
+    void leave_success_blocksInvitationIssueUntilDeletedWorkspaceRejected() throws Exception {
+        // given
+        long ownerMemberId = saveMember("owner");
+        long workspaceId = saveWorkspace("탈퇴 발급 경합 팀");
+        saveWorkspaceMember(
+                workspaceId,
+                ownerMemberId,
+                "OWNER"
+        );
+
+        // when
+        IssueWhileDeletingWorkspaceResult result = issueWhileDeletingLockedWorkspace(
+                ownerMemberId,
+                workspaceId
+        );
+
+        // then
+        assertThat(result.issueWaitedForWorkspaceLock()).isTrue();
+        assertThat(result.issueErrorCode()).isEqualTo(WorkspaceErrorCode.WORKSPACE_NOT_FOUND);
+        assertThat(invitationCount(workspaceId)).isZero();
+        assertThat(workspaceDeletedAt(workspaceId)).isNotNull();
+        assertThat(activeMembershipCount(workspaceId)).isZero();
+    }
+
     @DisplayName("마지막 멤버 탈퇴 후 같은 트랜잭션에서 예외가 나면 멤버십 탈퇴와 워크스페이스 삭제를 함께 롤백한다")
     @Test
     void leave_failure_rollsBackLastMemberLeaveWhenOuterTransactionFails() {
@@ -425,6 +452,129 @@ class WorkspaceLeaveServiceIntegrationTest {
         assertThat(membershipState(membershipId).leftAt()).isNull();
         assertThat(workspaceDeletedAt(workspaceId)).isNull();
         assertThat(activeMembershipCount(workspaceId)).isEqualTo(1);
+    }
+
+    @DisplayName("다른 멤버가 남는 탈퇴는 탈퇴자의 진행 중 녹음만 폐기하고 다른 녹음은 보존한다")
+    @Test
+    void leave_success_discardsLeavingMemberActiveRecording() {
+        // given
+        long ownerMemberId = saveMember("owner");
+        long leavingMemberId = saveMember("leaving");
+        long workspaceId = saveWorkspace("녹음 탈퇴 팀");
+        saveWorkspaceMember(
+                workspaceId,
+                ownerMemberId,
+                "OWNER"
+        );
+        long leavingMembershipId = saveWorkspaceMember(
+                workspaceId,
+                leavingMemberId,
+                "MEMBER"
+        );
+        long leavingRecordingId = saveRecording(
+                workspaceId,
+                leavingMemberId,
+                "RECORDING"
+        );
+        long endedRecordingId = saveRecording(
+                workspaceId,
+                leavingMemberId,
+                "ENDED"
+        );
+        long ownerRecordingId = saveRecording(
+                workspaceId,
+                ownerMemberId,
+                "PAUSED"
+        );
+
+        // when
+        workspaceLeaveService.leave(
+                leavingMemberId,
+                workspaceId
+        );
+
+        // then
+        RecordingState discarded = recordingState(leavingRecordingId);
+        assertThat(discarded.status()).isEqualTo("DISCARDED");
+        assertThat(discarded.endedAt()).isEqualTo(membershipState(leavingMembershipId).leftAt());
+        assertThat(recordingState(endedRecordingId).status()).isEqualTo("ENDED");
+        assertThat(recordingState(ownerRecordingId).status()).isEqualTo("PAUSED");
+    }
+
+    @DisplayName("마지막 멤버 탈퇴는 해당 워크스페이스의 모든 진행 중 녹음을 폐기하고 다른 워크스페이스 녹음은 보존한다")
+    @Test
+    void leave_success_lastMemberDiscardsWorkspaceRecordings() {
+        // given
+        long lastMemberId = saveMember("last");
+        long formerMemberId = saveMember("former");
+        long otherMemberId = saveMember("other");
+        long workspaceId = saveWorkspace("녹음 삭제 팀");
+        long otherWorkspaceId = saveWorkspace("다른 팀");
+        saveWorkspaceMember(
+                workspaceId,
+                lastMemberId,
+                "OWNER"
+        );
+        long lastRecordingId = saveRecording(
+                workspaceId,
+                lastMemberId,
+                "RECORDING"
+        );
+        long formerRecordingId = saveRecording(
+                workspaceId,
+                formerMemberId,
+                "PAUSED"
+        );
+        long otherRecordingId = saveRecording(
+                otherWorkspaceId,
+                otherMemberId,
+                "RECORDING"
+        );
+
+        // when
+        workspaceLeaveService.leave(
+                lastMemberId,
+                workspaceId
+        );
+
+        // then
+        assertThat(workspaceDeletedAt(workspaceId)).isNotNull();
+        assertThat(recordingState(lastRecordingId).status()).isEqualTo("DISCARDED");
+        assertThat(recordingState(formerRecordingId).status()).isEqualTo("DISCARDED");
+        assertThat(recordingState(otherRecordingId).status()).isEqualTo("RECORDING");
+    }
+
+    @DisplayName("탈퇴 후 같은 트랜잭션에서 예외가 나면 녹음 폐기도 함께 롤백한다")
+    @Test
+    void leave_failure_rollsBackRecordingDiscardWhenOuterTransactionFails() {
+        // given
+        long memberId = saveMember("discard-rollback");
+        long workspaceId = saveWorkspace("폐기 롤백 팀");
+        saveWorkspaceMember(
+                workspaceId,
+                memberId,
+                "OWNER"
+        );
+        long recordingId = saveRecording(
+                workspaceId,
+                memberId,
+                "RECORDING"
+        );
+
+        // when
+        Throwable thrown = catchThrowable(() -> transactionTemplate.executeWithoutResult(status -> {
+            workspaceLeaveService.leave(
+                    memberId,
+                    workspaceId
+            );
+            throw new IllegalStateException("폐기 후 롤백 검증");
+        }));
+
+        // then
+        assertThat(thrown).isInstanceOf(IllegalStateException.class);
+        RecordingState recording = recordingState(recordingId);
+        assertThat(recording.status()).isEqualTo("RECORDING");
+        assertThat(recording.endedAt()).isNull();
     }
 
     @DisplayName("마지막 멤버 탈퇴로 삭제된 워크스페이스는 기존 초대 미리보기와 참여를 거절한다")
@@ -558,6 +708,122 @@ class WorkspaceLeaveServiceIntegrationTest {
         );
     }
 
+    private IssueWhileDeletingWorkspaceResult issueWhileDeletingLockedWorkspace(
+            long memberId,
+            long workspaceId
+    ) throws Exception {
+        ExecutorService executorService = Executors.newSingleThreadExecutor();
+        AtomicReference<Future<WorkspaceErrorCode>> issueFuture = new AtomicReference<>();
+        try {
+            boolean issueWaitedForWorkspaceLock = transactionTemplate.execute(status -> {
+                int holderBackendPid = lockWorkspace(workspaceId);
+                Future<WorkspaceErrorCode> submittedIssue = executorService.submit(
+                        () -> issueErrorCode(
+                                workspaceId,
+                                memberId
+                        )
+                );
+                issueFuture.set(submittedIssue);
+                boolean waitedForLock = waitUntilBlockedByHolder(
+                        submittedIssue,
+                        holderBackendPid
+                );
+                workspaceLeaveService.leave(
+                        memberId,
+                        workspaceId
+                );
+                return waitedForLock;
+            });
+            return new IssueWhileDeletingWorkspaceResult(
+                    issueFuture.get()
+                            .get(
+                                    10,
+                                    TimeUnit.SECONDS
+                            ),
+                    issueWaitedForWorkspaceLock
+            );
+        } finally {
+            executorService.shutdownNow();
+        }
+    }
+
+    private WorkspaceErrorCode issueErrorCode(
+            long workspaceId,
+            long memberId
+    ) {
+        try {
+            workspaceInvitationService.issue(
+                    workspaceId,
+                    memberId
+            );
+            return null;
+        } catch (WorkspaceException exception) {
+            return (WorkspaceErrorCode) exception.getErrorCode();
+        }
+    }
+
+    private int lockWorkspace(long workspaceId) {
+        return jdbcClient.sql("""
+                SELECT pg_backend_pid()
+                FROM workspaces
+                WHERE id = :workspaceId
+                FOR UPDATE
+                """)
+                .param(
+                        "workspaceId",
+                        workspaceId
+                )
+                .query(Integer.class)
+                .single();
+    }
+
+    private boolean waitUntilBlockedByHolder(
+            Future<WorkspaceErrorCode> issueFuture,
+            int holderBackendPid
+    ) {
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+        while (System.nanoTime() < deadline) {
+            if (issueFuture.isDone()) {
+                return false;
+            }
+            if (blockedByHolderExists(holderBackendPid)) {
+                return true;
+            }
+            awaitNextLockProbe();
+        }
+        return false;
+    }
+
+    private boolean blockedByHolderExists(int holderBackendPid) {
+        return jdbcClient.sql("""
+                SELECT EXISTS (
+                    SELECT 1
+                    FROM pg_stat_activity
+                    WHERE pid <> pg_backend_pid()
+                      AND :holderBackendPid = ANY(pg_blocking_pids(pid))
+                )
+                """)
+                .param(
+                        "holderBackendPid",
+                        holderBackendPid
+                )
+                .query(Boolean.class)
+                .single();
+    }
+
+    private void awaitNextLockProbe() {
+        try {
+            TimeUnit.MILLISECONDS.sleep(50);
+        } catch (InterruptedException exception) {
+            Thread.currentThread()
+                    .interrupt();
+            throw new IllegalStateException(
+                    "Workspace 잠금 대기 확인 중 인터럽트되었습니다",
+                    exception
+            );
+        }
+    }
+
     private long saveMember(String nickname) {
         return jdbcClient.sql("""
                 INSERT INTO members (nickname, profile_image_url)
@@ -617,6 +883,70 @@ class WorkspaceLeaveServiceIntegrationTest {
                         JOINED_AT.toString()
                 )
                 .query(Long.class)
+                .single();
+    }
+
+    private long saveRecording(
+            long workspaceId,
+            long memberId,
+            String status
+    ) {
+        return jdbcClient.sql("""
+                INSERT INTO recording_sessions (
+                    workspace_id, member_id, request_id, tab_id, control_token_hash, status,
+                    started_at, current_interval_started_at, ended_at, last_seen_at
+                )
+                VALUES (
+                    :workspaceId, :memberId, gen_random_uuid(), gen_random_uuid(), repeat('a', 64), :status,
+                    CAST(:startedAt AS TIMESTAMPTZ),
+                    CASE WHEN :status = 'RECORDING' THEN CAST(:startedAt AS TIMESTAMPTZ) END,
+                    CASE WHEN :status = 'ENDED' THEN CAST(:startedAt AS TIMESTAMPTZ) END,
+                    CAST(:startedAt AS TIMESTAMPTZ)
+                )
+                RETURNING id
+                """)
+                .param(
+                        "workspaceId",
+                        workspaceId
+                )
+                .param(
+                        "memberId",
+                        memberId
+                )
+                .param(
+                        "status",
+                        status
+                )
+                .param(
+                        "startedAt",
+                        JOINED_AT.toString()
+                )
+                .query(Long.class)
+                .single();
+    }
+
+    private RecordingState recordingState(long recordingId) {
+        return jdbcClient.sql("SELECT status, ended_at FROM recording_sessions WHERE id = :recordingId")
+                .param(
+                        "recordingId",
+                        recordingId
+                )
+                .query(
+                        (
+                                resultSet,
+                                rowNumber
+                        ) -> new RecordingState(
+                                resultSet.getString("status"),
+                                Optional.ofNullable(
+                                        resultSet.getObject(
+                                                "ended_at",
+                                                OffsetDateTime.class
+                                        )
+                                )
+                                        .map(OffsetDateTime::toInstant)
+                                        .orElse(null)
+                        )
+                )
                 .single();
     }
 
@@ -828,6 +1158,20 @@ class WorkspaceLeaveServiceIntegrationTest {
                 .single();
     }
 
+    private long invitationCount(long workspaceId) {
+        return jdbcClient.sql("""
+                SELECT count(*)
+                FROM workspace_invitations
+                WHERE workspace_id = :workspaceId
+                """)
+                .param(
+                        "workspaceId",
+                        workspaceId
+                )
+                .query(Long.class)
+                .single();
+    }
+
     private long activeOwnerCount(long workspaceId) {
         return jdbcClient.sql("""
                 SELECT count(*)
@@ -849,6 +1193,12 @@ class WorkspaceLeaveServiceIntegrationTest {
         void run();
     }
 
+    private record RecordingState(
+            String status,
+            Instant endedAt
+    ) {
+    }
+
     private record MembershipState(
             long id,
             String role,
@@ -867,6 +1217,12 @@ class WorkspaceLeaveServiceIntegrationTest {
     private record LeaveAcceptRaceResult(
             WorkspaceErrorCode leaveErrorCode,
             AcceptOutcome acceptOutcome
+    ) {
+    }
+
+    private record IssueWhileDeletingWorkspaceResult(
+            WorkspaceErrorCode issueErrorCode,
+            boolean issueWaitedForWorkspaceLock
     ) {
     }
 

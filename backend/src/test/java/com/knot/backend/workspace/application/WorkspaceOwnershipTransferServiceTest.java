@@ -10,6 +10,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import com.knot.backend.recording.domain.RecordingSessionRepository;
 import com.knot.backend.workspace.domain.Workspace;
 import com.knot.backend.workspace.domain.WorkspaceErrorCode;
 import com.knot.backend.workspace.domain.WorkspaceException;
@@ -36,9 +37,11 @@ class WorkspaceOwnershipTransferServiceTest {
 
     private final WorkspaceRepository workspaceRepository = mock(WorkspaceRepository.class);
     private final WorkspaceMemberRepository workspaceMemberRepository = mock(WorkspaceMemberRepository.class);
+    private final RecordingSessionRepository recordingSessionRepository = mock(RecordingSessionRepository.class);
     private final WorkspaceOwnershipTransferService service = new WorkspaceOwnershipTransferService(
             workspaceRepository,
             workspaceMemberRepository,
+            recordingSessionRepository,
             Clock.fixed(
                     NOW,
                     ZoneOffset.UTC
@@ -82,7 +85,8 @@ class WorkspaceOwnershipTransferServiceTest {
         assertThat(successor.isLastViewed()).isTrue();
         InOrder order = inOrder(
                 workspaceRepository,
-                workspaceMemberRepository
+                workspaceMemberRepository,
+                recordingSessionRepository
         );
         order.verify(workspaceRepository)
                 .findByIdForUpdate(1L);
@@ -100,6 +104,11 @@ class WorkspaceOwnershipTransferServiceTest {
                                 owner,
                                 successor
                         )
+                );
+        order.verify(recordingSessionRepository)
+                .findAllActiveByWorkspaceIdAndMemberIdForUpdate(
+                        1L,
+                        2L
                 );
     }
 

@@ -10,6 +10,9 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import com.knot.backend.recording.domain.RecordingSession;
+import com.knot.backend.recording.domain.RecordingSessionRepository;
+import com.knot.backend.recording.domain.RecordingStatus;
 import com.knot.backend.workspace.domain.Workspace;
 import com.knot.backend.workspace.domain.WorkspaceErrorCode;
 import com.knot.backend.workspace.domain.WorkspaceException;
@@ -20,7 +23,9 @@ import com.knot.backend.workspace.domain.WorkspaceRepository;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -257,17 +262,125 @@ class WorkspaceLeaveServiceTest {
         ).countActiveByWorkspaceId(1L);
     }
 
+    @DisplayName("다른 멤버가 남는 탈퇴는 탈퇴자의 해당 Workspace 진행 중 녹음만 폐기한다")
+    @Test
+    void leave_success_discardsLeavingMemberRecordings() {
+        // given
+        WorkspaceRepository workspaceRepository = mock(WorkspaceRepository.class);
+        WorkspaceMemberRepository workspaceMemberRepository = mock(WorkspaceMemberRepository.class);
+        RecordingSessionRepository recordingSessionRepository = mock(RecordingSessionRepository.class);
+        WorkspaceLeaveService service = service(
+                workspaceRepository,
+                workspaceMemberRepository,
+                recordingSessionRepository
+        );
+        RecordingSession recordingSession = recordingSession();
+        when(workspaceRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(workspace()));
+        when(
+                workspaceMemberRepository.findLatestByWorkspaceIdAndMemberIdForUpdate(
+                        1L,
+                        2L
+                )
+        ).thenReturn(Optional.of(workspaceMember(WorkspaceMemberRole.MEMBER)));
+        when(workspaceMemberRepository.countActiveByWorkspaceId(1L)).thenReturn(2L);
+        when(
+                recordingSessionRepository.findAllActiveByWorkspaceIdAndMemberIdForUpdate(
+                        1L,
+                        2L
+                )
+        ).thenReturn(List.of(recordingSession));
+
+        // when
+        service.leave(
+                2L,
+                1L
+        );
+
+        // then
+        assertThat(recordingSession.getStatus()).isEqualTo(RecordingStatus.DISCARDED);
+        assertThat(recordingSession.getEndedAt()).isEqualTo(LEFT_AT);
+        verify(
+                recordingSessionRepository,
+                never()
+        ).findAllActiveByWorkspaceIdForUpdate(1L);
+        verify(recordingSessionRepository).save(recordingSession);
+    }
+
+    @DisplayName("마지막 멤버가 탈퇴하면 Workspace의 모든 진행 중 녹음을 폐기한다")
+    @Test
+    void leave_success_discardsWorkspaceRecordingsWhenLastMember() {
+        // given
+        WorkspaceRepository workspaceRepository = mock(WorkspaceRepository.class);
+        WorkspaceMemberRepository workspaceMemberRepository = mock(WorkspaceMemberRepository.class);
+        RecordingSessionRepository recordingSessionRepository = mock(RecordingSessionRepository.class);
+        WorkspaceLeaveService service = service(
+                workspaceRepository,
+                workspaceMemberRepository,
+                recordingSessionRepository
+        );
+        RecordingSession recordingSession = recordingSession();
+        when(workspaceRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(workspace()));
+        when(
+                workspaceMemberRepository.findLatestByWorkspaceIdAndMemberIdForUpdate(
+                        1L,
+                        2L
+                )
+        ).thenReturn(Optional.of(workspaceMember(WorkspaceMemberRole.OWNER)));
+        when(workspaceMemberRepository.countActiveByWorkspaceId(1L)).thenReturn(1L);
+        when(recordingSessionRepository.findAllActiveByWorkspaceIdForUpdate(1L)).thenReturn(List.of(recordingSession));
+
+        // when
+        service.leave(
+                2L,
+                1L
+        );
+
+        // then
+        assertThat(recordingSession.getStatus()).isEqualTo(RecordingStatus.DISCARDED);
+        verify(
+                recordingSessionRepository,
+                never()
+        ).findAllActiveByWorkspaceIdAndMemberIdForUpdate(
+                1L,
+                2L
+        );
+    }
+
     private WorkspaceLeaveService service(
             WorkspaceRepository workspaceRepository,
             WorkspaceMemberRepository workspaceMemberRepository
     ) {
+        return service(
+                workspaceRepository,
+                workspaceMemberRepository,
+                mock(RecordingSessionRepository.class)
+        );
+    }
+
+    private WorkspaceLeaveService service(
+            WorkspaceRepository workspaceRepository,
+            WorkspaceMemberRepository workspaceMemberRepository,
+            RecordingSessionRepository recordingSessionRepository
+    ) {
         return new WorkspaceLeaveService(
                 workspaceRepository,
                 workspaceMemberRepository,
+                recordingSessionRepository,
                 Clock.fixed(
                         LEFT_AT,
                         ZoneOffset.UTC
                 )
+        );
+    }
+
+    private RecordingSession recordingSession() {
+        return RecordingSession.start(
+                1L,
+                2L,
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                "a".repeat(64),
+                CREATED_AT
         );
     }
 

@@ -19,6 +19,6 @@ public class WorkspaceInvitationSecurityConfig {
     public WorkspaceInvitationSecretProtector workspaceInvitationSecretProtector(
             WorkspaceInvitationSecurityProperties properties
     ) {
-        return new AesGcmWorkspaceInvitationSecretProtector(properties);
+        return new HmacWorkspaceInvitationSecretProtector(properties);
     }
 }

@@ -110,6 +110,17 @@ public class AuthSession {
                 && now.isBefore(absoluteExpiresAt);
     }
 
+    public boolean revoke(Instant revokedAt) {
+        if (revokedAt == null || revokedAt.isBefore(createdAt)) {
+            throw new AuthException(AuthErrorCode.INVALID_AUTH_SESSION);
+        }
+        if (!isActive(revokedAt)) {
+            return false;
+        }
+        this.revokedAt = revokedAt;
+        return true;
+    }
+
     public Duration remainingRefreshLifetime(Instant now) {
         if (!isActive(now)) {
             return Duration.ZERO;
@@ -146,12 +157,4 @@ public class AuthSession {
         return previousRefreshTokenHash;
     }
 
-    public void revoke(Instant now) {
-        if (now == null || now.isBefore(createdAt)) {
-            throw new AuthException(AuthErrorCode.INVALID_AUTH_SESSION);
-        }
-        if (revokedAt == null) {
-            revokedAt = now;
-        }
-    }
 }

@@ -119,6 +119,41 @@ class AuthSessionRepositoryTest {
     }
 
     @Test
+    @DisplayName("refresh 토큰 해시로 현재 로그인 세션을 찾는다")
+    void findByRefreshTokenHash_success() {
+        // given
+        Member member = Member.create(
+                "흑곰",
+                null
+        );
+        entityManager.persist(member);
+        String refreshTokenHash = "b".repeat(64);
+        repository.save(
+                AuthSession.create(
+                        member.getId(),
+                        refreshTokenHash,
+                        Instant.now()
+                )
+        );
+        entityManager.clear();
+
+        // when
+        AuthSession session = repository.findByRefreshTokenHash(refreshTokenHash)
+                .orElseThrow();
+
+        // then
+        assertThat(session.getMemberId()).isEqualTo(member.getId());
+        assertThat(session.getRefreshTokenHash()).isEqualTo(refreshTokenHash);
+    }
+
+    @Test
+    @DisplayName("등록되지 않은 refresh 토큰 해시는 로그인 세션을 찾지 못한다")
+    void findByRefreshTokenHash_failure_unknownHash() {
+        // when & then
+        assertThat(repository.findByRefreshTokenHash("c".repeat(64))).isEmpty();
+    }
+
+    @Test
     @DisplayName("세션 만료 시각은 발급 시각 이후이면서 절대 만료 이하여야 한다")
     void schema_failure_invalidExpiry() {
         // given

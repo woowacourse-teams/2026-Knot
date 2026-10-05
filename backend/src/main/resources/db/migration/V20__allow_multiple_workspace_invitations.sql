@@ -1,0 +1,1 @@
+DROP INDEX uk_workspace_invitations_one_uninvalidated;

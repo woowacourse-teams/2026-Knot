@@ -7,6 +7,7 @@ import com.knot.backend.auth.infrastructure.github.GithubOAuth2UserService;
 import com.knot.backend.auth.infrastructure.jwt.JwtAuthenticationFilter;
 import com.knot.backend.auth.presentation.handler.AuthAccessDeniedHandler;
 import com.knot.backend.auth.presentation.handler.AuthAuthenticationEntryPoint;
+import com.knot.backend.auth.presentation.handler.AuthLogoutSuccessHandler;
 import com.knot.backend.auth.presentation.handler.JwtLogoutHandler;
 import com.knot.backend.auth.presentation.handler.OAuth2AuthenticationFailureHandler;
 import com.knot.backend.auth.presentation.handler.OAuth2AuthenticationSuccessHandler;
@@ -33,6 +34,7 @@ class SecurityConfigTest {
                 mock(AuthAuthenticationEntryPoint.class),
                 mock(AuthAccessDeniedHandler.class),
                 mock(JwtLogoutHandler.class),
+                mock(AuthLogoutSuccessHandler.class),
                 jwtProperties(),
                 corsProperties(),
                 new ApiDocumentationProperties()

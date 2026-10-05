@@ -154,6 +154,30 @@ class WorkspaceOwnershipTransferServiceIntegrationTest {
         assertThat(snapshot("workspace_members")).hasSize(5);
     }
 
+    @DisplayName("승계 후 탈퇴하면 이전 OWNER의 진행 중 녹음만 폐기하고 승계자의 녹음은 보존한다")
+    @Test
+    void transferOwnership_success_discardsOwnerActiveRecording() {
+        // given
+        Fixture fixture = fixture();
+        long ownerRecordingId = saveRecording(
+                fixture.workspaceId(),
+                fixture.ownerId(),
+                "RECORDING"
+        );
+        long targetRecordingId = saveRecording(
+                fixture.workspaceId(),
+                fixture.targetId(),
+                "PAUSED"
+        );
+
+        // when
+        transfer(fixture);
+
+        // then
+        assertThat(recordingStatus(ownerRecordingId)).isEqualTo("DISCARDED");
+        assertThat(recordingStatus(targetRecordingId)).isEqualTo("PAUSED");
+    }
+
     @DisplayName("필요한 활성 참여 행만 membership ID 오름차순으로 잠금 조회한다")
     @Test
     void lockParticipants_success_ordersMembershipRowsAndExcludesHistory() {
@@ -633,6 +657,54 @@ class WorkspaceOwnershipTransferServiceIntegrationTest {
                         membershipId
                 )
                 .query(MembershipState.class)
+                .single();
+    }
+
+    private long saveRecording(
+            long workspaceId,
+            long memberId,
+            String status
+    ) {
+        return jdbcClient.sql("""
+                INSERT INTO recording_sessions (
+                    workspace_id, member_id, request_id, tab_id, control_token_hash, status,
+                    started_at, current_interval_started_at, last_seen_at
+                )
+                VALUES (
+                    :workspaceId, :memberId, gen_random_uuid(), gen_random_uuid(), repeat('a', 64), :status,
+                    CAST(:startedAt AS TIMESTAMPTZ),
+                    CASE WHEN :status = 'RECORDING' THEN CAST(:startedAt AS TIMESTAMPTZ) END,
+                    CAST(:startedAt AS TIMESTAMPTZ)
+                )
+                RETURNING id
+                """)
+                .param(
+                        "workspaceId",
+                        workspaceId
+                )
+                .param(
+                        "memberId",
+                        memberId
+                )
+                .param(
+                        "status",
+                        status
+                )
+                .param(
+                        "startedAt",
+                        JOINED_AT.toString()
+                )
+                .query(Long.class)
+                .single();
+    }
+
+    private String recordingStatus(long recordingId) {
+        return jdbcClient.sql("SELECT status FROM recording_sessions WHERE id = :recordingId")
+                .param(
+                        "recordingId",
+                        recordingId
+                )
+                .query(String.class)
                 .single();
     }
 

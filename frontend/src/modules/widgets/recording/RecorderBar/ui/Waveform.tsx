@@ -1,30 +1,44 @@
 import styled from "@emotion/styled";
 
 import {
-  WAVEFORM_BAR_HEIGHTS,
+  WAVEFORM_MAX_BAR_HEIGHT,
+  WAVEFORM_MIN_BAR_HEIGHT,
   WAVEFORM_PENDING_BAR_COUNT,
 } from "../constants/waveform";
+import { useWaveformLevels } from "../model/useWaveformLevels";
 
 interface WaveformProps {
-  /** `false`면 일시정지라 모든 막대를 흐리게 그려요. */
+  /** 마이크 소리를 읽는 분석기 */
+  analyser: AnalyserNode | null;
+  /** `false`면 일시정지라 파형을 멈추고 모든 막대를 흐리게 그려요. */
   isActive: boolean;
 }
+
+const toBarHeight = (level: number) =>
+  WAVEFORM_MIN_BAR_HEIGHT +
+  level * (WAVEFORM_MAX_BAR_HEIGHT - WAVEFORM_MIN_BAR_HEIGHT);
 
 /**
  * 녹음 시간 옆의 파형.
  *
- * 실제 소리를 받지 않는 UI 단계라 정해 둔 모양을 그리는 장식이므로 낭독기에서는 숨겨요.
- * 녹음 중이면 끝의 몇 개만 흐리고, 일시정지면 전부 흐려요.
+ * 마이크에 들어오는 소리 크기를 막대 높이로 그리고, 새 소리가 오른쪽 끝에서 들어와 왼쪽으로 흘러가요.
+ * 끝의 몇 개는 아직 들어오지 않은 소리 자리라 흐리게 두고, 일시정지면 전부 흐려요.
+ * 녹음 중임을 보여 주는 장식이라 낭독기에서는 숨겨요.
  */
-export default function Waveform({ isActive }: WaveformProps) {
-  const activeBarCount = isActive
-    ? WAVEFORM_BAR_HEIGHTS.length - WAVEFORM_PENDING_BAR_COUNT
-    : 0;
+export default function Waveform({ analyser, isActive }: WaveformProps) {
+  const { levels } = useWaveformLevels({ analyser, isActive });
 
   return (
     <Container aria-hidden="true">
-      {WAVEFORM_BAR_HEIGHTS.map((height, index) => (
-        <Bar key={index} $height={height} $isActive={index < activeBarCount} />
+      {levels.map((level, index) => (
+        <Bar key={index} $height={toBarHeight(level)} $isActive={isActive} />
+      ))}
+      {Array.from({ length: WAVEFORM_PENDING_BAR_COUNT }, (_, index) => (
+        <Bar
+          key={`pending-${index}`}
+          $height={WAVEFORM_MIN_BAR_HEIGHT}
+          $isActive={false}
+        />
       ))}
     </Container>
   );
@@ -44,5 +58,11 @@ const Bar = styled.span<{ $height: number; $isActive: boolean }>`
   border-radius: 0.125rem; /* 2px */
   background-color: ${({ theme, $isActive }) =>
     $isActive ? theme.neutral[700] : theme.neutral[300]};
-  transition: background-color 0.2s ease-in;
+  transition:
+    height 0.12s ease-out,
+    background-color 0.2s ease-in;
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
 `;

@@ -1,6 +1,7 @@
 import { ThemeProvider } from "@emotion/react";
-import { useRecordingStore } from "@store/recordingStore";
+import { DialogProvider } from "@provider/context/dialogContext";
 import { theme } from "@provider/themeProvider";
+import { useRecordingStore } from "@store/recordingStore";
 import { getRouterPath, PATH_ROUTE } from "@routes/PATH_ROUTE";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { createMemoryRouter, Outlet, RouterProvider } from "react-router";
@@ -35,11 +36,29 @@ const renderRecorderBar = () => {
 
   render(
     <ThemeProvider theme={theme}>
-      <RouterProvider router={router} />
+      <DialogProvider>
+        <RouterProvider router={router} />
+      </DialogProvider>
     </ThemeProvider>,
   );
 
   return { router };
+};
+
+/** 녹음은 독에서 마이크를 받은 뒤 시작하므로, 녹음 화면에 들어오기 전에 미리 시작해 둬요. */
+const startRecording = async () => {
+  await act(async () => {
+    await useRecordingStore.getState().startRecording();
+  });
+};
+
+/** 녹음 중에 마이크가 빠진 것처럼, 마지막으로 받은 마이크의 트랙을 끊어요. */
+const disconnectMicrophone = (stream: MediaStream) => {
+  act(() => {
+    const [track] = stream.getTracks();
+    track.stop();
+    track.dispatchEvent(new Event("ended"));
+  });
 };
 
 const getElapsedTime = () => screen.getByLabelText("녹음한 시간");
@@ -62,7 +81,8 @@ describe("RecorderBar", () => {
     vi.useRealTimers();
   });
 
-  it("녹음 화면에 들어오면 바로 녹음을 시작한다", () => {
+  it("독에서 시작한 녹음의 시간을 보여준다", async () => {
+    await startRecording();
     renderRecorderBar();
 
     expect(screen.getByText("녹음 중")).toBeInTheDocument();
@@ -73,7 +93,8 @@ describe("RecorderBar", () => {
     expect(getElapsedTime()).toHaveTextContent("00:03");
   });
 
-  it("일시정지하면 시간이 멈추고, 이어서 녹음하면 멈춘 자리부터 다시 흐른다", () => {
+  it("일시정지하면 시간이 멈추고, 이어서 녹음하면 멈춘 자리부터 다시 흐른다", async () => {
+    await startRecording();
     renderRecorderBar();
     passSeconds(5);
 
@@ -83,14 +104,17 @@ describe("RecorderBar", () => {
     expect(screen.getByText("일시정지")).toBeInTheDocument();
     expect(getElapsedTime()).toHaveTextContent("00:05");
 
-    fireEvent.click(screen.getByRole("button", { name: "이어서 녹음" }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "이어서 녹음" }));
+    });
     passSeconds(2);
 
     expect(screen.getByText("녹음 중")).toBeInTheDocument();
     expect(getElapsedTime()).toHaveTextContent("00:07");
   });
 
-  it("다른 화면에 다녀와도 새로 시작하지 않고 이어지던 녹음을 보여준다", async () => {
+  it("다른 화면에 다녀와도 이어지던 녹음을 보여준다", async () => {
+    await startRecording();
     const { router } = renderRecorderBar();
     passSeconds(4);
 
@@ -105,27 +129,70 @@ describe("RecorderBar", () => {
     expect(getElapsedTime()).toHaveTextContent("00:10");
   });
 
-  it("녹음을 끝내면 홈으로 나간다", async () => {
-    const { router } = renderRecorderBar();
+  it("녹음을 끝내면 마이크를 끈다", async () => {
+    const getUserMedia = vi.spyOn(navigator.mediaDevices, "getUserMedia");
+    await startRecording();
+    const stream = await getUserMedia.mock.results[0].value;
+    renderRecorderBar();
 
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: "녹음 끝내기" }));
     });
 
-    expect(router.state.location.pathname).toBe(HOME_PATH);
+    expect(stream.getTracks()[0].readyState).toBe("ended");
   });
 
-  it("끝낸 뒤 다시 들어오면 새 녹음을 0초부터 시작한다", async () => {
-    const { router } = renderRecorderBar();
-    passSeconds(8);
+  it("녹음 중에 마이크가 끊기면 저절로 일시정지한다", async () => {
+    const getUserMedia = vi.spyOn(navigator.mediaDevices, "getUserMedia");
+    await startRecording();
+    const stream = await getUserMedia.mock.results[0].value;
+    renderRecorderBar();
+    passSeconds(3);
+
+    disconnectMicrophone(stream);
+    passSeconds(5);
+
+    expect(screen.getByText("일시정지")).toBeInTheDocument();
+    expect(getElapsedTime()).toHaveTextContent("00:03");
+  });
+
+  it("마이크가 끊긴 뒤 이어서 녹음하면 마이크를 다시 받아 이어 간다", async () => {
+    const getUserMedia = vi.spyOn(navigator.mediaDevices, "getUserMedia");
+    await startRecording();
+    const stream = await getUserMedia.mock.results[0].value;
+    renderRecorderBar();
+    disconnectMicrophone(stream);
 
     await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: "녹음 끝내기" }));
-    });
-    await act(async () => {
-      await router.navigate(RECORDING_PATH);
+      fireEvent.click(screen.getByRole("button", { name: "이어서 녹음" }));
     });
 
-    expect(getElapsedTime()).toHaveTextContent("00:00");
+    expect(getUserMedia).toHaveBeenCalledTimes(2);
+    expect(screen.getByText("녹음 중")).toBeInTheDocument();
+  });
+
+  it("이어서 녹음할 때 마이크를 받지 못하면 모달을 띄우고 일시정지를 유지한다", async () => {
+    const getUserMedia = vi.spyOn(navigator.mediaDevices, "getUserMedia");
+    await startRecording();
+    const stream = await getUserMedia.mock.results[0].value;
+    renderRecorderBar();
+    disconnectMicrophone(stream);
+    getUserMedia.mockRejectedValueOnce(new DOMException("", "NotAllowedError"));
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "이어서 녹음" }));
+    });
+
+    expect(
+      screen.getByRole("dialog", { name: "마이크를 사용할 수 없어요" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("일시정지")).toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "다시 시도" }));
+    });
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.getByText("녹음 중")).toBeInTheDocument();
   });
 });

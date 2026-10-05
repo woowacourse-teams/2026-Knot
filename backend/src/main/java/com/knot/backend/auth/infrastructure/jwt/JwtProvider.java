@@ -390,7 +390,8 @@ public class JwtProvider implements AuthTokenProvider, RefreshTokenProvider {
                 .getTokenValue();
     }
 
-    private String hash(String value) {
+    @Override
+    public String hash(String value) {
         try {
             byte[] digest = MessageDigest.getInstance("SHA-256")
                     .digest(value.getBytes(StandardCharsets.UTF_8));
