@@ -4,6 +4,7 @@ import { notionPageTreeResponse } from "@api/mock/responses/notionPage";
 import { workspaceDetailResponse } from "@api/mock/responses/workspace";
 import { mockServer } from "@api/mock/server";
 import { ThemeProvider } from "@emotion/react";
+import { DialogProvider } from "@provider/context/dialogContext";
 import { theme } from "@provider/themeProvider";
 import { getRouterPath, PATH_ROUTE } from "@routes/PATH_ROUTE";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -45,13 +46,18 @@ const renderSidebar = () => {
   render(
     <ThemeProvider theme={theme}>
       <QueryClientProvider client={queryClient}>
-        <RouterProvider router={router} />
+        <DialogProvider>
+          <RouterProvider router={router} />
+        </DialogProvider>
       </QueryClientProvider>
     </ThemeProvider>,
   );
 
   return screen.getByRole("complementary", { name: "워크스페이스 사이드바" });
 };
+
+const getMenuTrigger = () =>
+  screen.getByRole("button", { name: "워크스페이스 메뉴" });
 
 const findFolderRow = (name: string) =>
   screen.findByRole("button", { name: new RegExp(`^${name}`) });
@@ -144,6 +150,7 @@ describe("WorkspaceSidebar", () => {
       await within(sidebar).findByText(expectedWorkspace.name),
     ).toBeInTheDocument();
     expect(within(sidebar).getByText("폴더")).toBeInTheDocument();
-    expect(within(sidebar).queryByRole("button")).not.toBeInTheDocument();
+    // 워크스페이스 메뉴 버튼 말고는 누를 행이 없어요
+    expect(within(sidebar).getAllByRole("button")).toEqual([getMenuTrigger()]);
   });
 });
