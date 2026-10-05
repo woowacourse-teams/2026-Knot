@@ -17,11 +17,25 @@ public class RecordingWorkspaceAccessValidator {
             long workspaceId,
             long memberId
     ) {
+        validateWorkspaceId(workspaceId);
+        workspaceRepository.findByIdForUpdate(workspaceId)
+                .orElseThrow(() -> new WorkspaceException(WorkspaceErrorCode.WORKSPACE_NOT_FOUND));
+        validateMembership(
+                workspaceId,
+                memberId
+        );
+    }
+
+    private void validateWorkspaceId(long workspaceId) {
         if (workspaceId <= 0) {
             throw new WorkspaceException(WorkspaceErrorCode.INVALID_WORKSPACE_ID);
         }
-        workspaceRepository.findByIdForUpdate(workspaceId)
-                .orElseThrow(() -> new WorkspaceException(WorkspaceErrorCode.WORKSPACE_NOT_FOUND));
+    }
+
+    private void validateMembership(
+            long workspaceId,
+            long memberId
+    ) {
         if (!workspaceMemberRepository.existsByWorkspaceIdAndMemberId(
                 workspaceId,
                 memberId
