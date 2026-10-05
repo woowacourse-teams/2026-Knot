@@ -9,6 +9,13 @@ import {
   PostChatSessionResponseDto,
 } from "@api/dto/chatSession";
 import {
+  PostRecordingAudioUploadUrlResponseDto,
+  PostRecordingEndResponseDto,
+  PostRecordingPauseResponseDto,
+  PostRecordingResponseDto,
+  PostRecordingResumeResponseDto,
+} from "@api/dto/recording";
+import {
   GetWorkspaceResponseDto,
   GetWorkspacesResponseDto,
   PostWorkspaceResponseDto,
@@ -41,6 +48,14 @@ import { getNotionConnectionApi } from "@api/fetch/api/v1/workspaces/[workspaceI
 import { startNotionOAuthApi } from "@api/fetch/api/v1/workspaces/[workspaceId]/notionOauthAuthorizations";
 import { issueWorkspaceInvitationApi } from "@api/fetch/api/v1/workspaces/[workspaceId]/invitations";
 import { reissueWorkspaceInvitationApi } from "@api/fetch/api/v1/workspaces/[workspaceId]/invitations/reissue";
+import { startRecordingApi } from "@api/fetch/api/v1/workspaces/[workspaceId]/recordings";
+import {
+  issueRecordingAudioUploadUrlApi,
+  uploadRecordingAudioApi,
+} from "@api/fetch/api/v1/workspaces/[workspaceId]/recordings/[recordingId]/audioUploadUrl";
+import { endRecordingApi } from "@api/fetch/api/v1/workspaces/[workspaceId]/recordings/[recordingId]/end";
+import { pauseRecordingApi } from "@api/fetch/api/v1/workspaces/[workspaceId]/recordings/[recordingId]/pause";
+import { resumeRecordingApi } from "@api/fetch/api/v1/workspaces/[workspaceId]/recordings/[recordingId]/resume";
 import { csrfTokenResponse, meResponse } from "@api/mock/responses/auth";
 import {
   notionConnectionResponse,
@@ -51,6 +66,13 @@ import {
   chatSessionResponse,
   chatSessionsResponse,
 } from "@api/mock/responses/chatSession";
+import {
+  recordingAudioUploadUrlResponse,
+  recordingEndResponse,
+  recordingPauseResponse,
+  recordingResumeResponse,
+  recordingStartResponse,
+} from "@api/mock/responses/recording";
 import {
   workspaceCreateResponse,
   workspaceDetailResponse,
@@ -65,6 +87,12 @@ import { describe, expect, it } from "vitest";
 
 const WORKSPACE_ID = 1;
 const SESSION_ID = 100;
+const RECORDING_ID = 10;
+
+const CONTROL_PROOF = {
+  tabId: "6f1c2a4e-1b2d-4c3e-9f80-1a2b3c4d5e6f",
+  controlToken: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+};
 
 // 기본 핸들러가 fetch 요청 함수와 같은 경로·메서드에 응답하는지 확인해요
 // 기대값은 mock 응답을 응답 DTO로 변환한 값이에요 (test-strategy.md 「기대값」)
@@ -188,6 +216,76 @@ describe("mock 기본 핸들러와 fetch 요청 함수의 대응", () => {
       await expect(getChatMessagesApi(SESSION_ID)).resolves.toEqual(
         new GetChatMessagesResponseDto(chatMessagesResponse),
       );
+    });
+  });
+
+  describe("녹음", () => {
+    it("POST /api/v1/workspaces/:workspaceId/recordings는 recordingStartResponse를 돌려준다", async () => {
+      await expect(
+        startRecordingApi({
+          workspaceId: WORKSPACE_ID,
+          body: {
+            requestId: "0b8e0c55-6f0a-4d0b-8f1e-2f6a8f3c9d10",
+            ...CONTROL_PROOF,
+          },
+        }),
+      ).resolves.toEqual(new PostRecordingResponseDto(recordingStartResponse));
+    });
+
+    it("POST .../recordings/:recordingId/pause는 recordingPauseResponse를 돌려준다", async () => {
+      await expect(
+        pauseRecordingApi({
+          workspaceId: WORKSPACE_ID,
+          recordingId: RECORDING_ID,
+          body: CONTROL_PROOF,
+        }),
+      ).resolves.toEqual(
+        new PostRecordingPauseResponseDto(recordingPauseResponse),
+      );
+    });
+
+    it("POST .../recordings/:recordingId/resume은 recordingResumeResponse를 돌려준다", async () => {
+      await expect(
+        resumeRecordingApi({
+          workspaceId: WORKSPACE_ID,
+          recordingId: RECORDING_ID,
+          body: CONTROL_PROOF,
+        }),
+      ).resolves.toEqual(
+        new PostRecordingResumeResponseDto(recordingResumeResponse),
+      );
+    });
+
+    it("POST .../recordings/:recordingId/end는 recordingEndResponse를 돌려준다", async () => {
+      await expect(
+        endRecordingApi({
+          workspaceId: WORKSPACE_ID,
+          recordingId: RECORDING_ID,
+        }),
+      ).resolves.toEqual(new PostRecordingEndResponseDto(recordingEndResponse));
+    });
+
+    it("POST .../recordings/:recordingId/audio-upload-url은 recordingAudioUploadUrlResponse를 돌려준다", async () => {
+      await expect(
+        issueRecordingAudioUploadUrlApi({
+          workspaceId: WORKSPACE_ID,
+          recordingId: RECORDING_ID,
+          body: { contentType: "audio/webm", contentLength: 4 },
+        }),
+      ).resolves.toEqual(
+        new PostRecordingAudioUploadUrlResponseDto(
+          recordingAudioUploadUrlResponse,
+        ),
+      );
+    });
+
+    it("발급한 업로드 URL로 오디오를 PUT하면 본문 없이 성공한다", async () => {
+      await expect(
+        uploadRecordingAudioApi({
+          uploadUrl: recordingAudioUploadUrlResponse.uploadUrl,
+          audio: new Blob(["test"], { type: "audio/webm" }),
+        }),
+      ).resolves.toBeUndefined();
     });
   });
 });
