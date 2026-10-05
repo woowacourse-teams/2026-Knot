@@ -6,6 +6,8 @@ import useSearchMessages from "@hooks/domain/search/useSearchMessages";
 
 import FoundRecordsIcon from "@/assets/icons/foundRecords.svg";
 
+import { findLatestAnswerWithEvidence } from "./utils/findLatestAnswerWithEvidence";
+
 /**
  * GNB 오른쪽에서 찾은 기록 패널을 여닫는 버튼.
  *
@@ -22,11 +24,7 @@ export default function SearchEvidenceToggle() {
   const { openEvidenceMessage, closeEvidenceMessage } =
     useOpenedEvidenceMessage();
 
-  const latestAnswerWithEvidence = [...messages]
-    .reverse()
-    .find(
-      ({ role, evidences }) => role === "ASSISTANT" && evidences.length > 0,
-    );
+  const latestAnswerWithEvidence = findLatestAnswerWithEvidence(messages);
 
   if (!latestAnswerWithEvidence) return null;
 
