@@ -289,6 +289,74 @@ class WorkspaceMemberRepositoryIntegrationTest {
                 );
     }
 
+    @DisplayName("워크스페이스의 활성 멤버십만 ID 오름차순으로 잠금 조회한다")
+    @Test
+    void findAllActiveByWorkspaceIdForUpdate_success_activeMembershipsOrderedById() {
+        // given
+        long ownerId = saveMember(10L);
+        long memberId = saveMember(11L);
+        long formerId = saveMember(12L);
+        Workspace workspace = saveAndFlush(
+                Workspace.create(
+                        "삭제 대상 팀",
+                        CREATED_AT
+                )
+        );
+        Workspace otherWorkspace = saveAndFlush(
+                Workspace.create(
+                        "다른 팀",
+                        CREATED_AT
+                )
+        );
+        WorkspaceMember owner = saveAndFlush(
+                WorkspaceMember.create(
+                        workspace.getId(),
+                        ownerId,
+                        WorkspaceMemberRole.OWNER,
+                        JOINED_AT
+                )
+        );
+        WorkspaceMember member = saveAndFlush(
+                WorkspaceMember.create(
+                        workspace.getId(),
+                        memberId,
+                        WorkspaceMemberRole.MEMBER,
+                        JOINED_AT
+                )
+        );
+        WorkspaceMember former = WorkspaceMember.create(
+                workspace.getId(),
+                formerId,
+                WorkspaceMemberRole.MEMBER,
+                JOINED_AT
+        );
+        former.leave(
+                JOINED_AT.plusSeconds(1),
+                3L
+        );
+        saveAndFlush(former);
+        saveAndFlush(
+                WorkspaceMember.create(
+                        otherWorkspace.getId(),
+                        memberId,
+                        WorkspaceMemberRole.OWNER,
+                        JOINED_AT
+                )
+        );
+        entityManager.clear();
+
+        // when
+        List<WorkspaceMember> workspaceMembers = workspaceMemberRepository
+                .findAllActiveByWorkspaceIdForUpdate(workspace.getId());
+
+        // then
+        assertThat(workspaceMembers).extracting(WorkspaceMember::getId)
+                .containsExactly(
+                        owner.getId(),
+                        member.getId()
+                );
+    }
+
     @DisplayName("삭제된 워크스페이스의 활성 행도 멤버 권한으로 인정하지 않는다")
     @Test
     void existsByWorkspaceIdAndMemberId_failure_deletedWorkspace() {
