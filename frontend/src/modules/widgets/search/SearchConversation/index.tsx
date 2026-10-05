@@ -1,6 +1,6 @@
 import styled from "@emotion/styled";
+import useConversationId from "@hooks/domain/search/useConversationId";
 import useSearchMessages from "@hooks/domain/search/useSearchMessages";
-import { useParams } from "react-router";
 
 import EmptyConversation from "./ui/EmptyConversation";
 import SearchTurn from "./ui/SearchTurn";
@@ -12,11 +12,8 @@ import { toSearchTurns } from "./utils/toSearchTurns";
  * 질문이 없는 빈 대화에서는 안내 문구를, 대화가 있으면 질문·답변 턴을 위에서부터 차례로 그려요.
  */
 export default function SearchConversation() {
-  // 주소 파라미터 이름(sessionId)은 v2의 conversationId와 다르며, 데이터 연결 작업에서 맞춰요
-  const { sessionId } = useParams();
-  const { messages } = useSearchMessages({
-    conversationId: sessionId ? Number(sessionId) : undefined,
-  });
+  const { conversationId } = useConversationId();
+  const { messages } = useSearchMessages({ conversationId });
 
   const turns = toSearchTurns(messages);
 

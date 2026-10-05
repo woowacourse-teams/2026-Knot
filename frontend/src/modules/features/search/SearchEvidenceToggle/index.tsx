@@ -1,8 +1,8 @@
 import styled from "@emotion/styled";
+import useConversationId from "@hooks/domain/search/useConversationId";
 import useOpenedEvidenceMessage from "@hooks/domain/search/useOpenedEvidenceMessage";
 import useOpenedSearchEvidences from "@hooks/domain/search/useOpenedSearchEvidences";
 import useSearchMessages from "@hooks/domain/search/useSearchMessages";
-import { useParams } from "react-router";
 
 import FoundRecordsIcon from "@/assets/icons/foundRecords.svg";
 
@@ -14,8 +14,7 @@ import FoundRecordsIcon from "@/assets/icons/foundRecords.svg";
  * 왼쪽 패널 버튼과 대칭이 되도록 같은 모양을 쓰고, 열려 있으면 채워진(Active) 모양이에요.
  */
 export default function SearchEvidenceToggle() {
-  const { sessionId } = useParams();
-  const conversationId = sessionId ? Number(sessionId) : undefined;
+  const { conversationId } = useConversationId();
   const { messages } = useSearchMessages({ conversationId });
   const { evidences: openedEvidences } = useOpenedSearchEvidences({
     conversationId,

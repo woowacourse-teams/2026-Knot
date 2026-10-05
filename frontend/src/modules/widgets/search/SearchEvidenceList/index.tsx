@@ -1,4 +1,5 @@
 import styled from "@emotion/styled";
+import useConversationId from "@hooks/domain/search/useConversationId";
 import useOpenedSearchEvidences from "@hooks/domain/search/useOpenedSearchEvidences";
 import LinkTo from "@primitives/ui/LinkTo";
 import SearchEvidenceCard from "@primitives/ui/SearchEvidenceCard";
@@ -15,11 +16,9 @@ import { useParams } from "react-router";
  */
 export default function SearchEvidenceList() {
   const titleId = useId();
-  // 주소 파라미터 이름(sessionId)은 v2의 conversationId와 다르며, 데이터 연결 작업에서 맞춰요
-  const { workspaceId = "", sessionId } = useParams();
-  const { evidences } = useOpenedSearchEvidences({
-    conversationId: sessionId ? Number(sessionId) : undefined,
-  });
+  const { workspaceId = "" } = useParams();
+  const { conversationId } = useConversationId();
+  const { evidences } = useOpenedSearchEvidences({ conversationId });
 
   if (evidences.length === 0) return null;
 
