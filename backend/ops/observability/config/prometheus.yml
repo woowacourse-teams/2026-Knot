@@ -1,0 +1,32 @@
+global:
+  scrape_interval: 30s
+  evaluation_interval: 30s
+  external_labels:
+    project: knot
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]
+        labels:
+          env: monitoring
+  - job_name: public-health
+    metrics_path: /probe
+    params:
+      module: [http_2xx]
+    static_configs:
+      - targets: ["https://dev-api.knoted.kr/actuator/health"]
+        labels:
+          env: dev
+          service: spring
+      - targets: ["https://api.knoted.kr/health"]
+        labels:
+          env: prod
+          service: prototype
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox:9115

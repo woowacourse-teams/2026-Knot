@@ -44,6 +44,8 @@ package-lock.json
 package.json
 AGENTS.md
 .omo
+/vendor/
+/.debug-journal.md
 
 ### Local configuration ###
 src/main/resources/application-local.properties

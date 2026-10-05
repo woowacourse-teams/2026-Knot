@@ -3,3 +3,11 @@
 /secrets/
 /verification-*.json
 /environment-deployment-*.md
+secrets/
+tls/*.key
+tls/*.crt
+tls/*.csr
+agent/tls/
+*.env
+agent/*.env
+nginx/ingest-allow.conf

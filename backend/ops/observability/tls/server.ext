@@ -1,0 +1,4 @@
+basicConstraints=CA:FALSE
+keyUsage=digitalSignature,keyEncipherment
+extendedKeyUsage=serverAuth
+subjectAltName=IP:$ENV::KNOT_INGEST_IP

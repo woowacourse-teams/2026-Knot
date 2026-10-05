@@ -1,0 +1,14 @@
+services:
+  grafana:
+    environment:
+      GF_SERVER_DOMAIN: grafana.knoted.kr
+      GF_SERVER_ROOT_URL: https://grafana.knoted.kr/
+      GF_AUTH_PROXY_ENABLED: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_AUTH_BASIC_ENABLED: "true"
+      GF_AUTH_DISABLE_LOGIN_FORM: "false"
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_USERS_AUTO_ASSIGN_ORG_ROLE: Viewer
+      GF_SECURITY_COOKIE_SECURE: "true"
+      GF_SECURITY_COOKIE_SAMESITE: lax
+      GF_SECURITY_BRUTE_FORCE_LOGIN_PROTECTION: "true"

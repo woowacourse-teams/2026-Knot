@@ -7,7 +7,7 @@ const root = new URL('./', import.meta.url);
 export const catalogDashboardPath = 'provisioning/environment-dashboards/dev/knot-dev-spring-observability.json';
 
 export async function buildCatalogDashboard() {
-  assert(process.env.KNOT_CATALOG_SOURCE, 'Set KNOT_CATALOG_SOURCE to an operator-supplied 17175 revision 2 JSON file outside this repository.');
+  assert(process.env.KNOT_CATALOG_SOURCE, 'KNOT_CATALOG_SOURCE에 운영자가 제공한 원본 JSON 경로를 지정하세요.');
   const source = await readFile(process.env.KNOT_CATALOG_SOURCE);
   assert.equal(createHash('sha256').update(source).digest('hex'), '339819c22afc205f24e137c1b358059efe8c108f8ca81a0220235327bcdd54d6', 'Catalog source checksum mismatch');
   const dashboard = JSON.parse(source);

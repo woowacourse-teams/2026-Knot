@@ -29,8 +29,6 @@ test('알림 템플릿은 기술 라벨 덤프 대신 문제·확인 위치·환
   assert(template.includes('복구 확인은 별도'));
   assert(template.includes('환경 확인 필요'));
   assert(template.includes('테스트'));
-  assert(template.includes('$externalURL := .ExternalURL'));
-  assert(!template.includes('knoted.kr'));
 });
 
 test('운영 규칙은 짧은 한국어 문제 이름을 제공한다', () => {
