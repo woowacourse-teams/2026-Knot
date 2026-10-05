@@ -88,8 +88,8 @@ class RecordingSessionMigrationIntegrationTest {
     }
 
     @Test
-    @DisplayName("일시정지 시각 migration은 기존 PAUSED 행을 보존하고 시작 전 일시정지 시각은 거부한다")
-    void migrate_addsPausedAtAndRejectsPausedAtBeforeStartedAt() throws SQLException {
+    @DisplayName("일시정지 시각 migration은 기존 PAUSED 행을 마지막 확인 시각으로 채우고 시작 전 일시정지 시각은 거부한다")
+    void migrate_backfillsPausedAtAndRejectsPausedAtBeforeStartedAt() throws SQLException {
         // given
         flyway("23").migrate();
         execute("""
@@ -108,8 +108,10 @@ class RecordingSessionMigrationIntegrationTest {
                 """);
 
         // then
-        assertThat(query("SELECT status FROM recording_sessions WHERE member_id = 1 AND paused_at IS NULL"))
-                .containsExactly("PAUSED");
+        assertThat(query("""
+                SELECT status FROM recording_sessions
+                WHERE member_id = 1 AND paused_at = '2026-10-01T00:00:10Z'
+                """)).containsExactly("PAUSED");
         assertThatThrownBy(action).isInstanceOf(SQLException.class)
                 .satisfies(error -> assertThat(((SQLException) error).getSQLState()).isEqualTo("23514"));
     }
