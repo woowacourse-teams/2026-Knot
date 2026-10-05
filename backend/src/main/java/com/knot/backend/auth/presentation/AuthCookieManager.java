@@ -49,6 +49,10 @@ public class AuthCookieManager {
         );
     }
 
+    public String refreshTokenCookieName() {
+        return cookieNameForSecurity(jwtProperties.getRefreshCookieName());
+    }
+
     public void addNicknameToken(
             HttpServletResponse response,
             String token
