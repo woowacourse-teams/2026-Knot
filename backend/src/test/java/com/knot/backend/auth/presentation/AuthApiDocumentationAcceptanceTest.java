@@ -1,5 +1,6 @@
 package com.knot.backend.auth.presentation;
 
+import static org.hamcrest.Matchers.hasItem;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -82,9 +83,10 @@ class AuthApiDocumentationAcceptanceTest {
                 .andExpect(jsonPath(path + ".summary").value("인증 토큰 재발급"))
                 .andExpect(jsonPath(path + ".security").doesNotExist())
                 .andExpect(
-                        jsonPath(path + ".parameters[?(@.name == '__Host-KNOT_REFRESH_TOKEN')].in[0]").value("cookie")
+                        jsonPath(path + ".parameters[?(@.name == '__Host-KNOT_REFRESH_TOKEN')].in")
+                                .value(hasItem("cookie"))
                 )
-                .andExpect(jsonPath(path + ".parameters[?(@.name == 'X-XSRF-TOKEN')].required[0]").value(true))
+                .andExpect(jsonPath(path + ".parameters[?(@.name == 'X-XSRF-TOKEN')].required").value(hasItem(true)))
                 .andExpect(jsonPath(path + ".responses['204'].content").doesNotExist())
                 .andExpect(jsonPath(path + ".responses['204'].headers['Set-Cookie']").exists())
                 .andExpect(jsonPath(path + ".responses['401'].description").value("UNAUTHENTICATED: 재발급 불가"))

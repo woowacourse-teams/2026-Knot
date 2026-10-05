@@ -298,15 +298,31 @@ public class OpenApiConfig {
                                 new Operation().operationId("logout")
                                         .summary("로그아웃")
                                         .addTagsItem("인증")
+                                        .addParametersItem(
+                                                new Parameter().name(CSRF_TOKEN_HEADER_NAME)
+                                                        .in("header")
+                                                        .required(true)
+                                                        .schema(new StringSchema())
+                                                        .description("CSRF 토큰")
+                                        )
                                         .responses(
                                                 new ApiResponses().addApiResponse(
-                                                        "302",
-                                                        new ApiResponse().description("로그아웃 후 로그인 화면으로 redirect")
+                                                        "204",
+                                                        new ApiResponse().description("현재 세션 폐기 및 인증 쿠키 만료")
                                                                 .addHeaderObject(
-                                                                        "Location",
-                                                                        new Header().description("로그인 화면 URL")
+                                                                        "Set-Cookie",
+                                                                        new Header()
+                                                                                .description("Access·refresh·온보딩 쿠키 만료")
+                                                                                .schema(new StringSchema())
                                                                 )
                                                 )
+                                                        .addApiResponse(
+                                                                "403",
+                                                                jsonResponse(
+                                                                        "CSRF_INVALID: CSRF 검증 실패",
+                                                                        "ErrorResponse"
+                                                                )
+                                                        )
                                         )
                         )
                 );
