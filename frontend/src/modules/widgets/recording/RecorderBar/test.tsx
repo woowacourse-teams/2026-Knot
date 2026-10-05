@@ -142,6 +142,18 @@ describe("RecorderBar", () => {
     expect(stream.getTracks()[0].readyState).toBe("ended");
   });
 
+  it("녹음을 끝내면 홈으로 가고, 뒤로 가기로 녹음 화면에 돌아오지 않는다", async () => {
+    await startRecording();
+    const { router } = renderRecorderBar();
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "녹음 끝내기" }));
+    });
+
+    expect(router.state.location.pathname).toBe(HOME_PATH);
+    expect(router.state.historyAction).toBe("REPLACE");
+  });
+
   it("녹음 중에 마이크가 끊기면 저절로 일시정지한다", async () => {
     const getUserMedia = vi.spyOn(navigator.mediaDevices, "getUserMedia");
     await startRecording();
