@@ -85,7 +85,7 @@ class AuthServiceTest {
                 null
         );
         when(authTokenProvider.issue(authenticatedMember)).thenReturn("access-token");
-        when(refreshTokenProvider.issue()).thenReturn(
+        when(refreshTokenProvider.issue(any(Instant.class))).thenReturn(
                 RefreshToken.of(
                         "refresh-token",
                         "a".repeat(64)
@@ -252,7 +252,7 @@ class AuthServiceTest {
                 null
         );
         when(authTokenProvider.issue(authenticatedMember)).thenReturn("access-token");
-        when(refreshTokenProvider.issue()).thenReturn(
+        when(refreshTokenProvider.issue(any(Instant.class))).thenReturn(
                 RefreshToken.of(
                         "refresh-token",
                         "a".repeat(64)
@@ -443,7 +443,8 @@ class AuthServiceTest {
         when(member.getId()).thenReturn(1L);
         when(member.getNickname()).thenReturn("octocat");
         when(tokens.issue(any())).thenReturn("access-token");
-        when(refreshTokenProvider.issue()).thenThrow(new AuthException(AuthErrorCode.AUTHENTICATION_INTERNAL_ERROR));
+        when(refreshTokenProvider.issue(any(Instant.class)))
+                .thenThrow(new AuthException(AuthErrorCode.AUTHENTICATION_INTERNAL_ERROR));
 
         // when & then
         assertThatThrownBy(
@@ -478,7 +479,8 @@ class AuthServiceTest {
     void login_failure_refreshIssuance() {
         // given
         AuthService service = registeredLoginService(mock(AuthTokenProvider.class));
-        when(refreshTokenProvider.issue()).thenThrow(new AuthException(AuthErrorCode.AUTHENTICATION_INTERNAL_ERROR));
+        when(refreshTokenProvider.issue(any(Instant.class)))
+                .thenThrow(new AuthException(AuthErrorCode.AUTHENTICATION_INTERNAL_ERROR));
 
         // when & then
         assertThatThrownBy(() -> service.login(oauthUser())).isInstanceOf(AuthException.class);
@@ -492,7 +494,7 @@ class AuthServiceTest {
         AuthTokenProvider tokens = mock(AuthTokenProvider.class);
         AuthService service = registeredLoginService(tokens);
         when(tokens.issue(any())).thenReturn("access-token");
-        when(refreshTokenProvider.issue()).thenReturn(
+        when(refreshTokenProvider.issue(any(Instant.class))).thenReturn(
                 RefreshToken.of(
                         "refresh-token",
                         "a".repeat(64)
@@ -547,7 +549,7 @@ class AuthServiceTest {
         when(member.getId()).thenReturn(1L);
         when(member.getNickname()).thenReturn("흑곰");
         when(tokens.issue(any())).thenReturn("access-token");
-        when(refreshTokenProvider.issue()).thenReturn(
+        when(refreshTokenProvider.issue(any(Instant.class))).thenReturn(
                 RefreshToken.of(
                         "refresh-token",
                         "a".repeat(64)

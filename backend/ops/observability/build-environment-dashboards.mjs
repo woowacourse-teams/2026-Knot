@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 
 const root = new URL('./', import.meta.url);
@@ -204,19 +204,10 @@ export async function buildEnvironmentDashboards() {
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  const entries = await buildEnvironmentDashboards();
-  if (process.argv[2] === '--write') {
-    for (const entry of entries) {
-      const destination = new URL(entry.path, root);
-      await mkdir(new URL('./', destination), { recursive: true });
-      await writeFile(destination, JSON.stringify(entry.dashboard, null, 2) + '\n');
-    }
-  } else {
-    assert.equal(process.argv[2], '--emit-patch', 'Usage: node build-environment-dashboards.mjs --write | --emit-patch DASHBOARD_UID');
-    const entry = entries.find(candidate => candidate.dashboard.uid === process.argv[3]);
-    assert(entry, `Unknown dashboard UID: ${process.argv[3]}`);
-    const content = JSON.stringify(entry.dashboard, null, 2) + '\n';
-    const added = content.trimEnd().split('\n').map(line => '+' + line).join('\n');
-    process.stdout.write(`*** Begin Patch\n*** Add File: ${fileURLToPath(new URL(entry.path, root))}\n${added}\n*** End Patch\n`);
-  }
+  assert.equal(process.argv[2], '--emit-patch', 'Usage: node build-environment-dashboards.mjs --emit-patch DASHBOARD_UID');
+  const entry = (await buildEnvironmentDashboards()).find(candidate => candidate.dashboard.uid === process.argv[3]);
+  assert(entry, `Unknown dashboard UID: ${process.argv[3]}`);
+  const content = JSON.stringify(entry.dashboard, null, 2) + '\n';
+  const added = content.trimEnd().split('\n').map(line => '+' + line).join('\n');
+  process.stdout.write(`*** Begin Patch\n*** Add File: ${fileURLToPath(new URL(entry.path, root))}\n${added}\n*** End Patch\n`);
 }

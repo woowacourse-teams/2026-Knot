@@ -138,6 +138,7 @@ public class SecurityConfig {
                             "/oauth2/**",
                             "/login/**",
                             "/api/v1/auth/nickname",
+                            "/api/v1/auth/refresh",
                             "/api/v1/auth/csrf",
                             "/actuator/health",
                             "/error"

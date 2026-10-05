@@ -9,8 +9,8 @@ services:
     mem_limit: 256m
     cpus: 0.25
     environment:
-      KNOT_INGEST_BASE_URL: ${KNOT_INGEST_BASE_URL:?Set the approved ingest base URL without a trailing slash}
       KNOT_ENV: ${KNOT_ENV:?Set KNOT_ENV to dev or prod}
+      KNOT_INGEST_BASE_URL: ${KNOT_INGEST_BASE_URL:?Set private HTTPS ingestion endpoint}
     command:
       - run
       - --server.http.listen-addr=127.0.0.1:12345

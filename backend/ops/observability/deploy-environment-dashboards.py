@@ -105,10 +105,8 @@ def deploy(root, stage, apply, dev_count=7):
     assert not mounts["/etc/grafana/provisioning"]["RW"]
     assert mounts["/var/lib/grafana/dashboards"]["Source"] == str(root / "dashboards")
     runtime_environment_hash = digest(inspect["Config"]["Env"])
-    admin_user = next(value.split("=", 1)[1] for value in inspect["Config"]["Env"]
-                      if value.startswith("GF_SECURITY_ADMIN_USER="))
     password = (root / "secrets/grafana-admin-password").read_text().strip()
-    authorization = "Basic " + base64.b64encode((admin_user + ":" + password).encode()).decode()
+    authorization = "Basic " + base64.b64encode(("knot-admin:" + password).encode()).decode()
 
     def api(path, method="GET"):
         request = urllib.request.Request("http://127.0.0.1:3000" + path,
@@ -205,7 +203,7 @@ def deploy(root, stage, apply, dev_count=7):
         print(json.dumps({"applied": True, "backup": str(backup),
                           "runtimeAlertContractUnchanged": True,
                           "commonDashboardsUnchanged": True,
-                          "links": ["/d/" + uid for uid in sorted(uids)]},
+                          "links": ["https://grafana.knoted.kr/d/" + uid for uid in sorted(uids)]},
                          ensure_ascii=False))
     except Exception:
         for relative in targets:

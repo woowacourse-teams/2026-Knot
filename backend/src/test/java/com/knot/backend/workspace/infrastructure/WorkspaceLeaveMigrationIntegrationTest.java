@@ -92,7 +92,7 @@ class WorkspaceLeaveMigrationIntegrationTest {
         );
 
         // when
-        MigrateResult result = configureFlyway().migrate();
+        MigrateResult result = configureFlyway(MigrationVersion.fromVersion("17")).migrate();
 
         // then
         WorkspaceMemberRow row = workspaceMemberRow(membershipId);

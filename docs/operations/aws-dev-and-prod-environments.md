@@ -40,8 +40,8 @@ Cloudflare 연결과 배포 검증을 한 곳에 기록한다. 비밀번호, 키
 | 구분 | 리소스 | 확인된 설정 |
 | --- | --- | --- |
 | Prod EC2 | `knot-backend-ec2` | `t4g.small`, `project-public`, `project-public-a`, IAM 역할 `ec2-project` |
-| Dev EC2 | `knot-backend-dev` | `i-03d4878a99bad4ecc`, `t4g.small`, 실행 중, 상태 검사 3/3 통과, `project-public`, `project-public-a`, IAM 역할 `ec2-project` |
-| Dev AMI | `knot-backend-dev` | 현재 Dev EC2가 사용 중인 AMI `ami-08d779b95580839b7` |
+| Dev EC2 | `knot-backend-dev` | 리소스 ID 비공개 관리, `t4g.small`, 실행 중, 상태 검사 3/3 통과, `project-public`, `project-public-a`, IAM 역할 `ec2-project` |
+| Dev AMI | `knot-backend-dev` | 현재 Dev EC2가 사용 중인 AMI ID는 비공개 관리 |
 | Dev RDS | `knot-dev-database` | PostgreSQL, `db.t4g.micro`, 상태 `사용 가능`, 보안 그룹 `project-db`; 생성 시 `project-rds-subnet-group`을 사용하도록 설정 |
 | Prod 파이프라인 | `knot-backend-pipeline` | `main` → Source → Build → Deploy, 기존 CodeBuild·CodeDeploy 사용 |
 | Dev 파이프라인 | `knot-backend-dev-pipeline` | `develop` → Source → Build → Deploy |
@@ -50,11 +50,11 @@ Cloudflare 연결과 배포 검증을 한 곳에 기록한다. 비밀번호, 키
 
 EC2는 과목에서 지정한 VPC `TECHCOURSE-PROJECT`, 직접 접근용 `project-public` 보안 그룹과
 `project-public-a` 서브넷을 사용한다. Dev 인스턴스의 자동 할당 공인 IP는
-`13.125.185.106`이고 Elastic IP는 연결되어 있지 않다.
+비공개 운영 설정에서 관리하며 Elastic IP는 연결되어 있지 않다.
 
 ### 도메인과 애플리케이션 설정
 
-- Cloudflare의 `dev-api.knoted.kr` A 레코드는 `13.125.185.106`을 가리키며 Proxy가 켜져 있다.
+- Cloudflare의 `dev-api.knoted.kr` A 레코드는 비공개 관리하는 Dev 원 서버 주소를 가리키며 Proxy가 켜져 있다.
 - Dev API 호스트는 `dev-api.knoted.kr`, 프론트엔드·OAuth 측 Dev 도메인은 `dev-knoted.kr`로 분리한다.
 - Spring은 AWS Dev에서 `dev` 프로필을 사용한다. NCP에서 가져온 런타임 설정·Secret은 값 자체를
   문서나 저장소에 넣지 않고 인스턴스의 비밀 설정으로 관리한다.
@@ -110,7 +110,7 @@ RDS, CodeDeploy 애플리케이션 및 그 밖의 생성 리소스까지 전부 
 | AWS Dev API | `curl -i https://dev-api.knoted.kr/actuator/health` | HTTP 200, `{"groups":["liveness","readiness"],"status":"UP"}` |
 | AWS Dev RDS | RDS 콘솔 | `knot-dev-database` 상태 `사용 가능` |
 | AWS Prod 파이프라인 | CodePipeline 콘솔 | `main` 기반 마지막 확인 실행은 성공으로 표시됨. 소스·빌드 commit `a0a0a0ce`, 2026-09-18 |
-| AWS Prod 배포 | CodeDeploy 콘솔 | `d-4YH31QHVK`, Prod EC2 `i-059ba5aa35734a22a`에 1/1 성공, `ValidateService` 성공 |
+| AWS Prod 배포 | CodeDeploy 콘솔 | 배포·인스턴스 ID는 비공개 관리, Prod EC2에 1/1 성공, `ValidateService` 성공 |
 | AWS Prod 공개 API | `api.knoted.kr/api/v1/auth/me`, `/v3/api-docs` | 2026-09-30 확인 시 둘 다 HTTP 404. Prod 정상 응답을 확인하지 못함 |
 | AWS Prod 배포 commit 일치 | CodePipeline 시각화 | Deploy에 rollback 표시가 있고 배포 카드가 다른 commit `93e5924e`를 보여 줌. `main`의 `a0a0a0ce`와 실제 적용 revision의 일치 여부를 추가 확인해야 함 |
 | 자동 트리거 | AWS·GitHub 콘솔 | GitHub push webhook은 활성 상태이고 최근 전달 성공이 보였음. 권한 `events:ListRuleNamesByTarget` 거부로 EventBridge 연결 상세 및 후속 push 자동 실행은 독립 검증하지 못함 |

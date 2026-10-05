@@ -37,4 +37,28 @@ public class AuthSessionRepositoryImpl implements AuthSessionRepository {
             );
         }
     }
+
+    @Override
+    public Optional<AuthSession> findByRefreshTokenHashForUpdate(String refreshTokenHash) {
+        try {
+            return jpaRepository.findByRefreshTokenHashForUpdate(refreshTokenHash);
+        } catch (DataAccessException exception) {
+            throw new AuthException(
+                    AuthErrorCode.AUTHENTICATION_INTERNAL_ERROR,
+                    exception
+            );
+        }
+    }
+
+    @Override
+    public Optional<AuthSession> findByIdForUpdate(long authSessionId) {
+        try {
+            return jpaRepository.findByIdForUpdate(authSessionId);
+        } catch (DataAccessException exception) {
+            throw new AuthException(
+                    AuthErrorCode.AUTHENTICATION_INTERNAL_ERROR,
+                    exception
+            );
+        }
+    }
 }

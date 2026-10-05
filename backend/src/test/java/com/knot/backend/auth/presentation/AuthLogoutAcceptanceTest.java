@@ -212,7 +212,10 @@ class AuthLogoutAcceptanceTest {
                         ),
                 null
         );
-        RefreshToken refreshToken = refreshTokenProvider.issue();
+        RefreshToken refreshToken = refreshTokenProvider.issue(
+                Instant.now()
+                        .plus(Duration.ofDays(30))
+        );
         sessionRepository.save(
                 AuthSession.create(
                         member.getId(),

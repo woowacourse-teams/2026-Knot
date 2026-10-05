@@ -101,7 +101,11 @@ public class AuthService {
         );
 
         String accessToken = authTokenProvider.issue(authenticatedMember);
-        RefreshToken refreshToken = refreshTokenProvider.issue();
+        Instant refreshExpiresAt = AuthSession.initialRefreshExpirationAt(
+                sessionCreatedAt,
+                initialOAuthLoginAt
+        );
+        RefreshToken refreshToken = refreshTokenProvider.issue(refreshExpiresAt);
         AuthSession session = createLoginSession(
                 member.getId(),
                 refreshToken.getHash(),
