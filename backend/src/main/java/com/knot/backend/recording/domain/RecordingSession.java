@@ -170,7 +170,15 @@ public class RecordingSession {
         validateTimeNotBeforeLastSeen(resumedAt);
         status = RecordingStatus.RECORDING;
         currentIntervalStartedAt = resumedAt;
+        pausedAt = null;
         lastSeenAt = resumedAt;
+    }
+
+    public Instant getResumedAt() {
+        if (status != RecordingStatus.RECORDING) {
+            return null;
+        }
+        return currentIntervalStartedAt;
     }
 
     public void end(Instant endedAt) {
