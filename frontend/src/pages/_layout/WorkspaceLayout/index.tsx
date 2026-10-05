@@ -1,11 +1,13 @@
 import DockablePanel from "@composites/DockablePanel";
 import styled from "@emotion/styled";
+import SearchEvidenceToggle from "@features/search/SearchEvidenceToggle";
 import useRecordingLeaveWarning from "@hooks/domain/recording/useRecordingLeaveWarning";
 import useWorkspaceEntry from "@hooks/domain/workspace/useWorkspaceEntry";
 import useWorkspaceNav from "@hooks/domain/workspace/useWorkspaceNav";
 import DockColumn from "@primitives/layout/DockColumn";
 import LoadingIndicator from "@primitives/ui/LoadingIndicator";
 import ChatListDrawer from "@widgets/chat/ChatListDrawer";
+import SearchEvidenceList from "@widgets/search/SearchEvidenceList";
 import WorkspaceDock from "@widgets/workspace/WorkspaceDock";
 import WorkspaceGnb from "@widgets/workspace/WorkspaceGnb";
 import WorkspaceSidebar from "@widgets/workspace/WorkspaceSidebar";
@@ -29,7 +31,9 @@ import type { DockedPanelName } from "./types/dockedPanel";
  * 대화 목록 버튼은 탐색 화면에서만 둔다.
  *
  * 독과 탐색 대화 열은 둘 다 본문 영역 안의 `DockColumn`에 놓여, 패널을 고정하면 함께 밀린다(SEARCH-R11).
- * 오른쪽 패널도 이 레이아웃의 레일로 올리면 본문 영역이 줄어 같은 규칙을 따른다.
+ *
+ * 탐색 화면에서는 찾은 기록 패널이 본문 오른쪽 레일을 차지해, 열리면 본문 영역이 줄어 같은 규칙을 따른다.
+ * 찾은 기록은 GNB 오른쪽 버튼과 답변 아래 버튼이 주소(`?messageId=`)로 여닫는다.
  *
  * 들어갈 수 있는 워크스페이스인지도 이 레이아웃 범위에서 한 번만 판정한다(`useWorkspaceEntry`).
  * 조회에 성공하기 전에는 본문 대신 스피너를 두고, 401은 로그인으로, 403·404는 선택 화면으로 보낸다.
@@ -59,29 +63,34 @@ export default function WorkspaceLayout() {
   return (
     <Container>
       <GnbSlot>
-        <WorkspaceGnb>
-          <DockablePanel
-            label="사이드바"
-            icon={<SidebarIcon size={18} />}
-            dockTargetId={WORKSPACE_DOCK_RAIL_ID}
-            isDocked={dockedPanel === "sidebar"}
-            onDockedChange={pickPanel("sidebar")}
-          >
-            <WorkspaceSidebar />
-          </DockablePanel>
+        <WorkspaceGnb
+          left={
+            <>
+              <DockablePanel
+                label="사이드바"
+                icon={<SidebarIcon size={18} />}
+                dockTargetId={WORKSPACE_DOCK_RAIL_ID}
+                isDocked={dockedPanel === "sidebar"}
+                onDockedChange={pickPanel("sidebar")}
+              >
+                <WorkspaceSidebar />
+              </DockablePanel>
 
-          {isChatActive && (
-            <DockablePanel
-              label="대화 목록"
-              icon={<ChatListIcon size={18} />}
-              dockTargetId={WORKSPACE_DOCK_RAIL_ID}
-              isDocked={dockedPanel === "chatList"}
-              onDockedChange={pickPanel("chatList")}
-            >
-              <ChatListDrawer />
-            </DockablePanel>
-          )}
-        </WorkspaceGnb>
+              {isChatActive && (
+                <DockablePanel
+                  label="대화 목록"
+                  icon={<ChatListIcon size={18} />}
+                  dockTargetId={WORKSPACE_DOCK_RAIL_ID}
+                  isDocked={dockedPanel === "chatList"}
+                  onDockedChange={pickPanel("chatList")}
+                >
+                  <ChatListDrawer />
+                </DockablePanel>
+              )}
+            </>
+          }
+          right={isChatActive && <SearchEvidenceToggle />}
+        />
       </GnbSlot>
 
       <Body>
@@ -100,6 +109,12 @@ export default function WorkspaceLayout() {
             <WorkspaceDock />
           </DockSlot>
         </Content>
+
+        {isChatActive && (
+          <EvidenceRail>
+            <SearchEvidenceList />
+          </EvidenceRail>
+        )}
       </Body>
     </Container>
   );
@@ -156,6 +171,38 @@ const Content = styled.div`
   flex: 1;
   flex-direction: column;
   min-width: 0;
+`;
+
+/**
+ * 찾은 기록 패널이 놓이는 오른쪽 레일. GNB 아래 40px, 화면 오른쪽 40px에 붙어요.
+ *
+ * 펼친 답변에 근거가 없으면 패널이 그려지지 않아 비고, 비어 있으면 폭이 0이에요.
+ * 찼는지는 왼쪽 레일(`DockRail`)처럼 `:has`로 보고, 같은 시간·감속으로 폭을 바꿔요.
+ */
+const EvidenceRail = styled.div`
+  flex-shrink: 0;
+  width: 0;
+  padding-top: 2.5rem; /* 40px */
+  /* 열리는 동안 패널이 레일 밖으로 넘치지 않게 자르되, 패널 그림자만큼은 남겨요 */
+  overflow: clip;
+  overflow-clip-margin: 2.5rem; /* 40px */
+  transition:
+    width 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+    margin-right 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* 레일 폭이 바뀌는 동안 패널이 함께 찌그러지지 않도록 열린 폭에 고정해요 */
+  & > * {
+    width: 25rem; /* 400px */
+  }
+
+  &:has(> *) {
+    width: 25rem; /* 400px */
+    margin-right: 2.5rem; /* 40px */
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
 `;
 
 const Main = styled.main`
