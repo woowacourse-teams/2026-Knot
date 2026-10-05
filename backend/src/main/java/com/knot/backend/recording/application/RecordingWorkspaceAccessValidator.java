@@ -13,6 +13,19 @@ public class RecordingWorkspaceAccessValidator {
     private final WorkspaceRepository workspaceRepository;
     private final WorkspaceMemberRepository workspaceMemberRepository;
 
+    public void validate(
+            long workspaceId,
+            long memberId
+    ) {
+        validateWorkspaceId(workspaceId);
+        workspaceRepository.findById(workspaceId)
+                .orElseThrow(() -> new WorkspaceException(WorkspaceErrorCode.WORKSPACE_NOT_FOUND));
+        validateMembership(
+                workspaceId,
+                memberId
+        );
+    }
+
     public void validateAndLock(
             long workspaceId,
             long memberId
