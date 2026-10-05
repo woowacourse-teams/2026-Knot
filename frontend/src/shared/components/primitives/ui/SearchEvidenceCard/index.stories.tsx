@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react-webpack5";
 
 import NotionIcon from "@/assets/icons/notion.svg";
 
-import SearchReferenceCard from ".";
+import SearchEvidenceCard from ".";
 
 /**
  * AI 탐색 답변의 근거가 된 문서를 보여주는 카드예요. 탐색 화면의 「찾은 문서」 목록에 씁니다.
@@ -13,8 +13,8 @@ import SearchReferenceCard from ".";
  * - 이동은 카드가 아니라 감싸는 `LinkTo`가 맡아요.
  */
 const meta = {
-  title: "Shared/SearchReferenceCard",
-  component: SearchReferenceCard,
+  title: "Shared/SearchEvidenceCard",
+  component: SearchEvidenceCard,
   parameters: {
     design: [
       {
@@ -42,7 +42,7 @@ const meta = {
   args: {
     title: "2026 H2 로드맵",
     documentPath: "제품/로드맵",
-    sourceIcon: <NotionIcon />,
+    evidenceSourceIcon: <NotionIcon />,
   },
   decorators: [
     (Story) => (
@@ -51,7 +51,7 @@ const meta = {
       </div>
     ),
   ],
-} satisfies Meta<typeof SearchReferenceCard>;
+} satisfies Meta<typeof SearchEvidenceCard>;
 
 export default meta;
 

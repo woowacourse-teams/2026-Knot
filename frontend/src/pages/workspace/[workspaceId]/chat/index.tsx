@@ -1,9 +1,9 @@
 import styled from "@emotion/styled";
-import useOpenedSourceMessage from "@hooks/domain/chat/useOpenedSourceMessage";
+import useOpenedEvidenceMessage from "@hooks/domain/chat/useOpenedEvidenceMessage";
 import DockColumn from "@primitives/layout/DockColumn";
 
 import SearchConversation from "@/modules/widgets/search/SearchConversation";
-import SearchReferenceList from "@/modules/widgets/search/SearchReferenceList";
+import SearchEvidenceList from "@/modules/widgets/search/SearchEvidenceList";
 
 /**
  * 탐색(채팅) 화면 (`/workspace/:workspaceId/chat`, `/workspace/:workspaceId/chat/:sessionId`)
@@ -23,9 +23,9 @@ import SearchReferenceList from "@/modules/widgets/search/SearchReferenceList";
  * @see https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=413-14915 전체 플로우
  */
 export default function ChatPage() {
-  const { openedMessageId } = useOpenedSourceMessage();
+  const { openedMessageId } = useOpenedEvidenceMessage();
 
-  const isReferenceOpen = openedMessageId !== null;
+  const isEvidenceOpen = openedMessageId !== null;
 
   return (
     <Container>
@@ -33,10 +33,10 @@ export default function ChatPage() {
         <SearchConversation />
       </ChatColumn>
 
-      {isReferenceOpen && (
-        <ReferenceColumn>
-          <SearchReferenceList />
-        </ReferenceColumn>
+      {isEvidenceOpen && (
+        <EvidenceColumn>
+          <SearchEvidenceList />
+        </EvidenceColumn>
       )}
     </Container>
   );
@@ -48,15 +48,15 @@ const Container = styled.div`
   width: 100%;
   height: 100%;
   padding-bottom: 7rem; /* 112px — 하단 독 자리 */
-  `;
-  
-  const ChatColumn = styled(DockColumn)`
+`;
+
+const ChatColumn = styled(DockColumn)`
   flex-shrink: 1;
   min-width: 0;
 `;
 
 // 찾은 기록을 레이아웃 레일로 올리기 전까지는 이 화면 안에서 대화 열 옆에 붙여요
-const ReferenceColumn = styled.div`
+const EvidenceColumn = styled.div`
   flex-shrink: 0;
   width: 23.75rem; /* 380px */
   margin-right: 2.5rem; /* 40px */

@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react-webpack5";
 import { MemoryRouter } from "react-router";
 
-import SearchReferenceList from ".";
+import SearchEvidenceList from ".";
 
 /**
  * AI 탐색 답변의 근거가 된 문서 목록이에요. 탐색 화면의 「찾은 문서」 구획에 써요.
@@ -12,8 +12,8 @@ import SearchReferenceList from ".";
  * - 아직 탐색 API를 연결하지 않아 예시 문서 두 개를 그려요. 그중 하나는 제목이 아주 긴 문서예요.
  */
 const meta = {
-  title: "Search/SearchReferenceList",
-  component: SearchReferenceList,
+  title: "Search/SearchEvidenceList",
+  component: SearchEvidenceList,
   parameters: {
     layout: "padded",
     design: [
@@ -36,7 +36,7 @@ const meta = {
       </MemoryRouter>
     ),
   ],
-} satisfies Meta<typeof SearchReferenceList>;
+} satisfies Meta<typeof SearchEvidenceList>;
 
 export default meta;
 

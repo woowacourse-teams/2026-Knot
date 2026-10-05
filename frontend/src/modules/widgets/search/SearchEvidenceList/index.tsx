@@ -1,14 +1,14 @@
 import styled from "@emotion/styled";
-import SearchReferenceCard from "@primitives/ui/SearchReferenceCard";
-import { useSearchReferenceList } from "./model/useSearchReferenceList";
+import SearchEvidenceCard from "@primitives/ui/SearchEvidenceCard";
+import { useSearchEvidenceList } from "./model/useSearchEvidenceList";
 import LinkTo from "@/shared/components/primitives/ui/LinkTo";
 
 /**
  * AI 탐색 답변의 근거가 된 문서 리스트를 보여주는 List UI.
  */
 
-export default function SearchReferenceList() {
-  const { references } = useSearchReferenceList();
+export default function SearchEvidenceList() {
+  const { evidences } = useSearchEvidenceList();
 
   return (
     <Container>
@@ -18,16 +18,18 @@ export default function SearchReferenceList() {
       </Header>
 
       <List>
-        {references.map(({ id, title, documentPath, href, SourceIcon }) => (
-          <LinkTo href={href}>
-            <SearchReferenceCard
-              key={id}
-              title={title}
-              documentPath={documentPath}
-              sourceIcon={<SourceIcon />}
-            />
-          </LinkTo>
-        ))}
+        {evidences.map(
+          ({ id, title, documentPath, href, EvidenceSourceIcon }) => (
+            <LinkTo href={href}>
+              <SearchEvidenceCard
+                key={id}
+                title={title}
+                documentPath={documentPath}
+                evidenceSourceIcon={<EvidenceSourceIcon />}
+              />
+            </LinkTo>
+          ),
+        )}
       </List>
     </Container>
   );

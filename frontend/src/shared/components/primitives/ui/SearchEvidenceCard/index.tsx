@@ -3,25 +3,27 @@ import styled from "@emotion/styled";
 import OpenExternal from "@/assets/icons/openExternal.svg";
 import Spacing from "@primitives/layout/Spacing";
 
-interface SearchReferenceCardProps {
+interface SearchEvidenceCardProps {
   title: string;
   documentPath: string;
-  sourceIcon: ReactNode;
+  evidenceSourceIcon: ReactNode;
 }
 
 /**
  * AI 탐색 답변의 근거가 된 문서를 보여주는 Card UI.
  */
 
-export default function SearchReferenceCard({
+export default function SearchEvidenceCard({
   title,
   documentPath,
-  sourceIcon,
-}: SearchReferenceCardProps) {
+  evidenceSourceIcon,
+}: SearchEvidenceCardProps) {
   return (
     <Container>
       <Header>
-        <ReferenceSourceIconWrapper>{sourceIcon}</ReferenceSourceIconWrapper>
+        <EvidenceSourceIconWrapper>
+          {evidenceSourceIcon}
+        </EvidenceSourceIconWrapper>
 
         <Spacing direction="horizontal" size={0.625} />
 
@@ -61,7 +63,7 @@ const IconWrapper = styled.div`
   justify-content: center;
   align-items: center;
 `;
-const ReferenceSourceIconWrapper = styled(IconWrapper)`
+const EvidenceSourceIconWrapper = styled(IconWrapper)`
   width: 1.25rem;
   height: 1.25rem;
 `;

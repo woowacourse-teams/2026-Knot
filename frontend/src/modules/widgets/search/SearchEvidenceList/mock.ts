@@ -1,6 +1,6 @@
-import type { ReferenceSource } from "./types/searchReference";
+import type { EvidenceSource } from "./types/searchEvidence";
 
-export type SearchReferenceCardListResponse = Array<{
+export type SearchEvidenceCardListResponse = Array<{
   id: number;
   messageId: number;
   rank: number;
@@ -13,7 +13,7 @@ export type SearchReferenceCardListResponse = Array<{
     createdAt: string;
     updatedAt: string;
   };
-  referenceSource: ReferenceSource;
+  evidenceSource: EvidenceSource;
 }>;
 
 export const mock = [
@@ -32,7 +32,7 @@ export const mock = [
       createdAt: "2024-01-01T00:00:00Z",
       updatedAt: "2024-01-01T00:00:00Z",
     },
-    referenceSource: "notion",
+    evidenceSource: "notion",
   },
   {
     id: 2,
@@ -48,6 +48,6 @@ export const mock = [
       createdAt: "2024-01-02T00:00:00Z",
       updatedAt: "2024-01-02T00:00:00Z",
     },
-    referenceSource: "notion",
+    evidenceSource: "notion",
   },
-] satisfies SearchReferenceCardListResponse;
+] satisfies SearchEvidenceCardListResponse;

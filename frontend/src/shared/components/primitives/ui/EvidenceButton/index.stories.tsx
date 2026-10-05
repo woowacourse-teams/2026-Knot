@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react-webpack5";
 import { fn } from "storybook/test";
 
-import SourceButton from ".";
+import EvidenceButton from ".";
 
 /**
  * 답변의 근거 문서를 여는 버튼이에요. 탐색 화면에서 AI 답변 아래에 둡니다.
@@ -10,8 +10,8 @@ import SourceButton from ".";
  * - 라벨 문구는 쓰는 쪽이 정해 `children`으로 넘겨요.
  */
 const meta = {
-  title: "Shared/SourceButton",
-  component: SourceButton,
+  title: "Shared/EvidenceButton",
+  component: EvidenceButton,
   parameters: {
     design: {
       type: "figma",
@@ -23,7 +23,7 @@ const meta = {
     isSelected: false,
     onClick: fn(),
   },
-} satisfies Meta<typeof SourceButton>;
+} satisfies Meta<typeof EvidenceButton>;
 
 export default meta;
 

@@ -1,20 +1,20 @@
 import { useMemo } from "react";
 import { mock } from "../mock";
-import { getReferenceSourceIcon } from "../utils/getReferenceSourceIcon";
+import { getEvidenceSourceIcon } from "../utils/getEvidenceSourceIcon";
 
 // TODO: 이후 useQuery 훅으로 교체
-export const useSearchReferenceList = () => {
-  const references = useMemo(
+export const useSearchEvidenceList = () => {
+  const evidences = useMemo(
     () =>
       mock.map((data) => ({
         id: data.id,
         title: data.notionPage.title,
         documentPath: data.notionPage.path,
         href: data.notionPage.notionUrl,
-        SourceIcon: getReferenceSourceIcon(data.referenceSource),
+        EvidenceSourceIcon: getEvidenceSourceIcon(data.evidenceSource),
       })),
     [],
   );
 
-  return { references };
+  return { evidences };
 };

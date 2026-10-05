@@ -3,19 +3,19 @@ import styled from "@emotion/styled";
 import ChevronRight from "@/assets/icons/chevronRight.svg";
 import File from "@/assets/icons/file.svg";
 
-interface SourceButtonProps extends ComponentProps<"button"> {
+interface EvidenceButtonProps extends ComponentProps<"button"> {
   isSelected?: boolean;
 }
 
 /**
  * 답변의 근거 문서를 여는 버튼.
  */
-export default function SourceButton({
+export default function EvidenceButton({
   isSelected = false,
   type = "button",
   children,
   ...props
-}: SourceButtonProps) {
+}: EvidenceButtonProps) {
   return (
     <Container
       type={type}
