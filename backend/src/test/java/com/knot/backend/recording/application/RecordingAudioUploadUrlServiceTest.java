@@ -3,6 +3,8 @@ package com.knot.backend.recording.application;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -53,13 +55,18 @@ class RecordingAudioUploadUrlServiceTest {
         workspaceMemberRepository = mock(WorkspaceMemberRepository.class);
         recordingSessionRepository = mock(RecordingSessionRepository.class);
         recordingAudioUploadRepository = mock(RecordingAudioUploadRepository.class);
-        RecordingAudioStorage storage = (
-                storageKey,
-                contentType,
-                contentLength
-        ) -> new PresignedAudioUpload(
-                "https://storage.example/" + storageKey,
-                EXPIRES_AT
+        RecordingAudioStorage storage = mock(RecordingAudioStorage.class);
+        when(
+                storage.presignUpload(
+                        anyString(),
+                        anyString(),
+                        anyLong()
+                )
+        ).thenAnswer(
+                invocation -> new PresignedAudioUpload(
+                        "https://storage.example/" + invocation.getArgument(0),
+                        EXPIRES_AT
+                )
         );
         service = new RecordingAudioUploadUrlService(
                 new RecordingWorkspaceAccessValidator(
