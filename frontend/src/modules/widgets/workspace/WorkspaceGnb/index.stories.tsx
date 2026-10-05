@@ -1,4 +1,5 @@
 import DockablePanel from "@composites/DockablePanel";
+import SearchEvidenceToggle from "@features/search/SearchEvidenceToggle";
 import { getRouterPath, PATH_ROUTE } from "@routes/PATH_ROUTE";
 import type { Meta, StoryObj } from "@storybook/react-webpack5";
 import WorkspaceSidebar from "@widgets/workspace/WorkspaceSidebar";
@@ -17,6 +18,10 @@ const CHAT_PATH = getRouterPath({
   routeKey: "CHAT",
   params: { workspaceId: WORKSPACE_ID },
 });
+const CONVERSATION_PATH = getRouterPath({
+  routeKey: "CHAT_SESSION",
+  params: { workspaceId: WORKSPACE_ID, sessionId: "10" },
+});
 const DOCK_RAIL_ID = "story-dock-rail";
 
 /**
@@ -26,7 +31,8 @@ const DOCK_RAIL_ID = "story-dock-rail";
  * - 왼쪽: 사이드바 같은 패널을 여는 버튼들이에요. 어떤 패널을 둘지는 화면마다 달라(대화 목록은 탐색 화면에만 있어요) 화면 레이아웃이 넣어 줘요.
  *   이 스토리에는 홈·탐색 공통인 사이드바 버튼만 넣었어요.
  * - 가운데: 홈과 탐색을 오가는 내비 필이에요. 지금 있는 화면이 채워진 모양으로 표시돼요.
- * - 오른쪽: 로그인한 사람의 GitHub 프로필 이미지예요. 지금은 보여 주기만 하고 누를 수 없어요.
+ * - 오른쪽: 오른쪽 패널을 여는 버튼과 로그인한 사람의 GitHub 프로필 이미지예요. 프로필은 지금은 보여 주기만 하고 누를 수 없어요.
+ *   오른쪽 패널 버튼(찾은 기록)은 탐색 화면에만 있어 왼쪽 버튼처럼 화면 레이아웃이 넣어 줘요.
  *
  * **동작 규칙**
  * - 배경 없이 본문 위에 떠 있어요.
@@ -55,7 +61,7 @@ const meta = {
     ],
   },
   args: {
-    children: (
+    left: (
       <DockablePanel
         label="사이드바"
         icon={<SidebarIcon size={18} />}
@@ -65,28 +71,34 @@ const meta = {
       </DockablePanel>
     ),
   },
-  argTypes: { children: { control: false } },
+  argTypes: { left: { control: false }, right: { control: false } },
   decorators: [
     (Story, { parameters }) => (
       <MemoryRouter initialEntries={[parameters.initialPath]}>
         <Routes>
-          <Route
-            path={`${PATH_ROUTE.WORKSPACE_HOME}/*`}
-            element={
-              // 화면 레이아웃처럼 GNB 위에 여백을, 아래에 사이드바를 고정할 자리를 둬요
-              <div style={{ paddingTop: "1.5rem" }}>
-                <Story />
-                <div
-                  id={DOCK_RAIL_ID}
-                  style={{
-                    display: "flex",
-                    height: "30rem",
-                    padding: "1.25rem 0 0 2.5rem",
-                  }}
-                />
-              </div>
-            }
-          />
+          {/* 찾은 기록 버튼이 대화 ID를 읽도록 대화 경로를 따로 둬요 */}
+          {[`${PATH_ROUTE.WORKSPACE_HOME}/*`, PATH_ROUTE.CHAT_SESSION].map(
+            (path) => (
+              <Route
+                key={path}
+                path={path}
+                element={
+                  // 화면 레이아웃처럼 GNB 위에 여백을, 아래에 사이드바를 고정할 자리를 둬요
+                  <div style={{ paddingTop: "1.5rem" }}>
+                    <Story />
+                    <div
+                      id={DOCK_RAIL_ID}
+                      style={{
+                        display: "flex",
+                        height: "30rem",
+                        padding: "1.25rem 0 0 2.5rem",
+                      }}
+                    />
+                  </div>
+                }
+              />
+            ),
+          )}
         </Routes>
       </MemoryRouter>
     ),
@@ -107,6 +119,18 @@ export const OnChatScreen: Story = {
     design: {
       type: "figma",
       url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=1364-7028",
+    },
+  },
+};
+
+/** 질문과 답변이 오간 탐색 대화에서 보이는 모양이에요. 근거가 있는 답변이 있어 아바타 앞에 찾은 기록 버튼이 있어요. */
+export const OnConversationScreen: Story = {
+  args: { right: <SearchEvidenceToggle /> },
+  parameters: {
+    initialPath: CONVERSATION_PATH,
+    design: {
+      type: "figma",
+      url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=2106-28969",
     },
   },
 };

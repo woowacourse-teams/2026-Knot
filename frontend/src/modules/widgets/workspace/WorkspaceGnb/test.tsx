@@ -5,7 +5,13 @@ import { ThemeProvider } from "@emotion/react";
 import { theme } from "@provider/themeProvider";
 import { getRouterPath, PATH_ROUTE } from "@routes/PATH_ROUTE";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { describe, expect, it } from "vitest";
 
@@ -25,6 +31,8 @@ const PANEL_TEXT = "패널 내용";
 
 const expectedMe = new GetMeResponseDto(meResponse);
 
+const RIGHT_TEXT = "오른쪽 버튼";
+
 const renderGnb = (initialPath = HOME_PATH) => {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
@@ -32,15 +40,18 @@ const renderGnb = (initialPath = HOME_PATH) => {
   const element = (
     <>
       <div id={DOCK_RAIL_ID} />
-      <WorkspaceGnb>
-        <DockablePanel
-          label="사이드바"
-          icon={<span />}
-          dockTargetId={DOCK_RAIL_ID}
-        >
-          <p>{PANEL_TEXT}</p>
-        </DockablePanel>
-      </WorkspaceGnb>
+      <WorkspaceGnb
+        left={
+          <DockablePanel
+            label="사이드바"
+            icon={<span />}
+            dockTargetId={DOCK_RAIL_ID}
+          >
+            <p>{PANEL_TEXT}</p>
+          </DockablePanel>
+        }
+        right={<button type="button">{RIGHT_TEXT}</button>}
+      />
     </>
   );
   const router = createMemoryRouter(
@@ -114,6 +125,18 @@ describe("WorkspaceGnb", () => {
         expectedMe.profileImageUrl,
       );
     });
+  });
+
+  it("우측에 받은 버튼을 아바타 앞에 둔다 (Figma GNB/Floating)", () => {
+    renderGnb();
+
+    const right = screen.getByRole("button", { name: RIGHT_TEXT });
+    const avatar = screen.getByRole("img", { name: "내 프로필" });
+
+    expect(right.parentElement).toBe(avatar.parentElement);
+    expect(right.compareDocumentPosition(avatar)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
   });
 
   it("좌측 패널 트리거에 포인터를 얹으면 패널이 겹쳐 뜬다", () => {

@@ -1,7 +1,7 @@
 import { useSearchParams } from "react-router";
 
 /** 어느 답변의 근거 문서를 펼쳤는지 담는 쿼리 파라미터 이름. */
-const SOURCE_MESSAGE_PARAM = "messageId";
+const EVIDENCE_MESSAGE_PARAM = "messageId";
 
 /**
  * 지금 근거 문서를 펼쳐 둔 답변이 무엇인지 다루는 도메인 훅.
@@ -11,31 +11,19 @@ const SOURCE_MESSAGE_PARAM = "messageId";
  * 대화를 옮기면 경로가 바뀌면서 파라미터도 함께 사라집니다.
  * 닫으면 파라미터를 지웁니다. 그러면 문서 레일이 자리를 비워 대화가 화면을 넓게 씁니다.
  */
-const useOpenedSourceMessage = () => {
+const useOpenedEvidenceMessage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const parsedMessageId = Number(searchParams.get(SOURCE_MESSAGE_PARAM));
+  const parsedMessageId = Number(searchParams.get(EVIDENCE_MESSAGE_PARAM));
   const isValidMessageId =
     Number.isInteger(parsedMessageId) && parsedMessageId > 0;
   const openedMessageId = isValidMessageId ? parsedMessageId : null;
 
-  const openSourceMessage = (messageId: number) => {
+  const openEvidenceMessage = (messageId: number) => {
     setSearchParams(
       (prev) => {
         const next = new URLSearchParams(prev);
-        next.set(SOURCE_MESSAGE_PARAM, String(messageId));
-
-        return next;
-      },
-      { replace: true }, 
-    );
-  };
-
-  const closeSourceMessage = () => {
-    setSearchParams(
-      (prev) => {
-        const next = new URLSearchParams(prev);
-        next.delete(SOURCE_MESSAGE_PARAM);
+        next.set(EVIDENCE_MESSAGE_PARAM, String(messageId));
 
         return next;
       },
@@ -43,7 +31,19 @@ const useOpenedSourceMessage = () => {
     );
   };
 
-  return { openedMessageId, openSourceMessage, closeSourceMessage };
+  const closeEvidenceMessage = () => {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete(EVIDENCE_MESSAGE_PARAM);
+
+        return next;
+      },
+      { replace: true },
+    );
+  };
+
+  return { openedMessageId, openEvidenceMessage, closeEvidenceMessage };
 };
 
-export default useOpenedSourceMessage;
+export default useOpenedEvidenceMessage;

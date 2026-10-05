@@ -18,7 +18,7 @@ import LinkTo from ".";
  *
  * ```tsx
  * <LinkTo href="https://www.notion.so/page">
- *   <SearchReferenceCard {...reference} />
+ *   <SearchEvidenceCard {...evidence} />
  * </LinkTo>
  * ```
  */

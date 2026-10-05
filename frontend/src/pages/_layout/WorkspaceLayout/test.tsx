@@ -1,5 +1,6 @@
 import { LAST_VIEWED_WORKSPACE_API_PATH } from "@api/fetch/api/v1/members/me/lastViewedWorkspace";
 import { workspaceDetailResponse } from "@api/mock/responses/workspace";
+import { SEARCH_MESSAGES_MOCK } from "@hooks/domain/search/useSearchMessages/mock";
 import { mockServer } from "@api/mock/server";
 import { ThemeProvider } from "@emotion/react";
 import { DialogProvider } from "@provider/context/dialogContext";
@@ -12,6 +13,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react";
 import { delay, http, HttpResponse } from "msw";
 import { createMemoryRouter, RouterProvider } from "react-router";
@@ -28,6 +30,10 @@ const HOME_PATH = getRouterPath({
 const CHAT_PATH = getRouterPath({
   routeKey: "CHAT",
   params: { workspaceId: String(WORKSPACE_ID) },
+});
+const CONVERSATION_PATH = getRouterPath({
+  routeKey: "CHAT_SESSION",
+  params: { workspaceId: String(WORKSPACE_ID), sessionId: "10" },
 });
 const ELSEWHERE_PATH = "/elsewhere";
 const HOME_TEXT = "홈 본문";
@@ -50,6 +56,7 @@ const renderLayout = (initialPath = HOME_PATH) => {
         children: [
           { path: PATH_ROUTE.WORKSPACE_HOME, element: <p>{HOME_TEXT}</p> },
           { path: PATH_ROUTE.CHAT, element: <p>{CHAT_TEXT}</p> },
+          { path: PATH_ROUTE.CHAT_SESSION, element: <p>{CHAT_TEXT}</p> },
         ],
       },
       { path: PATH_ROUTE.WORKSPACE, element: <p>워크스페이스 선택</p> },
@@ -70,6 +77,18 @@ const renderLayout = (initialPath = HOME_PATH) => {
 
   return { router };
 };
+
+const answers = SEARCH_MESSAGES_MOCK.filter(({ role }) => role === "ASSISTANT");
+const [answerWithEvidence] = answers.filter(
+  ({ evidences }) => evidences.length > 0,
+);
+const [answerWithoutEvidence] = answers.filter(
+  ({ evidences }) => evidences.length === 0,
+);
+
+/** 레이아웃 본문(Body) 칸. 왼쪽 레일·본문·오른쪽 레일이 이 칸의 자식으로 놓여요 */
+const getBody = () =>
+  document.getElementById(WORKSPACE_DOCK_RAIL_ID)?.parentElement;
 
 const overrideWorkspaceStatus = (status: number) => {
   mockServer.use(
@@ -307,5 +326,65 @@ describe("WorkspaceLayout", () => {
     expect(router.state.location.pathname).toBe(HOME_PATH);
     expect(screen.getByRole("status")).toBeInTheDocument();
     expect(screen.queryByText(HOME_TEXT)).not.toBeInTheDocument();
+  });
+
+  it("탐색 대화에서 답변의 찾은 기록을 펼치면 본문 오른쪽 레일에 찾은 기록 패널을 둔다 (SEARCH-R11)", async () => {
+    renderLayout(`${CONVERSATION_PATH}?messageId=${answerWithEvidence.id}`);
+
+    expect(await screen.findByText(CHAT_TEXT)).toBeInTheDocument();
+    const panel = screen.getByRole("region", { name: "찾은 기록" });
+    const main = screen.getByRole("main");
+    const body = getBody();
+
+    // 본문 바깥의 형제 칸에 놓여야 본문 폭이 줄어 대화 열·독이 함께 옮겨 가요
+    expect(main).not.toContainElement(panel);
+    expect(body?.children).toHaveLength(3);
+    expect(body?.lastElementChild).toContainElement(panel);
+    expect(body?.lastElementChild).not.toContainElement(main);
+  });
+
+  // 레일은 여닫힘을 폭으로 옮겨 가도록 탐색 화면에서 늘 두므로, 닫힘은 레일이 비었는지로 봐요(폭은 jsdom이 계산하지 못해요)
+  it("찾은 기록을 펼치지 않으면 오른쪽 레일을 비워 본문이 폭을 다 쓴다 (SEARCH-R11)", async () => {
+    renderLayout(CONVERSATION_PATH);
+
+    expect(await screen.findByText(CHAT_TEXT)).toBeInTheDocument();
+    expect(
+      screen.queryByRole("region", { name: "찾은 기록" }),
+    ).not.toBeInTheDocument();
+    expect(getBody()?.lastElementChild).toBeEmptyDOMElement();
+  });
+
+  it("근거가 없는 답변을 펼치면 오른쪽 레일을 비운다 (SEARCH-R11)", async () => {
+    renderLayout(`${CONVERSATION_PATH}?messageId=${answerWithoutEvidence.id}`);
+
+    expect(await screen.findByText(CHAT_TEXT)).toBeInTheDocument();
+    expect(getBody()?.lastElementChild).toBeEmptyDOMElement();
+  });
+
+  it("홈 화면에서는 오른쪽 레일과 찾은 기록 버튼을 두지 않는다 (Figma GNB/Floating)", async () => {
+    renderLayout(`${HOME_PATH}?messageId=${answerWithEvidence.id}`);
+
+    expect(await screen.findByText(HOME_TEXT)).toBeInTheDocument();
+    expect(getBody()?.children).toHaveLength(2);
+    expect(
+      screen.queryByRole("button", { name: /^찾은 기록/ }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("탐색 대화에서는 GNB 오른쪽에 찾은 기록 버튼을 두고, 누르면 오른쪽 레일이 열린다 (Figma GNB/Floating)", async () => {
+    renderLayout(CONVERSATION_PATH);
+
+    expect(await screen.findByText(CHAT_TEXT)).toBeInTheDocument();
+    const toggle = within(screen.getByRole("banner")).getByRole("button", {
+      name: "찾은 기록 보기",
+    });
+
+    await act(async () => {
+      fireEvent.click(toggle);
+    });
+
+    expect(getBody()?.lastElementChild).toContainElement(
+      screen.getByRole("region", { name: "찾은 기록" }),
+    );
   });
 });
