@@ -42,6 +42,10 @@ public class JwtLogoutHandler implements LogoutHandler {
                     "로그아웃 중 인증 세션 폐기에 실패했습니다",
                     exception
             );
+            request.setAttribute(
+                    AuthLogoutSuccessHandler.LOGOUT_FAILURE_ATTRIBUTE,
+                    true
+            );
             writeInternalError(response);
             return;
         }

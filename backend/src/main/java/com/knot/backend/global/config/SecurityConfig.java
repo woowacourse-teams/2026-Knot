@@ -6,6 +6,7 @@ import com.knot.backend.auth.infrastructure.github.GithubOAuth2UserService;
 import com.knot.backend.auth.infrastructure.jwt.JwtAuthenticationFilter;
 import com.knot.backend.auth.presentation.handler.AuthAccessDeniedHandler;
 import com.knot.backend.auth.presentation.handler.AuthAuthenticationEntryPoint;
+import com.knot.backend.auth.presentation.handler.AuthLogoutSuccessHandler;
 import com.knot.backend.auth.presentation.handler.JwtLogoutHandler;
 import com.knot.backend.auth.presentation.handler.OAuth2AuthenticationFailureHandler;
 import com.knot.backend.auth.presentation.handler.OAuth2AuthenticationSuccessHandler;
@@ -13,7 +14,6 @@ import lombok.RequiredArgsConstructor;
 import java.util.List;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
-import org.springframework.http.HttpStatus;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -23,7 +23,6 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.logout.HttpStatusReturningLogoutSuccessHandler;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
@@ -43,6 +42,7 @@ public class SecurityConfig {
     private final AuthAuthenticationEntryPoint authenticationEntryPoint;
     private final AuthAccessDeniedHandler accessDeniedHandler;
     private final JwtLogoutHandler jwtLogoutHandler;
+    private final AuthLogoutSuccessHandler logoutSuccessHandler;
     private final JwtProperties jwtProperties;
     private final CorsProperties corsProperties;
     private final ApiDocumentationProperties apiDocumentationProperties;
@@ -168,9 +168,7 @@ public class SecurityConfig {
                 .logout(
                         logout -> logout.logoutUrl("/api/v1/auth/logout")
                                 .addLogoutHandler(jwtLogoutHandler)
-                                .logoutSuccessHandler(
-                                        new HttpStatusReturningLogoutSuccessHandler(HttpStatus.NO_CONTENT)
-                                )
+                                .logoutSuccessHandler(logoutSuccessHandler)
                 )
                 .addFilterBefore(
                         jwtAuthenticationFilter,
