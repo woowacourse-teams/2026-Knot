@@ -79,32 +79,6 @@ class WorkspaceInvitationRepositoryIntegrationTest {
                 .isEqualTo(savedInvitation.getId());
     }
 
-    @DisplayName("V4는 링크 토큰과 초대 코드 암호문 중 하나만 저장하는 Row를 거부한다")
-    @Test
-    void save_failure_incompleteSecretEnvelopes() {
-        // given
-        Workspace workspace = saveAndFlush(
-                Workspace.create(
-                        "Knot 팀",
-                        CREATED_AT
-                )
-        );
-
-        // when
-        ThrowingCallable action = () -> insertInvitationWithEnvelopes(
-                workspace.getId(),
-                LINK_TOKEN_HASH,
-                INVITE_CODE_HASH,
-                "v1:link-nonce:link-ciphertext",
-                null,
-                CREATED_AT.plus(WorkspaceInvitation.VALIDITY_PERIOD),
-                CREATED_AT
-        );
-
-        // then
-        assertThatThrownBy(action).isInstanceOf(DataIntegrityViolationException.class);
-    }
-
     @DisplayName("같은 링크 토큰 해시는 서로 다른 워크스페이스에서도 중복 저장할 수 없다")
     @Test
     void save_failure_duplicateLinkTokenHash() {
@@ -500,65 +474,6 @@ class WorkspaceInvitationRepositoryIntegrationTest {
                 .param(
                         "invalidatedAt",
                         toOffsetDateTime(invalidatedAt)
-                )
-                .param(
-                        "createdAt",
-                        toOffsetDateTime(createdAt)
-                )
-                .update();
-    }
-
-    private void insertInvitationWithEnvelopes(
-            Long workspaceId,
-            String linkTokenHash,
-            String inviteCodeHash,
-            String linkTokenCiphertext,
-            String inviteCodeCiphertext,
-            Instant expiresAt,
-            Instant createdAt
-    ) {
-        jdbcClient.sql("""
-                INSERT INTO workspace_invitations (
-                    workspace_id,
-                    link_token_hash,
-                    invite_code_hash,
-                    link_token_ciphertext,
-                    invite_code_ciphertext,
-                    expires_at,
-                    created_at
-                ) VALUES (
-                    :workspaceId,
-                    :linkTokenHash,
-                    :inviteCodeHash,
-                    :linkTokenCiphertext,
-                    :inviteCodeCiphertext,
-                    :expiresAt,
-                    :createdAt
-                )
-                """)
-                .param(
-                        "workspaceId",
-                        workspaceId
-                )
-                .param(
-                        "linkTokenHash",
-                        linkTokenHash
-                )
-                .param(
-                        "inviteCodeHash",
-                        inviteCodeHash
-                )
-                .param(
-                        "linkTokenCiphertext",
-                        linkTokenCiphertext
-                )
-                .param(
-                        "inviteCodeCiphertext",
-                        inviteCodeCiphertext
-                )
-                .param(
-                        "expiresAt",
-                        toOffsetDateTime(expiresAt)
                 )
                 .param(
                         "createdAt",

@@ -124,6 +124,42 @@ class WorkspaceInvitationMigrationIntegrationTest {
         assertThat(query("SELECT count(*)::text FROM workspaces")).containsExactly("1");
     }
 
+    @Test
+    @DisplayName("암호문 제거 migration은 암호문 컬럼과 제약만 지우고 기존 초대 행을 보존한다")
+    void migrate_dropsSecretEnvelopes() throws SQLException {
+        // given
+        flyway("20").migrate();
+        execute("""
+                INSERT INTO workspaces (id, name, created_at)
+                VALUES (1, '유효', CURRENT_TIMESTAMP), (2, '만료', CURRENT_TIMESTAMP), (3, '무효', CURRENT_TIMESTAMP);
+                INSERT INTO workspace_invitations
+                    (workspace_id, link_token_hash, invite_code_hash, link_token_ciphertext, invite_code_ciphertext,
+                        created_at, expires_at, invalidated_at)
+                VALUES
+                    (1, 'link-1', 'code-1', 'v1:link-1', 'v1:code-1',
+                        '2026-10-03T00:00:00Z', '2026-10-04T00:00:00Z', NULL),
+                    (2, 'link-2', 'code-2', NULL, NULL, '2026-10-01T00:00:00Z', '2026-10-02T00:00:00Z', NULL),
+                    (3, 'link-3', 'code-3', 'v1:link-3', 'v1:code-3',
+                        '2026-10-03T00:00:00Z', '2026-10-04T00:00:00Z', '2026-10-03 01:00Z');
+                """);
+        List<String> before = preservedRows();
+
+        // when
+        MigrateResult result = flyway("22").migrate();
+
+        // then
+        assertThat(result.success).isTrue();
+        assertThat(preservedRows()).isEqualTo(before);
+        assertThat(query("""
+                SELECT column_name FROM information_schema.columns
+                WHERE table_name = 'workspace_invitations' AND column_name LIKE '%ciphertext'
+                """)).isEmpty();
+        assertThat(query("""
+                SELECT conname FROM pg_constraint
+                WHERE conname = 'chk_workspace_invitations_secret_envelopes'
+                """)).isEmpty();
+    }
+
     private void insertLegacyInvitation() throws SQLException {
         execute("""
                 INSERT INTO workspace_invitations
@@ -139,6 +175,16 @@ class WorkspaceInvitationMigrationIntegrationTest {
                         link_token_ciphertext, invite_code_ciphertext, created_at, expires_at, invalidated_at, version
                     FROM workspace_invitations ORDER BY id
                 ) legacy
+                """);
+    }
+
+    private List<String> preservedRows() throws SQLException {
+        return query("""
+                SELECT row_to_json(preserved)::text FROM (
+                    SELECT id, workspace_id, link_token_hash, invite_code_hash,
+                        created_at, expires_at, invalidated_at, version
+                    FROM workspace_invitations ORDER BY id
+                ) preserved
                 """);
     }
 
