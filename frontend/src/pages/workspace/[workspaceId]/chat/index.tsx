@@ -1,5 +1,5 @@
 import styled from "@emotion/styled";
-import useOpenedEvidenceMessage from "@hooks/domain/chat/useOpenedEvidenceMessage";
+import useOpenedEvidenceMessage from "@hooks/domain/search/useOpenedEvidenceMessage";
 import DockColumn from "@primitives/layout/DockColumn";
 
 import SearchConversation from "@/modules/widgets/search/SearchConversation";
