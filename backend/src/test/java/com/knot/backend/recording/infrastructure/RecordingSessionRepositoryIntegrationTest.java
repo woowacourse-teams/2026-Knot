@@ -12,6 +12,7 @@ import com.knot.backend.testsupport.TestcontainersConfiguration;
 import jakarta.persistence.EntityManager;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
@@ -406,6 +407,112 @@ class RecordingSessionRepositoryIntegrationTest {
                         recording.getId(),
                         paused.getId()
                 );
+    }
+
+    @Test
+    @DisplayName("현재 녹음 조회는 요청 Workspace에서 본인의 활성 녹음만 반환하고 종료된 녹음과 다른 멤버 녹음은 제외한다")
+    void findActiveByWorkspaceIdAndMemberId_success() {
+        // given
+        long memberId = saveMember("current-member");
+        long otherMemberId = saveMember("other-member");
+        long workspaceId = saveWorkspaceWithMember(
+                memberId,
+                "현재 녹음 팀"
+        );
+        RecordingSession ended = startRecording(
+                workspaceId,
+                memberId,
+                UUID.randomUUID()
+        );
+        ended.end(STARTED_AT.plusSeconds(10));
+        saveAndFlush(ended);
+        RecordingSession paused = startRecording(
+                workspaceId,
+                memberId,
+                UUID.randomUUID()
+        );
+        paused.pause(STARTED_AT.plusSeconds(20));
+        saveAndFlush(paused);
+        saveAndFlush(
+                startRecording(
+                        workspaceId,
+                        otherMemberId,
+                        UUID.randomUUID()
+                )
+        );
+        entityManager.clear();
+
+        // when
+        Optional<RecordingSession> found = recordingSessionRepository.findActiveByWorkspaceIdAndMemberId(
+                workspaceId,
+                memberId
+        );
+
+        // then
+        assertThat(found).hasValueSatisfying(session -> {
+            assertThat(session.getId()).isEqualTo(paused.getId());
+            assertThat(session.getStatus()).isEqualTo(RecordingStatus.PAUSED);
+        });
+    }
+
+    @Test
+    @DisplayName("다른 Workspace에서 진행 중인 본인 녹음은 현재 녹음 조회에서 반환하지 않는다")
+    void findActiveByWorkspaceIdAndMemberId_success_otherWorkspaceExcluded() {
+        // given
+        long memberId = saveMember("cross-member");
+        long recordingWorkspaceId = saveWorkspaceWithMember(
+                memberId,
+                "녹음 팀"
+        );
+        long otherWorkspaceId = saveWorkspaceWithMember(
+                memberId,
+                "다른 팀"
+        );
+        saveAndFlush(
+                startRecording(
+                        recordingWorkspaceId,
+                        memberId,
+                        UUID.randomUUID()
+                )
+        );
+        entityManager.clear();
+
+        // when
+        Optional<RecordingSession> found = recordingSessionRepository.findActiveByWorkspaceIdAndMemberId(
+                otherWorkspaceId,
+                memberId
+        );
+
+        // then
+        assertThat(found).isEmpty();
+    }
+
+    @Test
+    @DisplayName("폐기된 녹음은 현재 녹음 조회에서 반환하지 않는다")
+    void findActiveByWorkspaceIdAndMemberId_success_discardedExcluded() {
+        // given
+        long memberId = saveMember("discarded-member");
+        long workspaceId = saveWorkspaceWithMember(
+                memberId,
+                "폐기 팀"
+        );
+        RecordingSession discarded = startRecording(
+                workspaceId,
+                memberId,
+                UUID.randomUUID()
+        );
+        discarded.discard(STARTED_AT.plusSeconds(10));
+        saveAndFlush(discarded);
+        entityManager.clear();
+
+        // when
+        Optional<RecordingSession> found = recordingSessionRepository.findActiveByWorkspaceIdAndMemberId(
+                workspaceId,
+                memberId
+        );
+
+        // then
+        assertThat(found).isEmpty();
     }
 
     private String storedStatus(long recordingSessionId) {
