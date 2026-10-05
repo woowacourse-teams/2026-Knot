@@ -12,6 +12,9 @@ import org.springframework.data.jpa.repository.Lock;
 
 interface RecordingSessionJpaRepository extends JpaRepository<RecordingSession, Long> {
 
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    Optional<RecordingSession> findWithLockById(long id);
+
     Optional<RecordingSession> findByMemberIdAndRequestId(
             long memberId,
             UUID requestId

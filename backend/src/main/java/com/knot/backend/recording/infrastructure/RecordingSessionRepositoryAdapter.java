@@ -33,6 +33,11 @@ public class RecordingSessionRepositoryAdapter implements RecordingSessionReposi
     }
 
     @Override
+    public Optional<RecordingSession> findByIdForUpdate(long recordingSessionId) {
+        return recordingSessionJpaRepository.findWithLockById(recordingSessionId);
+    }
+
+    @Override
     public Optional<RecordingSession> findByMemberIdAndRequestId(
             long memberId,
             UUID requestId
