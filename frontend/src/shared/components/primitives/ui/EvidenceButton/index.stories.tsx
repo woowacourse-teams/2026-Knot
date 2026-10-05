@@ -4,10 +4,10 @@ import { fn } from "storybook/test";
 import EvidenceButton from ".";
 
 /**
- * 답변의 근거 문서를 여는 버튼이에요. 탐색 화면에서 AI 답변 아래에 둡니다.
+ * 답변 아래에서 그 답변의 찾은 기록을 여는 버튼이에요. 탐색 화면에서 근거가 있는 AI 답변 아래에 둬요.
  *
- * - 지금 열려 있으면 `isSelected`로 채워진 모양이 돼요. 스크린리더에도 눌린 상태로 알려요.
- * - 라벨 문구는 쓰는 쪽이 정해 `children`으로 넘겨요.
+ * - 「기록 N개에서 찾았어요」로 답변의 근거가 된 기록 수를 알려요.
+ * - 그 답변의 찾은 기록이 열려 있으면 `isOpen`으로 채워진 모양이 돼요. 스크린리더에도 눌린 상태로 알려요.
  */
 const meta = {
   title: "Shared/EvidenceButton",
@@ -15,12 +15,12 @@ const meta = {
   parameters: {
     design: {
       type: "figma",
-      url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=1170-697",
+      url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=2017-36200",
     },
   },
   args: {
-    children: "근거 문서 3개",
-    isSelected: false,
+    count: 2,
+    isOpen: false,
     onClick: fn(),
   },
 } satisfies Meta<typeof EvidenceButton>;
@@ -29,10 +29,10 @@ export default meta;
 
 type Story = StoryObj<typeof meta>;
 
-/** 근거 문서가 닫혀 있을 때예요. */
+/** 이 답변의 찾은 기록이 닫혀 있을 때예요. */
 export const Default: Story = {};
 
-/** 근거 문서가 열려 있을 때예요. 채워진 모양으로 지금 열려 있음을 보여줘요. */
-export const Selected: Story = {
-  args: { isSelected: true },
+/** 이 답변의 찾은 기록이 오른쪽 패널에 열려 있을 때예요. 채워진 모양으로 지금 열려 있음을 보여줘요. */
+export const Open: Story = {
+  args: { isOpen: true },
 };
