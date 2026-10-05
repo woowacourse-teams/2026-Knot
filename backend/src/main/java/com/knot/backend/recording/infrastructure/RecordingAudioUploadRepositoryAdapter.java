@@ -1,0 +1,23 @@
+package com.knot.backend.recording.infrastructure;
+
+import com.knot.backend.recording.domain.RecordingAudioUpload;
+import com.knot.backend.recording.domain.RecordingAudioUploadRepository;
+import java.util.Optional;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Repository;
+
+@Repository
+@RequiredArgsConstructor
+public class RecordingAudioUploadRepositoryAdapter implements RecordingAudioUploadRepository {
+    private final RecordingAudioUploadJpaRepository recordingAudioUploadJpaRepository;
+
+    @Override
+    public RecordingAudioUpload save(RecordingAudioUpload recordingAudioUpload) {
+        return recordingAudioUploadJpaRepository.saveAndFlush(recordingAudioUpload);
+    }
+
+    @Override
+    public Optional<RecordingAudioUpload> findByRecordingId(long recordingId) {
+        return recordingAudioUploadJpaRepository.findByRecordingId(recordingId);
+    }
+}
