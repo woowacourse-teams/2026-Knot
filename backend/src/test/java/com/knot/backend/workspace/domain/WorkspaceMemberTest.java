@@ -1,6 +1,7 @@
 package com.knot.backend.workspace.domain;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.Instant;
@@ -576,6 +577,138 @@ class WorkspaceMemberTest {
                 .extracting(exception -> ((WorkspaceException) exception).getErrorCode())
                 .isEqualTo(WorkspaceErrorCode.INVALID_WORKSPACE_MEMBER_JOINED_AT);
     }
+
+    @DisplayName("활성 OWNER는 워크스페이스 삭제 권한을 가진다")
+    @Test
+    void validateCanDeleteWorkspace_success_activeOwner() {
+        // given
+        WorkspaceMember owner = WorkspaceMember.create(
+                1L,
+                2L,
+                WorkspaceMemberRole.OWNER,
+                JOINED_AT
+        );
+
+        // when
+        ThrowingCallable action = owner::validateCanDeleteWorkspace;
+
+        // then
+        assertThatCode(action).doesNotThrowAnyException();
+    }
+
+    @DisplayName("MEMBER는 워크스페이스를 삭제할 수 없다")
+    @Test
+    void validateCanDeleteWorkspace_failure_member() {
+        // given
+        WorkspaceMember member = WorkspaceMember.create(
+                1L,
+                2L,
+                WorkspaceMemberRole.MEMBER,
+                JOINED_AT
+        );
+
+        // when
+        ThrowingCallable action = member::validateCanDeleteWorkspace;
+
+        // then
+        assertThatThrownBy(action).isInstanceOf(WorkspaceException.class)
+                .extracting(exception -> ((WorkspaceException) exception).getErrorCode())
+                .isEqualTo(WorkspaceErrorCode.WORKSPACE_OWNER_REQUIRED);
+    }
+
+    @DisplayName("탈퇴한 OWNER 멤버십은 워크스페이스를 삭제할 수 없다")
+    @Test
+    void validateCanDeleteWorkspace_failure_leftOwner() {
+        // given
+        WorkspaceMember owner = WorkspaceMember.create(
+                1L,
+                2L,
+                WorkspaceMemberRole.OWNER,
+                JOINED_AT
+        );
+        owner.leave(
+                JOINED_AT.plusSeconds(1),
+                1L
+        );
+
+        // when
+        ThrowingCallable action = owner::validateCanDeleteWorkspace;
+
+        // then
+        assertThatThrownBy(action).isInstanceOf(WorkspaceException.class)
+                .extracting(exception -> ((WorkspaceException) exception).getErrorCode())
+                .isEqualTo(WorkspaceErrorCode.WORKSPACE_OWNER_REQUIRED);
+    }
+
+    @DisplayName("워크스페이스 삭제로 나가면 OWNER도 승계 없이 탈퇴 시각을 기록하고 마지막 조회 상태를 해제한다")
+    @Test
+    void leaveByWorkspaceDeletion_success_ownerWithoutTransfer() {
+        // given
+        WorkspaceMember owner = WorkspaceMember.create(
+                1L,
+                2L,
+                WorkspaceMemberRole.OWNER,
+                JOINED_AT
+        );
+        owner.markLastViewed();
+        Instant deletedAt = JOINED_AT.plusSeconds(1);
+
+        // when
+        owner.leaveByWorkspaceDeletion(deletedAt);
+
+        // then
+        assertThat(owner.getLeftAt()).isEqualTo(deletedAt);
+        assertThat(owner.isLastViewed()).isFalse();
+        assertThat(owner.getRole()).isEqualTo(WorkspaceMemberRole.OWNER);
+    }
+
+    @DisplayName("이미 탈퇴한 멤버십은 워크스페이스 삭제로 다시 탈퇴 처리하지 않는다")
+    @Test
+    void leaveByWorkspaceDeletion_failure_alreadyLeft() {
+        // given
+        WorkspaceMember member = WorkspaceMember.create(
+                1L,
+                2L,
+                WorkspaceMemberRole.MEMBER,
+                JOINED_AT
+        );
+        Instant leftAt = JOINED_AT.plusSeconds(1);
+        member.leave(
+                leftAt,
+                2L
+        );
+
+        // when
+        ThrowingCallable action = () -> member.leaveByWorkspaceDeletion(JOINED_AT.plusSeconds(2));
+
+        // then
+        assertThatThrownBy(action).isInstanceOf(WorkspaceException.class)
+                .extracting(exception -> ((WorkspaceException) exception).getErrorCode())
+                .isEqualTo(WorkspaceErrorCode.WORKSPACE_MEMBER_ALREADY_LEFT);
+        assertThat(member.getLeftAt()).isEqualTo(leftAt);
+    }
+
+    @DisplayName("참여 시각보다 이른 삭제 시각으로는 탈퇴 처리하지 않는다")
+    @Test
+    void leaveByWorkspaceDeletion_failure_leftAtBeforeJoinedAt() {
+        // given
+        WorkspaceMember member = WorkspaceMember.create(
+                1L,
+                2L,
+                WorkspaceMemberRole.MEMBER,
+                JOINED_AT
+        );
+
+        // when
+        ThrowingCallable action = () -> member.leaveByWorkspaceDeletion(JOINED_AT.minusSeconds(1));
+
+        // then
+        assertThatThrownBy(action).isInstanceOf(WorkspaceException.class)
+                .extracting(exception -> ((WorkspaceException) exception).getErrorCode())
+                .isEqualTo(WorkspaceErrorCode.INVALID_WORKSPACE_MEMBER_LEFT_AT);
+        assertThat(member.isActive()).isTrue();
+    }
+
     private WorkspaceMember ownershipSuccessor() {
         return WorkspaceMember.create(
                 1L,

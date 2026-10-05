@@ -117,6 +117,19 @@ public class WorkspaceMember {
         this.lastViewed = false;
     }
 
+    public void validateCanDeleteWorkspace() {
+        if (!isActive() || role != WorkspaceMemberRole.OWNER) {
+            throw new WorkspaceException(WorkspaceErrorCode.WORKSPACE_OWNER_REQUIRED);
+        }
+    }
+
+    public void leaveByWorkspaceDeletion(Instant leftAt) {
+        validateActive();
+        validateLeftAt(leftAt);
+        this.leftAt = leftAt;
+        this.lastViewed = false;
+    }
+
     public boolean isActive() {
         return leftAt == null;
     }
