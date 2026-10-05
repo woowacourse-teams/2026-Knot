@@ -132,6 +132,15 @@ public class RecordingSession {
         }
     }
 
+    public void validateControlProof(
+            UUID tabId,
+            String controlTokenHash
+    ) {
+        if (!this.tabId.equals(tabId) || !sameControlTokenHash(controlTokenHash)) {
+            throw new RecordingException(RecordingErrorCode.RECORDING_CONTROL_DENIED);
+        }
+    }
+
     public void pause(Instant pausedAt) {
         ensureActive();
         if (status == RecordingStatus.PAUSED) {

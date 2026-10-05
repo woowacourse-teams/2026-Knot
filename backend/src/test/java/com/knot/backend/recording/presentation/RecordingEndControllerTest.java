@@ -113,7 +113,7 @@ class RecordingEndControllerTest {
         // then
         result.andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value("RECORDING_CONTROL_DENIED"))
-                .andExpect(jsonPath("$.message").value("녹음을 시작한 사용자만 제어할 수 있습니다"));
+                .andExpect(jsonPath("$.message").value("녹음을 제어할 권한이 없습니다"));
     }
 
     @Test
