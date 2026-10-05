@@ -12,14 +12,9 @@ import type { SearchMessage } from "@/shared/types/search";
  * findLatestAnswerWithEvidence([answerWithEvidence, question, answerWithoutEvidence]);
  * // answerWithEvidence
  */
-export const findLatestAnswerWithEvidence = (messages: SearchMessage[]) => {
-  for (let index = messages.length - 1; index >= 0; index -= 1) {
-    const message = messages[index];
-
-    if (message.role === "ASSISTANT" && message.evidences.length > 0) {
-      return message;
-    }
-  }
-
-  return undefined;
-};
+export const findLatestAnswerWithEvidence = (messages: SearchMessage[]) =>
+  [...messages]
+    .reverse()
+    .find(
+      ({ role, evidences }) => role === "ASSISTANT" && evidences.length > 0,
+    );
