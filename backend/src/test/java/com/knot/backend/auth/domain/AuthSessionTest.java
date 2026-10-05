@@ -188,4 +188,60 @@ class AuthSessionTest {
         assertThat(session.remainingRefreshLifetime(NOW.plus(Duration.ofDays(7)))).isEqualTo(Duration.ZERO);
         assertThat(session.remainingRefreshLifetime(null)).isEqualTo(Duration.ZERO);
     }
+
+    @Test
+    @DisplayName("활성 로그인 세션은 로그아웃 시각으로 폐기한다")
+    void revoke_success_activeSession() {
+        // given
+        AuthSession session = AuthSession.create(
+                1L,
+                HASH,
+                NOW.minusSeconds(1)
+        );
+
+        // when
+        boolean revoked = session.revoke(NOW);
+
+        // then
+        assertThat(revoked).isTrue();
+        assertThat(session.getRevokedAt()).isEqualTo(NOW);
+        assertThat(session.isActive(NOW)).isFalse();
+    }
+
+    @Test
+    @DisplayName("만료된 로그인 세션은 다시 폐기하지 않는다")
+    void revoke_failure_expiredSession() {
+        // given
+        AuthSession session = AuthSession.create(
+                1L,
+                HASH,
+                NOW.minus(Duration.ofDays(8))
+        );
+
+        // when
+        boolean revoked = session.revoke(NOW);
+
+        // then
+        assertThat(revoked).isFalse();
+        assertThat(session.getRevokedAt()).isNull();
+    }
+
+    @Test
+    @DisplayName("이미 폐기된 로그인 세션을 다시 폐기해도 최초 시각을 보존한다")
+    void revoke_success_alreadyRevokedSession() {
+        // given
+        AuthSession session = AuthSession.create(
+                1L,
+                HASH,
+                NOW.minusSeconds(2)
+        );
+        session.revoke(NOW.minusSeconds(1));
+
+        // when
+        boolean revoked = session.revoke(NOW);
+
+        // then
+        assertThat(revoked).isFalse();
+        assertThat(session.getRevokedAt()).isEqualTo(NOW.minusSeconds(1));
+    }
 }

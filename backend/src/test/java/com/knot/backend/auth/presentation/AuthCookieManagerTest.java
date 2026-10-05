@@ -154,6 +154,20 @@ class AuthCookieManagerTest {
     }
 
     @Test
+    @DisplayName("refresh 쿠키 이름은 Secure 설정에 맞춰 반환한다")
+    void refreshTokenCookieName_success() {
+        // given
+        JwtProperties properties = new JwtProperties();
+        AuthCookieManager manager = new AuthCookieManager(properties);
+
+        // when & then
+        assertThat(manager.refreshTokenCookieName()).isEqualTo("__Host-KNOT_REFRESH_TOKEN");
+
+        properties.setSecure(false);
+        assertThat(manager.refreshTokenCookieName()).isEqualTo("KNOT_REFRESH_TOKEN");
+    }
+
+    @Test
     @DisplayName("빈 refresh나 만료된 수명으로는 쿠키를 발급하지 않는다")
     void addRefreshToken_failure_invalidCredential() {
         // given

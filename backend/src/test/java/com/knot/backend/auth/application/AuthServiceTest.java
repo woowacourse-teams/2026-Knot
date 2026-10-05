@@ -36,6 +36,8 @@ import org.junit.jupiter.api.Test;
 
 class AuthServiceTest {
     private static final Instant NOW = Instant.parse("2026-10-01T00:00:00Z");
+    private static final String REFRESH_TOKEN = "refresh-token";
+    private static final String REFRESH_TOKEN_HASH = "a".repeat(64);
 
     private final AuthSessionRepository sessionRepository = mock(AuthSessionRepository.class);
     private final RefreshTokenProvider refreshTokenProvider = mock(RefreshTokenProvider.class);
@@ -581,6 +583,119 @@ class AuthServiceTest {
                 tokens,
                 refreshTokenProvider,
                 sessionRepository
+        );
+    }
+
+    @Test
+    @DisplayName("유효한 refresh token으로 현재 로그인 세션을 폐기한다")
+    void logout_success_activeSession() {
+        // given
+        AuthSession session = AuthSession.create(
+                7L,
+                REFRESH_TOKEN_HASH,
+                NOW.minusSeconds(60)
+        );
+        when(refreshTokenProvider.hash(REFRESH_TOKEN)).thenReturn(REFRESH_TOKEN_HASH);
+        when(sessionRepository.findByRefreshTokenHash(REFRESH_TOKEN_HASH)).thenReturn(Optional.of(session));
+        AuthService service = logoutService();
+
+        // when
+        service.logout(REFRESH_TOKEN);
+
+        // then
+        assertThat(session.getRevokedAt()).isEqualTo(NOW);
+        verify(sessionRepository).save(session);
+    }
+
+    @Test
+    @DisplayName("refresh token이 없으면 세션 저장소에 접근하지 않는다")
+    void logout_success_missingRefreshToken() {
+        // given
+        AuthService service = logoutService();
+
+        // when
+        service.logout(null);
+        service.logout(" ");
+
+        // then
+        verifyNoInteractions(
+                refreshTokenProvider,
+                sessionRepository
+        );
+    }
+
+    @Test
+    @DisplayName("저장된 세션이 없는 refresh token은 추가 작업 없이 로그아웃한다")
+    void logout_success_unknownRefreshToken() {
+        // given
+        when(refreshTokenProvider.hash(REFRESH_TOKEN)).thenReturn(REFRESH_TOKEN_HASH);
+        when(sessionRepository.findByRefreshTokenHash(REFRESH_TOKEN_HASH)).thenReturn(Optional.empty());
+        AuthService service = logoutService();
+
+        // when
+        service.logout(REFRESH_TOKEN);
+
+        // then
+        verify(
+                sessionRepository,
+                never()
+        ).save(any());
+    }
+
+    @Test
+    @DisplayName("만료된 세션은 폐기 시각을 바꾸거나 저장하지 않는다")
+    void logout_success_expiredSession() {
+        // given
+        AuthSession session = AuthSession.create(
+                7L,
+                REFRESH_TOKEN_HASH,
+                NOW.minus(Duration.ofDays(8))
+        );
+        when(refreshTokenProvider.hash(REFRESH_TOKEN)).thenReturn(REFRESH_TOKEN_HASH);
+        when(sessionRepository.findByRefreshTokenHash(REFRESH_TOKEN_HASH)).thenReturn(Optional.of(session));
+        AuthService service = logoutService();
+
+        // when
+        service.logout(REFRESH_TOKEN);
+
+        // then
+        assertThat(session.getRevokedAt()).isNull();
+        verify(
+                sessionRepository,
+                never()
+        ).save(any());
+    }
+
+    @Test
+    @DisplayName("세션 폐기 저장에 실패하면 로그아웃 실패를 호출자에게 전달한다")
+    void logout_failure_sessionStorage() {
+        // given
+        AuthSession session = AuthSession.create(
+                7L,
+                REFRESH_TOKEN_HASH,
+                NOW.minusSeconds(60)
+        );
+        when(refreshTokenProvider.hash(REFRESH_TOKEN)).thenReturn(REFRESH_TOKEN_HASH);
+        when(sessionRepository.findByRefreshTokenHash(REFRESH_TOKEN_HASH)).thenReturn(Optional.of(session));
+        when(sessionRepository.save(session)).thenThrow(new AuthException(AuthErrorCode.AUTHENTICATION_INTERNAL_ERROR));
+        AuthService service = logoutService();
+
+        // when & then
+        assertThatThrownBy(() -> service.logout(REFRESH_TOKEN)).isInstanceOfSatisfying(
+                AuthException.class,
+                exception -> assertThat(exception.getErrorCode()).isEqualTo(AuthErrorCode.AUTHENTICATION_INTERNAL_ERROR)
+        );
+    }
+
+    private AuthService logoutService() {
+        return new AuthService(
+                mock(MemberService.class),
+                mock(OAuthIdentityService.class),
+                mock(MemberNicknameService.class),
+                mock(AuthTokenProvider.class),
+                sessionRepository,
+                refreshTokenProvider,
+                clock
         );
     }
 
