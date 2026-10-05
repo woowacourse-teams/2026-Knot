@@ -1,5 +1,7 @@
 package com.knot.backend.recording.presentation;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -9,17 +11,19 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.knot.backend.auth.domain.AuthenticatedMember;
 import com.knot.backend.global.exception.GlobalExceptionHandler;
-import com.knot.backend.recording.application.RecordingEndService;
-import com.knot.backend.recording.application.dto.result.RecordingEndResult;
+import com.knot.backend.recording.application.RecordingPauseService;
+import com.knot.backend.recording.application.dto.result.RecordingPauseResult;
 import com.knot.backend.recording.domain.RecordingErrorCode;
 import com.knot.backend.recording.domain.RecordingException;
 import com.knot.backend.recording.domain.RecordingStatus;
 import java.time.Instant;
+import java.util.UUID;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -28,19 +32,24 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
-class RecordingEndControllerTest {
+class RecordingPauseControllerTest {
     private static final long WORKSPACE_ID = 12L;
     private static final long MEMBER_ID = 1L;
     private static final long RECORDING_ID = 34L;
-    private static final Instant ENDED_AT = Instant.parse("2026-10-05T00:10:00Z");
+    private static final Instant PAUSED_AT = Instant.parse("2026-10-05T00:10:00Z");
+    private static final UUID TAB_ID = UUID.fromString("22222222-2222-2222-2222-222222222222");
+    private static final String CONTROL_TOKEN = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefA";
+    private static final String BODY = """
+            {"tabId":"22222222-2222-2222-2222-222222222222","controlToken":"%s"}
+            """.formatted(CONTROL_TOKEN);
 
-    private RecordingEndService recordingEndService;
+    private RecordingPauseService recordingPauseService;
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
-        recordingEndService = mock(RecordingEndService.class);
-        mockMvc = MockMvcBuilders.standaloneSetup(new RecordingEndController(recordingEndService))
+        recordingPauseService = mock(RecordingPauseService.class);
+        mockMvc = MockMvcBuilders.standaloneSetup(new RecordingPauseController(recordingPauseService))
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .setCustomArgumentResolvers(new AuthenticationPrincipalArgumentResolver())
                 .build();
@@ -52,62 +61,68 @@ class RecordingEndControllerTest {
     }
 
     @Test
-    @DisplayName("녹음을 종료하면 200과 ENDED 상태, 서버 종료 시각을 반환한다")
-    void end_success() throws Exception {
+    @DisplayName("최초 탭이 일시정지하면 200과 PAUSED, 일시정지 시각, 누적 시간을 반환한다")
+    void pause_success() throws Exception {
         // given
         SecurityContextHolder.getContext()
                 .setAuthentication(memberAuthentication());
         when(
-                recordingEndService.end(
-                        WORKSPACE_ID,
-                        MEMBER_ID,
-                        RECORDING_ID
+                recordingPauseService.pause(
+                        eq(WORKSPACE_ID),
+                        eq(MEMBER_ID),
+                        eq(RECORDING_ID),
+                        any()
                 )
         ).thenReturn(
-                new RecordingEndResult(
+                new RecordingPauseResult(
                         RECORDING_ID,
-                        RecordingStatus.ENDED,
-                        ENDED_AT
+                        RecordingStatus.PAUSED,
+                        PAUSED_AT,
+                        600_000L
                 )
         );
 
         // when
         ResultActions result = mockMvc.perform(
                 post(
-                        "/api/v1/workspaces/{workspaceId}/recordings/{recordingId}/end",
+                        "/api/v1/workspaces/{workspaceId}/recordings/{recordingId}/pause",
                         WORKSPACE_ID,
                         RECORDING_ID
-                )
+                ).contentType(MediaType.APPLICATION_JSON)
+                        .content(BODY)
         );
 
         // then
         result.andExpect(status().isOk())
                 .andExpect(jsonPath("$.recordingId").value(RECORDING_ID))
-                .andExpect(jsonPath("$.status").value("ENDED"))
-                .andExpect(jsonPath("$.endedAt").value("2026-10-05T00:10:00Z"));
+                .andExpect(jsonPath("$.status").value("PAUSED"))
+                .andExpect(jsonPath("$.pausedAt").value("2026-10-05T00:10:00Z"))
+                .andExpect(jsonPath("$.elapsedMillis").value(600_000L));
     }
 
     @Test
-    @DisplayName("시작자가 아니면 RECORDING_CONTROL_DENIED 403 응답을 반환한다")
-    void end_failure_controlDenied() throws Exception {
+    @DisplayName("최초 탭이 아니면 RECORDING_CONTROL_DENIED 403 응답을 반환한다")
+    void pause_failure_controlDenied() throws Exception {
         // given
         SecurityContextHolder.getContext()
                 .setAuthentication(memberAuthentication());
         when(
-                recordingEndService.end(
-                        WORKSPACE_ID,
-                        MEMBER_ID,
-                        RECORDING_ID
+                recordingPauseService.pause(
+                        eq(WORKSPACE_ID),
+                        eq(MEMBER_ID),
+                        eq(RECORDING_ID),
+                        any()
                 )
         ).thenThrow(new RecordingException(RecordingErrorCode.RECORDING_CONTROL_DENIED));
 
         // when
         ResultActions result = mockMvc.perform(
                 post(
-                        "/api/v1/workspaces/{workspaceId}/recordings/{recordingId}/end",
+                        "/api/v1/workspaces/{workspaceId}/recordings/{recordingId}/pause",
                         WORKSPACE_ID,
                         RECORDING_ID
-                )
+                ).contentType(MediaType.APPLICATION_JSON)
+                        .content(BODY)
         );
 
         // then
@@ -117,8 +132,8 @@ class RecordingEndControllerTest {
     }
 
     @Test
-    @DisplayName("숫자가 아닌 녹음 ID는 400을 반환하고 서비스를 호출하지 않는다")
-    void end_failure_nonNumericRecordingId() throws Exception {
+    @DisplayName("제어 증명이 없으면 VALIDATION_ERROR 400을 반환하고 서비스를 호출하지 않는다")
+    void pause_failure_missingControlToken() throws Exception {
         // given
         SecurityContextHolder.getContext()
                 .setAuthentication(memberAuthentication());
@@ -126,14 +141,20 @@ class RecordingEndControllerTest {
         // when
         ResultActions result = mockMvc.perform(
                 post(
-                        "/api/v1/workspaces/{workspaceId}/recordings/abc/end",
-                        WORKSPACE_ID
-                )
+                        "/api/v1/workspaces/{workspaceId}/recordings/{recordingId}/pause",
+                        WORKSPACE_ID,
+                        RECORDING_ID
+                ).contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"tabId":"%s"}
+                                """.formatted(TAB_ID))
         );
 
         // then
-        result.andExpect(status().isBadRequest());
-        verifyNoInteractions(recordingEndService);
+        result.andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+                .andExpect(jsonPath("$.fieldErrors[0].field").value("controlToken"));
+        verifyNoInteractions(recordingPauseService);
     }
 
     private UsernamePasswordAuthenticationToken memberAuthentication() {

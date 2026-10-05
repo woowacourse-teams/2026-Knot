@@ -27,7 +27,7 @@ public enum RecordingErrorCode implements ErrorCode {
     RECORDING_CONTROL_DENIED(
             ErrorCategory.FORBIDDEN,
             "RECORDING_CONTROL_DENIED",
-            "녹음을 시작한 사용자만 제어할 수 있습니다"
+            "녹음을 제어할 권한이 없습니다"
     ),
 
     RECORDING_ALREADY_ENDED(

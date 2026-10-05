@@ -236,6 +236,7 @@ class RecordingSessionTest {
         // then
         assertThat(session.getAccumulatedRecordingMillis()).isEqualTo(10_000);
         assertThat(session.getLastSeenAt()).isEqualTo(STARTED_AT.plusSeconds(10));
+        assertThat(session.getPausedAt()).isEqualTo(STARTED_AT.plusSeconds(10));
     }
 
     @Test
@@ -458,6 +459,77 @@ class RecordingSessionTest {
                 () -> session.validateControlledBy(
                         WORKSPACE_ID,
                         MEMBER_ID + 1
+                )
+        );
+
+        // then
+        assertThat(failure).isInstanceOf(RecordingException.class)
+                .extracting("errorCode")
+                .isEqualTo(RecordingErrorCode.RECORDING_CONTROL_DENIED);
+    }
+
+    @Test
+    @DisplayName("일시정지하면 일시정지 시각을 기록한다")
+    void pause_success_recordsPausedAt() {
+        // given
+        RecordingSession session = startRecording();
+
+        // when
+        session.pause(STARTED_AT.plusSeconds(10));
+
+        // then
+        assertThat(session.getPausedAt()).isEqualTo(STARTED_AT.plusSeconds(10));
+    }
+
+    @Test
+    @DisplayName("시작 때의 탭 ID와 제어 증명이 같으면 최초 탭으로 인정한다")
+    void validateControlProof_success_firstTab() {
+        // given
+        RecordingSession session = startRecording();
+
+        // when
+        Throwable failure = catchThrowable(
+                () -> session.validateControlProof(
+                        TAB_ID,
+                        CONTROL_TOKEN_HASH
+                )
+        );
+
+        // then
+        assertThat(failure).isNull();
+    }
+
+    @Test
+    @DisplayName("다른 탭 ID로는 녹음을 제어할 수 없다")
+    void validateControlProof_failure_otherTab() {
+        // given
+        RecordingSession session = startRecording();
+
+        // when
+        Throwable failure = catchThrowable(
+                () -> session.validateControlProof(
+                        UUID.randomUUID(),
+                        CONTROL_TOKEN_HASH
+                )
+        );
+
+        // then
+        assertThat(failure).isInstanceOf(RecordingException.class)
+                .extracting("errorCode")
+                .isEqualTo(RecordingErrorCode.RECORDING_CONTROL_DENIED);
+    }
+
+    @Test
+    @DisplayName("탭 ID가 같아도 제어 증명이 다르면 녹음을 제어할 수 없다")
+    void validateControlProof_failure_otherControlToken() {
+        // given
+        RecordingSession session = startRecording();
+
+        // when
+        Throwable failure = catchThrowable(
+                () -> session.validateControlProof(
+                        TAB_ID,
+                        "f".repeat(64)
                 )
         );
 

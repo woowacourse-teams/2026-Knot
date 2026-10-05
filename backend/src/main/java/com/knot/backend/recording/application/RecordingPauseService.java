@@ -1,6 +1,7 @@
 package com.knot.backend.recording.application;
 
-import com.knot.backend.recording.application.dto.result.RecordingEndResult;
+import com.knot.backend.recording.application.dto.command.RecordingControlCommand;
+import com.knot.backend.recording.application.dto.result.RecordingPauseResult;
 import com.knot.backend.recording.domain.RecordingErrorCode;
 import com.knot.backend.recording.domain.RecordingException;
 import com.knot.backend.recording.domain.RecordingSession;
@@ -13,16 +14,18 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
-public class RecordingEndService {
+public class RecordingPauseService {
     private final RecordingWorkspaceAccessValidator workspaceAccessValidator;
     private final RecordingSessionRepository recordingSessionRepository;
+    private final RecordingControlTokenHasher controlTokenHasher;
     private final Clock clock;
 
     @Transactional
-    public RecordingEndResult end(
+    public RecordingPauseResult pause(
             long workspaceId,
             long memberId,
-            long recordingId
+            long recordingId,
+            RecordingControlCommand command
     ) {
         workspaceAccessValidator.validateAndLock(
                 workspaceId,
@@ -37,10 +40,14 @@ public class RecordingEndService {
                 workspaceId,
                 memberId
         );
-        session.end(
+        session.validateControlProof(
+                command.tabId(),
+                controlTokenHasher.hash(command.controlToken())
+        );
+        session.pause(
                 clock.instant()
                         .truncatedTo(ChronoUnit.MICROS)
         );
-        return RecordingEndResult.from(recordingSessionRepository.save(session));
+        return RecordingPauseResult.from(recordingSessionRepository.save(session));
     }
 }

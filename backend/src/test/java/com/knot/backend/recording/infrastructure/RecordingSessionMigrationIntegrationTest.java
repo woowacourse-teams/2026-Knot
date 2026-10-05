@@ -88,6 +88,35 @@ class RecordingSessionMigrationIntegrationTest {
     }
 
     @Test
+    @DisplayName("일시정지 시각 migration은 기존 PAUSED 행을 마지막 확인 시각으로 채우고 시작 전 일시정지 시각은 거부한다")
+    void migrate_backfillsPausedAtAndRejectsPausedAtBeforeStartedAt() throws SQLException {
+        // given
+        flyway("23").migrate();
+        execute("""
+                INSERT INTO recording_sessions (
+                    workspace_id, member_id, request_id, tab_id, control_token_hash, status,
+                    started_at, last_seen_at
+                )
+                VALUES (1, 1, gen_random_uuid(), gen_random_uuid(), repeat('a', 64), 'PAUSED',
+                    '2026-10-01T00:00:00Z', '2026-10-01T00:00:10Z')
+                """);
+        flyway("24").migrate();
+
+        // when
+        ThrowingCallable action = () -> execute("""
+                UPDATE recording_sessions SET paused_at = '2026-09-30T23:59:59Z' WHERE member_id = 1
+                """);
+
+        // then
+        assertThat(query("""
+                SELECT status FROM recording_sessions
+                WHERE member_id = 1 AND paused_at = '2026-10-01T00:00:10Z'
+                """)).containsExactly("PAUSED");
+        assertThatThrownBy(action).isInstanceOf(SQLException.class)
+                .satisfies(error -> assertThat(((SQLException) error).getSQLState()).isEqualTo("23514"));
+    }
+
+    @Test
     @DisplayName("폐기 상태 migration 뒤에도 중단 시각이 없는 DISCARDED는 거부한다")
     void insert_rejectsDiscardedWithoutEndedAt() {
         // given

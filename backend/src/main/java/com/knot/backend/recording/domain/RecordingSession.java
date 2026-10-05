@@ -54,6 +54,9 @@ public class RecordingSession {
     @Column(name = "current_interval_started_at")
     private Instant currentIntervalStartedAt;
 
+    @Column(name = "paused_at")
+    private Instant pausedAt;
+
     @Column(name = "ended_at")
     private Instant endedAt;
 
@@ -132,6 +135,15 @@ public class RecordingSession {
         }
     }
 
+    public void validateControlProof(
+            UUID tabId,
+            String controlTokenHash
+    ) {
+        if (!this.tabId.equals(tabId) || !sameControlTokenHash(controlTokenHash)) {
+            throw new RecordingException(RecordingErrorCode.RECORDING_CONTROL_DENIED);
+        }
+    }
+
     public void pause(Instant pausedAt) {
         ensureActive();
         if (status == RecordingStatus.PAUSED) {
@@ -146,6 +158,7 @@ public class RecordingSession {
                 .toMillis();
         status = RecordingStatus.PAUSED;
         currentIntervalStartedAt = null;
+        this.pausedAt = pausedAt;
         lastSeenAt = pausedAt;
     }
 
