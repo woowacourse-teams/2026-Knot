@@ -236,6 +236,7 @@ class RecordingSessionTest {
         // then
         assertThat(session.getAccumulatedRecordingMillis()).isEqualTo(10_000);
         assertThat(session.getLastSeenAt()).isEqualTo(STARTED_AT.plusSeconds(10));
+        assertThat(session.getPausedAt()).isEqualTo(STARTED_AT.plusSeconds(10));
     }
 
     @Test
@@ -433,6 +434,19 @@ class RecordingSessionTest {
         assertThat(failure).isInstanceOf(RecordingException.class)
                 .extracting("errorCode")
                 .isEqualTo(RecordingErrorCode.RECORDING_CONTROL_DENIED);
+    }
+
+    @Test
+    @DisplayName("일시정지하면 일시정지 시각을 기록한다")
+    void pause_success_recordsPausedAt() {
+        // given
+        RecordingSession session = startRecording();
+
+        // when
+        session.pause(STARTED_AT.plusSeconds(10));
+
+        // then
+        assertThat(session.getPausedAt()).isEqualTo(STARTED_AT.plusSeconds(10));
     }
 
     @Test

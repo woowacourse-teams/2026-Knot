@@ -54,6 +54,9 @@ public class RecordingSession {
     @Column(name = "current_interval_started_at")
     private Instant currentIntervalStartedAt;
 
+    @Column(name = "paused_at")
+    private Instant pausedAt;
+
     @Column(name = "ended_at")
     private Instant endedAt;
 
@@ -155,6 +158,7 @@ public class RecordingSession {
                 .toMillis();
         status = RecordingStatus.PAUSED;
         currentIntervalStartedAt = null;
+        this.pausedAt = pausedAt;
         lastSeenAt = pausedAt;
     }
 
