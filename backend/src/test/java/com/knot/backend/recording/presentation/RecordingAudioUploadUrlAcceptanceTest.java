@@ -67,14 +67,11 @@ class RecordingAudioUploadUrlAcceptanceTest {
 
     @BeforeEach
     void clearTables() {
-        jdbcClient
-                .sql(
-                        """
-                                TRUNCATE TABLE recording_audio_uploads, recording_sessions, workspace_invitations, workspace_members, workspaces,
-                                    oauth_identities, members
-                                RESTART IDENTITY CASCADE
-                                """
-                )
+        jdbcClient.sql("""
+                TRUNCATE TABLE recording_audio_uploads, recording_sessions, workspace_invitations,
+                    workspace_members, workspaces, oauth_identities, members
+                RESTART IDENTITY CASCADE
+                """)
                 .update();
     }
 

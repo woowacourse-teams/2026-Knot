@@ -186,14 +186,12 @@ class RecordingAudioUploadUrlServiceIntegrationTest {
 
         // when
         Throwable thrown = catchThrowable(
-                () -> jdbcClient
-                        .sql(
-                                """
-                                        INSERT INTO recording_audio_uploads (recording_id, storage_key, content_type, content_length, status,
-                                            reserved_at)
-                                        VALUES (:recordingId, 'recordings/duplicate', 'audio/webm', 10, 'RESERVED', now())
-                                        """
-                        )
+                () -> jdbcClient.sql("""
+                        INSERT INTO recording_audio_uploads (recording_id, storage_key, content_type,
+                            content_length, status, reserved_at)
+                        VALUES (:recordingId, 'recordings/duplicate', 'audio/webm', 10,
+                            'RESERVED', now())
+                        """)
                         .param(
                                 "recordingId",
                                 fixture.recordingId()

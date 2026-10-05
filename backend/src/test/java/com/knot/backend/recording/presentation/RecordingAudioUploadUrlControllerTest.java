@@ -34,9 +34,7 @@ class RecordingAudioUploadUrlControllerTest {
     private static final long MEMBER_ID = 1L;
     private static final long RECORDING_ID = 34L;
     private static final String PATH = "/api/v1/workspaces/{workspaceId}/recordings/{recordingId}/audio-upload-url";
-    private static final String BODY = """
-            {"contentType":"audio/webm","contentLength":1024}
-            """;
+    private static final String BODY = "{\"contentType\":\"audio/webm\",\"contentLength\":1024}";
     private static final Instant EXPIRES_AT = Instant.parse("2026-10-05T00:15:00Z");
 
     private RecordingAudioUploadUrlService recordingAudioUploadUrlService;
