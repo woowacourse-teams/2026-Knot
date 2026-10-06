@@ -28,7 +28,6 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -75,10 +74,6 @@ class RecordingAudioUploadUrlServiceTest {
                 ),
                 recordingSessionRepository,
                 recordingAudioUploadRepository,
-                new RecordingAudioUploadPolicy(
-                        Set.of("audio/webm"),
-                        1000L
-                ),
                 storage,
                 Clock.fixed(
                         NOW,
@@ -130,16 +125,20 @@ class RecordingAudioUploadUrlServiceTest {
     }
 
     @Test
-    @DisplayName("완료되지 않은 기존 예약은 같은 key로 파일 정보를 갱신하고 URL만 다시 발급한다")
+    @DisplayName("완료되지 않은 기존 예약은 같은 uploadId와 key로 URL만 다시 발급한다")
     void issue_success_reissueReservation() {
         // given
-        RecordingAudioUpload reserved = RecordingAudioUpload.reserve(
-                RECORDING_ID,
-                "recordings/7/existing",
-                "audio/webm",
-                100L,
-                NOW
+        RecordingAudioUpload reserved = spy(
+                RecordingAudioUpload.reserve(
+                        RECORDING_ID,
+                        "recordings/7/existing",
+                        "audio/webm",
+                        500L,
+                        NOW
+                )
         );
+        doReturn(UPLOAD_ID).when(reserved)
+                .getId();
         when(recordingSessionRepository.findByIdForUpdate(RECORDING_ID)).thenReturn(Optional.of(endedSession()));
         when(recordingAudioUploadRepository.findByRecordingId(RECORDING_ID)).thenReturn(Optional.of(reserved));
 
@@ -153,8 +152,12 @@ class RecordingAudioUploadUrlServiceTest {
 
         // then
         assertThat(result.created()).isFalse();
+        assertThat(result.uploadId()).isEqualTo(UPLOAD_ID);
         assertThat(result.uploadUrl()).isEqualTo("https://storage.example/recordings/7/existing");
-        assertThat(reserved.getContentLength()).isEqualTo(500L);
+        verify(
+                recordingAudioUploadRepository,
+                never()
+        ).save(any(RecordingAudioUpload.class));
     }
 
     @Test
@@ -208,10 +211,11 @@ class RecordingAudioUploadUrlServiceTest {
     }
 
     @Test
-    @DisplayName("최대 크기를 넘는 파일은 예약을 조회·저장하지 않고 거절한다")
+    @DisplayName("최대 크기를 넘는 파일은 예약을 저장하지 않고 거절한다")
     void issue_failure_tooLarge() {
         // given
         when(recordingSessionRepository.findByIdForUpdate(RECORDING_ID)).thenReturn(Optional.of(endedSession()));
+        when(recordingAudioUploadRepository.findByRecordingId(RECORDING_ID)).thenReturn(Optional.empty());
 
         // when
         Throwable failure = catchThrowable(
@@ -219,7 +223,7 @@ class RecordingAudioUploadUrlServiceTest {
                         WORKSPACE_ID,
                         MEMBER_ID,
                         RECORDING_ID,
-                        command(1001L)
+                        command(500L * 1024 * 1024 + 1)
                 )
         );
 
@@ -230,7 +234,7 @@ class RecordingAudioUploadUrlServiceTest {
         verify(
                 recordingAudioUploadRepository,
                 never()
-        ).findByRecordingId(RECORDING_ID);
+        ).save(any(RecordingAudioUpload.class));
     }
 
     private RecordingAudioUploadUrlCommand command(long contentLength) {

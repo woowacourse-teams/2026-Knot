@@ -25,7 +25,6 @@ public class RecordingAudioUploadUrlService {
     private final RecordingWorkspaceAccessValidator workspaceAccessValidator;
     private final RecordingSessionRepository recordingSessionRepository;
     private final RecordingAudioUploadRepository recordingAudioUploadRepository;
-    private final RecordingAudioUploadPolicy uploadPolicy;
     private final RecordingAudioStorage audioStorage;
     private final Clock clock;
 
@@ -50,32 +49,29 @@ public class RecordingAudioUploadUrlService {
                 memberId
         );
         session.validateAudioUploadable();
-        uploadPolicy.validate(
-                command.contentType(),
-                command.contentLength()
-        );
 
         Optional<RecordingAudioUpload> existing = recordingAudioUploadRepository.findByRecordingId(recordingId);
         existing.ifPresent(
-                reserved -> reserved.changeFile(
+                reserved -> reserved.validateReissuable(
                         command.contentType(),
                         command.contentLength()
                 )
         );
         RecordingAudioUpload upload = existing.orElseGet(
-                () -> reserve(
-                        recordingId,
-                        command
+                () -> recordingAudioUploadRepository.save(
+                        reserve(
+                                recordingId,
+                                command
+                        )
                 )
         );
-        RecordingAudioUpload saved = recordingAudioUploadRepository.save(upload);
         PresignedAudioUpload presigned = audioStorage.presignUpload(
-                saved.getStorageKey(),
-                saved.getContentType(),
-                saved.getContentLength()
+                upload.getStorageKey(),
+                upload.getContentType(),
+                upload.getContentLength()
         );
         return new RecordingAudioUploadUrlResult(
-                saved.getId(),
+                upload.getId(),
                 presigned.uploadUrl(),
                 presigned.expiresAt(),
                 existing.isEmpty()

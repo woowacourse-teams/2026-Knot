@@ -1,7 +1,6 @@
 package com.knot.backend.recording.infrastructure.storage;
 
 import com.knot.backend.recording.application.RecordingAudioStorage;
-import com.knot.backend.recording.application.RecordingAudioUploadPolicy;
 import java.net.URI;
 import java.time.Duration;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -19,14 +18,6 @@ import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 @EnableConfigurationProperties(RecordingAudioStorageProperties.class)
 public class RecordingAudioStorageConfig {
     private static final Duration STORAGE_CALL_TIMEOUT = Duration.ofSeconds(5);
-
-    @Bean
-    public RecordingAudioUploadPolicy recordingAudioUploadPolicy(RecordingAudioStorageProperties properties) {
-        return new RecordingAudioUploadPolicy(
-                properties.allowedContentTypes(),
-                properties.maxContentLength()
-        );
-    }
 
     @Bean
     public RecordingAudioStorage recordingAudioStorage(RecordingAudioStorageProperties properties) {

@@ -15,6 +15,9 @@ import lombok.Getter;
 @Entity
 @Table(name = "recording_audio_uploads")
 public class RecordingAudioUpload {
+    private static final String ALLOWED_CONTENT_TYPE = "audio/webm";
+    private static final long MAX_CONTENT_LENGTH = 500L * 1024 * 1024;
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -25,10 +28,10 @@ public class RecordingAudioUpload {
     @Column(name = "storage_key", nullable = false, updatable = false)
     private String storageKey;
 
-    @Column(name = "content_type", nullable = false)
+    @Column(name = "content_type", nullable = false, updatable = false)
     private String contentType;
 
-    @Column(name = "content_length", nullable = false)
+    @Column(name = "content_length", nullable = false, updatable = false)
     private long contentLength;
 
     @Enumerated(EnumType.STRING)
@@ -82,19 +85,17 @@ public class RecordingAudioUpload {
         );
     }
 
-    public void changeFile(
+    // 이전에 발급한 URL도 만료 전까지 같은 key에 PUT할 수 있으므로, 재발급 때 파일 형식·크기를 바꾸지 않는다.
+    public void validateReissuable(
             String contentType,
             long contentLength
     ) {
         if (status == RecordingAudioUploadStatus.COMPLETED) {
             throw new RecordingException(RecordingErrorCode.AUDIO_UPLOAD_ALREADY_COMPLETED);
         }
-        validateFile(
-                contentType,
-                contentLength
-        );
-        this.contentType = contentType;
-        this.contentLength = contentLength;
+        if (!this.contentType.equals(contentType) || this.contentLength != contentLength) {
+            throw new RecordingException(RecordingErrorCode.INVALID_AUDIO_UPLOAD);
+        }
     }
 
     public void validateBelongsTo(long recordingId) {
@@ -129,7 +130,7 @@ public class RecordingAudioUpload {
             String contentType,
             long contentLength
     ) {
-        if (contentType == null || contentType.isBlank() || contentLength <= 0) {
+        if (!ALLOWED_CONTENT_TYPE.equals(contentType) || contentLength <= 0 || contentLength > MAX_CONTENT_LENGTH) {
             throw new RecordingException(RecordingErrorCode.INVALID_AUDIO_UPLOAD);
         }
     }
