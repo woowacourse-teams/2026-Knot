@@ -2,7 +2,7 @@ import {
   GetNotionPageTreeResponseDto,
   type GetNotionPageTreeResponseRaw,
 } from "@api/dto/notionPage";
-import { httpClient } from "@api/httpClient";
+import { httpClient } from "@api/axiosInstance";
 
 export const WORKSPACE_NOTION_PAGE_TREE_API_PATH = (workspaceId: number) =>
   `/api/v1/workspaces/${workspaceId}/notion-pages/tree`;

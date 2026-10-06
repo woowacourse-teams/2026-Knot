@@ -2,7 +2,7 @@ import {
   GetNotionImportStatusResponseDto,
   type GetNotionImportStatusResponseRaw,
 } from "@api/dto/notionImport";
-import { httpClient } from "@api/httpClient";
+import { httpClient } from "@api/axiosInstance";
 
 export const NOTION_IMPORT_STATUS_API_PATH = (importRunId: number) =>
   `/api/v1/imports/${importRunId}`;

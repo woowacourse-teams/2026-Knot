@@ -2,7 +2,7 @@ import {
   PostWorkspaceInvitationReissueResponseDto,
   type PostWorkspaceInvitationReissueResponseRaw,
 } from "@api/dto/workspaceInvitation";
-import { httpClient } from "@api/httpClient";
+import { httpClient } from "@api/axiosInstance";
 
 export const WORKSPACE_INVITATIONS_REISSUE_API_PATH = (workspaceId: number) =>
   `/api/v1/workspaces/${workspaceId}/invitations/reissue`;

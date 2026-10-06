@@ -2,7 +2,7 @@ import {
   GetNotionConnectionResponseDto,
   type GetNotionConnectionResponseRaw,
 } from "@api/dto/notionConnection";
-import { httpClient } from "@api/httpClient";
+import { httpClient } from "@api/axiosInstance";
 
 export const NOTION_CONNECTION_API_PATH = (workspaceId: number) =>
   `/api/v1/workspaces/${workspaceId}/notion-connection`;

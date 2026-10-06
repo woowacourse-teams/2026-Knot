@@ -2,7 +2,7 @@ import {
   GetInvitationPreviewResponseDto,
   type GetInvitationPreviewResponseRaw,
 } from "@api/dto/workspaceInvitation";
-import { httpClient } from "@api/httpClient";
+import { httpClient } from "@api/axiosInstance";
 
 export const INVITATION_PREVIEW_API_PATH = (tokenOrCode: string) =>
   `/api/v1/invitations/${encodeURIComponent(tokenOrCode)}`;

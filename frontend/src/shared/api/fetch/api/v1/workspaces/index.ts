@@ -5,7 +5,7 @@ import {
   type PostWorkspaceRequestDto,
   type PostWorkspaceResponseRaw,
 } from "@api/dto/workspace";
-import { httpClient } from "@api/httpClient";
+import { httpClient } from "@api/axiosInstance";
 
 export const WORKSPACES_API_PATH = "/api/v1/workspaces";
 

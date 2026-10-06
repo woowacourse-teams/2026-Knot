@@ -2,7 +2,7 @@ import {
   PostNotionImportResponseDto,
   type PostNotionImportResponseRaw,
 } from "@api/dto/notionImport";
-import { httpClient } from "@api/httpClient";
+import { httpClient } from "@api/axiosInstance";
 
 export const NOTION_IMPORTS_API_PATH = (workspaceId: number) =>
   `/api/v1/workspaces/${workspaceId}/imports`;

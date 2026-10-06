@@ -1,5 +1,5 @@
 import type { PutLastViewedWorkspaceRequestDto } from "@api/dto/workspace";
-import { httpClient } from "@api/httpClient";
+import { httpClient } from "@api/axiosInstance";
 
 export const LAST_VIEWED_WORKSPACE_API_PATH =
   "/api/v1/members/me/last-viewed-workspace";

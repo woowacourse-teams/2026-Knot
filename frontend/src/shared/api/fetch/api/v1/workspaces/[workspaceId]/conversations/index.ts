@@ -5,7 +5,7 @@ import {
   type PostChatSessionRequestDto,
   type PostChatSessionResponseRaw,
 } from "@api/dto/chatSession";
-import { httpClient } from "@api/httpClient";
+import { httpClient } from "@api/axiosInstance";
 
 export const WORKSPACE_CONVERSATIONS_API_PATH = (workspaceId: number) =>
   `/api/v1/workspaces/${workspaceId}/conversations`;
