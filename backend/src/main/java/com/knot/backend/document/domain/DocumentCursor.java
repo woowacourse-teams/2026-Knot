@@ -10,6 +10,12 @@ import lombok.Getter;
 
 @Getter
 public class DocumentCursor {
+    private static final String VERSION = "1";
+    private static final String UNFILTERED = "ALL";
+    private static final int PAYLOAD_FIELD_COUNT = 7;
+    private static final int MAX_ENCODED_LENGTH = 512;
+    private static final int MIN_YEAR = 1;
+    private static final int MAX_YEAR = 9999;
     private final long workspaceId;
     private final long memberId;
     private final MyConfirmationState myConfirmation;
@@ -25,14 +31,13 @@ public class DocumentCursor {
             Instant createdAt,
             long documentId
     ) {
-        if (workspaceId <= 0 || memberId <= 0 || documentId <= 0
-                || recordingSessionId != null && recordingSessionId <= 0 || createdAt == null
-                || createdAt.atOffset(ZoneOffset.UTC)
-                        .getYear() < 1
-                || createdAt.atOffset(ZoneOffset.UTC)
-                        .getYear() > 9999) {
-            throw new DocumentException(DocumentErrorCode.INVALID_PARAMETER);
-        }
+        validateIdentifiers(
+                workspaceId,
+                memberId,
+                documentId
+        );
+        validateRecordingSessionId(recordingSessionId);
+        validateCreatedAt(createdAt);
         this.workspaceId = workspaceId;
         this.memberId = memberId;
         this.myConfirmation = myConfirmation;
@@ -60,9 +65,8 @@ public class DocumentCursor {
     }
 
     public String encode() {
-        String payload = "1|" + workspaceId + "|" + memberId + "|"
-                + (myConfirmation == null ? "ALL" : myConfirmation.name()) + "|"
-                + (recordingSessionId == null ? "ALL" : recordingSessionId) + "|" + createdAt + "|" + documentId;
+        String payload = VERSION + "|" + workspaceId + "|" + memberId + "|" + encodeConfirmationFilter() + "|"
+                + encodeRecordingFilter() + "|" + createdAt + "|" + documentId;
         return Base64.getUrlEncoder()
                 .withoutPadding()
                 .encodeToString(payload.getBytes(StandardCharsets.UTF_8));
@@ -76,9 +80,7 @@ public class DocumentCursor {
             Long recordingSessionId
     ) {
         try {
-            if (encoded == null || encoded.isBlank() || encoded.length() > 512) {
-                throw new DocumentException(DocumentErrorCode.INVALID_PARAMETER);
-            }
+            validateEncodedCursor(encoded);
             String[] values = new String(
                     Base64.getUrlDecoder()
                             .decode(encoded),
@@ -87,26 +89,107 @@ public class DocumentCursor {
                     "\\|",
                     -1
             );
-            if (values.length != 7 || !values[0].equals("1")) {
-                throw new DocumentException(DocumentErrorCode.INVALID_PARAMETER);
-            }
+            validatePayload(values);
             DocumentCursor cursor = of(
                     Long.parseLong(values[1]),
                     Long.parseLong(values[2]),
-                    values[3].equals("ALL") ? null : MyConfirmationState.valueOf(values[3]),
-                    values[4].equals("ALL") ? null : Long.valueOf(values[4]),
+                    parseConfirmationFilter(values[3]),
+                    parseRecordingFilter(values[4]),
                     Instant.parse(values[5]),
                     Long.parseLong(values[6])
             );
-            if (cursor.workspaceId != workspaceId || cursor.memberId != memberId
-                    || cursor.myConfirmation != myConfirmation || !Objects.equals(
-                            cursor.recordingSessionId,
-                            recordingSessionId
-                    )) {
-                throw new DocumentException(DocumentErrorCode.INVALID_PARAMETER);
-            }
+            cursor.validateQueryContext(
+                    workspaceId,
+                    memberId,
+                    myConfirmation,
+                    recordingSessionId
+            );
             return cursor;
         } catch (IllegalArgumentException | DateTimeException exception) {
+            throw new DocumentException(DocumentErrorCode.INVALID_PARAMETER);
+        }
+    }
+
+    private static void validateIdentifiers(
+            long workspaceId,
+            long memberId,
+            long documentId
+    ) {
+        if (workspaceId <= 0 || memberId <= 0 || documentId <= 0) {
+            throw new DocumentException(DocumentErrorCode.INVALID_PARAMETER);
+        }
+    }
+
+    private static void validateRecordingSessionId(Long recordingSessionId) {
+        if (recordingSessionId != null && recordingSessionId <= 0) {
+            throw new DocumentException(DocumentErrorCode.INVALID_PARAMETER);
+        }
+    }
+
+    private static void validateCreatedAt(Instant createdAt) {
+        if (createdAt == null) {
+            throw new DocumentException(DocumentErrorCode.INVALID_PARAMETER);
+        }
+        int year = createdAt.atOffset(ZoneOffset.UTC)
+                .getYear();
+        if (year < MIN_YEAR || year > MAX_YEAR) {
+            throw new DocumentException(DocumentErrorCode.INVALID_PARAMETER);
+        }
+    }
+
+    private String encodeConfirmationFilter() {
+        if (myConfirmation == null) {
+            return UNFILTERED;
+        }
+        return myConfirmation.name();
+    }
+
+    private String encodeRecordingFilter() {
+        if (recordingSessionId == null) {
+            return UNFILTERED;
+        }
+        return recordingSessionId.toString();
+    }
+
+    private static void validateEncodedCursor(String encoded) {
+        if (encoded == null || encoded.isBlank() || encoded.length() > MAX_ENCODED_LENGTH) {
+            throw new DocumentException(DocumentErrorCode.INVALID_PARAMETER);
+        }
+    }
+
+    private static void validatePayload(String[] values) {
+        if (values.length != PAYLOAD_FIELD_COUNT || !values[0].equals(VERSION)) {
+            throw new DocumentException(DocumentErrorCode.INVALID_PARAMETER);
+        }
+    }
+
+    private static MyConfirmationState parseConfirmationFilter(String value) {
+        if (value.equals(UNFILTERED)) {
+            return null;
+        }
+        return MyConfirmationState.valueOf(value);
+    }
+
+    private static Long parseRecordingFilter(String value) {
+        if (value.equals(UNFILTERED)) {
+            return null;
+        }
+        return Long.valueOf(value);
+    }
+
+    private void validateQueryContext(
+            long workspaceId,
+            long memberId,
+            MyConfirmationState myConfirmation,
+            Long recordingSessionId
+    ) {
+        if (this.workspaceId != workspaceId || this.memberId != memberId) {
+            throw new DocumentException(DocumentErrorCode.INVALID_PARAMETER);
+        }
+        if (this.myConfirmation != myConfirmation || !Objects.equals(
+                this.recordingSessionId,
+                recordingSessionId
+        )) {
             throw new DocumentException(DocumentErrorCode.INVALID_PARAMETER);
         }
     }
