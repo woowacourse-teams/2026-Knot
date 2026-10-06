@@ -83,6 +83,7 @@ export const theme = {
       100: "#E5F0F4",
       200: "#A8CEDB",
       500: "#2E85A3",
+      700: "#2F6F82",
     },
     caution: {
       700: "#8A6A2C",
