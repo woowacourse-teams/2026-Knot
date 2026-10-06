@@ -2,7 +2,7 @@ import {
   PostRecordingEndResponseDto,
   type PostRecordingEndResponseRaw,
 } from "@api/dto/recording";
-import { apiClient } from "@api/axiosInstance/apiClient";
+import { httpClient } from "@api/httpClient";
 
 export const RECORDING_END_API_PATH = (
   workspaceId: number,
@@ -25,7 +25,7 @@ export const endRecordingApi = async ({
   workspaceId,
   recordingId,
 }: EndRecordingApiParams) => {
-  const response = await apiClient<PostRecordingEndResponseRaw>({
+  const response = await httpClient<PostRecordingEndResponseRaw>({
     method: "post",
     url: RECORDING_END_API_PATH(workspaceId, recordingId),
   });

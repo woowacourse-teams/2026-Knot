@@ -3,7 +3,7 @@ import {
   type PostRecordingPauseRequestDto,
   type PostRecordingPauseResponseRaw,
 } from "@api/dto/recording";
-import { apiClient } from "@api/axiosInstance/apiClient";
+import { httpClient } from "@api/httpClient";
 
 export const RECORDING_PAUSE_API_PATH = (
   workspaceId: number,
@@ -28,7 +28,7 @@ export const pauseRecordingApi = async ({
   recordingId,
   body,
 }: PauseRecordingApiParams) => {
-  const response = await apiClient<PostRecordingPauseResponseRaw>({
+  const response = await httpClient<PostRecordingPauseResponseRaw>({
     method: "post",
     url: RECORDING_PAUSE_API_PATH(workspaceId, recordingId),
     data: body,

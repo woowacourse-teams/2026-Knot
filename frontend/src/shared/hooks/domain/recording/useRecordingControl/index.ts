@@ -1,4 +1,3 @@
-import { isApiError } from "@api/axiosInstance/apiClient";
 import useEndRecordingMutation from "@api/mutations/useEndRecordingMutation";
 import useIssueRecordingAudioUploadUrlMutation from "@api/mutations/useIssueRecordingAudioUploadUrlMutation";
 import usePauseRecordingMutation from "@api/mutations/usePauseRecordingMutation";
@@ -12,6 +11,7 @@ import {
   getRecordingControlProof,
   getRecordingStartProof,
 } from "@utils/recordingControlProof";
+import axios from "axios";
 import { useCallback } from "react";
 
 /** 서버에서 이미 끝났거나 버려진 녹음이라 이 탭의 녹음도 버려야 하는 오류 코드 */
@@ -37,7 +37,8 @@ interface UploadRecordedAudioParams {
  * HTTP 상태는 보지 않고 서버 오류 코드로만 판단하며, 응답이 없는 네트워크 오류는 `false`예요.
  */
 const isClosedRecordingError = (error: unknown) =>
-  isApiError(error) && CLOSED_RECORDING_ERROR_CODES.includes(error.code ?? "");
+  axios.isAxiosError<{ code?: string }>(error) &&
+  CLOSED_RECORDING_ERROR_CODES.includes(error.response?.data?.code ?? "");
 
 // TODO: 실패 안내·재시도 정책은 기획 논의가 필요해요. 정해질 때까지 안내 UI 없이 콘솔에만 남겨요(#465)
 const logRecordingError = (action: string, error: unknown) => {
