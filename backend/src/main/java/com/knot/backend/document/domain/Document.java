@@ -84,11 +84,14 @@ public class Document {
             String content,
             Instant createdAt
     ) {
-        if (workspaceId <= 0 || recordingSessionId <= 0 || sourceTranscriptId <= 0 || documentGenerationJobId <= 0
-                || topic == null || topic.isBlank() || title == null || title.isBlank() || content == null
-                || content.isBlank() || createdAt == null) {
-            throw new DocumentException(DocumentErrorCode.INVALID_DOCUMENT_DATA);
-        }
+        validateSourceId(workspaceId);
+        validateSourceId(recordingSessionId);
+        validateSourceId(sourceTranscriptId);
+        validateSourceId(documentGenerationJobId);
+        validateRequiredText(topic);
+        validateRequiredText(title);
+        validateRequiredText(content);
+        validateCreationTime(createdAt);
         this.workspaceId = workspaceId;
         this.recordingSessionId = recordingSessionId;
         this.sourceTranscriptId = sourceTranscriptId;
@@ -99,6 +102,24 @@ public class Document {
         this.content = content;
         this.status = DocumentStatus.DRAFT;
         this.createdAt = createdAt;
+    }
+
+    private void validateSourceId(long sourceId) {
+        if (sourceId <= 0) {
+            throw new DocumentException(DocumentErrorCode.INVALID_DOCUMENT_DATA);
+        }
+    }
+
+    private void validateRequiredText(String value) {
+        if (value == null || value.isBlank()) {
+            throw new DocumentException(DocumentErrorCode.INVALID_DOCUMENT_DATA);
+        }
+    }
+
+    private void validateCreationTime(Instant createdAt) {
+        if (createdAt == null) {
+            throw new DocumentException(DocumentErrorCode.INVALID_DOCUMENT_DATA);
+        }
     }
 
     public static Document createDraft(
