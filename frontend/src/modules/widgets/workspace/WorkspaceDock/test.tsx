@@ -297,7 +297,7 @@ describe("WorkspaceDock", () => {
 
     afterEach(() => {
       // 전역 저장소라 테스트끼리 녹음이 새지 않도록 처음 상태로 되돌려요
-      useRecordingStore.getState().endRecording();
+      useRecordingStore.getState().discardRecording();
     });
 
     const clickMic = async (name = "회의 녹음 시작") => {
@@ -356,6 +356,18 @@ describe("WorkspaceDock", () => {
       expect(
         screen.getByRole("dialog", { name: MIC_UNAVAILABLE }),
       ).toBeInTheDocument();
+      expect(useRecordingStore.getState().status).toBe("idle");
+      expect(router.state.location.pathname).toBe(HOME_PATH);
+    });
+
+    it("webm으로 녹음할 수 없는 브라우저면 권한을 묻지 않고 제자리에 남는다", async () => {
+      vi.spyOn(MediaRecorder, "isTypeSupported").mockReturnValueOnce(false);
+      const getUserMedia = vi.spyOn(navigator.mediaDevices, "getUserMedia");
+      const { router } = renderDock();
+
+      await clickMic();
+
+      expect(getUserMedia).not.toHaveBeenCalled();
       expect(useRecordingStore.getState().status).toBe("idle");
       expect(router.state.location.pathname).toBe(HOME_PATH);
     });

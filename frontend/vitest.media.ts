@@ -29,6 +29,11 @@ class FakeMediaStream {
 }
 
 class FakeMediaRecorder extends EventTarget {
+  /** 모든 형식을 지원한다고 답해요. 미지원 브라우저는 테스트에서 `vi.spyOn`으로 덮어요 */
+  static isTypeSupported() {
+    return true;
+  }
+
   state: RecordingState = "inactive";
 
   constructor(public stream: FakeMediaStream) {
