@@ -299,8 +299,8 @@ class DocumentConfirmationTransactionIntegrationTest {
                                 secondId
                         )
                         .query(Instant.class)
-                        .single()
-        ).isNull();
+                        .optional()
+        ).isEmpty();
     }
 
     @Test
@@ -397,8 +397,8 @@ class DocumentConfirmationTransactionIntegrationTest {
                                 secondId
                         )
                         .query(Instant.class)
-                        .single()
-        ).isNull();
+                        .optional()
+        ).isEmpty();
         if (ownershipTransfer) {
             assertThat(
                     jdbc.sql("SELECT role FROM workspace_members WHERE workspace_id = :id AND member_id = :member")
