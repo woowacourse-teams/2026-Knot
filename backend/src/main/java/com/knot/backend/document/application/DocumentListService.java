@@ -32,15 +32,11 @@ public class DocumentListService {
         )) {
             throw new WorkspaceException(WorkspaceErrorCode.WORKSPACE_ACCESS_DENIED);
         }
-        DocumentCursor cursor = parameters.cursor() == null
-                ? null
-                : DocumentCursor.parse(
-                        parameters.cursor(),
-                        workspaceId,
-                        memberId,
-                        parameters.myConfirmation(),
-                        parameters.recordingSessionId()
-                );
+        DocumentCursor cursor = parseCursor(
+                workspaceId,
+                memberId,
+                parameters
+        );
         List<DocumentTopicResult> topics = query.findTopics(
                 workspaceId,
                 memberId,
@@ -52,25 +48,68 @@ public class DocumentListService {
                 parameters,
                 cursor
         );
-        boolean hasNext = page.size() > parameters.size();
-        List<DocumentCardResult> items = hasNext
-                ? page.subList(
-                        0,
-                        parameters.size()
-                )
-                : page;
-        String nextCursor = hasNext
-                ? encodeCursor(
-                        workspaceId,
-                        memberId,
-                        parameters,
-                        items.getLast()
-                )
-                : null;
+        List<DocumentCardResult> items = limitPageItems(
+                page,
+                parameters.size()
+        );
+        String nextCursor = createNextCursor(
+                workspaceId,
+                memberId,
+                parameters,
+                page
+        );
         return new DocumentListResult(
                 topics,
                 items,
                 nextCursor
+        );
+    }
+
+    private DocumentCursor parseCursor(
+            long workspaceId,
+            long memberId,
+            DocumentListParameters parameters
+    ) {
+        if (parameters.cursor() == null) {
+            return null;
+        }
+        return DocumentCursor.parse(
+                parameters.cursor(),
+                workspaceId,
+                memberId,
+                parameters.myConfirmation(),
+                parameters.recordingSessionId()
+        );
+    }
+
+    private List<DocumentCardResult> limitPageItems(
+            List<DocumentCardResult> page,
+            int size
+    ) {
+        if (page.size() > size) {
+            return page.subList(
+                    0,
+                    size
+            );
+        }
+        return page;
+    }
+
+    private String createNextCursor(
+            long workspaceId,
+            long memberId,
+            DocumentListParameters parameters,
+            List<DocumentCardResult> page
+    ) {
+        if (page.size() <= parameters.size()) {
+            return null;
+        }
+        DocumentCardResult lastItem = page.get(parameters.size() - 1);
+        return encodeCursor(
+                workspaceId,
+                memberId,
+                parameters,
+                lastItem
         );
     }
 
