@@ -2,7 +2,7 @@ import {
   GetCsrfTokenResponseDto,
   type GetCsrfTokenResponseRaw,
 } from "@api/dto/auth";
-import { httpClient } from "@api/axiosInstance";
+import { httpClient } from "@api/httpClient";
 
 export const AUTH_CSRF_API_PATH = "/api/v1/auth/csrf";
 

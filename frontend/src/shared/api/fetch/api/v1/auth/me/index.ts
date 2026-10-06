@@ -1,5 +1,5 @@
 import { GetMeResponseDto, type GetMeResponseRaw } from "@api/dto/auth";
-import { httpClient } from "@api/axiosInstance";
+import { httpClient } from "@api/httpClient";
 
 export const AUTH_ME_API_PATH = "/api/v1/auth/me";
 

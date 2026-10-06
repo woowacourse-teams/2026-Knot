@@ -2,7 +2,7 @@ import {
   GetWorkspaceResponseDto,
   type GetWorkspaceResponseRaw,
 } from "@api/dto/workspace";
-import { httpClient } from "@api/axiosInstance";
+import { httpClient } from "@api/httpClient";
 
 export const WORKSPACE_API_PATH = (workspaceId: number) =>
   `/api/v1/workspaces/${workspaceId}`;

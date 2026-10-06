@@ -2,7 +2,7 @@ import {
   GetChatMessagesResponseDto,
   type GetChatMessagesResponseRaw,
 } from "@api/dto/chatMessage";
-import { httpClient } from "@api/axiosInstance";
+import { httpClient } from "@api/httpClient";
 
 export const CHAT_MESSAGES_API_PATH = (sessionId: number) =>
   `/api/v1/conversations/${sessionId}`;

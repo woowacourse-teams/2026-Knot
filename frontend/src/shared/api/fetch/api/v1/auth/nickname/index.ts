@@ -1,5 +1,5 @@
 import type { PostNicknameRequestDto } from "@api/dto/auth";
-import { httpClient } from "@api/axiosInstance";
+import { httpClient } from "@api/httpClient";
 
 export const AUTH_NICKNAME_API_PATH = "/api/v1/auth/nickname";
 

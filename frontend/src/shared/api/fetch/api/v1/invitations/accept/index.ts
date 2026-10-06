@@ -3,7 +3,7 @@ import {
   type PostInvitationAcceptRequestDto,
   type PostInvitationAcceptResponseRaw,
 } from "@api/dto/workspaceInvitation";
-import { httpClient } from "@api/axiosInstance";
+import { httpClient } from "@api/httpClient";
 
 export const INVITATIONS_ACCEPT_API_PATH = "/api/v1/invitations/accept";
 

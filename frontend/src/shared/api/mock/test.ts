@@ -1,4 +1,4 @@
-import { httpClient } from "@api/axiosInstance";
+import { httpClient } from "@api/httpClient";
 import { http, HttpResponse } from "msw";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
