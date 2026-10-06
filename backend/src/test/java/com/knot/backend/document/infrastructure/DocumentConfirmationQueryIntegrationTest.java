@@ -4,10 +4,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.knot.backend.document.DocumentFixtures;
 import com.knot.backend.document.application.DocumentConfirmationQuery;
+import com.knot.backend.document.application.dto.result.DocumentConfirmationItemResult;
 import com.knot.backend.document.application.dto.result.DocumentConfirmationOverviewResult;
 import com.knot.backend.document.application.dto.result.DocumentConfirmationSummaryResult;
+import com.knot.backend.document.domain.DocumentConfirmationCursor;
+import com.knot.backend.document.domain.DocumentConfirmationState;
 import com.knot.backend.testsupport.TestcontainersConfiguration;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
@@ -72,7 +77,14 @@ class DocumentConfirmationQueryIntegrationTest {
                 )
         );
         assertThat(result.confirmedByMe()).isFalse();
-
+        assertThat(
+                query.findPage(
+                        workspaceId,
+                        documentId,
+                        50,
+                        null
+                )
+        ).isEmpty();
     }
 
     @Test
@@ -107,7 +119,28 @@ class DocumentConfirmationQueryIntegrationTest {
                         1
                 )
         );
-
+        assertThat(
+                query.findPage(
+                        workspaceId,
+                        documentId,
+                        1,
+                        null
+                )
+        ).hasSize(2);
+        assertThat(
+                query.findPage(
+                        workspaceId,
+                        documentId,
+                        100,
+                        null
+                )
+        ).extracting(DocumentConfirmationItemResult::memberId)
+                .containsExactly(
+                        viewerId,
+                        departedConfirmed,
+                        pending,
+                        excluded
+                );
     }
 
     @Test
@@ -120,7 +153,15 @@ class DocumentConfirmationQueryIntegrationTest {
         );
         // when & then
         assertThat(summary(viewerId).confirmedByMe()).isFalse();
-
+        assertThat(
+                query.findPage(
+                        workspaceId,
+                        documentId,
+                        50,
+                        null
+                )
+        ).extracting(DocumentConfirmationItemResult::memberId)
+                .doesNotContain(viewerId);
     }
 
     @Test
@@ -148,7 +189,189 @@ class DocumentConfirmationQueryIntegrationTest {
                         viewerId
                 )
         ).isEmpty();
+        assertThat(
+                query.findPage(
+                        otherWorkspace,
+                        documentId,
+                        50,
+                        null
+                )
+        ).isEmpty();
+    }
 
+    @Test
+    @DisplayName("상태 순서와 같은 상태의 대상 ID 순서로 여러 페이지를 빠짐없이 연결한다")
+    void findPage_success_stateBoundaries() {
+        // given
+        long pending = target(
+                true,
+                null
+        );
+        long excluded = target(
+                false,
+                null
+        );
+        long confirmed = target(
+                true,
+                DocumentFixtures.CREATED_AT
+        );
+        long departedConfirmed = target(
+                false,
+                DocumentFixtures.CREATED_AT
+        );
+        List<Long> actualIds = new ArrayList<>();
+        DocumentConfirmationCursor cursor = null;
+        // when
+        for (int pageNumber = 0; pageNumber < 4; pageNumber++) {
+            List<DocumentConfirmationItemResult> page = query.findPage(
+                    workspaceId,
+                    documentId,
+                    1,
+                    cursor
+            );
+            DocumentConfirmationItemResult item = page.getFirst();
+            actualIds.add(item.memberId());
+            cursor = DocumentConfirmationCursor.of(
+                    workspaceId,
+                    documentId,
+                    viewerId,
+                    item.state(),
+                    item.memberId()
+            );
+        }
+        // then
+        assertThat(actualIds).containsExactly(
+                confirmed,
+                departedConfirmed,
+                pending,
+                excluded
+        );
+        assertThat(
+                query.findPage(
+                        workspaceId,
+                        documentId,
+                        1,
+                        cursor
+                )
+        ).isEmpty();
+    }
+
+    @Test
+    @DisplayName("같은 상태에서 커서 경계 이후의 더 큰 대상 ID만 반환한다")
+    void findPage_success_sameStateBoundary() {
+        // given
+        long first = target(
+                true,
+                null
+        );
+        long second = target(
+                true,
+                null
+        );
+        DocumentConfirmationCursor cursor = DocumentConfirmationCursor.of(
+                workspaceId,
+                documentId,
+                viewerId,
+                DocumentConfirmationState.PENDING,
+                first
+        );
+        // when & then
+        assertThat(
+                query.findPage(
+                        workspaceId,
+                        documentId,
+                        1,
+                        cursor
+                )
+        ).extracting(DocumentConfirmationItemResult::memberId)
+                .containsExactly(second);
+    }
+
+    @Test
+    @DisplayName("탈퇴 후 재가입 이력은 한 대상만 반환하고 활성 미확인으로 집계한다")
+    void findPage_success_rejoinedTargetNotDuplicated() {
+        // given
+        long rejoined = target(
+                false,
+                null
+        );
+        fixtures.join(
+                workspaceId,
+                rejoined
+        );
+        // when & then
+        assertThat(summary(viewerId).summary()).isEqualTo(
+                new DocumentConfirmationSummaryResult(
+                        0,
+                        1,
+                        0
+                )
+        );
+        assertThat(
+                query.findPage(
+                        workspaceId,
+                        documentId,
+                        50,
+                        null
+                )
+        ).extracting(DocumentConfirmationItemResult::state)
+                .containsExactly(DocumentConfirmationState.PENDING);
+    }
+
+    @Test
+    @DisplayName("현재 프로필과 실제 확인 시각을 반환하고 알 수 없는 프로필·확인 시각은 null이다")
+    void findPage_success_profileAndNullableFields() {
+        // given
+        long confirmed = target(
+                true,
+                DocumentFixtures.CREATED_AT
+        );
+        target(
+                false,
+                null
+        );
+        jdbc.sql("UPDATE members SET profile_image_url = :url WHERE id = :id")
+                .param(
+                        "url",
+                        "https://example.com/avatar.png"
+                )
+                .param(
+                        "id",
+                        confirmed
+                )
+                .update();
+        // when
+        List<DocumentConfirmationItemResult> page = query.findPage(
+                workspaceId,
+                documentId,
+                50,
+                null
+        );
+        // then
+        assertThat(
+                page.getFirst()
+                        .nickname()
+        ).startsWith("대상");
+        assertThat(
+                page.getFirst()
+                        .profileImageUrl()
+        ).isEqualTo("https://example.com/avatar.png");
+        assertThat(
+                page.getFirst()
+                        .confirmedAt()
+        ).isEqualTo(DocumentFixtures.CREATED_AT);
+        assertThat(
+                page.getLast()
+                        .profileImageUrl()
+        ).isNull();
+        assertThat(
+                page.getLast()
+                        .confirmedAt()
+        ).isNull();
+        assertThat(
+                page.getLast()
+                        .state()
+        ).isEqualTo(DocumentConfirmationState.EXCLUDED);
     }
 
     private DocumentConfirmationOverviewResult summary(long memberId) {
