@@ -11,6 +11,7 @@ import com.knot.backend.document.domain.MyConfirmationState;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
+import java.time.Instant;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -54,7 +55,6 @@ public class DocumentListQueryAdapter implements DocumentListQuery {
             DocumentListParameters parameters,
             DocumentCursor cursor
     ) {
-        String cursorCondition = cursor == null ? "" : " AND (d.created_at, d.id) < (:cursorTime, :cursorId)";
         JdbcClient.StatementSpec statement = bind(
                 jdbc.sql(
                         """
@@ -62,7 +62,7 @@ public class DocumentListQueryAdapter implements DocumentListQuery {
                                     SELECT d.id, d.recording_session_id, d.workspace_id, d.topic, d.title, d.summary, d.status, d.created_at
                                     FROM documents d
                                 """
-                                + filters(parameters) + cursorCondition
+                                + filters(parameters) + cursorCondition(cursor)
                                 + """
                                             ORDER BY d.created_at DESC, d.id DESC LIMIT :limit
                                         )
@@ -113,8 +113,29 @@ public class DocumentListQueryAdapter implements DocumentListQuery {
     }
 
     private String filters(DocumentListParameters parameters) {
-        String recording = parameters.recordingSessionId() == null ? "" : " AND d.recording_session_id = :recordingId";
-        String confirmation = parameters.myConfirmation() == null ? "" : switch (parameters.myConfirmation()) {
+        return " WHERE d.workspace_id = :workspaceId" + recordingCondition(parameters.recordingSessionId())
+                + confirmationCondition(parameters.myConfirmation());
+    }
+
+    private String cursorCondition(DocumentCursor cursor) {
+        if (cursor == null) {
+            return "";
+        }
+        return " AND (d.created_at, d.id) < (:cursorTime, :cursorId)";
+    }
+
+    private String recordingCondition(Long recordingSessionId) {
+        if (recordingSessionId == null) {
+            return "";
+        }
+        return " AND d.recording_session_id = :recordingId";
+    }
+
+    private String confirmationCondition(MyConfirmationState myConfirmation) {
+        if (myConfirmation == null) {
+            return "";
+        }
+        return switch (myConfirmation) {
             case PENDING -> """
                      AND EXISTS (SELECT 1 FROM document_confirmations c
                          WHERE c.document_id = d.id AND c.member_id = :memberId AND c.confirmed_at IS NULL)
@@ -128,7 +149,6 @@ public class DocumentListQueryAdapter implements DocumentListQuery {
                          WHERE c.document_id = d.id AND c.member_id = :memberId)
                     """;
         };
-        return " WHERE d.workspace_id = :workspaceId" + recording + confirmation;
     }
 
     private JdbcClient.StatementSpec bind(
@@ -173,7 +193,7 @@ public class DocumentListQueryAdapter implements DocumentListQuery {
                 Math.toIntExact(row.getLong("duration_millis") / 1000),
                 MyConfirmationState.resolve(
                         row.getBoolean("required_by_me"),
-                        confirmedAt == null ? null : confirmedAt.toInstant()
+                        nullableInstant(confirmedAt)
                 ),
                 new DocumentConfirmationSummaryResult(
                         row.getInt("confirmed_count"),
@@ -181,5 +201,12 @@ public class DocumentListQueryAdapter implements DocumentListQuery {
                         row.getInt("excluded_count")
                 )
         );
+    }
+
+    private Instant nullableInstant(Timestamp timestamp) {
+        if (timestamp == null) {
+            return null;
+        }
+        return timestamp.toInstant();
     }
 }
