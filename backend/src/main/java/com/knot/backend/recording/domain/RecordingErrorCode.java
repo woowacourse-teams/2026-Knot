@@ -42,6 +42,30 @@ public enum RecordingErrorCode implements ErrorCode {
             "이미 폐기된 녹음입니다"
     ),
 
+    RECORDING_NOT_ENDED(
+            ErrorCategory.CONFLICT,
+            "RECORDING_NOT_ENDED",
+            "종료된 녹음만 오디오를 업로드할 수 있습니다"
+    ),
+
+    INVALID_AUDIO_UPLOAD(
+            ErrorCategory.INVALID_INPUT,
+            "INVALID_AUDIO_UPLOAD",
+            "업로드할 오디오의 형식이나 크기가 올바르지 않습니다"
+    ),
+
+    AUDIO_UPLOAD_ALREADY_COMPLETED(
+            ErrorCategory.CONFLICT,
+            "AUDIO_UPLOAD_ALREADY_COMPLETED",
+            "이미 오디오 업로드가 완료된 녹음입니다"
+    ),
+
+    AUDIO_STORAGE_UNAVAILABLE(
+            ErrorCategory.INTERNAL_SERVER_ERROR,
+            "AUDIO_STORAGE_UNAVAILABLE",
+            "오디오 저장소를 사용할 수 없습니다"
+    ),
+
     ACTIVE_RECORDING_ALREADY_EXISTS(
             ErrorCategory.CONFLICT,
             "ACTIVE_RECORDING_ALREADY_EXISTS",
