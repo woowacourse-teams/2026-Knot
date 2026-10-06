@@ -101,6 +101,9 @@ public class DocumentDetailQueryAdapter implements DocumentDetailQuery {
             String column
     ) throws SQLException {
         Timestamp timestamp = row.getTimestamp(column);
-        return timestamp == null ? null : timestamp.toInstant();
+        if (timestamp == null) {
+            return null;
+        }
+        return timestamp.toInstant();
     }
 }
