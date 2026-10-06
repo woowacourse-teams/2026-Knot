@@ -14,6 +14,9 @@ import org.springframework.test.context.TestPropertySource;
         "workspace.invitation.lookup-hash-key=ZmVkY2JhOTg3NjU0MzIxMGZlZGNiYTk4NzY1NDMyMTA",
         "spring.datasource.username=knot", "spring.datasource.password=knot",
         "spring.security.oauth2.client.registration.github.client-id=test-client-id",
-        "spring.security.oauth2.client.registration.github.client-secret=test-client-secret"})
+        "spring.security.oauth2.client.registration.github.client-secret=test-client-secret",
+        "recording.audio-storage.endpoint=http://localhost:9000", "recording.audio-storage.region=kr-standard",
+        "recording.audio-storage.bucket=knot-test-audio", "recording.audio-storage.access-key=test-access-key",
+        "recording.audio-storage.secret-key=test-secret-key"})
 public @interface TestApplicationProperties {
 }

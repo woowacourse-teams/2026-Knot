@@ -19,6 +19,11 @@ public interface RecordingSessionRepository {
 
     boolean existsActiveByMemberId(long memberId);
 
+    Optional<RecordingSession> findActiveByWorkspaceIdAndMemberId(
+            long workspaceId,
+            long memberId
+    );
+
     List<RecordingSession> findAllActiveByWorkspaceIdForUpdate(long workspaceId);
 
     List<RecordingSession> findAllActiveByWorkspaceIdAndMemberIdForUpdate(
