@@ -55,6 +55,24 @@ public class Document {
 
     protected Document() {}
 
+    public void archive(Instant archivedAt) {
+        if (status == DocumentStatus.ARCHIVED) {
+            return;
+        }
+        validateArchiveTime(archivedAt);
+        this.status = DocumentStatus.ARCHIVED;
+        this.archivedAt = archivedAt;
+    }
+
+    private void validateArchiveTime(Instant archivedAt) {
+        if (archivedAt == null) {
+            throw new DocumentException(DocumentErrorCode.INVALID_DOCUMENT_DATA);
+        }
+        if (archivedAt.isBefore(createdAt)) {
+            throw new DocumentException(DocumentErrorCode.INVALID_DOCUMENT_DATA);
+        }
+    }
+
     private Document(
             long workspaceId,
             long recordingSessionId,
