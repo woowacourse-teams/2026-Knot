@@ -13,11 +13,12 @@ import com.knot.backend.workspace.domain.WorkspaceMemberRepository;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
-@Transactional(readOnly = true)
+@Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
 public class DocumentConfirmationService {
     private final WorkspaceMemberRepository workspaceMembers;
     private final DocumentConfirmationQuery query;
