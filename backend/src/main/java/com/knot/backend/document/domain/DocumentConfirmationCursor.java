@@ -1,5 +1,7 @@
 package com.knot.backend.document.domain;
 
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import lombok.Getter;
 
 @Getter
@@ -50,6 +52,14 @@ public class DocumentConfirmationCursor {
                 state,
                 targetMemberId
         );
+    }
+
+    public String encode() {
+        String payload = VERSION + "|" + workspaceId + "|" + documentId + "|" + memberId + "|" + state.name() + "|"
+                + targetMemberId;
+        return Base64.getUrlEncoder()
+                .withoutPadding()
+                .encodeToString(payload.getBytes(StandardCharsets.UTF_8));
     }
 
     private static void validateScopeIdentifiers(

@@ -68,6 +68,24 @@ class DocumentConfirmationCursorTest {
         ).isInstanceOf(DocumentException.class);
     }
 
+    @Test
+    @DisplayName("버전·문서 범위·상태·대상을 padding 없는 Base64URL로 인코딩한다")
+    void encode_success_payload() {
+        // given
+        DocumentConfirmationCursor cursor = DocumentConfirmationCursor.of(
+                1,
+                3,
+                2,
+                DocumentConfirmationState.PENDING,
+                7
+        );
+        // when
+        String encoded = cursor.encode();
+        // then
+        assertThat(encoded).isEqualTo(encode("1|1|3|2|PENDING|7"))
+                .doesNotContain("=");
+    }
+
     private String encode(String payload) {
         return Base64.getUrlEncoder()
                 .withoutPadding()
