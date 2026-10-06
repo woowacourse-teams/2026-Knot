@@ -141,7 +141,7 @@ class RecordingAudioUploadUrlAcceptanceTest {
                 Long.toString(recordingId),
                 memberId,
                 "audio/webm",
-                2048L
+                1024L
         );
 
         // then

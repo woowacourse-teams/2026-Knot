@@ -7,7 +7,6 @@ import com.knot.backend.recording.application.RecordingAudioStorage;
 import com.knot.backend.recording.domain.RecordingErrorCode;
 import com.knot.backend.recording.domain.RecordingException;
 import java.time.Duration;
-import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -69,9 +68,7 @@ class RecordingAudioStorageConfigTest {
                 bucket,
                 "test-access-key",
                 "test-secret-key",
-                Duration.ofMinutes(15),
-                Set.of("audio/webm"),
-                1000L
+                Duration.ofMinutes(15)
         );
     }
 }

@@ -1,7 +1,6 @@
 package com.knot.backend.recording.infrastructure.storage;
 
 import com.knot.backend.recording.application.RecordingAudioStorage;
-import com.knot.backend.recording.application.RecordingAudioUploadPolicy;
 import java.net.URI;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -15,14 +14,6 @@ import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 @Configuration(proxyBeanMethods = false)
 @EnableConfigurationProperties(RecordingAudioStorageProperties.class)
 public class RecordingAudioStorageConfig {
-
-    @Bean
-    public RecordingAudioUploadPolicy recordingAudioUploadPolicy(RecordingAudioStorageProperties properties) {
-        return new RecordingAudioUploadPolicy(
-                properties.allowedContentTypes(),
-                properties.maxContentLength()
-        );
-    }
 
     @Bean
     public RecordingAudioStorage recordingAudioStorage(RecordingAudioStorageProperties properties) {

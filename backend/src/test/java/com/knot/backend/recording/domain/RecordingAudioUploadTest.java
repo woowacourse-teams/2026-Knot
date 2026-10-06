@@ -6,6 +6,8 @@ import static org.assertj.core.api.Assertions.catchThrowable;
 import java.time.Instant;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 class RecordingAudioUploadTest {
     private static final Instant RESERVED_AT = Instant.parse("2026-10-05T00:00:00Z");
@@ -33,18 +35,22 @@ class RecordingAudioUploadTest {
         assertThat(upload.getCompletedAt()).isNull();
     }
 
-    @Test
-    @DisplayName("크기가 0 이하인 파일은 예약하지 않는다")
-    void reserve_failure_nonPositiveLength() {
+    @ParameterizedTest
+    @CsvSource({"audio/mpeg,1024", "audio/webm,0", "audio/webm,524288001"})
+    @DisplayName("허용되지 않은 형식, 0 이하 크기, 500MB 초과 파일은 예약하지 않는다")
+    void reserve_failure_disallowedFile(
+            String contentType,
+            long contentLength
+    ) {
         // given
-        long contentLength = 0L;
+        String storageKey = "recordings/1/key";
 
         // when
         Throwable failure = catchThrowable(
                 () -> RecordingAudioUpload.reserve(
                         1L,
-                        "recordings/1/key",
-                        "audio/webm",
+                        storageKey,
+                        contentType,
                         contentLength,
                         RESERVED_AT
                 )
@@ -80,26 +86,50 @@ class RecordingAudioUploadTest {
     }
 
     @Test
-    @DisplayName("완료되지 않은 예약은 파일 형식과 크기를 바꾸고 저장소 key는 유지한다")
-    void changeFile_success_reserved() {
+    @DisplayName("완료되지 않은 예약은 같은 형식·크기로 재발급할 수 있다")
+    void validateReissuable_success_sameFile() {
         // given
-        RecordingAudioUpload upload = RecordingAudioUpload.reserve(
+        RecordingAudioUpload upload = reservedUpload();
+
+        // when
+        Throwable failure = catchThrowable(
+                () -> upload.validateReissuable(
+                        "audio/webm",
+                        1024L
+                )
+        );
+
+        // then
+        assertThat(failure).isNull();
+    }
+
+    @Test
+    @DisplayName("재발급 때 파일 크기가 다르면 이전 URL과 다른 파일이 같은 key에 올라갈 수 있어 거절한다")
+    void validateReissuable_failure_differentFile() {
+        // given
+        RecordingAudioUpload upload = reservedUpload();
+
+        // when
+        Throwable failure = catchThrowable(
+                () -> upload.validateReissuable(
+                        "audio/webm",
+                        2048L
+                )
+        );
+
+        // then
+        assertThat(failure).isInstanceOf(RecordingException.class)
+                .extracting("errorCode")
+                .isEqualTo(RecordingErrorCode.INVALID_AUDIO_UPLOAD);
+    }
+
+    private RecordingAudioUpload reservedUpload() {
+        return RecordingAudioUpload.reserve(
                 1L,
                 "recordings/1/key",
                 "audio/webm",
                 1024L,
                 RESERVED_AT
         );
-
-        // when
-        upload.changeFile(
-                "audio/webm",
-                2048L
-        );
-
-        // then
-        assertThat(upload.getContentLength()).isEqualTo(2048L);
-        assertThat(upload.getStorageKey()).isEqualTo("recordings/1/key");
-        assertThat(upload.getStatus()).isEqualTo(RecordingAudioUploadStatus.RESERVED);
     }
 }

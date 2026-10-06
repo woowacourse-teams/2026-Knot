@@ -20,10 +20,8 @@
 
 | 필드 | 형식 | 설명 |
 | --- | --- | --- |
-| `contentType` | 문자열, 필수 | 최종 파일의 Content-Type. 기본 허용값은 `audio/webm` |
-| `contentLength` | 양의 정수, 필수 | 최종 파일 크기(byte). 기본 최대 524,288,000(500MB) |
-
-허용 형식과 최대 크기는 서버 설정(`RECORDING_AUDIO_ALLOWED_CONTENT_TYPES`, `RECORDING_AUDIO_MAX_CONTENT_LENGTH`)으로 바뀐다.
+| `contentType` | 문자열, 필수 | 최종 파일의 Content-Type. `audio/webm`만 허용 |
+| `contentLength` | 양의 정수, 필수 | 최종 파일 크기(byte). 최대 524,288,000(500MB) |
 
 ## 성공 응답
 
@@ -36,7 +34,7 @@
 ```
 
 - `201 Created`: 새 업로드 예약을 만들었다.
-- `200 OK`: 아직 완료되지 않은 기존 예약의 URL을 다시 발급했다. `uploadId`와 저장 위치는 같고, 형식·크기는 이번 요청 값으로 바뀐다.
+- `200 OK`: 아직 완료되지 않은 기존 예약의 URL을 다시 발급했다. `uploadId`와 저장 위치는 같다. 형식·크기는 처음 예약과 같아야 하며, 다르면 `400 INVALID_AUDIO_UPLOAD`다.
 - URL은 기본 15분 뒤 만료된다. 만료되면 같은 요청을 다시 보낸다.
 
 ## PUT 업로드 규칙
@@ -50,7 +48,7 @@
 | 상태 | code | 의미 |
 | --- | --- | --- |
 | 400 | `VALIDATION_ERROR` | 필드 누락, 0 이하 크기 |
-| 400 | `INVALID_AUDIO_UPLOAD` | 허용되지 않은 형식, 최대 크기 초과 |
+| 400 | `INVALID_AUDIO_UPLOAD` | 허용되지 않은 형식, 최대 크기 초과, 재발급 요청의 형식·크기가 처음 예약과 다름 |
 | 400 | `INVALID_WORKSPACE_ID`·`INVALID_RECORDING_DATA`·`INVALID_PARAMETER` | 잘못된 ID |
 | 401 | `UNAUTHENTICATED` | 로그인 필요 |
 | 403 | `WORKSPACE_ACCESS_DENIED` | Workspace 멤버가 아님 |

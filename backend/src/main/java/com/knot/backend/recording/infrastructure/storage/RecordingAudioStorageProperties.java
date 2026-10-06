@@ -1,7 +1,6 @@
 package com.knot.backend.recording.infrastructure.storage;
 
 import java.time.Duration;
-import java.util.Set;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 @ConfigurationProperties(prefix = "recording.audio-storage")
@@ -11,9 +10,7 @@ public record RecordingAudioStorageProperties(
         String bucket,
         String accessKey,
         String secretKey,
-        Duration uploadUrlTtl,
-        Set<String> allowedContentTypes,
-        long maxContentLength
+        Duration uploadUrlTtl
 ) {
 
     public boolean isConfigured() {
