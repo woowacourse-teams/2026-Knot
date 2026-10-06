@@ -5,6 +5,11 @@
 최신화: 2026-10-02 Grafana 간헐적 502의 OOM 원인 확인 및 메모리 제한 조정(이전 Prod 배포 확인 기록 유지)
 검증 대상: AWS Dev Spring API와 AWS Prod 프로토타입 API
 
+2026-10-06 후속 장애 기록:
+[Dev 반복 배포 롤백과 Flyway V21 누락 복구](2026-10-06-dev-flyway-v21-rollback.md).
+누락 V21 복구 후 최신 develop의 Source·Build·Deploy 성공, health UP와 새 API의
+Swagger 반영을 확인했다. 이 사건의 Dev 복구 결과로 과거 Prod 배포 판정을 변경하지 않는다.
+
 AWS Dev·Prod의 호스트 지표, Nginx 요청 로그와 애플리케이션 로그를 NCP로 수집하고,
 Grafana 대시보드와 Discord 장애·복구 알림을 구성했다. 양쪽 실제 데이터 조회와
 Grafana 알림 평가·발송은 확인했다. 19시대에는 Cloudflare를 통한 팀 공용 HTTPS
