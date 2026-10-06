@@ -10,6 +10,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.NullAndEmptySource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 class DocumentConfirmationCursorTest {
     @ParameterizedTest
@@ -84,6 +86,110 @@ class DocumentConfirmationCursorTest {
         // then
         assertThat(encoded).isEqualTo(encode("1|1|3|2|PENDING|7"))
                 .doesNotContain("=");
+    }
+
+    @ParameterizedTest
+    @EnumSource(DocumentConfirmationState.class)
+    @DisplayName("같은 요청 범위에서 커서의 상태와 대상 경계를 복원한다")
+    void parse_success_roundTrip(DocumentConfirmationState state) {
+        // given
+        String encoded = DocumentConfirmationCursor.of(
+                1,
+                3,
+                2,
+                state,
+                7
+        )
+                .encode();
+        // when
+        DocumentConfirmationCursor cursor = DocumentConfirmationCursor.parse(
+                encoded,
+                1,
+                3,
+                2
+        );
+        // then
+        assertThat(cursor.getState()).isEqualTo(state);
+        assertThat(cursor.getTargetMemberId()).isEqualTo(7);
+    }
+
+    @ParameterizedTest
+    @CsvSource({"9,3,2", "1,9,2", "1,3,9"})
+    @DisplayName("다른 Workspace·문서·조회 멤버의 커서는 거절한다")
+    void parse_failure_scopeMismatch(
+            long workspaceId,
+            long documentId,
+            long memberId
+    ) {
+        // given
+        String encoded = DocumentConfirmationCursor.of(
+                1,
+                3,
+                2,
+                DocumentConfirmationState.CONFIRMED,
+                7
+        )
+                .encode();
+        // when & then
+        assertThatThrownBy(
+                () -> DocumentConfirmationCursor.parse(
+                        encoded,
+                        workspaceId,
+                        documentId,
+                        memberId
+                )
+        ).isInstanceOf(DocumentException.class);
+    }
+
+    @ParameterizedTest
+    @NullAndEmptySource
+    @ValueSource(strings = {" ", "%notBase64"})
+    @DisplayName("비어 있거나 잘못 인코딩된 커서를 거절한다")
+    void parse_failure_invalidEncoding(String encoded) {
+        // when & then
+        assertThatThrownBy(
+                () -> DocumentConfirmationCursor.parse(
+                        encoded,
+                        1,
+                        3,
+                        2
+                )
+        ).isInstanceOf(DocumentException.class);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"2|1|3|2|PENDING|7", "1|1|3|2|PENDING", "1|1|3|2|PENDING|7|extra", "1|1|3|2|NOT_REQUIRED|7",
+            "1|1|3|2|PENDING|0", "1|one|3|2|PENDING|7", "1|1|3|2|PENDING|9223372036854775808"})
+    @DisplayName("버전·필드 수·상태·숫자가 잘못된 커서는 INVALID_PARAMETER다")
+    void parse_failure_invalidPayload(String payload) {
+        // when & then
+        assertThatThrownBy(
+                () -> DocumentConfirmationCursor.parse(
+                        encode(payload),
+                        1,
+                        3,
+                        2
+                )
+        ).isInstanceOf(DocumentException.class)
+                .extracting(
+                        error -> ((DocumentException) error).getErrorCode()
+                                .getCode()
+                )
+                .isEqualTo("INVALID_PARAMETER");
+    }
+
+    @Test
+    @DisplayName("허용 길이를 초과한 커서는 거절한다")
+    void parse_failure_tooLong() {
+        // when & then
+        assertThatThrownBy(
+                () -> DocumentConfirmationCursor.parse(
+                        "A".repeat(513),
+                        1,
+                        3,
+                        2
+                )
+        ).isInstanceOf(DocumentException.class);
     }
 
     private String encode(String payload) {

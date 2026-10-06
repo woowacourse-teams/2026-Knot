@@ -62,6 +62,41 @@ public class DocumentConfirmationCursor {
                 .encodeToString(payload.getBytes(StandardCharsets.UTF_8));
     }
 
+    public static DocumentConfirmationCursor parse(
+            String encoded,
+            long workspaceId,
+            long documentId,
+            long memberId
+    ) {
+        try {
+            validateEncodedCursor(encoded);
+            String[] fields = new String(
+                    Base64.getUrlDecoder()
+                            .decode(encoded),
+                    StandardCharsets.UTF_8
+            ).split(
+                    "\\|",
+                    -1
+            );
+            validatePayload(fields);
+            DocumentConfirmationCursor cursor = of(
+                    Long.parseLong(fields[1]),
+                    Long.parseLong(fields[2]),
+                    Long.parseLong(fields[3]),
+                    DocumentConfirmationState.valueOf(fields[4]),
+                    Long.parseLong(fields[5])
+            );
+            cursor.validateQueryScope(
+                    workspaceId,
+                    documentId,
+                    memberId
+            );
+            return cursor;
+        } catch (IllegalArgumentException exception) {
+            throw new DocumentException(DocumentErrorCode.INVALID_PARAMETER);
+        }
+    }
+
     private static void validateScopeIdentifiers(
             long workspaceId,
             long documentId,
@@ -81,4 +116,25 @@ public class DocumentConfirmationCursor {
         }
     }
 
+    private static void validateEncodedCursor(String encoded) {
+        if (encoded == null || encoded.isBlank() || encoded.length() > MAX_LENGTH) {
+            throw new DocumentException(DocumentErrorCode.INVALID_PARAMETER);
+        }
+    }
+
+    private static void validatePayload(String[] fields) {
+        if (fields.length != FIELD_COUNT || !fields[0].equals(VERSION)) {
+            throw new DocumentException(DocumentErrorCode.INVALID_PARAMETER);
+        }
+    }
+
+    private void validateQueryScope(
+            long workspaceId,
+            long documentId,
+            long memberId
+    ) {
+        if (this.workspaceId != workspaceId || this.documentId != documentId || this.memberId != memberId) {
+            throw new DocumentException(DocumentErrorCode.INVALID_PARAMETER);
+        }
+    }
 }
