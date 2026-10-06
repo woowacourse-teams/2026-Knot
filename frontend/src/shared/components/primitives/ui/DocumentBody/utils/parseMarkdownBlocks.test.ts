@@ -104,6 +104,19 @@ describe("parseMarkdownBlocks", () => {
     ]);
   });
 
+  // 하위 목록은 정한 문법이 아니지만, 글자로 두기보다 같은 단계 항목으로 보여 주기로 했어요 (10-06)
+  it("앞에 들여쓰기가 있는 - 줄도 하위 목록이 아니라 같은 목록의 항목이다", () => {
+    expect(parseMarkdownBlocks({ content: lines("- 가", "  - 나") })).toEqual([
+      {
+        type: "list",
+        items: [
+          [{ type: "text", value: "가" }],
+          [{ type: "text", value: "나" }],
+        ],
+      },
+    ]);
+  });
+
   it("목록 바로 다음 줄이 - 로 시작하지 않으면 목록이 끝나고 문단이 시작된다", () => {
     expect(parseMarkdownBlocks({ content: lines("- 가", "문장") })).toEqual([
       { type: "list", items: [[{ type: "text", value: "가" }]] },
@@ -178,7 +191,6 @@ describe("parseMarkdownBlocks", () => {
     ["인용", "> 인용"],
     ["코드", "`코드`"],
     ["링크", "[링크](https://example.com)"],
-    ["들여쓴 목록", "  - 나"],
   ])("정한 문법 밖의 %s 는 글자 그대로인 문단이다", (_, text) => {
     expect(parseMarkdownBlocks({ content: text })).toEqual(paragraphOf(text));
   });

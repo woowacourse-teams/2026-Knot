@@ -9,7 +9,8 @@ interface ParseMarkdownBlocksParams {
 }
 
 const HEADING_PATTERN = /^(#{1,3}) (.+)$/;
-const LIST_ITEM_PATTERN = /^- (.+)$/;
+// 들여쓴 `- `(Markdown의 하위 목록)도 깊이를 따지지 않고 같은 목록의 항목으로 받아요
+const LIST_ITEM_PATTERN = /^\s*- (.+)$/;
 
 // 패턴은 `#`을 1~3개만 받지만 `length`의 타입은 number라, 단계 값인지 확인해 타입을 좁혀요
 const isHeadingLevel = (level: number): level is MarkdownHeadingLevel =>
