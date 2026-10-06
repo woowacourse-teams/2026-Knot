@@ -10,11 +10,14 @@ public record DocumentListParameters(
         MyConfirmationState myConfirmation,
         Long recordingSessionId
 ) {
+    private static final int DEFAULT_PAGE_SIZE = 50;
+    private static final int MIN_PAGE_SIZE = 1;
+    private static final int MAX_PAGE_SIZE = 100;
+
     public DocumentListParameters {
-        if (size < 1 || size > 100 || recordingSessionId != null && recordingSessionId <= 0
-                || cursor != null && cursor.isBlank()) {
-            throw new DocumentException(DocumentErrorCode.INVALID_PARAMETER);
-        }
+        validateSize(size);
+        validateRecordingSessionId(recordingSessionId);
+        validateCursor(cursor);
     }
 
     public static DocumentListParameters of(
@@ -25,9 +28,34 @@ public record DocumentListParameters(
     ) {
         return new DocumentListParameters(
                 cursor,
-                size == null ? 50 : size,
+                resolvePageSize(size),
                 myConfirmation,
                 recordingSessionId
         );
+    }
+
+    private static int resolvePageSize(Integer size) {
+        if (size == null) {
+            return DEFAULT_PAGE_SIZE;
+        }
+        return size;
+    }
+
+    private static void validateSize(int size) {
+        if (size < MIN_PAGE_SIZE || size > MAX_PAGE_SIZE) {
+            throw new DocumentException(DocumentErrorCode.INVALID_PARAMETER);
+        }
+    }
+
+    private static void validateRecordingSessionId(Long recordingSessionId) {
+        if (recordingSessionId != null && recordingSessionId <= 0) {
+            throw new DocumentException(DocumentErrorCode.INVALID_PARAMETER);
+        }
+    }
+
+    private static void validateCursor(String cursor) {
+        if (cursor != null && cursor.isBlank()) {
+            throw new DocumentException(DocumentErrorCode.INVALID_PARAMETER);
+        }
     }
 }
