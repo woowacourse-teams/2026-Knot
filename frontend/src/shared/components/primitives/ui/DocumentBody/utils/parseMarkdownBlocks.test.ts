@@ -200,4 +200,106 @@ describe("parseMarkdownBlocks", () => {
 
     expect(parseMarkdownBlocks({ content: html })).toEqual(paragraphOf(html));
   });
+
+  it("문단 전체가 mutedLines의 문장과 같으면 흐리게 그릴 문단이다", () => {
+    expect(
+      parseMarkdownBlocks({ content: "문장 A", mutedLines: ["문장 A"] }),
+    ).toEqual([
+      {
+        type: "paragraph",
+        lines: [[{ type: "text", value: "문장 A" }]],
+        isMuted: true,
+      },
+    ]);
+  });
+
+  it("문장 일부만 같거나 mutedLines가 없으면 흐리게 그리지 않는다", () => {
+    expect(
+      parseMarkdownBlocks({
+        content: "문장 A 뒤에 더",
+        mutedLines: ["문장 A"],
+      }),
+    ).toEqual(paragraphOf("문장 A 뒤에 더"));
+    expect(parseMarkdownBlocks({ content: "문장 A" })).toEqual(
+      paragraphOf("문장 A"),
+    );
+  });
+
+  // 아래 두 예시는 문서 생성기 형식(09-29)의 예시이자 mock 응답(documentDetailsResponse)과 같은 글이에요
+  it("결정이 있는 문서는 제목 4 · 문단 3 · 목록 1, 모두 8개 블록이다", () => {
+    const content = lines(
+      "## 결정",
+      "탈퇴한 사용자의 게시글은 유지하고, 작성자를 '탈퇴한 사용자'로 표시해요.",
+      "",
+      "## 적용 범위",
+      "댓글이 달린 게시글만 유지하고, 댓글 없는 글은 함께 삭제해요.",
+      "",
+      "## 이유",
+      "댓글이 달린 글이 사라지면 대화 흐름이 끊겨요.",
+      "",
+      "## 미결정 항목",
+      "- 첨부파일을 게시글과 함께 유지할지 — 아직 정해지지 않음",
+      "- 탈퇴 후 복구 기간 — 다음 논의에서 확인",
+    );
+
+    const blocks = parseMarkdownBlocks({ content });
+
+    expect(blocks.map(({ type }) => type)).toEqual([
+      "heading",
+      "paragraph",
+      "heading",
+      "paragraph",
+      "heading",
+      "paragraph",
+      "heading",
+      "list",
+    ]);
+    expect(blocks[7]).toEqual({
+      type: "list",
+      items: [
+        [
+          {
+            type: "text",
+            value: "첨부파일을 게시글과 함께 유지할지 — 아직 정해지지 않음",
+          },
+        ],
+        [{ type: "text", value: "탈퇴 후 복구 기간 — 다음 논의에서 확인" }],
+      ],
+    });
+  });
+
+  it("결정이 없는 문서는 제목 3 · 문단 1 · 목록 2이고, 결정 없음 문장만 흐리게 그린다", () => {
+    const noDecisionSentence = "이번 회의에서 정해진 내용은 없어요.";
+    const content = lines(
+      "## 결정",
+      noDecisionSentence,
+      "",
+      "## 논의한 내용",
+      "- 개편 범위 — 홈 전체 개편과 일부 개선, 두 안을 비교했어요",
+      "- 출시 시점 — 다음 분기 안에 가능한지 이야기했어요",
+      "",
+      "## 미결정 항목",
+      "- 개편 범위 — 디자인 시안을 보고 정하기로 함",
+      "- 출시 일정 — 개발 공수를 확인한 뒤 정하기로 함",
+    );
+
+    const blocks = parseMarkdownBlocks({
+      content,
+      mutedLines: [noDecisionSentence],
+    });
+
+    expect(blocks.map(({ type }) => type)).toEqual([
+      "heading",
+      "paragraph",
+      "heading",
+      "list",
+      "heading",
+      "list",
+    ]);
+    expect(blocks[1]).toEqual({
+      type: "paragraph",
+      lines: [[{ type: "text", value: noDecisionSentence }]],
+      isMuted: true,
+    });
+  });
 });

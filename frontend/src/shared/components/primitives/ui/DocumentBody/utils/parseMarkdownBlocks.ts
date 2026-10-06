@@ -6,6 +6,8 @@ import type {
 
 interface ParseMarkdownBlocksParams {
   content: string;
+  /** 문단 전체가 이 문장 중 하나와 같으면 그 문단을 흐리게 그려요. 어떤 문장인지는 부르는 쪽이 정해요 */
+  mutedLines?: string[];
 }
 
 const HEADING_PATTERN = /^(#{1,3}) (.+)$/;
@@ -39,7 +41,10 @@ const parseInlines = (text: string) => {
   return inlines;
 };
 
-export const parseMarkdownBlocks = ({ content }: ParseMarkdownBlocksParams) => {
+export const parseMarkdownBlocks = ({
+  content,
+  mutedLines = [],
+}: ParseMarkdownBlocksParams) => {
   const blocks: MarkdownBlock[] = [];
   // 빈 줄이나 다른 블록을 만나기 전까지 이어진 줄을 모아 한 블록으로 내보내요
   let paragraphLines: string[] = [];
@@ -51,7 +56,7 @@ export const parseMarkdownBlocks = ({ content }: ParseMarkdownBlocksParams) => {
     blocks.push({
       type: "paragraph",
       lines: paragraphLines.map(parseInlines),
-      isMuted: false,
+      isMuted: mutedLines.includes(paragraphLines.join("\n").trim()),
     });
     paragraphLines = [];
   };
