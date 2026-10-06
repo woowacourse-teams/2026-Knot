@@ -10,7 +10,7 @@
 1. `POST .../recordings/{recordingId}/end`로 녹음을 종료한다.
 2. 이 API로 `uploadId`와 `uploadUrl`을 받는다.
 3. 녹음 파일을 `uploadUrl`에 그대로 `PUT`한다. 백엔드는 오디오 바이너리를 받지 않는다.
-4. 업로드 완료 확인 API(후속 Issue)에 `uploadId`를 보낸다.
+4. [업로드 완료 확인 API](recording-audio-upload-complete.md)에 `uploadId`를 보낸다.
 
 ## 요청
 
@@ -62,5 +62,5 @@
 
 ## 이번 범위 밖
 
-- 업로드 완료 확인과 STT 접수
+- 업로드 완료 확인(별도 문서)과 STT 접수
 - 조각 업로드, 완료되지 않은 업로드 파일 정리(저장소 수명주기 규칙으로 처리)

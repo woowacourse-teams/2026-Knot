@@ -98,6 +98,34 @@ public class RecordingAudioUpload {
         }
     }
 
+    public void validateBelongsTo(long recordingId) {
+        if (this.recordingId != recordingId) {
+            throw new RecordingException(RecordingErrorCode.AUDIO_UPLOAD_NOT_FOUND);
+        }
+    }
+
+    public boolean isCompleted() {
+        return status == RecordingAudioUploadStatus.COMPLETED;
+    }
+
+    public void complete(
+            long storedContentLength,
+            String storedContentType,
+            Instant completedAt
+    ) {
+        if (isCompleted()) {
+            return;
+        }
+        if (storedContentLength != contentLength || !contentType.equals(storedContentType)) {
+            throw new RecordingException(RecordingErrorCode.AUDIO_UPLOAD_NOT_COMPLETED);
+        }
+        if (completedAt == null || completedAt.isBefore(reservedAt)) {
+            throw new RecordingException(RecordingErrorCode.INVALID_RECORDING_TIME);
+        }
+        this.status = RecordingAudioUploadStatus.COMPLETED;
+        this.completedAt = completedAt;
+    }
+
     private void validateFile(
             String contentType,
             long contentLength

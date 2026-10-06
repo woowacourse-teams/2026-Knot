@@ -2,6 +2,7 @@ package com.knot.backend.recording.infrastructure.storage;
 
 import com.knot.backend.recording.application.RecordingAudioStorage;
 import com.knot.backend.recording.application.dto.result.PresignedAudioUpload;
+import com.knot.backend.recording.application.dto.result.StoredAudioObject;
 import com.knot.backend.recording.domain.RecordingErrorCode;
 import com.knot.backend.recording.domain.RecordingException;
 
@@ -14,6 +15,11 @@ public class UnconfiguredRecordingAudioStorage implements RecordingAudioStorage 
             String contentType,
             long contentLength
     ) {
+        throw new RecordingException(RecordingErrorCode.AUDIO_STORAGE_UNAVAILABLE);
+    }
+
+    @Override
+    public StoredAudioObject findStoredObject(String storageKey) {
         throw new RecordingException(RecordingErrorCode.AUDIO_STORAGE_UNAVAILABLE);
     }
 }

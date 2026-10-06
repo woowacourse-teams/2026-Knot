@@ -60,6 +60,18 @@ public enum RecordingErrorCode implements ErrorCode {
             "이미 오디오 업로드가 완료된 녹음입니다"
     ),
 
+    AUDIO_UPLOAD_NOT_FOUND(
+            ErrorCategory.NOT_FOUND,
+            "AUDIO_UPLOAD_NOT_FOUND",
+            "오디오 업로드 예약을 찾을 수 없습니다"
+    ),
+
+    AUDIO_UPLOAD_NOT_COMPLETED(
+            ErrorCategory.CONFLICT,
+            "AUDIO_UPLOAD_NOT_COMPLETED",
+            "예약한 오디오 파일이 저장소에 올라가지 않았습니다"
+    ),
+
     AUDIO_STORAGE_UNAVAILABLE(
             ErrorCategory.INTERNAL_SERVER_ERROR,
             "AUDIO_STORAGE_UNAVAILABLE",

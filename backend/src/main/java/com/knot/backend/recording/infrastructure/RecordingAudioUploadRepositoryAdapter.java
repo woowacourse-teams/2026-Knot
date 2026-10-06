@@ -17,6 +17,11 @@ public class RecordingAudioUploadRepositoryAdapter implements RecordingAudioUplo
     }
 
     @Override
+    public Optional<RecordingAudioUpload> findById(long uploadId) {
+        return recordingAudioUploadJpaRepository.findById(uploadId);
+    }
+
+    @Override
     public Optional<RecordingAudioUpload> findByRecordingId(long recordingId) {
         return recordingAudioUploadJpaRepository.findByRecordingId(recordingId);
     }
