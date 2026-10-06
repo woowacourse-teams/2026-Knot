@@ -2,7 +2,7 @@
 # requires-python = ">=3.12"
 # dependencies = [
 #   "anyio>=4,<5",
-#   "discord.py>=2.5,<3",
+#   "discord.py>=2.6,<3",
 #   "httpx2[http2,brotli,zstd]",
 #   "keyring>=25,<27",
 #   "mcp>=1.12,<2",
