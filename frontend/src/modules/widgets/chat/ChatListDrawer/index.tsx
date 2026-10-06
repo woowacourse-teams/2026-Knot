@@ -35,10 +35,10 @@ export default function ChatListDrawer() {
 const Container = styled.aside`
   display: flex;
   flex-direction: column;
-  gap: 1rem; /* 16px */
+  gap: 0.75rem; /* 12px */
   width: 17.5rem; /* 280px */
   height: 100%;
-  padding: 1.125rem 1rem; /* 18px 16px */
+  padding: 1rem; /* 16px */
   border: 1px solid ${({ theme }) => theme.neutral[200]};
   border-radius: 1.5rem; /* 24px */
   background-color: ${({ theme }) => theme.neutral[0]};
@@ -50,6 +50,7 @@ const DrawerHead = styled.div`
   flex-shrink: 0;
   align-items: center;
   justify-content: space-between;
+  height: 2.5rem; /* 40px */
   padding-left: 0.25rem; /* 4px */
 `;
 
