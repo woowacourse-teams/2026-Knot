@@ -61,6 +61,69 @@ class RecordingAudioStorageConfigTest {
                 .doesNotContain("test-secret-key");
     }
 
+    @Test
+    @DisplayName("고정 키가 둘 다 없으면 자격 증명을 조회하지 않고 기본 공급자를 구성한다")
+    void recordingAudioStorage_success_defaultCredentials() {
+        // given
+        RecordingAudioStorageProperties properties = propertiesWithCredentials(
+                "",
+                ""
+        );
+
+        // when
+        RecordingAudioStorage storage = new RecordingAudioStorageConfig().recordingAudioStorage(properties);
+
+        // then
+        assertThat(storage).isInstanceOf(S3RecordingAudioStorage.class);
+    }
+
+    @Test
+    @DisplayName("접근 키만 있으면 다른 인증 방식으로 우회하지 않고 저장소 사용 불가로 거절한다")
+    void recordingAudioStorage_failure_onlyAccessKey() {
+        // given
+        RecordingAudioStorageProperties properties = propertiesWithCredentials(
+                "test-access-key",
+                ""
+        );
+
+        // when
+        RecordingAudioStorage storage = new RecordingAudioStorageConfig().recordingAudioStorage(properties);
+
+        // then
+        assertThat(storage).isInstanceOf(UnconfiguredRecordingAudioStorage.class);
+    }
+
+    @Test
+    @DisplayName("비밀 키만 있으면 다른 인증 방식으로 우회하지 않고 저장소 사용 불가로 거절한다")
+    void recordingAudioStorage_failure_onlySecretKey() {
+        // given
+        RecordingAudioStorageProperties properties = propertiesWithCredentials(
+                "",
+                "test-secret-key"
+        );
+
+        // when
+        RecordingAudioStorage storage = new RecordingAudioStorageConfig().recordingAudioStorage(properties);
+
+        // then
+        assertThat(storage).isInstanceOf(UnconfiguredRecordingAudioStorage.class);
+    }
+
+    private RecordingAudioStorageProperties propertiesWithCredentials(
+            String accessKey,
+            String secretKey
+    ) {
+        return new RecordingAudioStorageProperties(
+                "https://s3.ap-northeast-2.amazonaws.com",
+                "ap-northeast-2",
+                "knot-audio",
+                accessKey,
+                secretKey,
+                "knot/dev/",
+                Duration.ofMinutes(15)
+        );
+    }
+
     private RecordingAudioStorageProperties properties(String bucket) {
         return new RecordingAudioStorageProperties(
                 "https://kr.object.ncloudstorage.com",
@@ -68,6 +131,7 @@ class RecordingAudioStorageConfigTest {
                 bucket,
                 "test-access-key",
                 "test-secret-key",
+                "",
                 Duration.ofMinutes(15)
         );
     }
