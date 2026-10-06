@@ -239,15 +239,23 @@ class DocumentConfirmationAcceptanceTest {
         )
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value("FORBIDDEN"));
+        Cookie csrf = mvc.perform(get("/api/v1/auth/csrf"))
+                .andReturn()
+                .getResponse()
+                .getCookie("XSRF-TOKEN");
         mvc.perform(
-                request(
+                put(
+                        PATH,
                         workspaceId,
-                        documentId,
-                        targetId
-                ).header(
-                        "X-XSRF-TOKEN",
-                        "invalid"
+                        documentId
+                ).cookie(
+                        cookie(targetId),
+                        csrf
                 )
+                        .header(
+                                "X-XSRF-TOKEN",
+                                "invalid"
+                        )
         )
                 .andExpect(status().isForbidden());
         assertThat(fixtures.snapshot()).isEqualTo(before);
