@@ -485,6 +485,78 @@ class DocumentConfirmationTransactionIntegrationTest {
         }
     }
 
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    @DisplayName("탈퇴가 먼저 잠금을 잡으면 확인은 커밋을 기다린 뒤 현재 멤버 권한을 다시 검사한다")
+    void confirm_failure_waitsForDepartureCommit(boolean ownershipTransfer) throws Exception {
+        // given
+        prepareDeparture(ownershipTransfer);
+        CountDownLatch entered = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+        doAnswer(invocation -> {
+            entered.countDown();
+            if (!release.await(
+                    10,
+                    TimeUnit.SECONDS
+            )) {
+                throw new IllegalStateException("탈퇴 트랜잭션 대기 시간 초과");
+            }
+            return invocation.callRealMethod();
+        }).when(query)
+                .findSummary(
+                        workspaceId,
+                        documentId,
+                        secondId
+                );
+        try (ExecutorService pool = Executors.newFixedThreadPool(2)) {
+            Future<?> departing = pool.submit(
+                    () -> depart(
+                            ownershipTransfer,
+                            secondId,
+                            firstId
+                    )
+            );
+            assertThat(
+                    entered.await(
+                            10,
+                            TimeUnit.SECONDS
+                    )
+            ).isTrue();
+            Future<DocumentConfirmationResult> confirming = pool.submit(
+                    () -> service.confirm(
+                            workspaceId,
+                            secondId,
+                            documentId
+                    )
+            );
+            try {
+                // when
+                assertDatabaseLockWait();
+            } finally {
+                release.countDown();
+            }
+            departing.get(
+                    10,
+                    TimeUnit.SECONDS
+            );
+
+            // then
+            assertThatThrownBy(
+                    () -> confirming.get(
+                            10,
+                            TimeUnit.SECONDS
+                    )
+            ).hasCauseInstanceOf(WorkspaceException.class);
+            assertThat(storedStatus()).isEqualTo("DRAFT");
+            assertThat(summary().confirmedCount()).isZero();
+            assertThat(summary().pendingCount()).isEqualTo(1);
+            assertThat(summary().excludedCount()).isEqualTo(1);
+            assertThat(targetCount()).isEqualTo(2);
+        } finally {
+            release.countDown();
+        }
+    }
+
     @Test
     @DisplayName("탈퇴 커밋 뒤 도착한 확인은 권한 거절되며 대상 기록을 보존한다")
     void confirm_failure_afterDeparture() {
