@@ -3,7 +3,7 @@ import {
   type PostRecordingAudioUploadUrlRequestDto,
   type PostRecordingAudioUploadUrlResponseRaw,
 } from "@api/dto/recording";
-import { httpClient } from "@api/httpClient";
+import { apiClient } from "@api/axiosInstance/apiClient";
 import axios from "axios";
 
 export const RECORDING_AUDIO_UPLOAD_URL_API_PATH = (
@@ -30,7 +30,7 @@ export const issueRecordingAudioUploadUrlApi = async ({
   recordingId,
   body,
 }: IssueRecordingAudioUploadUrlApiParams) => {
-  const response = await httpClient<PostRecordingAudioUploadUrlResponseRaw>({
+  const response = await apiClient<PostRecordingAudioUploadUrlResponseRaw>({
     method: "post",
     url: RECORDING_AUDIO_UPLOAD_URL_API_PATH(workspaceId, recordingId),
     data: body,
