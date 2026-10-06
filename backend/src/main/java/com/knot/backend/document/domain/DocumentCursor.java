@@ -1,9 +1,11 @@
 package com.knot.backend.document.domain;
 
 import java.nio.charset.StandardCharsets;
+import java.time.DateTimeException;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.Base64;
+import java.util.Objects;
 import lombok.Getter;
 
 @Getter
@@ -66,4 +68,46 @@ public class DocumentCursor {
                 .encodeToString(payload.getBytes(StandardCharsets.UTF_8));
     }
 
+    public static DocumentCursor parse(
+            String encoded,
+            long workspaceId,
+            long memberId,
+            MyConfirmationState myConfirmation,
+            Long recordingSessionId
+    ) {
+        try {
+            if (encoded == null || encoded.isBlank() || encoded.length() > 512) {
+                throw new DocumentException(DocumentErrorCode.INVALID_PARAMETER);
+            }
+            String[] values = new String(
+                    Base64.getUrlDecoder()
+                            .decode(encoded),
+                    StandardCharsets.UTF_8
+            ).split(
+                    "\\|",
+                    -1
+            );
+            if (values.length != 7 || !values[0].equals("1")) {
+                throw new DocumentException(DocumentErrorCode.INVALID_PARAMETER);
+            }
+            DocumentCursor cursor = of(
+                    Long.parseLong(values[1]),
+                    Long.parseLong(values[2]),
+                    values[3].equals("ALL") ? null : MyConfirmationState.valueOf(values[3]),
+                    values[4].equals("ALL") ? null : Long.valueOf(values[4]),
+                    Instant.parse(values[5]),
+                    Long.parseLong(values[6])
+            );
+            if (cursor.workspaceId != workspaceId || cursor.memberId != memberId
+                    || cursor.myConfirmation != myConfirmation || !Objects.equals(
+                            cursor.recordingSessionId,
+                            recordingSessionId
+                    )) {
+                throw new DocumentException(DocumentErrorCode.INVALID_PARAMETER);
+            }
+            return cursor;
+        } catch (IllegalArgumentException | DateTimeException exception) {
+            throw new DocumentException(DocumentErrorCode.INVALID_PARAMETER);
+        }
+    }
 }
