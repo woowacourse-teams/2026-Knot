@@ -7,6 +7,7 @@ import com.knot.backend.document.domain.DocumentCursor;
 import java.util.List;
 
 public interface DocumentListQuery {
+
     List<DocumentTopicResult> findTopics(
             long workspaceId,
             long memberId,

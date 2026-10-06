@@ -20,6 +20,7 @@ import org.springframework.http.MediaType;
 @Tag(name = "문서", description = "생성된 읽기 전용 문서와 확인 현황 조회")
 @SecurityRequirement(name = ACCESS_TOKEN_COOKIE)
 public interface DocumentApi {
+
     // @formatter:off
     @Operation(summary = "주제별 문서 폴더와 카드 목록 조회",
             description = "현재 Workspace의 DRAFT·ARCHIVED 문서를 생성 시각 내림차순, 동률이면 ID 내림차순으로 조회합니다. "
