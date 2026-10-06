@@ -1,6 +1,7 @@
 import type {
   MarkdownBlock,
   MarkdownHeadingLevel,
+  MarkdownInline,
 } from "../types/markdownBlock";
 
 interface ParseMarkdownBlocksParams {
@@ -14,6 +15,29 @@ const LIST_ITEM_PATTERN = /^- (.+)$/;
 const isHeadingLevel = (level: number): level is MarkdownHeadingLevel =>
   level >= 1 && level <= 3;
 
+// `+?`는 가장 가까운 닫는 `**`에서 멈추게 해요. 없으면 `**a** b **c**`가 굵게 하나로 묶여요
+const BOLD_PATTERN = /\*\*(.+?)\*\*/g;
+
+/** 한 줄을 `**굵게**` 조각과 글자 조각으로 나눠요. 그 밖의 기호는 글자 조각에 그대로 남아요 */
+const parseInlines = (text: string) => {
+  const inlines: MarkdownInline[] = [];
+  let lastIndex = 0;
+
+  for (const match of text.matchAll(BOLD_PATTERN)) {
+    if (match.index > lastIndex) {
+      inlines.push({ type: "text", value: text.slice(lastIndex, match.index) });
+    }
+    inlines.push({ type: "bold", value: match[1] });
+    lastIndex = match.index + match[0].length;
+  }
+
+  if (lastIndex < text.length) {
+    inlines.push({ type: "text", value: text.slice(lastIndex) });
+  }
+
+  return inlines;
+};
+
 export const parseMarkdownBlocks = ({ content }: ParseMarkdownBlocksParams) => {
   const blocks: MarkdownBlock[] = [];
   // 빈 줄이나 다른 블록을 만나기 전까지 이어진 줄을 모아 한 블록으로 내보내요
@@ -25,7 +49,7 @@ export const parseMarkdownBlocks = ({ content }: ParseMarkdownBlocksParams) => {
 
     blocks.push({
       type: "paragraph",
-      lines: paragraphLines.map((line) => [{ type: "text", value: line }]),
+      lines: paragraphLines.map(parseInlines),
       isMuted: false,
     });
     paragraphLines = [];
@@ -36,7 +60,7 @@ export const parseMarkdownBlocks = ({ content }: ParseMarkdownBlocksParams) => {
 
     blocks.push({
       type: "list",
-      items: listItems.map((item) => [{ type: "text", value: item }]),
+      items: listItems.map(parseInlines),
     });
     listItems = [];
   };
@@ -53,7 +77,7 @@ export const parseMarkdownBlocks = ({ content }: ParseMarkdownBlocksParams) => {
       blocks.push({
         type: "heading",
         level: headingLevel,
-        inlines: [{ type: "text", value: heading[2] }],
+        inlines: parseInlines(heading[2]),
       });
       continue;
     }
