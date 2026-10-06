@@ -66,11 +66,16 @@ public class Document {
             String content,
             Instant createdAt
     ) {
-        if (workspaceId <= 0 || recordingSessionId <= 0 || sourceTranscriptId <= 0 || documentGenerationJobId <= 0
-                || topic == null || topic.isBlank() || title == null || title.isBlank() || content == null
-                || content.isBlank() || createdAt == null) {
-            throw new DocumentException(DocumentErrorCode.INVALID_DOCUMENT_DATA);
-        }
+        validateSourceIdentifiers(
+                workspaceId,
+                recordingSessionId,
+                sourceTranscriptId,
+                documentGenerationJobId
+        );
+        validateRequiredText(topic);
+        validateRequiredText(title);
+        validateRequiredText(content);
+        validateCreatedAt(createdAt);
         this.workspaceId = workspaceId;
         this.recordingSessionId = recordingSessionId;
         this.sourceTranscriptId = sourceTranscriptId;
@@ -105,5 +110,28 @@ public class Document {
                 content,
                 createdAt
         );
+    }
+
+    private static void validateSourceIdentifiers(
+            long workspaceId,
+            long recordingSessionId,
+            long sourceTranscriptId,
+            long documentGenerationJobId
+    ) {
+        if (workspaceId <= 0 || recordingSessionId <= 0 || sourceTranscriptId <= 0 || documentGenerationJobId <= 0) {
+            throw new DocumentException(DocumentErrorCode.INVALID_DOCUMENT_DATA);
+        }
+    }
+
+    private static void validateRequiredText(String text) {
+        if (text == null || text.isBlank()) {
+            throw new DocumentException(DocumentErrorCode.INVALID_DOCUMENT_DATA);
+        }
+    }
+
+    private static void validateCreatedAt(Instant createdAt) {
+        if (createdAt == null) {
+            throw new DocumentException(DocumentErrorCode.INVALID_DOCUMENT_DATA);
+        }
     }
 }
