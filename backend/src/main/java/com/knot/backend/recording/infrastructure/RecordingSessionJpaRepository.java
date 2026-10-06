@@ -25,6 +25,12 @@ interface RecordingSessionJpaRepository extends JpaRepository<RecordingSession, 
             Collection<RecordingStatus> statuses
     );
 
+    Optional<RecordingSession> findByWorkspaceIdAndMemberIdAndStatusIn(
+            long workspaceId,
+            long memberId,
+            Collection<RecordingStatus> statuses
+    );
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     List<RecordingSession> findAllByWorkspaceIdAndStatusInOrderByIdAsc(
             long workspaceId,
