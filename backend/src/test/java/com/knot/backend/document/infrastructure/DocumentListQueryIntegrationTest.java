@@ -46,6 +46,81 @@ class DocumentListQueryIntegrationTest {
     }
 
     @Test
+    @DisplayName("주제 수는 페이지 범위와 무관하고 동률 문서는 ID 내림차순으로 이어 읽는다")
+    void find_success_countsAndCursor() {
+        long first = saveDocument(
+                workspaceId,
+                "정책"
+        );
+        long second = saveDocument(
+                workspaceId,
+                "정책"
+        );
+        long third = saveDocument(
+                workspaceId,
+                "개발"
+        );
+        saveDocument(
+                fixtures.saveWorkspace(),
+                "외부"
+        );
+        DocumentListParameters parameters = DocumentListParameters.of(
+                null,
+                1,
+                null,
+                null
+        );
+
+        assertThat(
+                query.findTopics(
+                        workspaceId,
+                        memberId,
+                        parameters
+                )
+        ).extracting(topic -> topic.topic() + ":" + topic.documentCount())
+                .containsExactly(
+                        "개발:1",
+                        "정책:2"
+                );
+        assertThat(
+                query.findPage(
+                        workspaceId,
+                        memberId,
+                        parameters,
+                        null
+                )
+        ).extracting(DocumentCardResult::id)
+                .containsExactly(
+                        third,
+                        second
+                );
+        DocumentCursor cursor = DocumentCursor.of(
+                workspaceId,
+                memberId,
+                null,
+                null,
+                DocumentFixtures.CREATED_AT,
+                second
+        );
+        assertThat(
+                query.findPage(
+                        workspaceId,
+                        memberId,
+                        parameters,
+                        cursor
+                )
+        ).extracting(DocumentCardResult::id)
+                .containsExactly(first);
+        assertThat(
+                query.findTopics(
+                        workspaceId,
+                        memberId,
+                        parameters
+                )
+        ).hasSize(2);
+    }
+
+    @Test
     @DisplayName("녹음과 내 확인 상태 필터는 AND로 적용하고 필터 밖 주제는 제외한다")
     void find_success_combinedFilters() {
         long pending = saveDocument(
@@ -87,7 +162,14 @@ class DocumentListQueryIntegrationTest {
                 )
         ).extracting(DocumentCardResult::id)
                 .containsExactly(pending);
-
+        assertThat(
+                query.findTopics(
+                        workspaceId,
+                        memberId,
+                        parameters
+                )
+        ).extracting(topic -> topic.topic())
+                .containsExactly("정책");
         assertThat(
                 query.findPage(
                         workspaceId,
@@ -320,7 +402,13 @@ class DocumentListQueryIntegrationTest {
                     null,
                     recording
             );
-
+            assertThat(
+                    query.findTopics(
+                            workspaceId,
+                            memberId,
+                            parameters
+                    )
+            ).isEmpty();
             assertThat(
                     query.findPage(
                             workspaceId,
