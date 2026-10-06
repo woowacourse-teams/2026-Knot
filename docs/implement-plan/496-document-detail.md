@@ -1,6 +1,6 @@
 # #496 문서 상세 조회 구현 계획
 
-상태: API 구현·전체 Gradle 검증 완료, Persona 완료 인증 미통과 · 확인일: 2026-10-06 · 브랜치: `be/feature/#496`.
+상태: 상세 API의 기존 검증 완료, 음성 도메인 담당 경계를 반영한 연결 계획·미구현, Persona 완료 인증 미통과 · 확인일: 2026-10-06 · 브랜치: `be/feature/#496`.
 기준: 사용자 최신 API, 대화에서 확정한 제품 결정, Issue #496과 현재 코드. 사용자 결정과 팀 승인 여부는 구분한다. 아래 본문은 구현 전 계획이며 실제 진행 사항은 마지막 절에 기록한다.
 
 ## 1. 범위와 브랜치
@@ -146,3 +146,131 @@ Mockito는 DB 제약·커밋을, standalone MockMvc는 실제 Security 필터를
 - API 구현 계약은 [문서 상세 API](../api/document-detail.md)에 저장했다. V26 선행 합류·배포와 서버 누적 녹음 시간 기준을 명시했다.
 - Persona 구현·검토 보고서에 현재 작업을 추가했다. `workflow finish implement`는 기존 작업 상태와 도구의 읽기 근거 경로 문제로 미통과이며 제품 테스트 성공과 구분한다. 과거 #427 pending 카드를 이번 작업 완료로 처리하지 않았다.
 - 사용자 후속 요청으로 작업 단위 commit·push와 #496 Draft PR 게시를 진행한다. 배포는 범위에 포함하지 않는다. 다음 구현 대상은 #495이며 이번 작업에서 시작하지 않는다.
+
+## ERD 원본 연결 보완 검토 이력 — 담당 범위 확인 후 미채택
+
+상태: 미채택·미구현. 확인일: 2026-10-06. 사용자가 STT 및 음성 도메인은 본인의 담당 범위가 아니라고 명시했다. 아래의 #496 내 TranscriptionJob 신규 구현 제안은 실행하지 않는다. 현재 작업 기준은 마지막의 담당 경계 반영 계획이며, 아래 내용은 비교한 설계 이력이다. 기존 테스트 성공은 아래 관계가 구현되었다는 근거가 아니다.
+
+### 1. 범위와 브랜치
+
+기존 `be/feature/#496`에서 Document 상세 조회의 출처 저장 관계를 보완한다. Draft PR [#502](https://github.com/woowacourse-teams/2026-Knot/pull/502)의 기존 변경에 이어 작업할 제안이다. 이번 요청은 계획 설명이며 제품 코드 변경·commit·push·원격 문서 수정은 수행하지 않는다.
+
+Notion MCP로 확인한 [Entity 관계도](https://app.notion.com/p/2200691a002383aea63301d4e6043f36)와 [컬럼 관계도](https://app.notion.com/p/4f10691a0023828f8e4101e2d14e6f42)는 RecordingSession → TranscriptionJob → Transcript를 정한다. 현재 코드는 Transcript가 RecordingSession을 직접 참조하며 전사 Job 출처가 없다. 녹음당 Job 최대 하나와 Job당 원문 최대 하나도 구현되지 않았다. 최신 API·사용자 결정의 STT 성공 후 자동 문서 생성과 생성된 Document의 멤버별 확인은 유지한다.
+
+GitHub의 현재 develop tree와 열린 업로드 PR #483·#485에는 TranscriptionJob/Transcript 모델이 없다. #485 본문은 STT 접수를 명시적으로 범위에서 제외한다. 이 관측은 별도 로컬·미게시 STT 작업이 없다는 증거는 아니다. 현재 공개 코드에서 재사용할 전사 Job 모델은 발견되지 않았다. 실제 STT 호출·스케줄링·재시도 실행은 후속 작업에서 담당한다.
+
+### 2. 구현할 흐름
+
+```text
+RecordingSession
+  → TranscriptionJob: 녹음당 최대 하나
+  → Transcript: 전사 Job당 최대 하나
+  → DocumentGenerationJob
+  → Document DRAFT
+  → DocumentConfirmation: 생성된 문서의 확인 기록
+```
+
+이번 보완은 이 출처 관계를 저장할 기반과 상세 조회 회귀 검증이다. HTTP 상세 경로·DocumentApi/Controller의 findDocument·DocumentDetailService/Query의 find와 응답 필드는 유지한다. 생성된 문서를 원문과 비교하며 확인하는 기능은 DocumentConfirmation에 연결하며, Transcript 사전 검토 필드를 추가하지 않는다.
+
+### 3. 나올 코드와 메서드 초안
+
+기존 Transcript와 Document의 직접 녹음 ID는 조회 및 같은 녹음·주제 중복 방지에 쓰인다. 이를 모두 제거하는 안은 상세 JOIN과 중복 제약을 다시 설계해야 한다. 이번 제안은 전사 Job을 필수 출처로 추가하되 기존 직접 ID를 DB 일치 제약으로 묶어 유지하는 방식이다. 이는 ERD의 관계를 보완하는 물리 설계 제안이며 ERD 컬럼 표와 완전히 동일한 구조라고 표현하지 않는다.
+
+| 위치·클래스 | 책임 | 메서드 후보 |
+| --- | --- | --- |
+| recording/domain/TranscriptionJob, TranscriptionJobStatus (신규 제안) | 녹음에 귀속되는 전사 작업 저장 모델과 네 상태 | queue(recordingSessionId, createdAt): 양수 ID·시각을 검사해 초기 작업 구성 |
+| recording/domain/Transcript (기존 변경) | 전사 Job의 결과 출처 명시 | create(transcriptionJobId, recordingSessionId, content, createdAt): 출처 ID·본문·시각 검사 |
+| document/infrastructure/DocumentDetailQueryAdapter (기존) | 기존 상세 조회와 집계 | find(...) 유지 가능 여부를 실제 DB 회귀 테스트로 확인 |
+| 테스트 DocumentFixtures와 JPA 저장 테스트 | 전사 Job까지 포함한 저장 경로 구성 | 녹음 → 전사 Job → 원문 순서로 데이터 생성 |
+
+전사 실행 서비스·공급자 adapter·Job 생성 HTTP API·사용하지 않는 Repository는 추가하지 않는다. Job 성공 데이터는 저장/조회 테스트의 fixture이며 실제 STT 실행 성공을 증명하지 않는다.
+
+### 4. 저장 기반과 주의할 점
+
+| 저장 대상 | 제안 제약 |
+| --- | --- |
+| transcription_jobs.recording_session_id | NOT NULL FK → recording_sessions, UNIQUE: 녹음당 전사 Job 최대 하나 |
+| transcription_jobs 상태·실행 시각 | ERD의 status, attempt_count, created_at, updated_at, finished_at 저장 규칙을 맞춤. 상태 네 값·시도 수 비음수·완료 상태/시각 CHECK |
+| transcripts.transcription_job_id | NOT NULL FK → transcription_jobs, UNIQUE: Job당 원문 최대 하나 |
+| transcripts.recording_session_id | 기존 중복 출처 컬럼 유지 제안. (transcription_job_id, recording_session_id) 복합 FK로 Job의 녹음과 원문의 녹음이 같음을 보장 |
+| documents 출처 | 기존 복합 FK를 통해 문서·생성 Job·Transcript·RecordingSession·Workspace 일치를 유지 |
+
+transcription_jobs에는 복합 FK의 참조 대상으로 (id, recording_session_id) UNIQUE가 필요하다. 기존 직접 ID는 전사 Job 연결을 대체하는 출처가 아니다. Transcript.recording_session_id 및 Document.recording_session_id/source_transcript_id를 유지한다면 컬럼 관계도·물리 ERD에도 추가 컬럼의 이유와 제약을 기록하고 팀 리뷰에서 확인해야 한다. 이 계획에서 Notion 원격 수정이나 팀 승인으로 처리하지 않는다.
+
+Migration이 필요하다. develop은 V24까지, #483·#485에는 V26이 있고 현재 브랜치에는 V27이 있다. 공유·운영 DB 적용 이력은 관측하지 않았다. 적용된 migration은 바꾸지 않고 후속 migration으로 보정한다. 실행 전 최신 번호 충돌과 적용 순서를 다시 확인하며 새 버전을 현재 시점에 확정하지 않는다.
+
+기존 Transcript 데이터가 있다면 실제 전사 Job 출처와 녹음당 원문 중복 여부를 확인해야 한다. 연결 정보가 없는 데이터에 성공한 전사 Job 이력을 임의로 만들어 backfill하거나 중복 원문을 삭제하지 않는다. 알려진 원본 매핑이 없으면 데이터 전환은 별도 확인 대상이다. 빈 DB 생성 테스트와 데이터가 있는 DB 전환 검증을 구분한다. V26 선행 배포 조건도 유지한다.
+
+### 5. TDD와 검증 순서
+
+1. 녹음당 전사 Job 중복 거절·전사 Job당 원문 중복 거절·없는 Job 참조 거절 테스트 → 전사 Job 테이블과 출처 FK/UNIQUE 구현.
+2. Job의 녹음과 Transcript의 녹음 불일치 거절 테스트 → 복합 FK 구현.
+3. 전사 Job 초기 생성 및 Transcript 출처 입력 검증 테스트 → 최소 Entity·factory 구현.
+4. 기존 상세 fixture를 올바른 연결 경로로 변경 → JPA mapping과 상세 조회 회귀 검증.
+5. 권한·3상태·집계·원본 ID·동일 주제 중복·성공 자료 삭제 보호 회귀 검증 → API 문서·이 계획과 Persona 보고서 갱신.
+
+| 방식 | 검증 내용 | 기대 결과 |
+| --- | --- | --- |
+| JUnit 단위 | queue/create 정상·0 이하 출처 ID·필수 값 누락 | 정상 모델 생성, 도메인 오류 |
+| PostgreSQL/Flyway | 정상 출처 체인, 중복 Job/Transcript, 없는 FK·다른 녹음 연결 | 정상 저장, 잘못된 저장 DB 거절 |
+| PostgreSQL/JPA | 신규 Job/Transcript 저장·재조회, schema validate | 정확한 필드와 연결 |
+| Query 통합 테스트 | 기존 DRAFT/ARCHIVED 상세, recordingSessionId/sourceTranscriptId, 확인 집계 | 기존 계약 유지 |
+| 실제 Security/DB 인수 테스트 | 200·401·403·404, 읽기 전후 상태·확인 기록 | 기존 HTTP 계약과 조회 불변 유지 |
+
+집중 검증은 해당 domain 테스트, DocumentSchemaIntegrationTest와 DocumentDetailQueryIntegrationTest, DocumentDetailAcceptanceTest부터 실행한다. 공유 schema 변경이므로 최종 `./gradlew check --console=plain` 및 Persona 보고서·`npx ph workflow finish implement`를 수행한다. 실제 구현 전 `npx ph workflow implement`를 실행하며 기존 Persona 미통과 상태를 임의로 완료 처리하지 않는다. 아직 이 보완안의 테스트는 실행하지 않았다.
+
+### 6. 완료 기준과 다음 작업
+
+전사 Job 없이 원문을 저장할 수 없고, 녹음당 Job·Job당 원문 최대 하나와 출처 일치가 PostgreSQL에서 보장되며 기존 상세 API가 유지되면 이번 연결 보완이 완료된다. 보완된 논리 관계와 유지한 추가 물리 컬럼을 문서에서 구분한다. 원문 구간 생산·실제 STT·자동 문서 생성은 이번 저장/조회 검증으로 완료했다고 판단하지 않는다.
+
+실제 STT 연결, 원문 구간과 #499, 자동 문서 생성 #501은 후속 작업이다. 계획만 저장했으며 제품 코드는 변경하지 않았다.
+
+## 현재 계획 — 음성 도메인 담당 경계 반영
+
+상태: 계획·미구현. 확인일: 2026-10-06. 사용자는 문서 도메인을 담당하며 STT·음성 도메인은 담당하지 않는다. 이 절이 앞의 전사 Job 구현 제안을 대체한다.
+
+### 1. 범위와 브랜치
+
+#496 및 Draft PR #502는 Document·DocumentConfirmation·문서 상세 조회의 범위로 유지한다. DocumentGenerationJob은 문서 생성 도메인의 저장 기반이며 실제 생성 실행은 #501이다. TranscriptionJob·Transcript 및 전사 결과 구간의 모델·migration·생산은 음성 도메인 담당자가 소유한다. 음성 도메인 구현을 #496의 완료 조건으로 추가하지 않는다.
+
+현재 #502에 포함된 Transcript 모델과 테이블은 이미 만들어진 임시 기반이다. 사용자 범위 확인 후 이를 확정 음성 도메인 모델로 취급하지 않는다. 담당자 소유 schema와 연결하기 전 임의로 삭제하거나 덮어쓰지 않는다. 문서 조회 구현 완료와 공유 원본 schema 정합/병합 준비를 구분한다.
+
+### 2. 구현할 흐름
+
+```text
+음성 도메인: RecordingSession → TranscriptionJob → Transcript
+                                      ↓ 저장된 원본 제공
+문서 도메인: DocumentGenerationJob → Document → DocumentConfirmation
+```
+
+문서 API는 저장된 원본을 읽고 연결하며 STT를 실행하거나 전사 Job을 생성하지 않는다. DocumentApi/Controller와 상세 응답 계약은 유지한다.
+
+### 3. 코드와 책임
+
+| 담당 경계 | 책임 |
+| --- | --- |
+| 음성 담당 | TranscriptionJob·Transcript·원문 구간의 모델/테이블/제약과 STT 결과 저장 |
+| 문서 담당 | Document·문서 생성 Job·확인 기록 및 문서 API |
+| 문서 담당의 연결 수정 | 음성 담당자가 제공하는 저장 구조에 맞춰 Document 원본 FK·조회 SQL·테스트 fixture 조정 |
+
+새로운 원본 조회 API를 임의로 요구하지 않는다. 같은 백엔드의 저장 구조를 읽는 연결 계약으로 우선 맞춘다. 현재 공개 PR에서 음성 모델이 발견되지 않았다는 사실만으로 그 구현을 문서 담당자가 인수하지 않는다. 담당자에게 메시지는 전송하지 않았다.
+
+### 4. 선행 연결 계약과 저장 기반
+
+연결에 필요한 정보는 저장된 Transcript ID, 해당 원문의 원본 RecordingSession/Workspace를 찾는 경로, 녹음 길이 출처다. #499에서는 전체 텍스트·실제 구간과 startMillis 필수/endMillis·speakerNumber nullable 계약도 공유한다. 사용자 사전 검토 없이 STT 성공 후 자동 문서 생성이라는 결정은 유지한다.
+
+음성 담당자의 테이블·컬럼·migration 소유권과 반영 PR이 확인되면 현재 Transcript 임시 기반을 담당자 모델로 통합하고 중복 생성 migration을 제거/보정하는 방식을 결정한다. 적용 이력 관측 전 기존 migration을 삭제·변경하지 않으며 이미 적용된 schema는 새 migration으로 전환한다. 실제 전사 Job 이력을 임의로 생성해 기존 원문을 연결하지 않는다.
+
+Document의 추가 직접 원본 컬럼과 중복/출처 제약은 음성 schema가 확정되면 문서 쪽 물리 설계로 조정한다. 이 확인이 남아 있는 동안 #502를 ERD 완전 정합 또는 최종 병합 준비 완료로 표현하지 않는다.
+
+### 5. 검증 순서
+
+1. 음성 담당자 소유 모델·schema·반영 PR과 원본 연결 계약 확인.
+2. 제공된 schema를 기준으로 문서 원본 연결 및 조회 fixture 조정. 음성 작업 생명주기의 단위 테스트는 이 범위에서 추가하지 않음.
+3. PostgreSQL에서 잘못된 원본 참조·Workspace 불일치·같은 녹음/주제 중복 거절을 검증.
+4. 기존 상세 ID·녹음 길이·3상태·확인 집계와 200/401/403/404 회귀 검증.
+5. 공유 schema 전환 시 데이터 보존과 migration 적용 순서를 검증하고 최종 Gradle/Persona 결과를 기록.
+
+### 6. 완료 기준과 다음 작업
+
+문서 코드는 합의된 음성 schema에 연결되고 기존 상세 API와 문서 저장 불변식이 유지되어야 한다. 음성 schema 제공/통합은 병합 의존성으로 표시한다. 실제 STT 구현을 사용자의 문서 작업에 포함하지 않는다. 현재는 계획 문서만 수정했으며 제품 코드·원격 PR/Issue/Notion은 변경하지 않았다.
