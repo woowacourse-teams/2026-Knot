@@ -1,13 +1,16 @@
 package com.knot.backend.document.presentation;
 
 import static com.knot.backend.global.config.OpenApiConfig.ACCESS_TOKEN_COOKIE;
+import static com.knot.backend.global.config.OpenApiConfig.CSRF_TOKEN_HEADER_NAME;
 
 import com.knot.backend.auth.domain.AuthenticatedMember;
 import com.knot.backend.document.presentation.dto.response.DocumentConfirmationsResponse;
+import com.knot.backend.document.presentation.dto.response.DocumentConfirmationResponse;
 import com.knot.backend.document.presentation.dto.response.DocumentDetailResponse;
 import com.knot.backend.global.response.ErrorResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -21,6 +24,34 @@ import org.springframework.http.MediaType;
 public interface DocumentApi {
 
     // @formatter:off
+    @Operation(summary = "내 문서 확인 완료 처리",
+            description = "현재 Workspace 멤버이면서 생성 당시 고정된 확인 대상만 처리합니다. "
+                    + "최초 확인 시각을 유지하며 반복 요청은 현재 문서 상태와 집계를 반환합니다. "
+                    + "마지막 필수 대상이 확인 또는 제외되면 같은 트랜잭션에서 ARCHIVED로 전환합니다. "
+                    + "확인 취소·본문 수정·수동 보관은 제공하지 않습니다. 요청 본문은 없습니다.",
+            parameters = @Parameter(name = CSRF_TOKEN_HEADER_NAME, in = ParameterIn.HEADER, required = true,
+                    schema = @Schema(type = "string"), description = "XSRF-TOKEN 쿠키와 일치하는 CSRF 토큰"))
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "최초 또는 반복 확인 처리 성공",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = DocumentConfirmationResponse.class))),
+            @ApiResponse(responseCode = "400", description = "INVALID_PARAMETER: 경로 ID 형식 오류",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "401", description = "UNAUTHENTICATED: 로그인하지 않음",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "403", description = "WORKSPACE_ACCESS_DENIED: 현재 멤버가 아님, FORBIDDEN: CSRF 오류",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "404", description = "DOCUMENT_NOT_FOUND: 문서가 없거나 Workspace 범위가 다름",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "409", description = "CONFIRMATION_NOT_REQUIRED: 고정 확인 대상이 아님",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
+    DocumentConfirmationResponse confirmDocument(
+            @Parameter(description = "문서가 속한 Workspace ID") Long workspaceId,
+            @Parameter(description = "확인할 Document ID") Long documentId,
+            @Parameter(hidden = true) AuthenticatedMember authenticatedMember
+    );
+
     @Operation(summary = "문서 상세 정보와 본문 조회",
             description = "현재 Workspace 멤버는 녹음 참여 여부와 관계없이 DRAFT·ARCHIVED 문서를 조회합니다. "
                     + "제목·요약·본문은 읽기 전용이며 조회는 확인·보관 상태를 변경하지 않습니다. "

@@ -9,6 +9,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.knot.backend.auth.domain.AuthenticatedMember;
 import com.knot.backend.document.application.DocumentConfirmationService;
+import com.knot.backend.document.application.DocumentConfirmationCommandService;
 import com.knot.backend.document.application.DocumentDetailService;
 import com.knot.backend.document.application.dto.result.DocumentConfirmationSummaryResult;
 import com.knot.backend.document.application.dto.result.DocumentDetailResult;
@@ -41,7 +42,8 @@ class DocumentControllerTest {
         mvc = MockMvcBuilders.standaloneSetup(
                 new DocumentController(
                         service,
-                        mock(DocumentConfirmationService.class)
+                        mock(DocumentConfirmationService.class),
+                        mock(DocumentConfirmationCommandService.class)
                 )
         )
                 .setControllerAdvice(new GlobalExceptionHandler())

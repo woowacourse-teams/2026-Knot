@@ -2,14 +2,17 @@ package com.knot.backend.document.presentation;
 
 import com.knot.backend.auth.domain.AuthenticatedMember;
 import com.knot.backend.document.application.DocumentConfirmationService;
+import com.knot.backend.document.application.DocumentConfirmationCommandService;
 import com.knot.backend.document.application.DocumentDetailService;
 import com.knot.backend.document.application.dto.query.DocumentConfirmationParameters;
 import com.knot.backend.document.presentation.dto.response.DocumentConfirmationsResponse;
+import com.knot.backend.document.presentation.dto.response.DocumentConfirmationResponse;
 import com.knot.backend.document.presentation.dto.response.DocumentDetailResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -20,6 +23,23 @@ import org.springframework.web.bind.annotation.RestController;
 public class DocumentController implements DocumentApi {
     private final DocumentDetailService detailService;
     private final DocumentConfirmationService confirmationService;
+    private final DocumentConfirmationCommandService confirmationCommandService;
+
+    @Override
+    @PutMapping("/{documentId}/confirmations/me")
+    public DocumentConfirmationResponse confirmDocument(
+            @PathVariable Long workspaceId,
+            @PathVariable Long documentId,
+            @AuthenticationPrincipal AuthenticatedMember authenticatedMember
+    ) {
+        return DocumentConfirmationResponse.from(
+                confirmationCommandService.confirm(
+                        workspaceId,
+                        authenticatedMember.getMemberId(),
+                        documentId
+                )
+        );
+    }
 
     @Override
     @GetMapping("/{documentId}")
