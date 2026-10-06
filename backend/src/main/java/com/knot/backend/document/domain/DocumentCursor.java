@@ -1,7 +1,9 @@
 package com.knot.backend.document.domain;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.Base64;
 import lombok.Getter;
 
 @Getter
@@ -53,6 +55,15 @@ public class DocumentCursor {
                 createdAt,
                 documentId
         );
+    }
+
+    public String encode() {
+        String payload = "1|" + workspaceId + "|" + memberId + "|"
+                + (myConfirmation == null ? "ALL" : myConfirmation.name()) + "|"
+                + (recordingSessionId == null ? "ALL" : recordingSessionId) + "|" + createdAt + "|" + documentId;
+        return Base64.getUrlEncoder()
+                .withoutPadding()
+                .encodeToString(payload.getBytes(StandardCharsets.UTF_8));
     }
 
 }
