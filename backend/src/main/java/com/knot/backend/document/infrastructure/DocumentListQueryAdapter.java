@@ -4,6 +4,7 @@ import com.knot.backend.document.application.DocumentListQuery;
 import com.knot.backend.document.application.dto.query.DocumentListParameters;
 import com.knot.backend.document.application.dto.result.DocumentCardResult;
 import com.knot.backend.document.application.dto.result.DocumentConfirmationSummaryResult;
+import com.knot.backend.document.application.dto.result.DocumentTopicResult;
 import com.knot.backend.document.domain.DocumentCursor;
 import com.knot.backend.document.domain.DocumentStatus;
 import com.knot.backend.document.domain.MyConfirmationState;
@@ -19,6 +20,32 @@ import org.springframework.stereotype.Repository;
 @RequiredArgsConstructor
 public class DocumentListQueryAdapter implements DocumentListQuery {
     private final JdbcClient jdbc;
+
+    @Override
+    public List<DocumentTopicResult> findTopics(
+            long workspaceId,
+            long memberId,
+            DocumentListParameters parameters
+    ) {
+        return bind(
+                jdbc.sql(
+                        "SELECT d.topic, count(*) AS document_count FROM documents d " + filters(parameters)
+                                + " GROUP BY d.topic ORDER BY d.topic"
+                ),
+                workspaceId,
+                memberId,
+                parameters
+        ).query(
+                (
+                        row,
+                        number
+                ) -> new DocumentTopicResult(
+                        row.getString("topic"),
+                        row.getInt("document_count")
+                )
+        )
+                .list();
+    }
 
     @Override
     public List<DocumentCardResult> findPage(
