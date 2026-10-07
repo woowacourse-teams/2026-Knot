@@ -6,6 +6,7 @@
  * - POST /api/v1/workspaces/{workspaceId}/recordings/{recordingId}/resume
  * - POST /api/v1/workspaces/{workspaceId}/recordings/{recordingId}/end
  * - POST /api/v1/workspaces/{workspaceId}/recordings/{recordingId}/audio-upload-url
+ * - POST /api/v1/workspaces/{workspaceId}/recordings/{recordingId}/audio-upload-complete
  */
 
 /** 녹음 세션 상태. 시작·일시정지·재개·종료 응답이 공유하는 서버 값 */
@@ -224,5 +225,52 @@ export class PostRecordingAudioUploadUrlResponseDto {
     this.uploadId = raw.uploadId;
     this.uploadUrl = raw.uploadUrl;
     this.expiresAt = raw.expiresAt;
+  }
+}
+
+// POST /api/v1/workspaces/{workspaceId}/recordings/{recordingId}/audio-upload-complete
+
+/** 최종 오디오 업로드 처리 상태. 완료 확인 응답은 항상 `COMPLETED`예요 */
+export type RecordingAudioUploadStatus = "RESERVED" | "COMPLETED";
+
+/** 최종 오디오 업로드 완료 확인 시 앱이 넘기는 값 */
+export interface PostRecordingAudioUploadCompleteRequestInput {
+  uploadId: number;
+}
+
+/** 최종 오디오 업로드 완료 확인 요청 본문 */
+export class PostRecordingAudioUploadCompleteRequestDto {
+  /** 업로드 URL 발급 응답의 업로드 예약 ID */
+  uploadId: number;
+
+  constructor({ uploadId }: PostRecordingAudioUploadCompleteRequestInput) {
+    this.uploadId = uploadId;
+  }
+}
+
+/** 최종 오디오 업로드 완료 확인의 서버 응답 모양 */
+export interface PostRecordingAudioUploadCompleteResponseRaw {
+  recordingId: number;
+  uploadId: number;
+  uploadStatus: RecordingAudioUploadStatus;
+  completedAt: string;
+}
+
+/** 최종 오디오 업로드 완료 확인 응답. 같은 uploadId로 다시 불러도 처음 확정한 결과를 그대로 돌려줘요 */
+export class PostRecordingAudioUploadCompleteResponseDto {
+  /** 녹음 세션 ID */
+  recordingId: number;
+  /** 업로드 예약 ID */
+  uploadId: number;
+  /** 항상 `COMPLETED`. 전사 처리 상태와는 별개예요 */
+  uploadStatus: RecordingAudioUploadStatus;
+  /** 서버가 업로드 완료를 확정한 시각(ISO 8601). 다시 불러도 바뀌지 않아요 */
+  completedAt: string;
+
+  constructor(raw: PostRecordingAudioUploadCompleteResponseRaw) {
+    this.recordingId = raw.recordingId;
+    this.uploadId = raw.uploadId;
+    this.uploadStatus = raw.uploadStatus;
+    this.completedAt = raw.completedAt;
   }
 }

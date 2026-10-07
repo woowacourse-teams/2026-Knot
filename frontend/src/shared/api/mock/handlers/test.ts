@@ -9,6 +9,7 @@ import {
   PostChatSessionResponseDto,
 } from "@api/dto/chatSession";
 import {
+  PostRecordingAudioUploadCompleteResponseDto,
   PostRecordingAudioUploadUrlResponseDto,
   PostRecordingEndResponseDto,
   PostRecordingPauseResponseDto,
@@ -49,6 +50,7 @@ import { startNotionOAuthApi } from "@api/fetch/api/v1/workspaces/[workspaceId]/
 import { issueWorkspaceInvitationApi } from "@api/fetch/api/v1/workspaces/[workspaceId]/invitations";
 import { reissueWorkspaceInvitationApi } from "@api/fetch/api/v1/workspaces/[workspaceId]/invitations/reissue";
 import { startRecordingApi } from "@api/fetch/api/v1/workspaces/[workspaceId]/recordings";
+import { completeRecordingAudioUploadApi } from "@api/fetch/api/v1/workspaces/[workspaceId]/recordings/[recordingId]/audioUploadComplete";
 import {
   issueRecordingAudioUploadUrlApi,
   uploadRecordingAudioApi,
@@ -67,6 +69,7 @@ import {
   chatSessionsResponse,
 } from "@api/mock/responses/chatSession";
 import {
+  recordingAudioUploadCompleteResponse,
   recordingAudioUploadUrlResponse,
   recordingEndResponse,
   recordingPauseResponse,
@@ -286,6 +289,20 @@ describe("mock 기본 핸들러와 fetch 요청 함수의 대응", () => {
           audio: new Blob(["test"], { type: "audio/webm" }),
         }),
       ).resolves.toBeUndefined();
+    });
+
+    it("POST .../recordings/:recordingId/audio-upload-complete는 recordingAudioUploadCompleteResponse를 돌려준다", async () => {
+      await expect(
+        completeRecordingAudioUploadApi({
+          workspaceId: WORKSPACE_ID,
+          recordingId: RECORDING_ID,
+          body: { uploadId: recordingAudioUploadUrlResponse.uploadId },
+        }),
+      ).resolves.toEqual(
+        new PostRecordingAudioUploadCompleteResponseDto(
+          recordingAudioUploadCompleteResponse,
+        ),
+      );
     });
   });
 });

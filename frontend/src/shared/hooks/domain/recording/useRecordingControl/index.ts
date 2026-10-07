@@ -1,3 +1,4 @@
+import useCompleteRecordingAudioUploadMutation from "@api/mutations/useCompleteRecordingAudioUploadMutation";
 import useEndRecordingMutation from "@api/mutations/useEndRecordingMutation";
 import useIssueRecordingAudioUploadUrlMutation from "@api/mutations/useIssueRecordingAudioUploadUrlMutation";
 import usePauseRecordingMutation from "@api/mutations/usePauseRecordingMutation";
@@ -7,6 +8,7 @@ import useUploadRecordingAudioMutation from "@api/mutations/useUploadRecordingAu
 import useNavigateToWorkspaceHome from "@hooks/domain/workspace/useNavigateToWorkspaceHome";
 import { useRecordingStore } from "@store/recordingStore";
 import { isClosedRecordingError } from "@utils/isClosedRecordingError";
+import { isRetryableAudioUploadError } from "@utils/isRetryableAudioUploadError";
 import { logRequestError } from "@utils/logRequestError";
 import {
   clearRecordingStartProof,
@@ -14,6 +16,9 @@ import {
   getRecordingStartProof,
 } from "@utils/recordingControlProof";
 import { useCallback } from "react";
+
+/** 최종 오디오 업로드가 일시 실패했을 때 다시 시도하는 최대 횟수(첫 시도 제외) */
+const AUDIO_UPLOAD_MAX_RETRIES = 3;
 
 interface HandleControlErrorParams {
   action: string;
@@ -34,8 +39,8 @@ interface UploadRecordedAudioParams {
  * - 시작: 마이크 권한 → 시작 요청이 성공해야 브라우저 녹음을 시작해요. 시작 요청이 실패하면 마이크를 꺼요.
  * - 일시정지·이어서 녹음: 브라우저 녹음을 먼저 바꾸고 서버에 알려요. 서버 요청이 실패해도 다시 보내지 않고
  *   사용자가 누른 대로 둬요.
- * - 끝내기: 종료 요청 → 업로드 URL 발급 → 오디오 PUT → 녹음 비우기 → 홈. 종료가 실패하면 녹음을 그대로 두고,
- *   업로드가 실패하면 오디오를 버리고 홈으로 가요.
+ * - 끝내기: 종료 요청 → 업로드 URL 발급 → 오디오 PUT → 업로드 완료 확인 → 녹음 비우기 → 홈. 종료가 실패하면 녹음을 그대로 두고,
+ *   업로드가 일시 실패하면 URL 발급부터 3번까지 다시 시도하고, 그래도 실패하면 오디오를 버리고 홈으로 가요.
  * - 서버에서 이미 끝났거나 버려진 녹음(409)이면 수집을 멈추고 오디오를 버린 뒤 홈으로 가요.
  *
  * 최초 탭 증명은 sessionStorage에 두고, 실패는 안내 없이 콘솔에만 남겨요.
@@ -50,6 +55,8 @@ const useRecordingControl = () => {
   const { mutateAsync: issueAudioUploadUrl } =
     useIssueRecordingAudioUploadUrlMutation();
   const { mutateAsync: uploadAudio } = useUploadRecordingAudioMutation();
+  const { mutateAsync: completeAudioUpload } =
+    useCompleteRecordingAudioUploadMutation();
 
   /** 녹음을 버리고 다음 녹음은 새 시작 요청으로 보내도록 증명을 지운 뒤 홈으로 가요 */
   const closeRecording = useCallback(
@@ -158,21 +165,37 @@ const useRecordingControl = () => {
     return true;
   }, [handleControlError, resumeRecordingSession]);
 
+  /** 일시 실패면 URL 발급부터 최대 `AUDIO_UPLOAD_MAX_RETRIES`번 다시 시도해요. 최종 실패는 콘솔에만 남겨요 */
   const uploadRecordedAudio = useCallback(
     async ({ workspaceId, recordingId, audio }: UploadRecordedAudioParams) => {
-      try {
-        const { uploadUrl } = await issueAudioUploadUrl({
-          workspaceId,
-          recordingId,
-          contentType: audio.type,
-          contentLength: audio.size,
-        });
-        await uploadAudio({ uploadUrl, audio });
-      } catch (error) {
-        logRequestError("녹음 파일 업로드", error);
+      for (let retryCount = 0; ; retryCount += 1) {
+        try {
+          // 만료됐거나 PUT이 깨진 URL을 다시 쓰지 않도록 매번 새로 받아요. 쓰지 않은 예약이면 서버가 같은 uploadId를 줘요
+          const { uploadId, uploadUrl } = await issueAudioUploadUrl({
+            workspaceId,
+            recordingId,
+            contentType: audio.type,
+            contentLength: audio.size,
+          });
+          await uploadAudio({ uploadUrl, audio });
+          await completeAudioUpload({ workspaceId, recordingId, uploadId });
+
+          return;
+        } catch (error) {
+          if (
+            retryCount < AUDIO_UPLOAD_MAX_RETRIES &&
+            isRetryableAudioUploadError(error)
+          ) {
+            continue;
+          }
+
+          logRequestError("녹음 파일 업로드", error);
+
+          return;
+        }
       }
     },
-    [issueAudioUploadUrl, uploadAudio],
+    [completeAudioUpload, issueAudioUploadUrl, uploadAudio],
   );
 
   const endRecording = useCallback(async () => {

@@ -7,6 +7,8 @@ import com.knot.backend.auth.domain.AuthenticatedMember;
 import com.knot.backend.document.presentation.dto.response.DocumentConfirmationsResponse;
 import com.knot.backend.document.presentation.dto.response.DocumentConfirmationResponse;
 import com.knot.backend.document.presentation.dto.response.DocumentDetailResponse;
+import com.knot.backend.document.presentation.dto.response.DocumentListResponse;
+import com.knot.backend.document.domain.MyConfirmationState;
 import com.knot.backend.global.response.ErrorResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -24,6 +26,36 @@ import org.springframework.http.MediaType;
 public interface DocumentApi {
 
     // @formatter:off
+    @Operation(summary = "주제별 문서 폴더와 카드 목록 조회",
+            description = "현재 Workspace의 DRAFT·ARCHIVED 문서를 생성 시각 내림차순, 동률이면 ID 내림차순으로 조회합니다. "
+                    + "녹음과 내 확인 상태 필터는 AND로 적용합니다. 주제 목록과 문서 수는 필터를 적용한 전체 결과이며 "
+                    + "cursor·size는 카드에만 적용합니다. 이후 가입자는 NOT_REQUIRED입니다. "
+                    + "커서는 같은 Workspace·멤버·필터에서 이어 사용하고 size는 변경할 수 있습니다. "
+                    + "없는 녹음 또는 다른 Workspace의 녹음 조건은 빈 목록을 반환합니다. 조회는 상태를 변경하지 않습니다.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "문서 목록 조회 성공",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = DocumentListResponse.class))),
+            @ApiResponse(responseCode = "400", description = "INVALID_PARAMETER: 쿼리 형식·범위 또는 커서 오류",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "401", description = "UNAUTHENTICATED: 로그인하지 않음",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "403", description = "WORKSPACE_ACCESS_DENIED: 현재 Workspace 멤버가 아님",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = ErrorResponse.class)))
+    })
+    DocumentListResponse findDocuments(
+            @Parameter(description = "현재 Workspace ID") Long workspaceId,
+            @Parameter(description = "이전 응답의 nextCursor. 같은 멤버·조회 조건에서 사용") String cursor,
+            @Parameter(description = "한 페이지 카드 수. 기본 50, 최대 100",
+                    schema = @Schema(defaultValue = "50", minimum = "1", maximum = "100")) Integer size,
+            @Parameter(description = "내 확인 상태 필터. 생략하면 제한 없음") MyConfirmationState myConfirmation,
+            @Parameter(description = "원본 녹음 ID 필터. 생략하면 제한 없음", schema = @Schema(minimum = "1")) Long recordingSessionId,
+            @Parameter(hidden = true) AuthenticatedMember authenticatedMember
+    );
+
     @Operation(summary = "내 문서 확인 완료 처리",
             description = "현재 Workspace 멤버이면서 생성 당시 고정된 확인 대상만 처리합니다. "
                     + "최초 확인 시각을 유지하며 반복 요청은 현재 문서 상태와 집계를 반환합니다. "

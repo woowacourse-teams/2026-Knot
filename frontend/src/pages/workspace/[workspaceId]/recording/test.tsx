@@ -1,3 +1,4 @@
+import { mockServer } from "@api/mock/server";
 import { ThemeProvider } from "@emotion/react";
 import { DialogProvider } from "@provider/context/dialogContext";
 import { theme } from "@provider/themeProvider";
@@ -11,6 +12,7 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
+import { http, HttpResponse } from "msw";
 import { createMemoryRouter, Outlet, RouterProvider } from "react-router";
 import { afterEach, describe, expect, it } from "vitest";
 
@@ -103,5 +105,93 @@ describe("RecordingPage", () => {
     await waitFor(() =>
       expect(router.state.location.pathname).toBe(HOME_PATH),
     );
+  });
+
+  describe("최종 오디오 업로드", () => {
+    const UPLOAD_URL_PATH =
+      "*/api/v1/workspaces/:workspaceId/recordings/:recordingId/audio-upload-url";
+    const UPLOAD_COMPLETE_PATH =
+      "*/api/v1/workspaces/:workspaceId/recordings/:recordingId/audio-upload-complete";
+
+    /** 업로드 URL 발급과 완료 확인 요청 수를 세요 */
+    const countUploadRequests = () => {
+      const count = { issue: 0, complete: 0 };
+      mockServer.events.on("request:start", ({ request }) => {
+        if (request.url.endsWith("/audio-upload-url")) count.issue += 1;
+        if (request.url.endsWith("/audio-upload-complete")) count.complete += 1;
+      });
+
+      return count;
+    };
+
+    const endRecording = async () => {
+      await startRecording();
+      const { router } = renderRecordingPage();
+
+      await act(async () => {
+        fireEvent.click(screen.getByRole("button", { name: "녹음 끝내기" }));
+      });
+      await waitFor(() =>
+        expect(router.state.location.pathname).toBe(HOME_PATH),
+      );
+    };
+
+    afterEach(() => {
+      mockServer.events.removeAllListeners();
+    });
+
+    it("PUT을 마치면 업로드 완료를 확인받는다", async () => {
+      const count = countUploadRequests();
+
+      await endRecording();
+
+      expect(count).toEqual({ issue: 1, complete: 1 });
+    });
+
+    it("일시 실패면 URL 발급부터 다시 시도해 완료를 확인받는다", async () => {
+      const count = countUploadRequests();
+      mockServer.use(
+        http.post(
+          UPLOAD_COMPLETE_PATH,
+          () =>
+            HttpResponse.json(
+              { code: "AUDIO_UPLOAD_NOT_COMPLETED" },
+              { status: 409 },
+            ),
+          { once: true },
+        ),
+      );
+
+      await endRecording();
+
+      expect(count).toEqual({ issue: 2, complete: 2 });
+    });
+
+    it("일시 실패가 계속되면 3번까지만 다시 시도한다", async () => {
+      const count = countUploadRequests();
+      mockServer.use(
+        http.post(
+          UPLOAD_URL_PATH,
+          () => new HttpResponse(null, { status: 503 }),
+        ),
+      );
+
+      await endRecording();
+
+      expect(count).toEqual({ issue: 4, complete: 0 });
+    });
+
+    it("4xx면 다시 시도하지 않는다", async () => {
+      const count = countUploadRequests();
+      mockServer.use(
+        http.post(UPLOAD_URL_PATH, () =>
+          HttpResponse.json({ code: "INVALID_REQUEST" }, { status: 400 }),
+        ),
+      );
+
+      await endRecording();
+
+      expect(count).toEqual({ issue: 1, complete: 0 });
+    });
   });
 });
