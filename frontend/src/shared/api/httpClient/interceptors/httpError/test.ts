@@ -66,6 +66,27 @@ describe("httpErrorInterceptor", () => {
     expect(isHttpError(error) && error.code).toBe("RECORDING_ALREADY_ENDED");
   });
 
+  it("어댑터가 문자열로 준 JSON 본문에서도 서버 오류 코드를 담는다", async () => {
+    const error = await catchError(
+      requestWith(
+        failingAdapter(
+          409,
+          JSON.stringify({ code: "RECORDING_ALREADY_ENDED" }),
+        ),
+      ),
+    );
+
+    expect(isHttpError(error) && error.code).toBe("RECORDING_ALREADY_ENDED");
+  });
+
+  it("JSON이 아닌 문자열 본문이면 서버 오류 코드를 비워 둔다", async () => {
+    const error = await catchError(
+      requestWith(failingAdapter(502, "<html>Bad Gateway</html>")),
+    );
+
+    expect(isHttpError(error) && error.code).toBeUndefined();
+  });
+
   it("4xx 오류만 클라이언트 오류로 표시한다", async () => {
     const clientError = await catchError(requestWith(failingAdapter(404)));
     const serverError = await catchError(requestWith(failingAdapter(500)));

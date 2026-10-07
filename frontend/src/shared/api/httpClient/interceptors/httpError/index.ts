@@ -20,13 +20,27 @@ const toErrorType = (status?: number) => {
   return status < 500 ? HTTP_ERROR_TYPE.clientError : HTTP_ERROR_TYPE.serverError;
 };
 
-const toErrorCode = (data: unknown) =>
-  typeof data === "object" &&
-  data !== null &&
-  "code" in data &&
-  typeof data.code === "string"
-    ? data.code
+// 어댑터를 감싸고 있어 axios가 JSON으로 바꾸기 전의 본문을 받아요. xhr 어댑터는 문자열로 줘요
+const toErrorBody = (data: unknown) => {
+  if (typeof data !== "string") return data;
+
+  try {
+    return JSON.parse(data) as unknown;
+  } catch {
+    return undefined;
+  }
+};
+
+const toErrorCode = (data: unknown) => {
+  const body = toErrorBody(data);
+
+  return typeof body === "object" &&
+    body !== null &&
+    "code" in body &&
+    typeof body.code === "string"
+    ? body.code
     : undefined;
+};
 
 /**
  * axios 오류를 `HttpError`로 바꿔 던집니다.
