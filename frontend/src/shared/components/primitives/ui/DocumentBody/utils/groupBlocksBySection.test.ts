@@ -1,12 +1,15 @@
 import { describe, expect, it } from "vitest";
 
-import type { MarkdownBlock } from "../types/markdownBlock";
+import type {
+  MarkdownBlock,
+  MarkdownHeadingLevel,
+} from "../types/markdownBlock";
 import { groupBlocksBySection } from "./groupBlocksBySection";
 
-const heading = (value: string) =>
+const heading = (value: string, level: MarkdownHeadingLevel = 2) =>
   ({
     type: "heading",
-    level: 2,
+    level,
     inlines: [{ type: "text", value }],
   }) satisfies MarkdownBlock;
 
@@ -50,5 +53,21 @@ describe("groupBlocksBySection", () => {
         paragraph("문장 A"),
       ]),
     ).toEqual([[paragraph("머리말")], [heading("결정"), paragraph("문장 A")]]);
+  });
+
+  it("제목의 단계(# · ## · ###)와 상관없이 제목마다 새 구역을 시작한다", () => {
+    expect(
+      groupBlocksBySection([
+        heading("회의", 1),
+        heading("결정", 2),
+        paragraph("문장 A"),
+        heading("예외", 3),
+        paragraph("문장 B"),
+      ]),
+    ).toEqual([
+      [heading("회의", 1)],
+      [heading("결정", 2), paragraph("문장 A")],
+      [heading("예외", 3), paragraph("문장 B")],
+    ]);
   });
 });

@@ -149,6 +149,24 @@ describe("parseMarkdownBlocks", () => {
     ]);
   });
 
+  it("한 줄의 ** 쌍은 가까운 짝끼리 각각 굵게 조각이 되고, 앞 · 사이 · 뒤 글자는 글자 조각으로 남는다", () => {
+    expect(parseMarkdownBlocks({ content: "앞 **가** 사이 **나** 뒤" })).toEqual([
+      {
+        type: "paragraph",
+        lines: [
+          [
+            { type: "text", value: "앞 " },
+            { type: "bold", value: "가" },
+            { type: "text", value: " 사이 " },
+            { type: "bold", value: "나" },
+            { type: "text", value: " 뒤" },
+          ],
+        ],
+        isMuted: false,
+      },
+    ]);
+  });
+
   it("짝이 맞지 않는 ** 는 굵게가 아니라 글자 그대로 남는다", () => {
     expect(parseMarkdownBlocks({ content: "**닫히지 않음" })).toEqual([
       {
