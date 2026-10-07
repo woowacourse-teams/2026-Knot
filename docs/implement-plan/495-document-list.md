@@ -1,5 +1,7 @@
 # #495 주제별 문서 폴더와 카드 목록 조회 구현 계획
 
+2026-10-07 후속 변경: 조회는 `DocumentListJpaRepository`의 JPQL과 별도 Row projection으로 통일했다. 주제 집계는 전체 조건 기준이며 카드 페이지는 `Pageable`로 size+1개만 읽는다. 확인 인원은 페이지 문서 ID 목록에 대해 한 번에 집계한다. 기존 REPEATABLE_READ 안에서 세 SELECT가 같은 snapshot을 사용한다. 아래의 JdbcClient·두 SQL 설명은 최초 구현 계획의 이력이다. 후속 공통 계획은 [문서 조회 JPA 정합성 작업](document-jpa-queries.md)을 따른다.
+
 상태: 사용자 승인 후 테스트 선행 구현·로컬 검증 완료. 전체 Gradle check 통과, Persona finish 미인증.
 확인일: 2026-10-06.
 브랜치: `be/feature/#495`.
