@@ -11,6 +11,7 @@ import { workspaceHandlers } from "./api/v1/workspaces/[workspaceId]";
 import { workspaceConversationsHandlers } from "./api/v1/workspaces/[workspaceId]/conversations";
 import { documentHandlers } from "./api/v1/workspaces/[workspaceId]/documents/[documentId]";
 import { documentConfirmationsHandlers } from "./api/v1/workspaces/[workspaceId]/documents/[documentId]/confirmations";
+import { documentMyConfirmationHandlers } from "./api/v1/workspaces/[workspaceId]/documents/[documentId]/confirmations/me";
 import { workspaceNotionImportsHandlers } from "./api/v1/workspaces/[workspaceId]/imports";
 import { workspaceInvitationHandlers } from "./api/v1/workspaces/[workspaceId]/invitation";
 import { workspaceInvitationsHandlers } from "./api/v1/workspaces/[workspaceId]/invitations";
@@ -50,6 +51,7 @@ export const handlers = [
   ...recordingAudioUploadCompleteHandlers,
   ...documentHandlers,
   ...documentConfirmationsHandlers,
+  ...documentMyConfirmationHandlers,
   ...invitationAcceptHandlers,
   ...invitationPreviewHandlers,
   ...chatMessagesHandlers,

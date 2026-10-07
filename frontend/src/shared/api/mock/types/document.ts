@@ -42,3 +42,12 @@ export interface DocumentConfirmationsResponse {
   /** 마지막 페이지면 null */
   nextCursor: string | null;
 }
+
+export interface DocumentMyConfirmationResponse {
+  documentId: number;
+  confirmedAt: string;
+  documentStatus: "DRAFT" | "ARCHIVED";
+  /** DRAFT면 null */
+  archivedAt: string | null;
+  confirmationSummary: DocumentConfirmationSummary;
+}

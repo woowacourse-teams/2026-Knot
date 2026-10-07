@@ -11,6 +11,7 @@ import {
 import {
   GetDocumentConfirmationsResponseDto,
   GetDocumentResponseDto,
+  PutDocumentConfirmationResponseDto,
 } from "@api/dto/document";
 import {
   PostRecordingAudioUploadCompleteResponseDto,
@@ -50,6 +51,7 @@ import {
 } from "@api/fetch/api/v1/workspaces/[workspaceId]/conversations";
 import { getDocumentApi } from "@api/fetch/api/v1/workspaces/[workspaceId]/documents/[documentId]";
 import { getDocumentConfirmationsApi } from "@api/fetch/api/v1/workspaces/[workspaceId]/documents/[documentId]/confirmations";
+import { confirmDocumentApi } from "@api/fetch/api/v1/workspaces/[workspaceId]/documents/[documentId]/confirmations/me";
 import { getWorkspaceInvitationApi } from "@api/fetch/api/v1/workspaces/[workspaceId]/invitation";
 import { getNotionConnectionApi } from "@api/fetch/api/v1/workspaces/[workspaceId]/notionConnection";
 import { startNotionOAuthApi } from "@api/fetch/api/v1/workspaces/[workspaceId]/notionOauthAuthorizations";
@@ -237,6 +239,89 @@ describe("mock 기본 핸들러와 fetch 요청 함수의 대응", () => {
       ).rejects.toMatchObject({
         type: HTTP_ERROR_TYPE.notFound,
         code: "DOCUMENT_NOT_FOUND",
+      });
+    });
+
+    describe("PUT /api/v1/workspaces/:workspaceId/documents/:documentId/confirmations/me", () => {
+      // 내가 아직 확인하지 않은 문서(101)와 이미 확인한 문서(102)
+      const [pendingDocument, confirmedDocument] = documentDetailsResponse;
+      const pendingParams = {
+        workspaceId: WORKSPACE_ID,
+        documentId: pendingDocument.id,
+      };
+
+      it("확인하지 않은 문서를 확인하면 확인 수가 1 늘고 미확인 수가 1 준 집계를 돌려준다", async () => {
+        const result = await confirmDocumentApi(pendingParams);
+
+        expect(result).toBeInstanceOf(PutDocumentConfirmationResponseDto);
+        expect(result.documentId).toBe(pendingDocument.id);
+        expect(result.confirmationSummary).toEqual({
+          confirmedCount: pendingDocument.confirmationSummary.confirmedCount + 1,
+          pendingCount: pendingDocument.confirmationSummary.pendingCount - 1,
+          excludedCount: pendingDocument.confirmationSummary.excludedCount,
+        });
+      });
+
+      it("확인한 뒤에는 문서 상세의 내 상태와 집계, 확인 대상의 내 상태가 함께 바뀐다", async () => {
+        const { confirmedAt, confirmationSummary } =
+          await confirmDocumentApi(pendingParams);
+
+        const document = await getDocumentApi(pendingParams);
+        const { items } = await getDocumentConfirmationsApi(pendingParams);
+        const myItem = items.find(
+          ({ memberId }) => memberId === meResponse.memberId,
+        );
+
+        expect(document.myConfirmationState).toBe("CONFIRMED");
+        expect(document.confirmationSummary).toEqual(confirmationSummary);
+        expect(myItem).toMatchObject({ state: "CONFIRMED", confirmedAt });
+        // 서버 정렬처럼 확인한 사람이 미확인인 사람보다 앞에 와요
+        expect(items.map(({ state }) => state)).toEqual([
+          "CONFIRMED",
+          "CONFIRMED",
+          "CONFIRMED",
+          "PENDING",
+        ]);
+      });
+
+      it("다시 확인해도 처음 확인한 시각과 같은 집계를 돌려준다", async () => {
+        const first = await confirmDocumentApi(pendingParams);
+        const second = await confirmDocumentApi(pendingParams);
+
+        expect(second).toEqual(first);
+      });
+
+      it("이미 확인한 문서를 확인하면 집계를 바꾸지 않고 처음 확인한 시각을 돌려준다", async () => {
+        const [, confirmations] = documentConfirmationsResponse;
+        const myItem = confirmations.items.find(
+          ({ memberId }) => memberId === meResponse.memberId,
+        );
+
+        const result = await confirmDocumentApi({
+          workspaceId: WORKSPACE_ID,
+          documentId: confirmedDocument.id,
+        });
+
+        expect(result.confirmedAt).toBe(myItem?.confirmedAt);
+        expect(result.confirmationSummary).toEqual(
+          confirmedDocument.confirmationSummary,
+        );
+      });
+
+      it("확인한 기록은 테스트가 끝나면 지워져, 다음 테스트는 기본 응답을 받는다", async () => {
+        // 위 테스트들이 101을 확인했지만 vitest.setup의 afterEach가 기록을 지웠어요
+        await expect(getDocumentApi(pendingParams)).resolves.toEqual(
+          new GetDocumentResponseDto(pendingDocument),
+        );
+      });
+
+      it("없는 문서를 확인하면 404 DOCUMENT_NOT_FOUND로 답한다", async () => {
+        await expect(
+          confirmDocumentApi({ workspaceId: WORKSPACE_ID, documentId: 999 }),
+        ).rejects.toMatchObject({
+          type: HTTP_ERROR_TYPE.notFound,
+          code: "DOCUMENT_NOT_FOUND",
+        });
       });
     });
   });
