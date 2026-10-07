@@ -10,13 +10,11 @@ import com.knot.backend.document.DocumentFixtures;
 import com.knot.backend.document.application.dto.query.DocumentListParameters;
 import com.knot.backend.document.application.dto.result.DocumentCardResult;
 import com.knot.backend.document.application.dto.result.DocumentListResult;
-import com.knot.backend.document.application.dto.result.DocumentTopicResult;
 import com.knot.backend.document.domain.MyConfirmationState;
 import com.knot.backend.document.infrastructure.DocumentListQueryAdapter;
 import com.knot.backend.testsupport.TestApplicationProperties;
 import com.knot.backend.testsupport.TestcontainersConfiguration;
 import java.sql.Timestamp;
-import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -195,11 +193,7 @@ class DocumentListSnapshotIntegrationTest {
 
     private void writeAfterTopics(Runnable write) {
         doAnswer(invocation -> {
-            List<DocumentTopicResult> topics = new DocumentListQueryAdapter(jdbc).findTopics(
-                    workspaceId,
-                    memberId,
-                    invocation.getArgument(2)
-            );
+            Object topics = invocation.callRealMethod();
             try (ExecutorService executor = Executors.newSingleThreadExecutor()) {
                 executor.submit(() -> new TransactionTemplate(transactions).executeWithoutResult(status -> write.run()))
                         .get(

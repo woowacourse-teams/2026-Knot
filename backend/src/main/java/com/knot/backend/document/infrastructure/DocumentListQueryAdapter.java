@@ -21,6 +21,7 @@ import org.springframework.stereotype.Repository;
 @RequiredArgsConstructor
 public class DocumentListQueryAdapter implements DocumentListQuery {
     private final JdbcClient jdbc;
+    private final DocumentListJpaRepository documents;
 
     @Override
     public List<DocumentTopicResult> findTopics(
@@ -28,24 +29,20 @@ public class DocumentListQueryAdapter implements DocumentListQuery {
             long memberId,
             DocumentListParameters parameters
     ) {
-        return bind(
-                jdbc.sql(
-                        "SELECT d.topic, count(*) AS document_count FROM documents d " + filters(parameters)
-                                + " GROUP BY d.topic ORDER BY d.topic"
-                ),
+        return documents.findTopics(
                 workspaceId,
                 memberId,
-                parameters
-        ).query(
-                (
-                        row,
-                        number
-                ) -> new DocumentTopicResult(
-                        row.getString("topic"),
-                        row.getInt("document_count")
-                )
+                parameters.recordingSessionId(),
+                confirmationFilter(parameters.myConfirmation())
         )
-                .list();
+                .stream()
+                .map(
+                        row -> new DocumentTopicResult(
+                                row.topic(),
+                                Math.toIntExact(row.documentCount())
+                        )
+                )
+                .toList();
     }
 
     @Override
@@ -110,6 +107,13 @@ public class DocumentListQueryAdapter implements DocumentListQuery {
         }
         return statement.query(this::mapRow)
                 .list();
+    }
+
+    private String confirmationFilter(MyConfirmationState state) {
+        if (state == null) {
+            return "ALL";
+        }
+        return state.name();
     }
 
     private String filters(DocumentListParameters parameters) {
