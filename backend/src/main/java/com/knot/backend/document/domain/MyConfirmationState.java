@@ -14,6 +14,9 @@ public enum MyConfirmationState {
         if (!required) {
             return NOT_REQUIRED;
         }
-        return confirmedAt == null ? PENDING : CONFIRMED;
+        if (confirmedAt == null) {
+            return PENDING;
+        }
+        return CONFIRMED;
     }
 }

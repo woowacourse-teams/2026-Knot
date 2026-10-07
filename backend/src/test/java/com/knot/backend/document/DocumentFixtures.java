@@ -211,13 +211,6 @@ public class DocumentFixtures {
                 .single();
     }
 
-    private Timestamp nullableTimestamp(Instant time) {
-        if (time == null) {
-            return null;
-        }
-        return Timestamp.from(time);
-    }
-
     public long saveDocument(
             long workspaceId,
             long recordingId,
@@ -278,7 +271,7 @@ public class DocumentFixtures {
                 )
                 .param(
                         "confirmedAt",
-                        confirmedAt == null ? null : Timestamp.from(confirmedAt)
+                        nullableTimestamp(confirmedAt)
                 )
                 .update();
     }
@@ -292,5 +285,12 @@ public class DocumentFixtures {
                 """)
                 .query(String.class)
                 .single();
+    }
+
+    private Timestamp nullableTimestamp(Instant instant) {
+        if (instant == null) {
+            return null;
+        }
+        return Timestamp.from(instant);
     }
 }

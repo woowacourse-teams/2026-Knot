@@ -30,8 +30,10 @@ import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.InOrder;
+import org.springframework.context.ApplicationEventPublisher;
 
 class WorkspaceLeaveServiceTest {
+    private final ApplicationEventPublisher events = mock(ApplicationEventPublisher.class);
     private static final Instant CREATED_AT = Instant.parse("2026-09-30T00:00:00Z");
     private static final Instant LEFT_AT = Instant.parse("2026-09-30T00:01:00.123456Z");
 
@@ -369,7 +371,8 @@ class WorkspaceLeaveServiceTest {
                 Clock.fixed(
                         LEFT_AT,
                         ZoneOffset.UTC
-                )
+                ),
+                events
         );
     }
 

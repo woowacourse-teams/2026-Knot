@@ -6,6 +6,7 @@ import com.knot.backend.workspace.domain.Workspace;
 import com.knot.backend.workspace.domain.WorkspaceErrorCode;
 import com.knot.backend.workspace.domain.WorkspaceException;
 import com.knot.backend.workspace.domain.WorkspaceMember;
+import com.knot.backend.workspace.domain.WorkspaceMemberLeft;
 import com.knot.backend.workspace.domain.WorkspaceMemberRepository;
 import com.knot.backend.workspace.domain.WorkspaceRepository;
 import java.time.Clock;
@@ -14,6 +15,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
@@ -24,6 +26,7 @@ public class WorkspaceLeaveService {
     private final WorkspaceMemberRepository workspaceMemberRepository;
     private final RecordingSessionRepository recordingSessionRepository;
     private final Clock clock;
+    private final ApplicationEventPublisher events;
 
     public void leave(
             long memberId,
@@ -59,6 +62,14 @@ public class WorkspaceLeaveService {
                         activeMemberCount
                 ),
                 leftAt
+        );
+        workspaceMemberRepository.flush();
+        events.publishEvent(
+                new WorkspaceMemberLeft(
+                        workspaceId,
+                        memberId,
+                        leftAt
+                )
         );
     }
 

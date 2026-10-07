@@ -18,6 +18,11 @@ public enum DocumentErrorCode implements ErrorCode {
             "DOCUMENT_NOT_FOUND",
             "문서를 찾을 수 없습니다"
     ),
+    CONFIRMATION_NOT_REQUIRED(
+            ErrorCategory.CONFLICT,
+            "CONFIRMATION_NOT_REQUIRED",
+            "문서 확인 대상이 아닙니다"
+    ),
     DOCUMENT_GENERATION_JOB_NOT_FOUND(
             ErrorCategory.NOT_FOUND,
             "DOCUMENT_GENERATION_JOB_NOT_FOUND",
