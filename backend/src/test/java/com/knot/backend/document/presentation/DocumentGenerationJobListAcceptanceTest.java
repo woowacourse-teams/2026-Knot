@@ -117,12 +117,6 @@ class DocumentGenerationJobListAcceptanceTest {
                 succeededId,
                 "운영 정책"
         );
-        jdbc.sql("UPDATE recording_sessions SET title = '주간 회의' WHERE id = :id")
-                .param(
-                        "id",
-                        recordingId
-                )
-                .update();
         String before = fixtures.snapshot();
 
         // when
@@ -138,7 +132,7 @@ class DocumentGenerationJobListAcceptanceTest {
                 .andExpect(jsonPath("$.items[1].jobId").value(runningId))
                 .andExpect(jsonPath("$.items[2].jobId").value(queuedId))
                 .andExpect(jsonPath("$.items[0].recordingSessionId").value(recordingId))
-                .andExpect(jsonPath("$.items[0].recordingTitle").value("주간 회의"))
+                .andExpect(jsonPath("$.items[0].recordingTitle").doesNotHaveJsonPath())
                 .andExpect(jsonPath("$.items[0].status").value("FAILED"))
                 .andExpect(jsonPath("$.items[0].createdAt").value(DocumentFixtures.CREATED_AT.toString()))
                 .andExpect(
@@ -210,8 +204,8 @@ class DocumentGenerationJobListAcceptanceTest {
     }
 
     @Test
-    @DisplayName("새로 합류한 현재 멤버는 원래 녹음 참여와 관계없이 조회하고 제목 미입력은 null이다")
-    void findDocumentGenerationJobs_success_newMember() throws Exception {
+    @DisplayName("새로 합류한 현재 멤버는 다른 멤버의 녹음 작업을 조회하지 않는다")
+    void findDocumentGenerationJobs_success_newMemberWithoutOwnRecording() throws Exception {
         // given
         long newcomer = fixtures.saveMember("새 멤버");
         fixtures.join(
@@ -224,7 +218,77 @@ class DocumentGenerationJobListAcceptanceTest {
                 workspaceId,
                 newcomer
         ).andExpect(status().isOk())
-                .andExpect(jsonPath("$.items[0].recordingTitle").value(nullValue()));
+                .andExpect(jsonPath("$.items").isEmpty())
+                .andExpect(jsonPath("$.nextCursor").value(nullValue()));
+    }
+
+    @Test
+    @DisplayName("같은 Workspace의 다른 멤버 작업은 페이지 크기와 커서 판단에서 제외한다")
+    void findDocumentGenerationJobs_success_ownRecordingScopeBeforePagination() throws Exception {
+        // given
+        long teammate = fixtures.saveMember("다른 녹음 작성자");
+        fixtures.join(
+                workspaceId,
+                teammate
+        );
+        long teammateRecording = fixtures.saveRecording(
+                workspaceId,
+                teammate,
+                1000
+        );
+        long teammateTranscript = fixtures.saveTranscript(teammateRecording);
+        fixtures.saveJob(
+                teammateTranscript,
+                "QUEUED"
+        );
+        fixtures.saveJob(
+                teammateTranscript,
+                "RUNNING"
+        );
+        fixtures.saveJob(
+                teammateTranscript,
+                "FAILED",
+                DocumentFixtures.CREATED_AT,
+                NOW
+        );
+
+        // when & then
+        mvc.perform(
+                get(
+                        PATH,
+                        workspaceId
+                ).cookie(cookie(memberId))
+                        .param(
+                                "size",
+                                "3"
+                        )
+        )
+                .andExpect(status().isOk())
+                .andExpect(
+                        jsonPath("$.items[*].jobId").value(
+                                contains(
+                                        (int) failedId,
+                                        (int) runningId,
+                                        (int) queuedId
+                                )
+                        )
+                )
+                .andExpect(jsonPath("$.nextCursor").value(nullValue()));
+        request(
+                workspaceId,
+                teammate
+        ).andExpect(status().isOk())
+                .andExpect(jsonPath("$.items.length()").value(3))
+                .andExpect(
+                        jsonPath("$.items[*].recordingSessionId").value(
+                                contains(
+                                        (int) teammateRecording,
+                                        (int) teammateRecording,
+                                        (int) teammateRecording
+                                )
+                        )
+                )
+                .andExpect(jsonPath("$.nextCursor").value(nullValue()));
     }
 
     @Test
@@ -374,7 +438,7 @@ class DocumentGenerationJobListAcceptanceTest {
                 .andExpect(jsonPath(operation + ".responses['403']").exists())
                 .andExpect(
                         jsonPath("$.components.schemas.DocumentGenerationJobItemResponse.properties.recordingTitle")
-                                .exists()
+                                .doesNotExist()
                 )
                 .andExpect(
                         jsonPath("$.components.schemas.DocumentGenerationJobItemResponse.properties.status.enum").value(

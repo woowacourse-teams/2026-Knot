@@ -24,12 +24,14 @@ public class DocumentGenerationJobListQueryAdapter implements DocumentGeneration
     @Override
     public List<DocumentGenerationJobItemResult> findPage(
             long workspaceId,
+            long memberId,
             int limit,
             DocumentGenerationJobCursor cursor,
             Instant now
     ) {
         return jobs.findPage(
                 workspaceId,
+                memberId,
                 ACTIVE_STATUSES,
                 DocumentGenerationJobStatus.FAILED,
                 now,
@@ -64,7 +66,6 @@ public class DocumentGenerationJobListQueryAdapter implements DocumentGeneration
         return new DocumentGenerationJobItemResult(
                 row.jobId(),
                 row.recordingSessionId(),
-                row.recordingTitle(),
                 row.status(),
                 row.createdAt(),
                 row.updatedAt()

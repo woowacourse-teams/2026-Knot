@@ -6,9 +6,9 @@ import java.time.Instant;
 public record DocumentGenerationJobItemResult(
         long jobId,
         long recordingSessionId,
-        String recordingTitle,
         DocumentGenerationJobStatus status,
         Instant createdAt,
         Instant updatedAt
 ) {
+
 }

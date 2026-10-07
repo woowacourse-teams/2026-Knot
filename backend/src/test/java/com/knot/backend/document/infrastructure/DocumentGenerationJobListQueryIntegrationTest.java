@@ -39,6 +39,7 @@ class DocumentGenerationJobListQueryIntegrationTest {
     @Autowired
     private EntityManager entityManager;
     private DocumentFixtures fixtures;
+    private long memberId;
     private long workspaceId;
     private long recordingId;
     private long transcriptId;
@@ -46,7 +47,7 @@ class DocumentGenerationJobListQueryIntegrationTest {
     @BeforeEach
     void setUp() {
         fixtures = new DocumentFixtures(jdbc);
-        long memberId = fixtures.saveMember("작업 작성자");
+        memberId = fixtures.saveMember("작업 작성자");
         workspaceId = fixtures.saveWorkspace();
         recordingId = fixtures.saveRecording(
                 workspaceId,
@@ -80,7 +81,7 @@ class DocumentGenerationJobListQueryIntegrationTest {
         );
         long foreignRecording = fixtures.saveRecording(
                 fixtures.saveWorkspace(),
-                fixtures.saveMember("다른 팀"),
+                memberId,
                 1000
         );
         fixtures.saveJob(
@@ -91,6 +92,7 @@ class DocumentGenerationJobListQueryIntegrationTest {
         // when
         List<DocumentGenerationJobItemResult> items = query.findPage(
                 workspaceId,
+                memberId,
                 101,
                 null,
                 NOW
@@ -105,8 +107,6 @@ class DocumentGenerationJobListQueryIntegrationTest {
                 );
         assertThat(items).extracting(DocumentGenerationJobItemResult::recordingSessionId)
                 .containsOnly(recordingId);
-        assertThat(items).extracting(DocumentGenerationJobItemResult::recordingTitle)
-                .containsOnlyNulls();
     }
 
     @Test
@@ -136,6 +136,7 @@ class DocumentGenerationJobListQueryIntegrationTest {
         // when
         List<DocumentGenerationJobItemResult> items = query.findPage(
                 workspaceId,
+                memberId,
                 20,
                 null,
                 NOW
@@ -164,13 +165,14 @@ class DocumentGenerationJobListQueryIntegrationTest {
         );
         List<DocumentGenerationJobItemResult> first = query.findPage(
                 workspaceId,
+                memberId,
                 2,
                 null,
                 NOW
         );
         DocumentGenerationJobCursor cursor = DocumentGenerationJobCursor.of(
                 workspaceId,
-                1,
+                memberId,
                 first.getLast()
                         .createdAt(),
                 middle
@@ -185,6 +187,7 @@ class DocumentGenerationJobListQueryIntegrationTest {
         // when
         List<DocumentGenerationJobItemResult> second = query.findPage(
                 workspaceId,
+                memberId,
                 2,
                 cursor,
                 NOW
@@ -201,15 +204,9 @@ class DocumentGenerationJobListQueryIntegrationTest {
     }
 
     @Test
-    @DisplayName("저장된 녹음 제목을 반환하고 JPA로 추가한 작업은 조회에 자동 반영한다")
-    void findPage_success_titleAndJpaFlush() {
+    @DisplayName("JPA로 추가한 작업은 조회에 자동 반영한다")
+    void findPage_success_jpaFlush() {
         // given
-        jdbc.sql("UPDATE recording_sessions SET title = '주간 운영 회의' WHERE id = :id")
-                .param(
-                        "id",
-                        recordingId
-                )
-                .update();
         DocumentGenerationJob job = DocumentGenerationJob.queue(
                 transcriptId,
                 NOW
@@ -219,6 +216,7 @@ class DocumentGenerationJobListQueryIntegrationTest {
         // when
         List<DocumentGenerationJobItemResult> items = query.findPage(
                 workspaceId,
+                memberId,
                 20,
                 null,
                 NOW
@@ -232,12 +230,66 @@ class DocumentGenerationJobListQueryIntegrationTest {
         ).isEqualTo(job.getId());
         assertThat(
                 items.getFirst()
-                        .recordingTitle()
-        ).isEqualTo("주간 운영 회의");
-        assertThat(
-                items.getFirst()
                         .status()
         ).isEqualTo(DocumentGenerationJobStatus.QUEUED);
+    }
+
+    @Test
+    @DisplayName("같은 Workspace의 다른 멤버 작업은 필터링한 뒤 페이지 크기를 적용한다")
+    void findPage_success_recordingOwnerScope() {
+        // given
+        long ownJob = fixtures.saveJob(
+                transcriptId,
+                "QUEUED"
+        );
+        long teammateRecording = fixtures.saveRecording(
+                workspaceId,
+                fixtures.saveMember("다른 작성자"),
+                1000
+        );
+        long teammateTranscript = fixtures.saveTranscript(teammateRecording);
+        fixtures.saveJob(
+                teammateTranscript,
+                "QUEUED"
+        );
+        fixtures.saveJob(
+                teammateTranscript,
+                "RUNNING"
+        );
+        fixtures.saveJob(
+                teammateTranscript,
+                "FAILED",
+                DocumentFixtures.CREATED_AT,
+                NOW
+        );
+
+        // when
+        List<DocumentGenerationJobItemResult> items = query.findPage(
+                workspaceId,
+                memberId,
+                1,
+                null,
+                NOW
+        );
+
+        // then
+        assertThat(items).extracting(DocumentGenerationJobItemResult::jobId)
+                .containsExactly(ownJob);
+    }
+
+    @Test
+    @DisplayName("문서 작업 조회를 위한 녹음 제목 컬럼을 추가하지 않는다")
+    void recordingSchema_success_noTitleColumn() {
+        // when
+        long titleColumns = jdbc.sql("""
+                SELECT count(*) FROM information_schema.columns
+                WHERE table_schema = current_schema() AND table_name = 'recording_sessions' AND column_name = 'title'
+                """)
+                .query(Long.class)
+                .single();
+
+        // then
+        assertThat(titleColumns).isZero();
     }
 
     @Test
@@ -267,6 +319,7 @@ class DocumentGenerationJobListQueryIntegrationTest {
         // when
         List<DocumentGenerationJobItemResult> items = query.findPage(
                 workspaceId,
+                memberId,
                 20,
                 null,
                 NOW
@@ -350,6 +403,7 @@ class DocumentGenerationJobListQueryIntegrationTest {
         assertThat(
                 query.findPage(
                         workspaceId,
+                        memberId,
                         20,
                         null,
                         NOW
@@ -383,7 +437,7 @@ class DocumentGenerationJobListQueryIntegrationTest {
                 .update();
         DocumentGenerationJobCursor cursor = DocumentGenerationJobCursor.of(
                 workspaceId,
-                1,
+                memberId,
                 NOW.minusSeconds(60),
                 newest
         );
@@ -391,12 +445,14 @@ class DocumentGenerationJobListQueryIntegrationTest {
         // when
         List<DocumentGenerationJobItemResult> first = query.findPage(
                 workspaceId,
+                memberId,
                 1,
                 null,
                 NOW
         );
         List<DocumentGenerationJobItemResult> second = query.findPage(
                 workspaceId,
+                memberId,
                 1,
                 cursor,
                 NOW
