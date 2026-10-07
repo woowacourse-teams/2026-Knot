@@ -40,3 +40,14 @@ export interface RecordingAudioUploadUrlResponse {
   /** ISO 8601 */
   expiresAt: string;
 }
+
+/** 최종 오디오 업로드 처리 상태 */
+export type RecordingAudioUploadStatus = "RESERVED" | "COMPLETED";
+
+export interface RecordingAudioUploadCompleteResponse {
+  recordingId: number;
+  uploadId: number;
+  uploadStatus: RecordingAudioUploadStatus;
+  /** ISO 8601 */
+  completedAt: string;
+}
