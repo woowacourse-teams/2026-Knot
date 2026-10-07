@@ -165,7 +165,7 @@ Entity는 현재 녹음 Entity처럼 `transcriptId` 식별자로 연결하고, �
 
 ### 기존 데이터와 오류 처리 제안
 
-발화가 있는 저장 원문에 구간이 없다면 정상 200이나 404로 감추지 않는다. 조회 서비스에서 고정 메시지의 IllegalStateException으로 저장 계약 위반을 드러내고, 기존 GlobalExceptionHandler의 500 INTERNAL_SERVER_ERROR로 처리하는 안을 제안한다. 응답에는 원문 내용이나 내부 예외 메시지를 노출하지 않는다. 이는 제품 확정 사항이 아닌 기술 설계 제안이다.
+발화가 있는 저장 원문에 전체 텍스트 또는 구간이 없다면 정상 200이나 404로 감추지 않는다. 조회 서비스는 기존 도메인 오류 패턴에 맞춰 DocumentException(DocumentErrorCode.INVALID_TRANSCRIPT_DATA)을 던지고, GlobalExceptionHandler가 ErrorCategory.INTERNAL_SERVER_ERROR를 HTTP 500으로 변환한다. 응답 코드는 INVALID_TRANSCRIPT_DATA, 공개 메시지는 “문서 원문을 불러올 수 없습니다”다. 예상하지 못한 일반 예외는 기존 INTERNAL_SERVER_ERROR로 처리한다. 응답에는 원문 내용이나 누락 위치 등 내부 정보를 노출하지 않는다. 2026-10-07 사용자가 요청한 도메인 예외 통일을 반영했다. **(이부분 수정됨)**
 
 새 테이블 migration이 기존 전체 텍스트만 있는 Transcript를 자동으로 보정한다고 가정하지 않는다. 배포 전 실제 기존 데이터의 존재·실제 타임스탬프 재수집 가능성을 확인하고, 필요하면 음성 담당자의 데이터 전환 작업을 연결한다. 그 확인을 못 했다는 이유로 가짜 0 시각을 넣거나 필수 계약을 완화하지 않는다. 실제 운영 DB와 STT 지원은 아직 관측하지 않았다.
 

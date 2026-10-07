@@ -101,7 +101,8 @@
 | 401 | UNAUTHENTICATED | 로그인 access 인증 없음·유효하지 않음 |
 | 403 | WORKSPACE_ACCESS_DENIED | 비멤버·탈퇴자·삭제된 Workspace |
 | 404 | TRANSCRIPT_NOT_FOUND | 문서 또는 연결 원문 없음·다른 Workspace의 문서 |
-| 500 | INTERNAL_SERVER_ERROR | 연결 원문의 전체 텍스트 또는 실제 구간 누락 등 내부 오류 **(추가됨)** |
+| 500 | INVALID_TRANSCRIPT_DATA | 연결 원문의 전체 텍스트 또는 실제 발화 구간이 누락된 저장 데이터 오류 **(이부분 수정됨)** |
+| 500 | INTERNAL_SERVER_ERROR | 예상하지 못한 내부 오류 **(이부분 수정됨)** |
 
 ```json
 {
@@ -111,6 +112,15 @@
 ```
 
 내부 예외나 원문을 오류 응답에 노출하지 않는다. fieldErrors는 없으면 생략된다.
+
+저장된 원문의 필수 텍스트·구간이 누락되면 아래와 같이 반환한다. 사용자 입력 오류인 400이나 원문 없음인 404로 처리하지 않는다. **(이부분 수정됨)**
+
+```json
+{
+  "code": "INVALID_TRANSCRIPT_DATA",
+  "message": "문서 원문을 불러올 수 없습니다"
+}
+```
 
 ## 처리 규칙
 
