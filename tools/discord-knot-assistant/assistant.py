@@ -10,6 +10,10 @@ from pydantic import ValidationError
 
 from codex_cli import CodexRequest, codex_answer, make_prompt, response_chunks, visible_answer
 from failure_details import describe_failure
+from meeting_commands import MeetingCommands, sync_meeting_commands
+from meeting_published import restore_meeting_views
+from meeting_repository import MeetingRepository
+from meeting_views import render_session
 from notion_mcp_client import lookup_via_mcp
 from question_classifier import classify_question
 from settings import AssistantFailure, NotionLookup, Settings
@@ -26,6 +30,9 @@ class KnotAssistant(discord.Client):
         self.model_limiter: anyio.CapacityLimiter | None = None
         self.notion_lock: anyio.Lock | None = None
         self.log = structlog.get_logger("knot_assistant")
+        self.command_tree = discord.app_commands.CommandTree(self)
+        self.meeting_repository = MeetingRepository()
+        self.command_tree.add_command(MeetingCommands(settings, self.meeting_repository), guild=discord.Object(id=settings.discord_guild_id))
 
     async def setup_hook(self) -> None:
         limits = httpx2.Limits(max_connections=200, max_keepalive_connections=40, keepalive_expiry=30.0)
@@ -43,6 +50,9 @@ class KnotAssistant(discord.Client):
         )
         self.model_limiter = anyio.CapacityLimiter(2)
         self.notion_lock = anyio.Lock()
+        if self.application_id is not None:
+            await sync_meeting_commands(self.command_tree, self.settings.discord_guild_id)
+            await restore_meeting_views(self, self.settings, self.meeting_repository, render_session)
 
     async def close(self) -> None:
         if self.notion_http is not None:
