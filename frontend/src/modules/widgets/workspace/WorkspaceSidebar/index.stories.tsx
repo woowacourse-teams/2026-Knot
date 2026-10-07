@@ -108,6 +108,8 @@ export const FolderExpanded: Story = {
 /** Notion에서 가져온 페이지가 아직 없을 때예요. 예: 가져오기를 하기 전인 새 워크스페이스 */
 export const NoPages: Story = {
   parameters: {
+    // 문서 페이지에서는 스토리를 한 화면에 함께 그려 응답이 섞이므로, 이 스토리는 따로 그려요
+    docs: { story: { inline: false, iframeHeight: 680 } },
     msw: {
       handlers: {
         notionPageTree: http.get(

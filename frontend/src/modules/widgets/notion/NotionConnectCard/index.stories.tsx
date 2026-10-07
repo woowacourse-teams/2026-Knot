@@ -26,6 +26,10 @@ const clickConnect = async (canvasElement: HTMLElement) => {
   await userEvent.click(canvas.getByRole("button", { name: "노션 연결하기" }));
 };
 
+// 문서 페이지는 스토리를 한 화면에 함께 그리는데 msw는 화면에 하나뿐이라, 마지막 스토리의 응답이 모든 스토리에 적용돼요.
+// 응답을 바꾸는 스토리만 따로 그려 각자의 응답을 받게 해요
+const ISOLATED_DOCS = { story: { inline: false, iframeHeight: 540 } };
+
 /**
  * 노션 연동 카드예요. 워크스페이스 생성 플로우의 마지막 단계(`/workspace/:workspaceId/notion-connection`)에서 노션에 쌓아 둔 기록을 knot로 옮길지 물어요.
  *
@@ -112,6 +116,7 @@ export const Connecting: Story = {
 /** 워크스페이스 소유자가 아닌 멤버가 연결하려 할 때예요. 소유자만 연결할 수 있다고 알려요. */
 export const ConnectForbidden: Story = {
   parameters: {
+    docs: ISOLATED_DOCS,
     msw: { handlers: { startNotionOAuth: failStartWith(403) } },
   },
   play: async ({ canvasElement }) => {
@@ -122,6 +127,7 @@ export const ConnectForbidden: Story = {
 /** 서버 오류·네트워크 문제로 연결을 시작하지 못했을 때예요. 잠시 후 다시 시도하도록 안내해요. */
 export const ConnectFailed: Story = {
   parameters: {
+    docs: ISOLATED_DOCS,
     msw: { handlers: { startNotionOAuth: failStartWith(500) } },
   },
   play: async ({ canvasElement }) => {
