@@ -1,11 +1,11 @@
 package com.knot.backend.workspace.application;
 
+import com.knot.backend.document.application.DocumentArchivalService;
 import com.knot.backend.recording.domain.RecordingSession;
 import com.knot.backend.recording.domain.RecordingSessionRepository;
 import com.knot.backend.workspace.domain.WorkspaceErrorCode;
 import com.knot.backend.workspace.domain.WorkspaceException;
 import com.knot.backend.workspace.domain.WorkspaceMember;
-import com.knot.backend.workspace.domain.WorkspaceMemberLeft;
 import com.knot.backend.workspace.domain.WorkspaceMemberRepository;
 import com.knot.backend.workspace.domain.WorkspaceMemberRole;
 import com.knot.backend.workspace.domain.WorkspaceRepository;
@@ -15,18 +15,18 @@ import java.time.temporal.ChronoUnit;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
 @Transactional
 public class WorkspaceOwnershipTransferService {
+
     private final WorkspaceRepository workspaceRepository;
     private final WorkspaceMemberRepository workspaceMemberRepository;
     private final RecordingSessionRepository recordingSessionRepository;
     private final Clock clock;
-    private final ApplicationEventPublisher events;
+    private final DocumentArchivalService documentArchivalService;
 
     public void transferOwnership(
             long memberId,
@@ -74,12 +74,10 @@ public class WorkspaceOwnershipTransferService {
                 leftAt
         );
         workspaceMemberRepository.flush();
-        events.publishEvent(
-                new WorkspaceMemberLeft(
-                        workspaceId,
-                        memberId,
-                        leftAt
-                )
+        documentArchivalService.archiveAfterMemberDeparture(
+                workspaceId,
+                memberId,
+                leftAt
         );
     }
 
