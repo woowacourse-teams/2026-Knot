@@ -1,5 +1,7 @@
 # #498 내 문서 확인 완료 처리 구현 계획
 
+2026-10-07 후속 변경: 갱신된 `be/feature/#497`을 정상 머지해 상세·확인 현황의 Spring Data JPA/JPQL 조회를 반영했다. 명령 서비스와 동기 탈퇴 이벤트는 기존 JPA 저장·Workspace/Document 잠금·flush 경계를 유지하며 같은 트랜잭션의 JPA 집계 결과로 보관 여부를 판단한다. 목록 브랜치 #495는 독립 분기로 유지한다. 후속 공통 계획은 [문서 조회 JPA 정합성 작업](document-jpa-queries.md)을 따른다.
+
 - 상태: 구현·전체 제품 검사 완료. 커밋·Draft PR 전달과 Persona 완료 판정을 별도로 기록한다.
 - 확인일: 2026-10-06
 - 대상: [#498](https://github.com/woowacourse-teams/2026-Knot/issues/498), `PUT /api/v1/workspaces/{workspaceId}/documents/{documentId}/confirmations/me`
