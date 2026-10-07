@@ -1,15 +1,14 @@
-import { ThemeProvider } from "@emotion/react";
-import { DialogProvider } from "@provider/context/dialogContext";
-import { theme } from "@provider/themeProvider";
 import { useRecordingStore } from "@store/recordingStore";
-import { getRouterPath, PATH_ROUTE } from "@routes/PATH_ROUTE";
-import { act, fireEvent, render, screen } from "@testing-library/react";
-import { createMemoryRouter, Outlet, RouterProvider } from "react-router";
+import { act, render, screen } from "@testing-library/react";
+import { createMemoryRouter, RouterProvider } from "react-router";
 import { afterEach, describe, expect, it } from "vitest";
 
-import RecordingPage from ".";
+import { getRouterPath, PATH_ROUTE } from "../PATH_ROUTE";
+
+import RecordingGuard from ".";
 
 const WORKSPACE_ID = "1";
+const RECORDING_TEXT = "녹음 화면";
 const RECORDING_PATH = getRouterPath({
   routeKey: "RECORDING",
   params: { workspaceId: WORKSPACE_ID },
@@ -19,27 +18,21 @@ const HOME_PATH = getRouterPath({
   params: { workspaceId: WORKSPACE_ID },
 });
 
-const renderRecordingPage = () => {
+const renderGuard = () => {
   const router = createMemoryRouter(
     [
+      { path: PATH_ROUTE.WORKSPACE_HOME, element: <p>홈 화면</p> },
       {
-        element: <Outlet />,
+        element: <RecordingGuard />,
         children: [
-          { path: PATH_ROUTE.WORKSPACE_HOME, element: <p>홈 화면</p> },
-          { path: PATH_ROUTE.RECORDING, element: <RecordingPage /> },
+          { path: PATH_ROUTE.RECORDING, element: <p>{RECORDING_TEXT}</p> },
         ],
       },
     ],
     { initialEntries: [HOME_PATH, RECORDING_PATH], initialIndex: 1 },
   );
 
-  render(
-    <ThemeProvider theme={theme}>
-      <DialogProvider>
-        <RouterProvider router={router} />
-      </DialogProvider>
-    </ThemeProvider>,
-  );
+  render(<RouterProvider router={router} />);
 
   return { router };
 };
@@ -51,14 +44,14 @@ const startRecording = async () => {
   });
 };
 
-describe("RecordingPage", () => {
+describe("RecordingGuard", () => {
   afterEach(() => {
     // 전역 저장소라 테스트끼리 녹음이 새지 않도록 처음 상태로 되돌려요
     useRecordingStore.getState().endRecording();
   });
 
   it("진행 중인 녹음 없이 들어오면 홈으로 보내고, 뒤로 가기로 돌아오지 않는다", async () => {
-    const { router } = renderRecordingPage();
+    const { router } = renderGuard();
 
     await act(async () => {});
 
@@ -68,21 +61,22 @@ describe("RecordingPage", () => {
 
   it("녹음 중이면 녹음 화면에 머문다", async () => {
     await startRecording();
-    const { router } = renderRecordingPage();
+    const { router } = renderGuard();
 
     await act(async () => {});
 
     expect(router.state.location.pathname).toBe(RECORDING_PATH);
+    expect(screen.getByText(RECORDING_TEXT)).toBeInTheDocument();
   });
 
-  it("녹음을 끝내면 홈으로 나간다", async () => {
+  it("들어온 뒤 녹음을 끝내도 끝낸 쪽의 이동을 덮어쓰지 않는다", async () => {
     await startRecording();
-    const { router } = renderRecordingPage();
+    const { router } = renderGuard();
 
     await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: "녹음 끝내기" }));
+      useRecordingStore.getState().endRecording();
     });
 
-    expect(router.state.location.pathname).toBe(HOME_PATH);
+    expect(router.state.location.pathname).toBe(RECORDING_PATH);
   });
 });
