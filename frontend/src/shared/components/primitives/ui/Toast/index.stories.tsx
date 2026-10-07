@@ -1,5 +1,6 @@
 import styled from "@emotion/styled";
 import type { Meta, StoryObj } from "@storybook/react-webpack5";
+import { TOAST_MESSAGES } from "@provider/context/toastContext/constants/toastMessages";
 
 import Toast from ".";
 
@@ -28,10 +29,7 @@ const meta = {
       options: ["success", "caution", "error"],
     },
   },
-  args: {
-    variant: "success",
-    message: "문서를 모두 확인했어요",
-  },
+  args: TOAST_MESSAGES.ALL_DOCUMENTS_CONFIRMED,
 } satisfies Meta<typeof Toast>;
 
 export default meta;
@@ -43,18 +41,12 @@ export const Success: Story = {};
 
 /** 성공도 실패도 아닌 결과를 알릴 때 써요. 예: 연결이 끊겨 녹음이 중간에 끝남 */
 export const Caution: Story = {
-  args: {
-    variant: "caution",
-    message: "연결이 끊겨 녹음이 끝났어요. 여기까지 문서로 정리하고 있어요",
-  },
+  args: TOAST_MESSAGES.RECORDING_CONNECTION_LOST,
 };
 
 /** 내가 한 동작이 실패했고 다시 하면 될 때 써요. 예: 탐색 질문 전송 실패 */
 export const Error: Story = {
-  args: {
-    variant: "error",
-    message: "질문을 보내지 못했어요. 잠시 후 다시 시도해 주세요.",
-  },
+  args: TOAST_MESSAGES.QUESTION_SEND_FAILED,
 };
 
 /** 놓인 자리보다 긴 문구예요. 폭을 넘으면 줄을 바꾸고 아이콘은 첫 줄에 맞춰요. 예: 최대 녹음 시간 안내 */
@@ -66,11 +58,7 @@ export const LongMessage: Story = {
       </NarrowSpace>
     ),
   ],
-  args: {
-    variant: "caution",
-    message:
-      "최대 녹음 시간까지 15분 남았어요. 시간이 되면 녹음을 끝내고 문서로 정리해요",
-  },
+  args: TOAST_MESSAGES.RECORDING_TIME_LIMIT_APPROACHING,
 };
 
 // 가장 긴 실제 문구도 독 폭(최대 760px)에는 한 줄로 들어가서, 좁은 화면의 독 폭으로 줄여 줄바꿈을 보여 줘요

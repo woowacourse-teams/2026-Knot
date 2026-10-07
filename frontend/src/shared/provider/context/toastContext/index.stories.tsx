@@ -10,14 +10,7 @@ import DockColumn, {
 import Button from "@primitives/ui/Button";
 
 import { ToastProvider, ToastViewport, useToast } from ".";
-
-const SUCCESS_MESSAGE = "문서를 모두 확인했어요";
-const CAUTION_MESSAGE =
-  "연결이 끊겨 녹음이 끝났어요. 여기까지 문서로 정리하고 있어요";
-const ERROR_MESSAGE = "질문을 보내지 못했어요. 잠시 후 다시 시도해 주세요.";
-const COPY_FAILED_MESSAGE = "복사하지 못했어요. 다시 시도해 주세요.";
-const NOTHING_TO_DOCUMENT_MESSAGE = "문서로 만들 내용이 없었어요";
-const WORKSPACE_MOVED_MESSAGE = "워크스페이스를 옮겼어요";
+import { TOAST_MESSAGES } from "./constants/toastMessages";
 
 const FOUR_IN_A_ROW_INTERVAL_MS = 400;
 const THREE_QUICKLY_INTERVAL_MS = 100;
@@ -117,28 +110,28 @@ function ToastPlayground() {
       <Button
         size="sm"
         variant="accent"
-        onClick={() => show({ variant: "success", message: SUCCESS_MESSAGE })}
+        onClick={() => show(TOAST_MESSAGES.ALL_DOCUMENTS_CONFIRMED)}
       >
         정상 띄우기
       </Button>
       <Button
         size="sm"
         variant="outline"
-        onClick={() => show({ variant: "caution", message: CAUTION_MESSAGE })}
+        onClick={() => show(TOAST_MESSAGES.RECORDING_CONNECTION_LOST)}
       >
         주의 띄우기
       </Button>
       <Button
         size="sm"
         variant="danger"
-        onClick={() => show({ variant: "error", message: ERROR_MESSAGE })}
+        onClick={() => show(TOAST_MESSAGES.QUESTION_SEND_FAILED)}
       >
         오류 띄우기
       </Button>
       <Button
         size="sm"
         variant="outline"
-        onClick={() => show({ variant: "success", message: SUCCESS_MESSAGE })}
+        onClick={() => show(TOAST_MESSAGES.ALL_DOCUMENTS_CONFIRMED)}
       >
         같은 토스트 다시 띄우기
       </Button>
@@ -148,10 +141,10 @@ function ToastPlayground() {
         onClick={() =>
           showInARow(
             [
-              { variant: "success", message: SUCCESS_MESSAGE },
-              { variant: "error", message: COPY_FAILED_MESSAGE },
-              { variant: "caution", message: NOTHING_TO_DOCUMENT_MESSAGE },
-              { variant: "success", message: WORKSPACE_MOVED_MESSAGE },
+              TOAST_MESSAGES.ALL_DOCUMENTS_CONFIRMED,
+              TOAST_MESSAGES.COPY_FAILED,
+              TOAST_MESSAGES.NO_DOCUMENT_CONTENT,
+              TOAST_MESSAGES.WORKSPACE_CHANGED,
             ],
             FOUR_IN_A_ROW_INTERVAL_MS,
           )
@@ -165,9 +158,9 @@ function ToastPlayground() {
         onClick={() =>
           showInARow(
             [
-              { variant: "error", message: COPY_FAILED_MESSAGE },
-              { variant: "caution", message: NOTHING_TO_DOCUMENT_MESSAGE },
-              { variant: "success", message: WORKSPACE_MOVED_MESSAGE },
+              TOAST_MESSAGES.COPY_FAILED,
+              TOAST_MESSAGES.NO_DOCUMENT_CONTENT,
+              TOAST_MESSAGES.WORKSPACE_CHANGED,
             ],
             THREE_QUICKLY_INTERVAL_MS,
           )
