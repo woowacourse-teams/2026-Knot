@@ -55,6 +55,24 @@ public class Document {
 
     protected Document() {}
 
+    public void archive(Instant archivedAt) {
+        if (status == DocumentStatus.ARCHIVED) {
+            return;
+        }
+        validateArchiveTime(archivedAt);
+        this.status = DocumentStatus.ARCHIVED;
+        this.archivedAt = archivedAt;
+    }
+
+    private void validateArchiveTime(Instant archivedAt) {
+        if (archivedAt == null) {
+            throw new DocumentException(DocumentErrorCode.INVALID_DOCUMENT_DATA);
+        }
+        if (archivedAt.isBefore(createdAt)) {
+            throw new DocumentException(DocumentErrorCode.INVALID_DOCUMENT_DATA);
+        }
+    }
+
     private Document(
             long workspaceId,
             long recordingSessionId,
@@ -66,16 +84,14 @@ public class Document {
             String content,
             Instant createdAt
     ) {
-        validateSourceIdentifiers(
-                workspaceId,
-                recordingSessionId,
-                sourceTranscriptId,
-                documentGenerationJobId
-        );
+        validateSourceId(workspaceId);
+        validateSourceId(recordingSessionId);
+        validateSourceId(sourceTranscriptId);
+        validateSourceId(documentGenerationJobId);
         validateRequiredText(topic);
         validateRequiredText(title);
         validateRequiredText(content);
-        validateCreatedAt(createdAt);
+        validateCreationTime(createdAt);
         this.workspaceId = workspaceId;
         this.recordingSessionId = recordingSessionId;
         this.sourceTranscriptId = sourceTranscriptId;
@@ -86,6 +102,24 @@ public class Document {
         this.content = content;
         this.status = DocumentStatus.DRAFT;
         this.createdAt = createdAt;
+    }
+
+    private void validateSourceId(long sourceId) {
+        if (sourceId <= 0) {
+            throw new DocumentException(DocumentErrorCode.INVALID_DOCUMENT_DATA);
+        }
+    }
+
+    private void validateRequiredText(String value) {
+        if (value == null || value.isBlank()) {
+            throw new DocumentException(DocumentErrorCode.INVALID_DOCUMENT_DATA);
+        }
+    }
+
+    private void validateCreationTime(Instant createdAt) {
+        if (createdAt == null) {
+            throw new DocumentException(DocumentErrorCode.INVALID_DOCUMENT_DATA);
+        }
     }
 
     public static Document createDraft(
@@ -112,26 +146,4 @@ public class Document {
         );
     }
 
-    private static void validateSourceIdentifiers(
-            long workspaceId,
-            long recordingSessionId,
-            long sourceTranscriptId,
-            long documentGenerationJobId
-    ) {
-        if (workspaceId <= 0 || recordingSessionId <= 0 || sourceTranscriptId <= 0 || documentGenerationJobId <= 0) {
-            throw new DocumentException(DocumentErrorCode.INVALID_DOCUMENT_DATA);
-        }
-    }
-
-    private static void validateRequiredText(String text) {
-        if (text == null || text.isBlank()) {
-            throw new DocumentException(DocumentErrorCode.INVALID_DOCUMENT_DATA);
-        }
-    }
-
-    private static void validateCreatedAt(Instant createdAt) {
-        if (createdAt == null) {
-            throw new DocumentException(DocumentErrorCode.INVALID_DOCUMENT_DATA);
-        }
-    }
 }

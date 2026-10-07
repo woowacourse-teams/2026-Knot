@@ -30,6 +30,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.NullSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.InOrder;
+import org.springframework.context.ApplicationEventPublisher;
 
 class WorkspaceOwnershipTransferServiceTest {
     private static final Instant JOINED_AT = Instant.parse("2026-09-30T00:00:00Z");
@@ -38,6 +39,7 @@ class WorkspaceOwnershipTransferServiceTest {
     private final WorkspaceRepository workspaceRepository = mock(WorkspaceRepository.class);
     private final WorkspaceMemberRepository workspaceMemberRepository = mock(WorkspaceMemberRepository.class);
     private final RecordingSessionRepository recordingSessionRepository = mock(RecordingSessionRepository.class);
+    private final ApplicationEventPublisher events = mock(ApplicationEventPublisher.class);
     private final WorkspaceOwnershipTransferService service = new WorkspaceOwnershipTransferService(
             workspaceRepository,
             workspaceMemberRepository,
@@ -45,7 +47,8 @@ class WorkspaceOwnershipTransferServiceTest {
             Clock.fixed(
                     NOW,
                     ZoneOffset.UTC
-            )
+            ),
+            events
     );
 
     @DisplayName("Workspace를 먼저 잠그고 승계와 탈퇴를 조정한다")
