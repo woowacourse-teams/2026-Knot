@@ -9,6 +9,7 @@ public interface DocumentGenerationJobListQuery {
 
     List<DocumentGenerationJobItemResult> findPage(
             long workspaceId,
+            long memberId,
             int limit,
             DocumentGenerationJobCursor cursor,
             Instant now

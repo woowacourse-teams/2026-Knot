@@ -12,12 +12,13 @@ interface DocumentGenerationJobReadJpaRepository extends Repository<DocumentGene
 
     @Query("""
             select new com.knot.backend.document.infrastructure.DocumentGenerationJobRow(
-                j.id, rs.id, rs.title, j.status, j.createdAt, j.updatedAt
+                j.id, rs.id, j.status, j.createdAt, j.updatedAt
             )
             from DocumentGenerationJob j
             join Transcript t on t.id = j.transcriptId
             join RecordingSession rs on rs.id = t.recordingSessionId
             where rs.workspaceId = :workspaceId
+                and rs.memberId = :memberId
                 and (j.status in :activeStatuses or (j.status = :failedStatus and j.expiresAt > :now))
                 and (:hasCursor = false or j.createdAt < :cursorCreatedAt
                     or (j.createdAt = :cursorCreatedAt and j.id < :cursorJobId))
@@ -25,6 +26,7 @@ interface DocumentGenerationJobReadJpaRepository extends Repository<DocumentGene
             """)
     List<DocumentGenerationJobRow> findPage(
             long workspaceId,
+            long memberId,
             List<DocumentGenerationJobStatus> activeStatuses,
             DocumentGenerationJobStatus failedStatus,
             Instant now,
