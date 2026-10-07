@@ -11,6 +11,7 @@ type MicrophoneParams = Omit<MicrophoneConnectionParams, "stream">;
  * - 여러 번 연결해도 권한 창은 한 번만 띄우고 같은 결과를 함께 기다려요
  * - 권한을 기다리는 사이 끊었다면 받은 마이크를 바로 꺼요
  * - 끊긴 뒤 다시 연결하면 이전 연결을 정리하고 새로 붙여요
+ * - 연결만으로는 녹음하지 않고, `start()`를 불러야 모으기 시작해요
  */
 export default class Microphone {
   private readonly onData: MicrophoneParams["onData"];
@@ -36,6 +37,10 @@ export default class Microphone {
     return this.pendingConnect;
   }
 
+  start() {
+    this.connection?.start();
+  }
+
   isLive() {
     return this.connection?.isLive() ?? false;
   }
@@ -46,6 +51,12 @@ export default class Microphone {
 
   resume() {
     this.connection?.resume();
+  }
+
+  /** 마지막 조각까지 모은 뒤 마이크를 꺼요 */
+  async stop() {
+    await this.connection?.stop();
+    this.disconnect();
   }
 
   disconnect() {

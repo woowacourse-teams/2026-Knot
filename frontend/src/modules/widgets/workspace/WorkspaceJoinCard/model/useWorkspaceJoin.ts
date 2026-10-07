@@ -1,3 +1,4 @@
+import { HTTP_ERROR_TYPE, isHttpError } from "@api/httpClient/error";
 import useAcceptInvitationMutation from "@api/mutations/useAcceptInvitationMutation";
 import useNavigateToLogin from "@hooks/domain/auth/useNavigateToLogin";
 import useNavigateToJoinError from "@hooks/domain/workspace/useNavigateToJoinError";
@@ -5,15 +6,12 @@ import useNavigateToWorkspace from "@hooks/domain/workspace/useNavigateToWorkspa
 import useNavigateToWorkspaceHome from "@hooks/domain/workspace/useNavigateToWorkspaceHome";
 import useWorkspaceJoinState from "@hooks/domain/workspace/useWorkspaceJoinState";
 import { isUnauthorizedError } from "@utils/isUnauthorizedError";
-import axios from "axios";
 import { useEffect } from "react";
 
-/** 초대가 없거나 만료됐거나(404) 짧은 시간에 너무 많이 시도해(429) 참여가 거절된 상태 코드 */
-const JOIN_REJECTED_STATUSES = [404, 429];
-
+/** 초대가 없거나 만료됐거나(404) 짧은 시간에 너무 많이 시도해(429) 참여가 거절된 실패 */
 const isJoinRejectedError = (error: unknown) =>
-  axios.isAxiosError(error) &&
-  JOIN_REJECTED_STATUSES.includes(error.response?.status ?? 0);
+  isHttpError(error, HTTP_ERROR_TYPE.notFound) ||
+  isHttpError(error, HTTP_ERROR_TYPE.tooManyRequests);
 
 /**
  * 입장 확인 카드의 state 확인·참여·이동 흐름.
