@@ -1,11 +1,24 @@
-import { GetDocumentResponseDto } from "@api/dto/document";
-import { documentDetailsResponse } from "@api/mock/responses/document";
+import {
+  GetDocumentConfirmationsResponseDto,
+  GetDocumentResponseDto,
+} from "@api/dto/document";
+import {
+  documentConfirmationsResponse,
+  documentDetailsResponse,
+} from "@api/mock/responses/document";
 import { mockServer } from "@api/mock/server";
+import type { DocumentConfirmationsResponse } from "@api/mock/types/document";
 import { ThemeProvider } from "@emotion/react";
 import { theme } from "@provider/themeProvider";
 import { getRouterPath, PATH_ROUTE } from "@routes/PATH_ROUTE";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitForElementToBeRemoved,
+  within,
+} from "@testing-library/react";
 import { formatDate } from "@utils/formatDate";
 import { formatDurationFromSeconds } from "@utils/formatDurationFromSeconds";
 import { delay, http, HttpResponse } from "msw";
@@ -19,6 +32,32 @@ const WORKSPACE_ID = "1";
 // 경로 파라미터 자리에 무엇이 와도 잡도록 fetch 상수 대신 패턴을 적어요
 const DOCUMENT_REQUEST =
   "*/api/v1/workspaces/:workspaceId/documents/:documentId";
+const CONFIRMATIONS_REQUEST = `${DOCUMENT_REQUEST}/confirmations`;
+
+const expectedConfirmations = new GetDocumentConfirmationsResponseDto(
+  documentConfirmationsResponse[0],
+);
+
+// 서버 정렬을 믿지 않는지 보려고 순서를 섞고, 확인하지 않고 나간 사람(EXCLUDED)을 끼워 넣은 응답이에요
+const [confirmedItem, , pendingItem] = documentConfirmationsResponse[0].items;
+const shuffledConfirmationsResponse = {
+  ...documentConfirmationsResponse[0],
+  items: [
+    pendingItem,
+    {
+      memberId: 9,
+      nickname: "루루",
+      profileImageUrl: null,
+      confirmedAt: null,
+      state: "EXCLUDED",
+    },
+    confirmedItem,
+  ],
+} satisfies DocumentConfirmationsResponse;
+const [pendingPerson, excludedPerson, confirmedPerson] =
+  new GetDocumentConfirmationsResponseDto(shuffledConfirmationsResponse).items;
+
+const LOAD_FAILED_NOTICE = "목록을 불러오지 못했어요";
 
 const renderViewer = (documentId: string) => {
   const queryClient = new QueryClient({
@@ -52,6 +91,25 @@ const createMemoryRouterFor = (documentId: string) =>
       ],
     },
   );
+
+/** 확인 수 문구에 포인터를 올려 확인한 사람 팝오버를 열어요 */
+const hoverConfirmCount = async () => {
+  const confirmCount = await screen.findByText(
+    `${expected.confirmationSummary.confirmedCount}명 확인했어요`,
+  );
+
+  fireEvent.pointerEnter(confirmCount);
+
+  return confirmCount;
+};
+
+const findPeopleRows = async () => {
+  const peopleList = await screen.findByRole("list", {
+    name: "문서 확인 현황",
+  });
+
+  return within(peopleList).getAllByRole("listitem");
+};
 
 describe("DocumentViewer", () => {
   it("문서를 불러오는 동안에는 불러오는 중이라고 알린다", () => {
@@ -95,6 +153,67 @@ describe("DocumentViewer", () => {
         formatDurationFromSeconds(expected.recordingDurationSeconds),
       ),
     ).toBeInTheDocument();
+  });
+
+  it("확인한 사람 수를 보여주고, 포인터를 올리면 확인 대상의 이름을 보여준다", async () => {
+    renderViewer(String(expected.id));
+
+    await hoverConfirmCount();
+
+    const rows = await findPeopleRows();
+
+    expect(rows).toHaveLength(expectedConfirmations.items.length);
+    expectedConfirmations.items.forEach(({ nickname }, index) => {
+      expect(within(rows[index]).getByText(nickname)).toBeInTheDocument();
+    });
+  });
+
+  it("응답의 순서와 관계없이 확인한 사람을 먼저 보여주고, 확인하지 않고 나간 사람은 보여주지 않는다", async () => {
+    mockServer.use(
+      http.get(CONFIRMATIONS_REQUEST, () =>
+        HttpResponse.json(shuffledConfirmationsResponse),
+      ),
+    );
+    renderViewer(String(expected.id));
+
+    await hoverConfirmCount();
+
+    const rows = await findPeopleRows();
+
+    expect(rows).toHaveLength(2);
+    expect(
+      within(rows[0]).getByText(confirmedPerson.nickname),
+    ).toBeInTheDocument();
+    expect(
+      within(rows[1]).getByText(pendingPerson.nickname),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(excludedPerson.nickname)).not.toBeInTheDocument();
+  });
+
+  it("확인 대상을 불러오지 못하면 팝오버에 알리고, 포인터를 다시 올리면 다시 불러와 보여준다", async () => {
+    mockServer.use(
+      http.get(
+        CONFIRMATIONS_REQUEST,
+        () => new HttpResponse(null, { status: 500 }),
+      ),
+    );
+    renderViewer(String(expected.id));
+
+    const confirmCount = await hoverConfirmCount();
+
+    expect(await screen.findByText(LOAD_FAILED_NOTICE)).toBeInTheDocument();
+
+    // 서버가 돌아온 뒤 팝오버를 닫았다가 다시 열어요
+    mockServer.resetHandlers();
+    fireEvent.pointerLeave(confirmCount);
+    await waitForElementToBeRemoved(() =>
+      screen.queryByText(LOAD_FAILED_NOTICE),
+    );
+    fireEvent.pointerEnter(confirmCount);
+
+    expect(await findPeopleRows()).toHaveLength(
+      expectedConfirmations.items.length,
+    );
   });
 
   it("없는 문서면 문서를 찾을 수 없다고 알리고, 홈으로를 누르면 워크스페이스 홈으로 간다", async () => {
