@@ -8,6 +8,7 @@ import com.knot.backend.document.presentation.dto.response.DocumentConfirmations
 import com.knot.backend.document.presentation.dto.response.DocumentConfirmationResponse;
 import com.knot.backend.document.presentation.dto.response.DocumentDetailResponse;
 import com.knot.backend.document.presentation.dto.response.DocumentListResponse;
+import com.knot.backend.document.presentation.dto.response.DocumentTranscriptResponse;
 import com.knot.backend.document.domain.MyConfirmationState;
 import com.knot.backend.global.response.ErrorResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -26,6 +27,33 @@ import org.springframework.http.MediaType;
 public interface DocumentApi {
 
     // @formatter:off
+    @Operation(summary = "문서에 연결된 전사 원문 조회",
+            description = "현재 Workspace 멤버는 녹음 참여·확인 대상 여부와 관계없이 DRAFT·ARCHIVED 문서의 원문을 읽습니다. "
+                    + "문서의 sourceTranscriptId에 연결된 전체 텍스트와 실제 발화 구간을 반환합니다. "
+                    + "구간은 startMillis 오름차순, 동률이면 저장 순서입니다. 실제 시작 시각은 필수이며 "
+                    + "종료 시각·익명 화자가 미상이면 null입니다. 현재 isPartial은 false입니다. "
+                    + "확인·보관·Job 상태를 변경하지 않으며 STT·AI를 호출하지 않습니다.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "문서 원문 조회 성공",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = DocumentTranscriptResponse.class))),
+            @ApiResponse(responseCode = "400", description = "INVALID_PARAMETER: 경로 ID 형식 또는 범위 오류",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "401", description = "UNAUTHENTICATED: 로그인하지 않음",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "403", description = "WORKSPACE_ACCESS_DENIED: 현재 Workspace 멤버가 아님",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "404", description = "TRANSCRIPT_NOT_FOUND: 문서 또는 연결 원문이 없거나 Workspace 범위가 다름",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "500", description = "INTERNAL_SERVER_ERROR: 저장된 원문·구간 계약 위반 또는 내부 오류",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
+    DocumentTranscriptResponse findTranscript(
+            @Parameter(description = "문서가 속한 Workspace ID", schema = @Schema(minimum = "1")) Long workspaceId,
+            @Parameter(description = "원문을 조회할 Document ID", schema = @Schema(minimum = "1")) Long documentId,
+            @Parameter(hidden = true) AuthenticatedMember authenticatedMember
+    );
+
     @Operation(summary = "주제별 문서 폴더와 카드 목록 조회",
             description = "현재 Workspace의 DRAFT·ARCHIVED 문서를 생성 시각 내림차순, 동률이면 ID 내림차순으로 조회합니다. "
                     + "녹음과 내 확인 상태 필터는 AND로 적용합니다. 주제 목록과 문서 수는 필터를 적용한 전체 결과이며 "

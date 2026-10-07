@@ -11,6 +11,7 @@ import com.knot.backend.auth.domain.AuthenticatedMember;
 import com.knot.backend.document.application.DocumentConfirmationService;
 import com.knot.backend.document.application.DocumentConfirmationCommandService;
 import com.knot.backend.document.application.DocumentDetailService;
+import com.knot.backend.document.application.DocumentTranscriptService;
 import com.knot.backend.document.application.DocumentListService;
 import com.knot.backend.document.application.dto.result.DocumentConfirmationSummaryResult;
 import com.knot.backend.document.application.dto.result.DocumentDetailResult;
@@ -42,6 +43,7 @@ class DocumentControllerTest {
         service = mock(DocumentDetailService.class);
         mvc = MockMvcBuilders.standaloneSetup(
                 new DocumentController(
+                        mock(DocumentTranscriptService.class),
                         service,
                         mock(DocumentListService.class),
                         mock(DocumentConfirmationService.class),
