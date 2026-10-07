@@ -68,11 +68,11 @@ public class DocumentTranscriptService {
     private void validateStoredTranscript(DocumentTranscriptSnapshot snapshot) {
         if (snapshot.transcriptText() == null || snapshot.transcriptText()
                 .isBlank()) {
-            throw new IllegalStateException("저장된 문서 원문의 전체 텍스트가 없습니다");
+            throw new DocumentException(DocumentErrorCode.INVALID_TRANSCRIPT_DATA);
         }
         if (snapshot.segments()
                 .isEmpty()) {
-            throw new IllegalStateException("저장된 문서 원문의 실제 발화 구간이 없습니다");
+            throw new DocumentException(DocumentErrorCode.INVALID_TRANSCRIPT_DATA);
         }
     }
 }

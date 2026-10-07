@@ -45,7 +45,7 @@ public interface DocumentApi {
                     content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @ApiResponse(responseCode = "404", description = "TRANSCRIPT_NOT_FOUND: 문서 또는 연결 원문이 없거나 Workspace 범위가 다름",
                     content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
-            @ApiResponse(responseCode = "500", description = "INTERNAL_SERVER_ERROR: 저장된 원문·구간 계약 위반 또는 내부 오류",
+            @ApiResponse(responseCode = "500", description = "INVALID_TRANSCRIPT_DATA: 저장된 원문·구간 계약 위반, INTERNAL_SERVER_ERROR: 예상하지 못한 내부 오류",
                     content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
     DocumentTranscriptResponse findTranscript(
