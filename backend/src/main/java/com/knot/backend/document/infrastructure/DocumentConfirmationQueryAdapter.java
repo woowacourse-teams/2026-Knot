@@ -31,6 +31,7 @@ public class DocumentConfirmationQueryAdapter implements DocumentConfirmationQue
             )
             """;
     private final JdbcClient jdbc;
+    private final DocumentConfirmationReadJpaRepository confirmations;
 
     @Override
     public Optional<DocumentConfirmationOverviewResult> findSummary(
@@ -38,28 +39,12 @@ public class DocumentConfirmationQueryAdapter implements DocumentConfirmationQue
             long documentId,
             long memberId
     ) {
-        return bindScope(
-                jdbc.sql(TARGETS + """
-                        SELECT d.id, totals.*, EXISTS (
-                            SELECT 1 FROM targets t WHERE t.member_id = :memberId AND t.confirmed_at IS NOT NULL
-                        ) AS confirmed_by_me
-                        FROM documents d
-                        CROSS JOIN LATERAL (
-                            SELECT count(*) FILTER (WHERE confirmed_at IS NOT NULL) AS confirmed_count,
-                                count(*) FILTER (WHERE confirmed_at IS NULL AND active_member) AS pending_count,
-                                count(*) FILTER (WHERE confirmed_at IS NULL AND NOT active_member) AS excluded_count
-                            FROM targets
-                        ) totals
-                        WHERE d.workspace_id = :workspaceId AND d.id = :documentId
-                        """),
+        return confirmations.findSummary(
                 workspaceId,
-                documentId
-        ).param(
-                "memberId",
+                documentId,
                 memberId
         )
-                .query(this::mapSummary)
-                .optional();
+                .map(this::toOverview);
     }
 
     @Override
@@ -148,18 +133,15 @@ public class DocumentConfirmationQueryAdapter implements DocumentConfirmationQue
                 );
     }
 
-    private DocumentConfirmationOverviewResult mapSummary(
-            ResultSet row,
-            int rowNumber
-    ) throws SQLException {
+    private DocumentConfirmationOverviewResult toOverview(DocumentConfirmationSummaryRow row) {
         return new DocumentConfirmationOverviewResult(
-                row.getLong("id"),
+                row.documentId(),
                 new DocumentConfirmationSummaryResult(
-                        row.getInt("confirmed_count"),
-                        row.getInt("pending_count"),
-                        row.getInt("excluded_count")
+                        Math.toIntExact(row.confirmedCount()),
+                        Math.toIntExact(row.pendingCount()),
+                        Math.toIntExact(row.excludedCount())
                 ),
-                row.getBoolean("confirmed_by_me")
+                row.confirmedByMe()
         );
     }
 
