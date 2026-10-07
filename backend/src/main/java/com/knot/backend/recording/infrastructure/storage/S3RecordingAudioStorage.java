@@ -22,17 +22,20 @@ public class S3RecordingAudioStorage implements RecordingAudioStorage {
     private final S3Presigner presigner;
     private final S3Client client;
     private final String bucket;
+    private final String keyPrefix;
     private final Duration uploadUrlTtl;
 
     public S3RecordingAudioStorage(
             S3Presigner presigner,
             S3Client client,
             String bucket,
+            String keyPrefix,
             Duration uploadUrlTtl
     ) {
         this.presigner = presigner;
         this.client = client;
         this.bucket = bucket;
+        this.keyPrefix = keyPrefix == null ? "" : keyPrefix;
         this.uploadUrlTtl = uploadUrlTtl;
     }
 
@@ -45,7 +48,7 @@ public class S3RecordingAudioStorage implements RecordingAudioStorage {
     ) {
         PutObjectRequest putObjectRequest = PutObjectRequest.builder()
                 .bucket(bucket)
-                .key(storageKey)
+                .key(keyPrefix + storageKey)
                 .contentType(contentType)
                 .contentLength(contentLength)
                 .build();
@@ -68,7 +71,7 @@ public class S3RecordingAudioStorage implements RecordingAudioStorage {
             HeadObjectResponse response = client.headObject(
                     HeadObjectRequest.builder()
                             .bucket(bucket)
-                            .key(storageKey)
+                            .key(keyPrefix + storageKey)
                             .build()
             );
             return StoredAudioObject.of(

@@ -77,6 +77,7 @@ class S3RecordingAudioStorageTest {
                 presigner(endpoint),
                 client(endpoint),
                 BUCKET,
+                "",
                 Duration.ofMinutes(15)
         );
     }
@@ -157,6 +158,51 @@ class S3RecordingAudioStorageTest {
         assertThat(failure).isInstanceOf(RecordingException.class)
                 .extracting("errorCode")
                 .isEqualTo(RecordingErrorCode.AUDIO_STORAGE_UNAVAILABLE);
+    }
+
+    @Test
+    @DisplayName("설정 접두사를 논리 key 앞에 붙여 업로드 URL을 발급한다")
+    void presignUpload_success_configuredPrefix() {
+        // given
+        S3RecordingAudioStorage prefixedStorage = storageWithPrefix("knot/dev/");
+
+        // when
+        PresignedAudioUpload presigned = prefixedStorage.presignUpload(
+                "recordings/7/key",
+                "audio/webm",
+                1024L
+        );
+
+        // then
+        assertThat(presigned.uploadUrl()).contains("/knot-audio/knot/dev/recordings/7/key?");
+    }
+
+    @Test
+    @DisplayName("HEAD도 업로드와 같은 설정 접두사를 사용한다")
+    void findStoredObject_success_configuredPrefix() {
+        // given
+        S3RecordingAudioStorage prefixedStorage = storageWithPrefix("knot/dev/");
+
+        // when
+        StoredAudioObject storedObject = prefixedStorage.findStoredObject("recordings/7/key");
+
+        // then
+        assertThat(lastRequest.get()).isEqualTo("HEAD /knot-audio/knot/dev/recordings/7/key");
+        assertThat(storedObject.exists()).isTrue();
+    }
+
+    private S3RecordingAudioStorage storageWithPrefix(String keyPrefix) {
+        URI endpoint = URI.create(
+                "http://localhost:" + server.getAddress()
+                        .getPort()
+        );
+        return new S3RecordingAudioStorage(
+                presigner(endpoint),
+                client(endpoint),
+                BUCKET,
+                keyPrefix,
+                Duration.ofMinutes(15)
+        );
     }
 
     private S3Presigner presigner(URI endpoint) {

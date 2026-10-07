@@ -7,6 +7,8 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
+import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
+import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
 import software.amazon.awssdk.regions.Region;
@@ -28,6 +30,7 @@ public class RecordingAudioStorageConfig {
                 presigner(properties),
                 client(properties),
                 properties.bucket(),
+                properties.keyPrefix(),
                 properties.uploadUrlTtl()
         );
     }
@@ -65,7 +68,11 @@ public class RecordingAudioStorageConfig {
                 .build();
     }
 
-    private StaticCredentialsProvider credentials(RecordingAudioStorageProperties properties) {
+    private AwsCredentialsProvider credentials(RecordingAudioStorageProperties properties) {
+        if (!properties.hasStaticCredentials()) {
+            return DefaultCredentialsProvider.builder()
+                    .build();
+        }
         return StaticCredentialsProvider.create(
                 AwsBasicCredentials.create(
                         properties.accessKey(),
