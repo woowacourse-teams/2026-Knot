@@ -1,6 +1,17 @@
-/** 굵게만 구분하는 글 조각. 정한 문법 밖의 기호는 `text` 안에 글자 그대로 남아요 */
-export type MarkdownInline =
-  { type: "text"; value: string } | { type: "bold"; value: string };
+/** 꾸밈 없는 글 조각. 정한 문법 밖의 기호는 글자 그대로 남아요 */
+export interface MarkdownTextInline {
+  type: "text";
+  value: string;
+}
+
+/** `**굵게**`로 감싼 글 조각 */
+export interface MarkdownBoldInline {
+  type: "bold";
+  value: string;
+}
+
+/** 굵게만 구분하는 글 조각 */
+export type MarkdownInline = MarkdownTextInline | MarkdownBoldInline;
 
 /** `#` · `##` · `###`의 개수 */
 export type MarkdownHeadingLevel = 1 | 2 | 3;

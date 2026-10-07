@@ -12,13 +12,13 @@ import DocumentViewer from "@widgets/document/DocumentViewer";
  */
 export default function DocumentPage() {
   return (
-    <Container>
+    <Root>
       <DocumentViewer />
-    </Container>
+    </Root>
   );
 }
 
-const Container = styled.div`
+const Root = styled.div`
   display: flex;
   justify-content: center;
   min-height: 100%;

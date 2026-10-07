@@ -1,5 +1,6 @@
 import type {
   MarkdownBlock,
+  MarkdownHeadingBlock,
   MarkdownHeadingLevel,
   MarkdownInline,
 } from "../types/markdownBlock";
@@ -41,6 +42,21 @@ const parseInlines = (text: string) => {
   return inlines;
 };
 
+/** 제목 줄이면 제목 블록을, 아니면 null을 돌려줘요 */
+const toHeadingBlock = (line: string) => {
+  const heading = HEADING_PATTERN.exec(line);
+  const headingLevel = heading?.[1].length ?? 0;
+
+  // 단계 값이 아니면 제목으로 보지 않아 글자 그대로인 문단이 돼요. 한 줄 때문에 문서 전체가 깨지지 않게 던지지 않아요
+  if (!heading || !isHeadingLevel(headingLevel)) return null;
+
+  return {
+    type: "heading",
+    level: headingLevel,
+    inlines: parseInlines(heading[2]),
+  } satisfies MarkdownHeadingBlock;
+};
+
 export const parseMarkdownBlocks = ({
   content,
   mutedLines = [],
@@ -73,18 +89,12 @@ export const parseMarkdownBlocks = ({
 
   // `\r`이 줄 끝에 남으면 제목 패턴의 `.`이 받지 못해 제목이 문단이 되므로 함께 잘라요
   for (const line of content.split(/\r?\n/)) {
-    const heading = HEADING_PATTERN.exec(line);
-    const headingLevel = heading?.[1].length ?? 0;
+    const headingBlock = toHeadingBlock(line);
 
-    // 단계 값이 아니면 제목으로 보지 않고 아래에서 글자 그대로인 문단이 돼요. 한 줄 때문에 문서 전체가 깨지지 않게 던지지 않아요
-    if (heading && isHeadingLevel(headingLevel)) {
+    if (headingBlock) {
       flushParagraph();
       flushList();
-      blocks.push({
-        type: "heading",
-        level: headingLevel,
-        inlines: parseInlines(heading[2]),
-      });
+      blocks.push(headingBlock);
       continue;
     }
 

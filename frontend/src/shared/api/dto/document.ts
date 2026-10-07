@@ -72,7 +72,7 @@ export class GetDocumentResponseDto {
   createdAt: string;
   /** 보관 전환 시각(ISO 8601, UTC). DRAFT면 null */
   archivedAt: string | null;
-  /** 일시정지를 뺀 원본 녹음 길이(초). 소수 초는 버려요 */
+  /** 일시정지를 뺀 원본 녹음 길이(초). 서버가 소수 초를 버린 정수로 보내요 */
   recordingDurationSeconds: number;
   /** 이 문서를 만든 원문(Transcript) ID */
   sourceTranscriptId: number;
