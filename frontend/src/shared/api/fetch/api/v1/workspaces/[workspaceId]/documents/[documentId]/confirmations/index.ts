@@ -7,8 +7,7 @@ import { httpClient } from "@api/httpClient";
 export const DOCUMENT_CONFIRMATIONS_API_PATH = (
   workspaceId: number,
   documentId: number,
-) =>
-  `/api/v1/workspaces/${workspaceId}/documents/${documentId}/confirmations`;
+) => `/api/v1/workspaces/${workspaceId}/documents/${documentId}/confirmations`;
 
 /** 서버가 한 번에 주는 최대 크기. 팀 규모에서는 한 페이지로 충분해 다음 페이지는 받지 않아요 */
 const CONFIRMATIONS_PAGE_SIZE = 100;
