@@ -7,9 +7,11 @@ import com.knot.backend.document.application.DocumentListQuery;
 import com.knot.backend.document.application.dto.query.DocumentListParameters;
 import com.knot.backend.document.application.dto.result.DocumentCardResult;
 import com.knot.backend.document.domain.DocumentCursor;
+import com.knot.backend.document.domain.DocumentConfirmation;
 import com.knot.backend.document.domain.DocumentStatus;
 import com.knot.backend.document.domain.MyConfirmationState;
 import com.knot.backend.testsupport.TestcontainersConfiguration;
+import jakarta.persistence.EntityManager;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.List;
@@ -30,6 +32,8 @@ class DocumentListQueryIntegrationTest {
     private DocumentListQuery query;
     @Autowired
     private JdbcClient jdbc;
+    @Autowired
+    private EntityManager entityManager;
     private DocumentFixtures fixtures;
     private long workspaceId;
     private long memberId;
@@ -118,6 +122,52 @@ class DocumentListQueryIntegrationTest {
                         parameters
                 )
         ).hasSize(2);
+    }
+
+    @Test
+    @DisplayName("JPA로 등록한 확인 대상은 주제 필터와 카드 집계에 즉시 반영된다")
+    void find_success_pendingJpaConfirmation() {
+        long documentId = saveDocument(
+                workspaceId,
+                "정책"
+        );
+        entityManager.persist(
+                DocumentConfirmation.require(
+                        documentId,
+                        memberId
+                )
+        );
+        DocumentListParameters parameters = DocumentListParameters.of(
+                null,
+                50,
+                MyConfirmationState.PENDING,
+                null
+        );
+
+        assertThat(
+                query.findTopics(
+                        workspaceId,
+                        memberId,
+                        parameters
+                )
+        ).extracting(topic -> topic.documentCount())
+                .containsExactly(1);
+        List<DocumentCardResult> cards = query.findPage(
+                workspaceId,
+                memberId,
+                parameters,
+                null
+        );
+        assertThat(cards).hasSize(1);
+        assertThat(
+                cards.getFirst()
+                        .myConfirmationState()
+        ).isEqualTo(MyConfirmationState.PENDING);
+        assertThat(
+                cards.getFirst()
+                        .confirmationSummary()
+                        .pendingCount()
+        ).isEqualTo(1);
     }
 
     @Test
