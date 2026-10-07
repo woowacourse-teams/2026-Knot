@@ -29,6 +29,11 @@ class FakeMediaStream {
 }
 
 class FakeMediaRecorder extends EventTarget {
+  /** 모든 형식을 지원한다고 답해요. 미지원 브라우저는 테스트에서 `vi.spyOn`으로 덮어요 */
+  static isTypeSupported() {
+    return true;
+  }
+
   state: RecordingState = "inactive";
 
   constructor(public stream: FakeMediaStream) {
@@ -49,6 +54,8 @@ class FakeMediaRecorder extends EventTarget {
 
   stop() {
     this.state = "inactive";
+    // 실제 녹음기처럼 멈춘 뒤 비동기로 `stop`을 알려요
+    queueMicrotask(() => this.dispatchEvent(new Event("stop")));
   }
 }
 

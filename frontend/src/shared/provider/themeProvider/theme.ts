@@ -103,6 +103,7 @@ export const theme = {
       50: "#FAEFEE",
       200: "#DDACA6",
       600: "#BF3B2C",
+      700: "#A8483C",
       800: "#8C2A1F",
     },
   },

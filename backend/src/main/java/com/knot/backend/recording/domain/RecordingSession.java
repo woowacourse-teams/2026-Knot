@@ -144,6 +144,13 @@ public class RecordingSession {
         }
     }
 
+    public void validateAudioUploadable() {
+        ensureNotDiscarded();
+        if (status != RecordingStatus.ENDED) {
+            throw new RecordingException(RecordingErrorCode.RECORDING_NOT_ENDED);
+        }
+    }
+
     public void pause(Instant pausedAt) {
         ensureActive();
         if (status == RecordingStatus.PAUSED) {
