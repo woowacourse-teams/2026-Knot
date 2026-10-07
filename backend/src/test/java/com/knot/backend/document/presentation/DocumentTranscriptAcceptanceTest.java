@@ -322,7 +322,36 @@ class DocumentTranscriptAcceptanceTest {
                 documentId,
                 readerId
         ).andExpect(status().isInternalServerError())
-                .andExpect(jsonPath("$.code").value("INTERNAL_SERVER_ERROR"))
+                .andExpect(jsonPath("$.code").value("INVALID_TRANSCRIPT_DATA"))
+                .andExpect(jsonPath("$.message").value("문서 원문을 불러올 수 없습니다"))
+                .andExpect(jsonPath("$.transcriptText").doesNotExist())
+                .andExpect(jsonPath("$.segments").doesNotExist());
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"", " ", "\t\n"})
+    @DisplayName("전체 텍스트 누락도 원문 데이터 오류로 응답하고 내부 내용을 노출하지 않는다")
+    void findTranscript_failure_blankStoredTranscript(String text) throws Exception {
+        // given
+        jdbc.sql("UPDATE transcripts SET content = :text WHERE id = :id")
+                .param(
+                        "text",
+                        text
+                )
+                .param(
+                        "id",
+                        transcriptId
+                )
+                .update();
+
+        // when & then
+        request(
+                workspaceId,
+                documentId,
+                readerId
+        ).andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.code").value("INVALID_TRANSCRIPT_DATA"))
+                .andExpect(jsonPath("$.message").value("문서 원문을 불러올 수 없습니다"))
                 .andExpect(jsonPath("$.transcriptText").doesNotExist())
                 .andExpect(jsonPath("$.segments").doesNotExist());
     }
@@ -342,6 +371,11 @@ class DocumentTranscriptAcceptanceTest {
                         jsonPath(
                                 "$.paths['/api/v1/workspaces/{workspaceId}/documents/{documentId}/transcript'].get.responses['404'].description"
                         ).value(containsString("TRANSCRIPT_NOT_FOUND"))
+                )
+                .andExpect(
+                        jsonPath(
+                                "$.paths['/api/v1/workspaces/{workspaceId}/documents/{documentId}/transcript'].get.responses['500'].description"
+                        ).value(containsString("INVALID_TRANSCRIPT_DATA"))
                 )
                 .andExpect(
                         jsonPath("$.components.schemas.DocumentTranscriptResponse.required").value(

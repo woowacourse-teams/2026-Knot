@@ -178,7 +178,12 @@ class DocumentTranscriptServiceTest {
                         2,
                         3
                 )
-        ).isInstanceOf(IllegalStateException.class);
+        ).isInstanceOf(DocumentException.class)
+                .extracting(
+                        exception -> ((DocumentException) exception).getErrorCode()
+                                .getCode()
+                )
+                .isEqualTo("INVALID_TRANSCRIPT_DATA");
     }
 
     @ParameterizedTest
@@ -218,7 +223,12 @@ class DocumentTranscriptServiceTest {
                         2,
                         3
                 )
-        ).isInstanceOf(IllegalStateException.class);
+        ).isInstanceOf(DocumentException.class)
+                .extracting(
+                        exception -> ((DocumentException) exception).getErrorCode()
+                                .getCode()
+                )
+                .isEqualTo("INVALID_TRANSCRIPT_DATA");
     }
 
     private void allowMember() {
