@@ -1,4 +1,5 @@
 import type {
+  RecordingAudioUploadCompleteResponse,
   RecordingAudioUploadUrlResponse,
   RecordingEndResponse,
   RecordingPauseResponse,
@@ -48,3 +49,10 @@ export const recordingAudioUploadUrlResponse = {
   uploadUrl: `${MOCK_AUDIO_STORAGE_ORIGIN}/recordings/10/audio`,
   expiresAt: fromNow(5 * MINUTE),
 } satisfies RecordingAudioUploadUrlResponse;
+
+export const recordingAudioUploadCompleteResponse = {
+  recordingId: 10,
+  uploadId: 300,
+  uploadStatus: "COMPLETED",
+  completedAt: fromNow(0),
+} satisfies RecordingAudioUploadCompleteResponse;
