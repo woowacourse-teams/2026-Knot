@@ -7,6 +7,7 @@ import useUploadRecordingAudioMutation from "@api/mutations/useUploadRecordingAu
 import useNavigateToWorkspaceHome from "@hooks/domain/workspace/useNavigateToWorkspaceHome";
 import { useRecordingStore } from "@store/recordingStore";
 import { isClosedRecordingError } from "@utils/isClosedRecordingError";
+import { logRequestError } from "@utils/logRequestError";
 import {
   clearRecordingStartProof,
   getRecordingControlProof,
@@ -27,10 +28,6 @@ interface UploadRecordedAudioParams {
 }
 
 // TODO: 실패 안내·재시도 정책은 기획 논의가 필요해요. 정해질 때까지 안내 UI 없이 콘솔에만 남겨요(#465)
-const logRecordingError = (action: string, error: unknown) => {
-  console.error(`[녹음] ${action} 요청에 실패했어요`, error);
-};
-
 /**
  * 녹음을 시작·일시정지·이어서 녹음·끝내며 서버 녹음 세션과 맞추는 도메인 훅.
  *
@@ -69,7 +66,7 @@ const useRecordingControl = () => {
 
   const handleControlError = useCallback(
     ({ action, error, workspaceId }: HandleControlErrorParams) => {
-      logRecordingError(action, error);
+      logRequestError(action, error);
       if (isClosedRecordingError(error)) closeRecording(workspaceId);
     },
     [closeRecording],
@@ -86,7 +83,7 @@ const useRecordingControl = () => {
         if (!isConnected) return "microphoneUnavailable";
       } catch (error) {
         // 서버가 받는 형식으로 녹음할 수 없는 브라우저예요. 안내는 다른 실패와 함께 정해요(#465)
-        logRecordingError("녹음 시작", error);
+        logRequestError("녹음 시작", error);
 
         return "failed";
       }
@@ -103,7 +100,7 @@ const useRecordingControl = () => {
         return "started";
       } catch (error) {
         // 응답을 못 받았을 뿐 서버엔 열렸을 수 있어, 다음 시작이 같은 요청으로 가도록 증명은 남겨요
-        logRecordingError("녹음 시작", error);
+        logRequestError("녹음 시작", error);
         useRecordingStore.getState().discardRecording();
 
         return "failed";
@@ -172,7 +169,7 @@ const useRecordingControl = () => {
         });
         await uploadAudio({ uploadUrl, audio });
       } catch (error) {
-        logRecordingError("녹음 파일 업로드", error);
+        logRequestError("녹음 파일 업로드", error);
       }
     },
     [issueAudioUploadUrl, uploadAudio],
