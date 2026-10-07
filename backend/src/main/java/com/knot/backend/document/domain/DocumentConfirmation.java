@@ -19,6 +19,16 @@ public class DocumentConfirmation {
 
     protected DocumentConfirmation() {}
 
+    public void confirm(Instant confirmedAt) {
+        if (this.confirmedAt != null) {
+            return;
+        }
+        if (confirmedAt == null) {
+            throw new DocumentException(DocumentErrorCode.INVALID_DOCUMENT_DATA);
+        }
+        this.confirmedAt = confirmedAt;
+    }
+
     private DocumentConfirmation(
             long documentId,
             long memberId
