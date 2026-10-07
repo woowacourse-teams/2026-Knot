@@ -199,11 +199,13 @@ describe("mock 기본 핸들러와 fetch 요청 함수의 대응", () => {
       ).resolves.toEqual(new GetDocumentResponseDto(document));
     });
 
-    it("documentDetailsResponse에 없는 id면 404로 답한다", async () => {
-      // 응답 본문의 DOCUMENT_NOT_FOUND는 지금 HttpError의 code에 담기지 않아 여기서 확인하지 못해요
+    it("documentDetailsResponse에 없는 id면 404 DOCUMENT_NOT_FOUND로 답한다", async () => {
       await expect(
         getDocumentApi({ workspaceId: WORKSPACE_ID, documentId: 999 }),
-      ).rejects.toMatchObject({ type: HTTP_ERROR_TYPE.notFound });
+      ).rejects.toMatchObject({
+        type: HTTP_ERROR_TYPE.notFound,
+        code: "DOCUMENT_NOT_FOUND",
+      });
     });
   });
 
