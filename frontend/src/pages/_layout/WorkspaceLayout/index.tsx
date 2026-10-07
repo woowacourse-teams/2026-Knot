@@ -4,8 +4,12 @@ import SearchEvidenceToggle from "@features/search/SearchEvidenceToggle";
 import useRecordingLeaveWarning from "@hooks/domain/recording/useRecordingLeaveWarning";
 import useWorkspaceEntry from "@hooks/domain/workspace/useWorkspaceEntry";
 import useWorkspaceNav from "@hooks/domain/workspace/useWorkspaceNav";
-import DockColumn from "@primitives/layout/DockColumn";
+import DockColumn, {
+  DOCK_BOTTOM,
+  DOCK_TOAST_GAP,
+} from "@primitives/layout/DockColumn";
 import LoadingIndicator from "@primitives/ui/LoadingIndicator";
+import { ToastViewport } from "@provider/context/toastContext";
 import ChatListDrawer from "@widgets/chat/ChatListDrawer";
 import SearchEvidenceList from "@widgets/search/SearchEvidenceList";
 import WorkspaceDock from "@widgets/workspace/WorkspaceDock";
@@ -106,7 +110,10 @@ export default function WorkspaceLayout() {
           </Main>
 
           <DockSlot>
-            <WorkspaceDock />
+            <ToastViewport placement="inline" />
+            <DockWrapper>
+              <WorkspaceDock />
+            </DockWrapper>
           </DockSlot>
         </Content>
 
@@ -212,15 +219,25 @@ const Main = styled.main`
   overflow-y: auto;
 `;
 
-/** 독이 놓이는 자리. 본문 위에 떠 있지만 독 바깥은 본문 클릭을 가리지 않는다. */
+/**
+ * 독과 그 위 토스트가 놓이는 자리. 본문 위에 떠 있지만 독 바깥은 본문 클릭을 가리지 않는다.
+ *
+ * 토스트에는 누를 것이 없어서 토스트 자리도 클릭을 받지 않는다.
+ */
 const DockSlot = styled(DockColumn)`
   position: absolute;
   right: 0;
-  bottom: 1.75rem; /* 28px */
+  bottom: ${DOCK_BOTTOM};
   left: 0;
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  gap: ${DOCK_TOAST_GAP};
   pointer-events: none;
+`;
+
+const DockWrapper = styled.div`
+  display: flex;
+  justify-content: center;
 
   & > * {
     pointer-events: auto;
