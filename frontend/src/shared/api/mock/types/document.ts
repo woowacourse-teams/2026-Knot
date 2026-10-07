@@ -21,3 +21,24 @@ export interface DocumentDetailResponse {
   myConfirmationState: "PENDING" | "CONFIRMED" | "NOT_REQUIRED";
   confirmationSummary: DocumentConfirmationSummary;
 }
+
+export interface DocumentConfirmationItem {
+  memberId: number;
+  nickname: string;
+  /** 없으면 null */
+  profileImageUrl: string | null;
+  /** 확인하지 않았으면 null */
+  confirmedAt: string | null;
+  state: "CONFIRMED" | "PENDING" | "EXCLUDED";
+}
+
+export interface DocumentConfirmationsResponse {
+  documentId: number;
+  confirmedCount: number;
+  pendingCount: number;
+  excludedCount: number;
+  confirmedByMe: boolean;
+  items: DocumentConfirmationItem[];
+  /** 마지막 페이지면 null */
+  nextCursor: string | null;
+}

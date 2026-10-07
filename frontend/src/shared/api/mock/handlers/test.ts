@@ -8,7 +8,10 @@ import {
   GetChatSessionsResponseDto,
   PostChatSessionResponseDto,
 } from "@api/dto/chatSession";
-import { GetDocumentResponseDto } from "@api/dto/document";
+import {
+  GetDocumentConfirmationsResponseDto,
+  GetDocumentResponseDto,
+} from "@api/dto/document";
 import {
   PostRecordingAudioUploadCompleteResponseDto,
   PostRecordingAudioUploadUrlResponseDto,
@@ -46,6 +49,7 @@ import {
   getChatSessionsApi,
 } from "@api/fetch/api/v1/workspaces/[workspaceId]/conversations";
 import { getDocumentApi } from "@api/fetch/api/v1/workspaces/[workspaceId]/documents/[documentId]";
+import { getDocumentConfirmationsApi } from "@api/fetch/api/v1/workspaces/[workspaceId]/documents/[documentId]/confirmations";
 import { getWorkspaceInvitationApi } from "@api/fetch/api/v1/workspaces/[workspaceId]/invitation";
 import { getNotionConnectionApi } from "@api/fetch/api/v1/workspaces/[workspaceId]/notionConnection";
 import { startNotionOAuthApi } from "@api/fetch/api/v1/workspaces/[workspaceId]/notionOauthAuthorizations";
@@ -71,7 +75,10 @@ import {
   chatSessionResponse,
   chatSessionsResponse,
 } from "@api/mock/responses/chatSession";
-import { documentDetailsResponse } from "@api/mock/responses/document";
+import {
+  documentConfirmationsResponse,
+  documentDetailsResponse,
+} from "@api/mock/responses/document";
 import {
   recordingAudioUploadCompleteResponse,
   recordingAudioUploadUrlResponse,
@@ -202,6 +209,31 @@ describe("mock 기본 핸들러와 fetch 요청 함수의 대응", () => {
     it("documentDetailsResponse에 없는 id면 404 DOCUMENT_NOT_FOUND로 답한다", async () => {
       await expect(
         getDocumentApi({ workspaceId: WORKSPACE_ID, documentId: 999 }),
+      ).rejects.toMatchObject({
+        type: HTTP_ERROR_TYPE.notFound,
+        code: "DOCUMENT_NOT_FOUND",
+      });
+    });
+
+    it("GET /api/v1/workspaces/:workspaceId/documents/:documentId/confirmations는 documentConfirmationsResponse에서 그 문서의 확인 대상을 돌려준다", async () => {
+      const [confirmations] = documentConfirmationsResponse;
+
+      await expect(
+        getDocumentConfirmationsApi({
+          workspaceId: WORKSPACE_ID,
+          documentId: confirmations.documentId,
+        }),
+      ).resolves.toEqual(
+        new GetDocumentConfirmationsResponseDto(confirmations),
+      );
+    });
+
+    it("documentConfirmationsResponse에 없는 문서의 확인 대상을 물으면 404 DOCUMENT_NOT_FOUND로 답한다", async () => {
+      await expect(
+        getDocumentConfirmationsApi({
+          workspaceId: WORKSPACE_ID,
+          documentId: 999,
+        }),
       ).rejects.toMatchObject({
         type: HTTP_ERROR_TYPE.notFound,
         code: "DOCUMENT_NOT_FOUND",

@@ -1,6 +1,11 @@
-import type { DocumentDetailResponse } from "@api/mock/types/document";
+import { meResponse } from "@api/mock/responses/auth";
+import type {
+  DocumentConfirmationsResponse,
+  DocumentDetailResponse,
+} from "@api/mock/types/document";
 
-const DAY = 24 * 60 * 60 * 1000;
+const HOUR = 60 * 60 * 1000;
+const DAY = 24 * HOUR;
 
 // 지난 시각을 고정값으로 두면 언젠가 전부 오래된 날짜가 되므로 지금을 기준으로 만들어요
 const fromNow = (elapsed: number) =>
@@ -74,3 +79,79 @@ export const documentDetailsResponse = [
     },
   },
 ] satisfies DocumentDetailResponse[];
+
+// 로그인한 사람(auth mock의 me)을 확인 대상에 넣어, 문서 상세의 myConfirmationState와 맞춰요
+const me = {
+  memberId: meResponse.memberId,
+  nickname: meResponse.nickname,
+  profileImageUrl: meResponse.profileImageUrl,
+};
+
+// 문서 상세의 confirmationSummary · myConfirmationState와 같은 내용이에요.
+// 순서는 서버 정렬(CONFIRMED → PENDING)을 따라요.
+export const documentConfirmationsResponse = [
+  {
+    documentId: 101,
+    confirmedCount: 2,
+    pendingCount: 2,
+    excludedCount: 0,
+    confirmedByMe: false,
+    items: [
+      {
+        memberId: 2,
+        nickname: "도넛",
+        profileImageUrl: null,
+        confirmedAt: fromNow(DAY),
+        state: "CONFIRMED",
+      },
+      {
+        memberId: 3,
+        nickname: "흑곰",
+        profileImageUrl: null,
+        confirmedAt: fromNow(5 * HOUR),
+        state: "CONFIRMED",
+      },
+      { ...me, confirmedAt: null, state: "PENDING" },
+      {
+        memberId: 4,
+        nickname: "유월",
+        profileImageUrl: null,
+        confirmedAt: null,
+        state: "PENDING",
+      },
+    ],
+    nextCursor: null,
+  },
+  {
+    documentId: 102,
+    confirmedCount: 3,
+    pendingCount: 1,
+    excludedCount: 0,
+    confirmedByMe: true,
+    items: [
+      {
+        memberId: 2,
+        nickname: "도넛",
+        profileImageUrl: null,
+        confirmedAt: fromNow(DAY),
+        state: "CONFIRMED",
+      },
+      {
+        memberId: 3,
+        nickname: "흑곰",
+        profileImageUrl: null,
+        confirmedAt: fromNow(5 * HOUR),
+        state: "CONFIRMED",
+      },
+      { ...me, confirmedAt: fromNow(HOUR), state: "CONFIRMED" },
+      {
+        memberId: 4,
+        nickname: "유월",
+        profileImageUrl: null,
+        confirmedAt: null,
+        state: "PENDING",
+      },
+    ],
+    nextCursor: null,
+  },
+] satisfies DocumentConfirmationsResponse[];
