@@ -38,6 +38,7 @@ public class DocumentGenerationJobListService {
         );
         List<DocumentGenerationJobItemResult> fetched = query.findPage(
                 workspaceId,
+                memberId,
                 parameters.size() + 1,
                 cursor,
                 clock.instant()
