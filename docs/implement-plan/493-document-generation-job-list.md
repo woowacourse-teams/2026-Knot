@@ -1,12 +1,25 @@
 # #493 워크스페이스 문서 생성 작업 목록 조회 구현 계획
 
-상태: 테스트 선행 구현·제품 검증 완료. Persona 종료 인증은 기존 하네스 요건으로 미통과했다. 아래 1~6절은 착수 당시 계획이며 실제 실행 결과는 다음 기록을 따른다.
+상태: PR #511 제품 리뷰 수정·검증 완료. 제목 응답·저장 기반을 제거하고 내 녹음의 Job으로 제한했다. 아래 최초 구현 이력과 1~6절은 변경 전 기록이며, 현재 계약은 아래 리뷰 반영 절과 API 문서를 우선한다. Persona 종료 인증은 별도 기록한다.
 확인일: 2026-10-07.
 대상: [Issue #493](https://github.com/woowacourse-teams/2026-Knot/issues/493), 담당자 흑곰(jyt6640).
 기준: 사용자가 제공한 최신 생성 작업 목록 API, 확정한 제품 결정, Issue 본문과 실제 저장소 코드.
 Notion 실시간 원문과 운영 DB는 이번 계획에서 직접 관측하지 않았다. 개인 명세·사용자 결정을 팀 승인이나 배포 완료로 표현하지 않는다.
 
-실행 결과(2026-10-07):
+## 리뷰 반영 계약 (2026-10-07)
+
+- 사용자 요청으로 두 리뷰 모두 수용한다. recordingTitle과 RecordingSession.title, 미병합 V29 추가를 제거한다.
+- Workspace 멤버십 검사 후 RecordingSession.memberId로 호출자의 녹음을 제한하며, 필터를 적용한 결과에 pagination을 수행한다.
+- Query.findPage(workspaceId, memberId, limit, cursor, now)로 로그인 Member를 명시적으로 전달한다. 커서의 기존 Member 범위 검사도 유지한다.
+- 새 멤버라도 다른 사람 Job은 보이지 않으며 본인 녹음이 없으면 빈 목록이다. Document 읽기 권한은 현재 Workspace 멤버 기준 그대로다.
+- 홈 카드 한 칸의 선택과 종합 상태는 녹음 조회 계약에서 연결한다. 이 Job 목록을 홈의 여러 카드·개수로 사용하지 않는다.
+- DB 소유자 필터·필터 후 페이지·새 멤버 빈 목록·JSON/OpenAPI 제목 미노출·제목 컬럼 미추가를 테스트로 확인한다. 수정 전 DB 2개와 HTTP 4개 실패를 관측했다.
+- 변경 전 개인 API·Issue #493과 달라진 계약이다. Notion·GitHub 원문은 이번 요청에서 수정하거나 댓글을 게시하지 않는다.
+- #493에서 수정하며 #494는 부모 업데이트 후 동일 변경을 정상 merge로 전달해야 한다. 이번 요청에 commit·push는 포함하지 않는다.
+- 실행 결과: 집중 73개 PASS, 전체 spotlessCheck/check/bootJar PASS(단위 486·통합 202·인수 302 = 990개), 실패·오류·skip 0. API 문서 JSON·필수 섹션과 diff --check도 통과했다. 실제 FE·운영 DB·STT/AI는 검증하지 않았다.
+- Persona 종료 결과: review report-filled PASS, finish implement는 기존 coverage·toolchain·stale loop·pending ticket으로 exit 1이다. 이번 변경 Java 12개와 입력 evidence는 기록했고 과거 상태를 임의 초기화하지 않았다. 제품 Gradle 성공과 구분한다.
+
+최초 실행 결과(2026-10-07, 아래 제목·전체 Workspace 목록 규칙은 이번 리뷰 수정으로 대체됨):
 
 - `origin/be/feature/#496`의 `c9682f46`에서 `be/feature/#493`을 실제로 분기했다. 다른 문서 API 브랜치는 병합하지 않았다.
 - 생성 작업 Api/Controller·Parameters·Cursor·Service·JPQL QueryAdapter·응답 DTO를 구현했다. 기본 20/최대 100, 생성 시각·ID 내림차순, size+1, 현재 멤버 인가를 적용했다.
