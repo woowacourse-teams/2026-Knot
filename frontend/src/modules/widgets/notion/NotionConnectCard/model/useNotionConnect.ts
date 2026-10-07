@@ -1,9 +1,9 @@
+import { HTTP_ERROR_TYPE, isHttpError } from "@api/httpClient/error";
 import useStartNotionOAuthMutation from "@api/mutations/useStartNotionOAuthMutation";
 import useNavigateToLogin from "@hooks/domain/auth/useNavigateToLogin";
 import useNavigateToWorkspace from "@hooks/domain/workspace/useNavigateToWorkspace";
 import useNavigateToWorkspaceHome from "@hooks/domain/workspace/useNavigateToWorkspaceHome";
 import { isUnauthorizedError } from "@utils/isUnauthorizedError";
-import axios from "axios";
 import { useEffect, useState } from "react";
 import { useParams, useSearchParams } from "react-router";
 
@@ -13,9 +13,9 @@ import {
 } from "../constants/notionConnect";
 import { getConnectErrorMessage } from "../utils/getConnectErrorMessage";
 
-/** 없는 워크스페이스라 연결을 시작할 수 없는 상태 코드 */
+/** 없는 워크스페이스라 연결을 시작할 수 없는 실패 */
 const isNotFoundError = (error: unknown) =>
-  axios.isAxiosError(error) && error.response?.status === 404;
+  isHttpError(error, HTTP_ERROR_TYPE.notFound);
 
 /**
  * 노션 연동 카드의 연결 시작·결과 처리·건너뛰기 흐름.
