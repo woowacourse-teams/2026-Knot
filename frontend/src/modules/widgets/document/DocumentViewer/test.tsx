@@ -6,7 +6,7 @@ import { theme } from "@provider/themeProvider";
 import { getRouterPath, PATH_ROUTE } from "@routes/PATH_ROUTE";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen } from "@testing-library/react";
-import { http, HttpResponse } from "msw";
+import { delay, http, HttpResponse } from "msw";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { describe, expect, it } from "vitest";
 
@@ -52,6 +52,20 @@ const createMemoryRouterFor = (documentId: string) =>
   );
 
 describe("DocumentViewer", () => {
+  it("문서를 불러오는 동안에는 불러오는 중이라고 알린다", () => {
+    mockServer.use(
+      http.get(DOCUMENT_REQUEST, async () => {
+        await delay("infinite");
+        return HttpResponse.json(documentDetailsResponse[0]);
+      }),
+    );
+    renderViewer(String(expected.id));
+
+    expect(
+      screen.getByRole("region", { name: "문서를 불러오고 있어요" }),
+    ).toHaveAttribute("aria-busy", "true");
+  });
+
   it("문서 제목과 본문의 구역 제목·목록 항목을 보여준다", async () => {
     renderViewer(String(expected.id));
 

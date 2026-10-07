@@ -27,7 +27,7 @@ export default function DocumentViewer() {
 
   if (viewer.status === "loading") {
     return (
-      <Container aria-busy="true">
+      <Container aria-busy="true" aria-label="문서를 불러오고 있어요">
         <DocumentSkeleton />
       </Container>
     );
