@@ -3,6 +3,7 @@
  *
  * - GET /api/v1/workspaces/{workspaceId}/documents/{documentId}
  * - GET /api/v1/workspaces/{workspaceId}/documents/{documentId}/confirmations
+ * - PUT /api/v1/workspaces/{workspaceId}/documents/{documentId}/confirmations/me
  */
 
 /** 문서 상태. 확인 대상이 모두 확인하거나 제외되면 ARCHIVED로 바뀌어요 */
@@ -18,7 +19,7 @@ export interface ConfirmationSummaryRaw {
   excludedCount: number;
 }
 
-/** 문서 확인 집계. 문서 상세와 확인 대상 조회 응답이 담아요 */
+/** 문서 확인 집계. 문서 상세 · 확인 대상 조회 · 내 확인 응답이 담아요 */
 export class ConfirmationSummaryDto {
   /** 확인을 마친 대상 수. 확인한 뒤 워크스페이스를 나가도 포함해요 */
   confirmedCount: number;
@@ -169,5 +170,44 @@ export class GetDocumentConfirmationsResponseDto {
     this.confirmationSummary = new ConfirmationSummaryDto(raw);
     this.items = raw.items.map((item) => new DocumentConfirmationItemDto(item));
     this.nextCursor = raw.nextCursor;
+  }
+}
+
+// PUT /api/v1/workspaces/{workspaceId}/documents/{documentId}/confirmations/me
+
+/** 내 문서 확인의 서버 응답 모양 */
+export interface PutDocumentConfirmationResponseRaw {
+  documentId: number;
+  confirmedAt: string;
+  documentStatus: DocumentStatus;
+  archivedAt: string | null;
+  confirmationSummary: ConfirmationSummaryRaw;
+}
+
+/**
+ * 내 문서 확인 응답. 요청 본문은 없고, 로그인한 멤버가 확인한 것으로 기록돼요.
+ *
+ * 이미 확인한 문서에 다시 요청해도 같은 결과(200)를 돌려줘요. 확인은 취소할 수 없어요.
+ */
+export class PutDocumentConfirmationResponseDto {
+  /** 확인한 문서 ID */
+  documentId: number;
+  /** 처음 확인한 시각(ISO 8601, UTC). 다시 요청해도 바뀌지 않아요 */
+  confirmedAt: string;
+  /** 확인 뒤의 문서 상태. 이 확인으로 남은 대상이 없어지면 ARCHIVED */
+  documentStatus: DocumentStatus;
+  /** 보관 전환 시각(ISO 8601, UTC). DRAFT면 null */
+  archivedAt: string | null;
+  /** 확인 뒤의 확인 집계. 내 확인 상태(myConfirmationState)는 들어 있지 않아요 */
+  confirmationSummary: ConfirmationSummaryDto;
+
+  constructor(raw: PutDocumentConfirmationResponseRaw) {
+    this.documentId = raw.documentId;
+    this.confirmedAt = raw.confirmedAt;
+    this.documentStatus = raw.documentStatus;
+    this.archivedAt = raw.archivedAt;
+    this.confirmationSummary = new ConfirmationSummaryDto(
+      raw.confirmationSummary,
+    );
   }
 }

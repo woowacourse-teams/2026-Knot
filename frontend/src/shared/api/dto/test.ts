@@ -12,6 +12,7 @@ import {
   DocumentConfirmationItemDto,
   GetDocumentConfirmationsResponseDto,
   GetDocumentResponseDto,
+  PutDocumentConfirmationResponseDto,
 } from "./document";
 import {
   GetNotionConnectionResponseDto,
@@ -198,6 +199,25 @@ describe("DTO 생성자 변환", () => {
         items,
         nextCursor: null,
       });
+    });
+
+    it("내 확인 응답의 확인 집계를 ConfirmationSummaryDto로 감싸고 나머지 필드는 그대로 옮긴다", () => {
+      const raw = {
+        documentId: 101,
+        confirmedAt: "2026-09-24T09:40:00.000Z",
+        documentStatus: "DRAFT" as const,
+        archivedAt: null,
+        confirmationSummary: {
+          confirmedCount: 3,
+          pendingCount: 1,
+          excludedCount: 0,
+        },
+      };
+
+      const dto = new PutDocumentConfirmationResponseDto(raw);
+
+      expect(dto.confirmationSummary).toBeInstanceOf(ConfirmationSummaryDto);
+      expect(dto).toEqual(raw);
     });
   });
 
