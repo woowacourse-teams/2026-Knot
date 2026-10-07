@@ -1,5 +1,7 @@
 # #498 내 문서 확인 완료 처리 구현 계획
 
+2026-10-07 [#517](https://github.com/woowacourse-teams/2026-Knot/issues/517) 후속 변경: 사용자가 코드 흐름을 쉽게 읽을 수 있도록 두 탈퇴 서비스가 `DocumentArchivalService.archiveAfterMemberDeparture(workspaceId, memberId, leftAt)`를 직접 호출한다. 기존 동기 이벤트도 같은 트랜잭션에서 처리했지만, 발행·수신 연결을 따라가야 하는 구조를 직접 의존으로 단순화했다. Workspace → Document의 application 서비스 호출을 이 범위에서 허용하며, 기존 `MANDATORY`·잠금·멤버 flush·보관 실패 롤백을 유지한다. `WorkspaceMemberLeft`, `ApplicationEventPublisher`, `@EventListener` 연결을 제거한다. 아래 계획의 이벤트 설계와 #498 실행 이력은 당시 기록이며, 현재 호출 구조는 이 후속 결정이 대체한다. **(이부분 수정됨)**
+
 2026-10-07 후속 변경: 갱신된 `be/feature/#497`을 정상 머지해 상세·확인 현황의 Spring Data JPA/JPQL 조회를 반영했다. 명령 서비스와 동기 탈퇴 이벤트는 기존 JPA 저장·Workspace/Document 잠금·flush 경계를 유지하며 같은 트랜잭션의 JPA 집계 결과로 보관 여부를 판단한다. 목록 브랜치 #495는 독립 분기로 유지한다. 후속 공통 계획은 [문서 조회 JPA 정합성 작업](document-jpa-queries.md)을 따른다.
 
 - 상태: 구현·전체 제품 검사 완료. 커밋·Draft PR 전달과 Persona 완료 판정을 별도로 기록한다.
