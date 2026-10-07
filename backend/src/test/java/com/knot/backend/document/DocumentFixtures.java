@@ -227,7 +227,7 @@ public class DocumentFixtures {
                 )
                 .param(
                         "confirmedAt",
-                        confirmedAt == null ? null : Timestamp.from(confirmedAt)
+                        nullableTimestamp(confirmedAt)
                 )
                 .update();
     }
@@ -241,5 +241,12 @@ public class DocumentFixtures {
                 """)
                 .query(String.class)
                 .single();
+    }
+
+    private Timestamp nullableTimestamp(Instant instant) {
+        if (instant == null) {
+            return null;
+        }
+        return Timestamp.from(instant);
     }
 }
