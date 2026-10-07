@@ -98,6 +98,28 @@ class DocumentDetailQueryIntegrationTest {
     }
 
     @Test
+    @DisplayName("JPA로 등록한 확인 대상은 조회 전에 자동 반영되어 상세 집계에 포함된다")
+    void find_success_pendingJpaConfirmation() {
+        // given
+        entityManager.persist(
+                DocumentConfirmation.require(
+                        documentId,
+                        memberId
+                )
+        );
+
+        // when
+        DocumentDetailResult result = find(memberId);
+
+        // then
+        assertThat(result.myConfirmationState()).isEqualTo(MyConfirmationState.PENDING);
+        assertThat(
+                result.confirmationSummary()
+                        .pendingCount()
+        ).isEqualTo(1);
+    }
+
+    @Test
     @DisplayName("가입·탈퇴·재가입 이력은 고정 대상을 중복 없이 집계한다")
     void find_success_confirmationMembershipHistory() {
         // given
