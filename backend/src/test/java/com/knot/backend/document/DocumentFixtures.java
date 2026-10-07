@@ -1,12 +1,15 @@
 package com.knot.backend.document;
 
 import java.sql.Timestamp;
+import java.sql.Types;
 import java.time.Instant;
 import java.util.UUID;
 import org.springframework.jdbc.core.simple.JdbcClient;
 
 public class DocumentFixtures {
+
     public static final Instant CREATED_AT = Instant.parse("2026-10-06T00:00:00Z");
+
     private final JdbcClient jdbc;
 
     public DocumentFixtures(JdbcClient jdbc) {
@@ -147,10 +150,37 @@ public class DocumentFixtures {
             long transcriptId,
             String status
     ) {
-        return jdbc.sql("""
-                INSERT INTO document_generation_jobs (transcript_id, status, created_at, updated_at)
-                VALUES (:transcriptId, :status, :time, :time) RETURNING id
-                """)
+        Instant failedAt = null;
+        if ("FAILED".equals(status)) {
+            failedAt = CREATED_AT;
+        }
+        return saveJob(
+                transcriptId,
+                status,
+                CREATED_AT,
+                failedAt
+        );
+    }
+
+    public long saveJob(
+            long transcriptId,
+            String status,
+            Instant createdAt,
+            Instant failedAt
+    ) {
+        Instant updatedAt = createdAt;
+        Instant expiresAt = null;
+        if (failedAt != null) {
+            updatedAt = failedAt;
+            expiresAt = failedAt.plusSeconds(7 * 24 * 60 * 60);
+        }
+        return jdbc
+                .sql(
+                        """
+                                INSERT INTO document_generation_jobs (transcript_id, status, created_at, updated_at, last_failed_at, expires_at)
+                                VALUES (:transcriptId, :status, :createdAt, :updatedAt, :failedAt, :expiresAt) RETURNING id
+                                """
+                )
                 .param(
                         "transcriptId",
                         transcriptId
@@ -160,8 +190,22 @@ public class DocumentFixtures {
                         status
                 )
                 .param(
-                        "time",
-                        Timestamp.from(CREATED_AT)
+                        "createdAt",
+                        Timestamp.from(createdAt)
+                )
+                .param(
+                        "updatedAt",
+                        Timestamp.from(updatedAt)
+                )
+                .param(
+                        "failedAt",
+                        nullableTimestamp(failedAt),
+                        Types.TIMESTAMP
+                )
+                .param(
+                        "expiresAt",
+                        nullableTimestamp(expiresAt),
+                        Types.TIMESTAMP
                 )
                 .query(Long.class)
                 .single();

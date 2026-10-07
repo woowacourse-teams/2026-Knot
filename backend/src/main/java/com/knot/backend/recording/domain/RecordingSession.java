@@ -21,6 +21,7 @@ import lombok.Getter;
 @Entity
 @Table(name = "recording_sessions")
 public class RecordingSession {
+
     private static final Pattern SHA_256_HEX_PATTERN = Pattern.compile("^[0-9a-f]{64}$");
 
     @Id
