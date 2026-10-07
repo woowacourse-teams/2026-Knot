@@ -192,12 +192,16 @@ const useRecordingControl = () => {
   );
 
   const endRecording = useCallback(async () => {
-    const { session, isEnding } = useRecordingStore.getState();
+    const { session, isEnding, beginEnding } = useRecordingStore.getState();
     if (!session || isEnding) return;
+
+    // 응답을 기다리는 동안 다시 눌러도 종료 요청이 겹치지 않게 먼저 표시해요
+    beginEnding();
 
     try {
       await endRecordingSession(session);
     } catch (error) {
+      useRecordingStore.getState().cancelEnding();
       handleControlError({ action: "녹음 종료", error, ...session });
 
       return;

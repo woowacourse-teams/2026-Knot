@@ -28,7 +28,7 @@ interface RecordingState {
   analyser: AnalyserNode | null;
   /** 녹음 중에 마이크가 끊겨 저절로 일시정지했는지. 사용자가 알림을 확인하면 다시 `false`가 돼요 */
   isMicrophoneLost: boolean;
-  /** 녹음을 끝내는 중인지. 수집을 멈춘 뒤 업로드를 마치고 녹음을 비울 때까지 `true`예요 */
+  /** 녹음을 끝내는 중인지. 종료 요청을 보낼 때부터 업로드를 마치고 녹음을 비울 때까지 `true`예요 */
   isEnding: boolean;
 }
 
@@ -43,6 +43,10 @@ interface RecordingActions {
   pauseRecording: () => void;
   /** 이어서 녹음해요. 마이크가 끊겼다면 다시 받고, 받지 못하면 `false`를 돌려주고 일시정지를 유지해요 */
   resumeRecording: () => Promise<boolean>;
+  /** 종료 요청을 보내기 전에 끝내는 중으로 표시해 끝내기가 겹치지 않게 해요. 수집과 시간은 그대로 둬요 */
+  beginEnding: () => void;
+  /** 종료 요청이 실패해 녹음을 이어 갈 때 끝내는 중 표시를 풀어요 */
+  cancelEnding: () => void;
   /** 수집을 멈추고 지금까지 녹음한 오디오를 파일 하나로 돌려줘요. 녹음은 비우지 않아요 */
   stopRecording: () => Promise<Blob>;
   /** 녹음을 버리고 마이크를 꺼요 */
@@ -158,6 +162,10 @@ export const useRecordingStore = create<RecordingState & RecordingActions>()((
 
       return true;
     },
+
+    beginEnding: () => set({ isEnding: true }),
+
+    cancelEnding: () => set({ isEnding: false }),
 
     stopRecording: async () => {
       set({ isEnding: true, ...freezeElapsed(get()) });

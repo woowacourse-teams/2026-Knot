@@ -1,9 +1,18 @@
+import { recordingEndResponse } from "@api/mock/responses/recording";
+import { mockServer } from "@api/mock/server";
 import { ThemeProvider } from "@emotion/react";
 import { DialogProvider } from "@provider/context/dialogContext";
 import { theme } from "@provider/themeProvider";
 import { getRouterPath, PATH_ROUTE } from "@routes/PATH_ROUTE";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
+import { http, HttpResponse } from "msw";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { useRecordingStore } from "@store/recordingStore";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -479,6 +488,78 @@ describe("WorkspaceDock", () => {
         expect(
           screen.queryByRole("button", { name: "녹음 끝내기" }),
         ).not.toBeInTheDocument();
+      });
+    });
+
+    describe("녹음을 끝내는 요청이 오가는 중이면", () => {
+      const END_PATH =
+        "*/api/v1/workspaces/:workspaceId/recordings/:recordingId/end";
+
+      beforeEach(async () => {
+        await act(async () => {
+          await useRecordingStore.getState().connectMicrophone();
+          useRecordingStore.getState().startRecording({
+            workspaceId: Number(WORKSPACE_ID),
+            recordingId: 10,
+          });
+        });
+      });
+
+      it("중지를 빠르게 두 번 눌러도 종료 요청은 한 번만 보낸다", async () => {
+        let endRequestCount = 0;
+        let respondEnd = () => {};
+        mockServer.use(
+          http.post(END_PATH, async () => {
+            endRequestCount += 1;
+            await new Promise<void>((resolve) => {
+              respondEnd = resolve;
+            });
+
+            return HttpResponse.json(recordingEndResponse);
+          }),
+        );
+        renderDock();
+
+        const stopButton = screen.getByRole("button", { name: "녹음 끝내기" });
+        await act(async () => {
+          fireEvent.click(stopButton);
+          fireEvent.click(stopButton);
+        });
+        await waitFor(() => expect(endRequestCount).toBe(1));
+        await act(async () => respondEnd());
+
+        await waitFor(() =>
+          expect(useRecordingStore.getState().status).toBe("idle"),
+        );
+        expect(endRequestCount).toBe(1);
+      });
+
+      it("종료 요청이 실패하면 녹음을 그대로 두고 다시 끝낼 수 있다", async () => {
+        let endRequestCount = 0;
+        mockServer.use(
+          http.post(END_PATH, () => {
+            endRequestCount += 1;
+
+            return new HttpResponse(null, { status: 500 });
+          }),
+        );
+        vi.spyOn(console, "error").mockImplementation(() => {});
+        renderDock();
+
+        await act(async () => {
+          fireEvent.click(screen.getByRole("button", { name: "녹음 끝내기" }));
+        });
+        await waitFor(() => expect(endRequestCount).toBe(1));
+        await waitFor(() =>
+          expect(useRecordingStore.getState().isEnding).toBe(false),
+        );
+        expect(useRecordingStore.getState().status).toBe("recording");
+
+        await act(async () => {
+          fireEvent.click(screen.getByRole("button", { name: "녹음 끝내기" }));
+        });
+
+        await waitFor(() => expect(endRequestCount).toBe(2));
       });
     });
 
