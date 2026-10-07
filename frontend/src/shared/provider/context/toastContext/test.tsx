@@ -1,6 +1,6 @@
 import { ThemeProvider } from "@emotion/react";
-import { fireEvent, render, screen, within } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { theme } from "@provider/themeProvider";
 
@@ -11,7 +11,10 @@ const COPIED = "초대 링크를 복사했어요";
 const SYNCED = "노션과 동기화했어요";
 const RENAMED = "대화 이름을 바꿨어요";
 
-/** 버튼을 눌러 토스트를 띄워 보는 테스트용 화면 */
+const SUCCESS_DURATION_MS = 5000;
+const CAUTION_DURATION_MS = 8000;
+const ERROR_DURATION_MS = 8000;
+
 function ToastTriggerPage() {
   const { show } = useToast();
 
@@ -26,6 +29,12 @@ function ToastTriggerPage() {
           {message} 알리기
         </button>
       ))}
+      <button
+        type="button"
+        onClick={() => show({ variant: "caution", message: SAVED })}
+      >
+        {SAVED} 주의로 알리기
+      </button>
       <button
         type="button"
         onClick={() => show({ variant: "error", message: SAVED })}
@@ -48,14 +57,27 @@ const renderToastTriggerPage = () =>
 const clickShow = (message: string) =>
   fireEvent.click(screen.getByRole("button", { name: `${message} 알리기` }));
 
-// 토스트 목록 상자의 role은 #510에서 정해요. 그 전까지는 이름으로 찾을 방법이 없어 testid로 찾아요
+const advanceTimers = (ms: number) => {
+  act(() => {
+    vi.advanceTimersByTime(ms);
+  });
+};
+
+// 목록 상자에 아직 role이 없어 testid로 찾아요
 const getToastList = () => screen.getByTestId("toast-list");
 
-/** 목록 상자 안에 보이는 토스트 문구를 위에서부터 순서대로 돌려줘요 */
 const getShownMessages = () =>
   Array.from(getToastList().children, (toast) => toast.textContent);
 
 describe("ToastProvider", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("[ERR-R5] show로 띄운 토스트가 보인다", () => {
     renderToastTriggerPage();
 
@@ -74,6 +96,8 @@ describe("ToastProvider", () => {
 
     expect(getShownMessages()).toHaveLength(3);
     expect(within(getToastList()).queryByText(SAVED)).not.toBeInTheDocument();
+    // 밀려난 토스트의 시간도 정리돼서 떠 있는 3개의 시간만 남아요
+    expect(vi.getTimerCount()).toBe(3);
   });
 
   it("[공통 UI 규칙·여러 개] 가장 최근 토스트가 맨 아래(독에 가장 가까이)에 놓인다", () => {
@@ -116,6 +140,79 @@ describe("ToastProvider", () => {
     expect(within(getToastList()).getAllByText(SAVED)).toHaveLength(2);
   });
 
+  it("[공통 UI 규칙·떠 있는 시간] 정상 토스트는 5초 동안 보이고 5초가 지나면 사라진다", () => {
+    renderToastTriggerPage();
+
+    clickShow(SAVED);
+    advanceTimers(SUCCESS_DURATION_MS - 1);
+
+    expect(within(getToastList()).getByText(SAVED)).toBeVisible();
+
+    advanceTimers(1);
+
+    expect(within(getToastList()).queryByText(SAVED)).not.toBeInTheDocument();
+  });
+
+  it("[공통 UI 규칙·떠 있는 시간] 주의 토스트는 8초가 지나면 사라진다", () => {
+    renderToastTriggerPage();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: `${SAVED} 주의로 알리기` }),
+    );
+    advanceTimers(CAUTION_DURATION_MS - 1);
+
+    expect(within(getToastList()).getByText(SAVED)).toBeVisible();
+
+    advanceTimers(1);
+
+    expect(within(getToastList()).queryByText(SAVED)).not.toBeInTheDocument();
+  });
+
+  it("[공통 UI 규칙·떠 있는 시간] 오류 토스트는 8초가 지나면 사라진다", () => {
+    renderToastTriggerPage();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: `${SAVED} 오류로 알리기` }),
+    );
+    advanceTimers(ERROR_DURATION_MS - 1);
+
+    expect(within(getToastList()).getByText(SAVED)).toBeVisible();
+
+    advanceTimers(1);
+
+    expect(within(getToastList()).queryByText(SAVED)).not.toBeInTheDocument();
+  });
+
+  it("[공통 UI 규칙·여러 개] 시차를 두고 띄운 토스트는 각자 시간이 지나면 따로 사라진다", () => {
+    renderToastTriggerPage();
+
+    clickShow(SAVED);
+    advanceTimers(2000);
+    clickShow(COPIED);
+    advanceTimers(SUCCESS_DURATION_MS - 2000);
+
+    expect(getShownMessages()).toEqual([COPIED]);
+
+    advanceTimers(2000);
+
+    expect(getShownMessages()).toHaveLength(0);
+  });
+
+  it("[공통 UI 규칙·여러 개] 같은 토스트를 다시 띄우면 시간이 처음부터 다시 간다", () => {
+    renderToastTriggerPage();
+
+    clickShow(SAVED);
+    advanceTimers(3000);
+    clickShow(SAVED);
+    advanceTimers(SUCCESS_DURATION_MS - 1);
+
+    expect(within(getToastList()).getByText(SAVED)).toBeVisible();
+
+    advanceTimers(1);
+
+    expect(within(getToastList()).queryByText(SAVED)).not.toBeInTheDocument();
+  });
+
   it("[공통 UI 규칙·접근성] 토스트가 없어도 감싸는 영역은 미리 렌더링된다", () => {
     renderToastTriggerPage();
 
@@ -124,7 +221,7 @@ describe("ToastProvider", () => {
   });
 
   it("프로바이더 밖에서 useToast를 부르면 안내 오류가 난다", () => {
-    // 렌더 중 던진 오류를 React가 콘솔에 한 번 더 찍어요. 기대한 오류라 출력만 막아요
+    // 기대한 오류를 React가 콘솔에 한 번 더 찍어서 출력만 막아요
     vi.spyOn(console, "error").mockImplementation(() => {});
 
     expect(() => render(<ToastTriggerPage />)).toThrow(
