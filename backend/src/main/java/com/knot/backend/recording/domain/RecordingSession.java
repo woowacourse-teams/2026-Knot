@@ -34,9 +34,6 @@ public class RecordingSession {
     @Column(name = "member_id", nullable = false)
     private Long memberId;
 
-    @Column(name = "title", columnDefinition = "TEXT")
-    private String title;
-
     @Column(name = "request_id", nullable = false)
     private UUID requestId;
 
