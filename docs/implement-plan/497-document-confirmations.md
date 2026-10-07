@@ -1,5 +1,7 @@
 # #497 문서 확인 대상과 진행 현황 조회 구현 계획
 
+2026-10-07 후속 변경: `DocumentConfirmationReadJpaRepository`의 JPQL과 집계·대상 Row projection으로 조회를 통일했다. 전체 집계와 대상 페이지를 기존 REPEATABLE_READ 안에서 읽는다. 현재 활성 멤버십만 조인하며 대상 페이지의 상태 정렬·memberId 동률 경계·size+1 제한을 유지한다. 아래 JdbcClient 설명은 최초 구현 이력이다. 후속 공통 계획은 [문서 조회 JPA 정합성 작업](document-jpa-queries.md)을 따른다.
+
 상태: 테스트 선행 구현·전체 검증 완료. Persona 인증 결과는 아래 실행 결과에 기록한다.
 확인일: 2026-10-06.
 브랜치: `be/feature/#497`.

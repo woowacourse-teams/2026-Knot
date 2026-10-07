@@ -7,14 +7,12 @@ import static org.mockito.Mockito.doCallRealMethod;
 
 import com.knot.backend.document.DocumentFixtures;
 import com.knot.backend.document.application.dto.query.DocumentConfirmationParameters;
-import com.knot.backend.document.application.dto.result.DocumentConfirmationOverviewResult;
 import com.knot.backend.document.application.dto.result.DocumentConfirmationsResult;
 import com.knot.backend.document.domain.DocumentConfirmationState;
 import com.knot.backend.document.infrastructure.DocumentConfirmationQueryAdapter;
 import com.knot.backend.testsupport.TestApplicationProperties;
 import com.knot.backend.testsupport.TestcontainersConfiguration;
 import java.sql.Timestamp;
-import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -198,12 +196,7 @@ class DocumentConfirmationSnapshotIntegrationTest {
 
     private void writeAfterSummary(Runnable write) {
         doAnswer(invocation -> {
-            Optional<DocumentConfirmationOverviewResult> summary = new DocumentConfirmationQueryAdapter(jdbc)
-                    .findSummary(
-                            workspaceId,
-                            documentId,
-                            memberId
-                    );
+            Object summary = invocation.callRealMethod();
             try (ExecutorService executor = Executors.newSingleThreadExecutor()) {
                 executor.submit(() -> new TransactionTemplate(transactions).executeWithoutResult(status -> write.run()))
                         .get(
