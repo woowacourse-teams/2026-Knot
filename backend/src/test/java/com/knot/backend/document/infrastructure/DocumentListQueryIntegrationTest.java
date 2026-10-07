@@ -171,6 +171,49 @@ class DocumentListQueryIntegrationTest {
     }
 
     @Test
+    @DisplayName("주제 조회 없이 카드만 읽어도 JPA 확인 대상 저장이 반영된다")
+    void findPage_success_pendingJpaConfirmation() {
+        long documentId = saveDocument(
+                workspaceId,
+                "정책"
+        );
+        entityManager.persist(
+                DocumentConfirmation.require(
+                        documentId,
+                        memberId
+                )
+        );
+        DocumentListParameters parameters = DocumentListParameters.of(
+                null,
+                50,
+                MyConfirmationState.PENDING,
+                null
+        );
+
+        List<DocumentCardResult> cards = query.findPage(
+                workspaceId,
+                memberId,
+                parameters,
+                null
+        );
+
+        assertThat(cards).hasSize(1);
+        assertThat(
+                cards.getFirst()
+                        .id()
+        ).isEqualTo(documentId);
+        assertThat(
+                cards.getFirst()
+                        .myConfirmationState()
+        ).isEqualTo(MyConfirmationState.PENDING);
+        assertThat(
+                cards.getFirst()
+                        .confirmationSummary()
+                        .pendingCount()
+        ).isEqualTo(1);
+    }
+
+    @Test
     @DisplayName("녹음과 내 확인 상태 필터는 AND로 적용하고 필터 밖 주제는 제외한다")
     void find_success_combinedFilters() {
         long pending = saveDocument(
