@@ -3,8 +3,8 @@ package com.knot.backend.workspace.application;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -257,15 +257,10 @@ class WorkspaceOwnershipTransferServiceTest {
                 3L,
                 WorkspaceMemberRole.MEMBER
         );
-        List<WorkspaceMember> participants = actorState.equals("missing")
-                ? List.of(successor)
-                : List.of(
-                        participant(
-                                2L,
-                                WorkspaceMemberRole.MEMBER
-                        ),
-                        successor
-                );
+        List<WorkspaceMember> participants = participantsWithoutActiveOwner(
+                actorState,
+                successor
+        );
         stubParticipants(participants);
 
         // when
@@ -297,15 +292,10 @@ class WorkspaceOwnershipTransferServiceTest {
                 WorkspaceMemberRole.OWNER
         );
         owner.markLastViewed();
-        List<WorkspaceMember> participants = targetState.equals("missing")
-                ? List.of(owner)
-                : List.of(
-                        owner,
-                        participant(
-                                3L,
-                                WorkspaceMemberRole.OWNER
-                        )
-                );
+        List<WorkspaceMember> participants = participantsWithoutEligibleSuccessor(
+                targetState,
+                owner
+        );
         stubParticipants(participants);
 
         // when
@@ -326,6 +316,38 @@ class WorkspaceOwnershipTransferServiceTest {
                 workspaceMemberRepository,
                 never()
         ).saveAll(any());
+    }
+
+    private List<WorkspaceMember> participantsWithoutActiveOwner(
+            String actorState,
+            WorkspaceMember successor
+    ) {
+        if (actorState.equals("missing")) {
+            return List.of(successor);
+        }
+        return List.of(
+                participant(
+                        2L,
+                        WorkspaceMemberRole.MEMBER
+                ),
+                successor
+        );
+    }
+
+    private List<WorkspaceMember> participantsWithoutEligibleSuccessor(
+            String targetState,
+            WorkspaceMember owner
+    ) {
+        if (targetState.equals("missing")) {
+            return List.of(owner);
+        }
+        return List.of(
+                owner,
+                participant(
+                        3L,
+                        WorkspaceMemberRole.OWNER
+                )
+        );
     }
 
     private WorkspaceMember participant(
