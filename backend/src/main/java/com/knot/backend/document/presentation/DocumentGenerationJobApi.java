@@ -49,9 +49,9 @@ public interface DocumentGenerationJobApi {
     );
 
     @Operation(summary = "실패한 문서 생성 작업 재시도",
-            description = "현재 Workspace 멤버가 저장 원문으로 같은 FAILED Job을 재접수합니다. 본문은 없습니다. "
+            description = "현재 Workspace 멤버인 녹음 소유자가 저장 원문으로 같은 FAILED Job을 재접수합니다. 본문은 없습니다. "
                     + "마지막 실패 후 168시간 미만, 사용자 재시도 3회 미만, 유효 입력인 경우만 허용합니다. "
-                    + "상태·횟수·영속 실행 접수 기록을 함께 확정한 뒤 202를 반환합니다. "
+                    + "Job의 QUEUED 상태와 횟수를 함께 저장한 뒤 202를 반환합니다. "
                     + "QUEUED·RUNNING·SUCCEEDED와 만료·한도 소진·입력 불가는 409입니다. "
                     + "동시 요청 중 하나만 접수하며 접수 후 후속 요청은 409입니다. "
                     + "전체 시도 횟수는 최초·사용자·자동 시도를 포함하며 사용자 한도는 별도입니다. "
@@ -66,7 +66,7 @@ public interface DocumentGenerationJobApi {
                     content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @ApiResponse(responseCode = "401", description = "UNAUTHENTICATED: 로그인하지 않음",
                     content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
-            @ApiResponse(responseCode = "403", description = "WORKSPACE_ACCESS_DENIED: 현재 멤버가 아님. FORBIDDEN: CSRF 오류",
+            @ApiResponse(responseCode = "403", description = "WORKSPACE_ACCESS_DENIED: 현재 멤버가 아님. RECORDING_CONTROL_DENIED: 녹음 소유자가 아님. FORBIDDEN: CSRF 오류",
                     content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @ApiResponse(responseCode = "404", description = "DOCUMENT_GENERATION_JOB_NOT_FOUND: 없거나 다른 Workspace Job, 정리된 Job",
                     content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
