@@ -14,6 +14,7 @@ const RENAMED = "대화 이름을 바꿨어요";
 const SUCCESS_DURATION_MS = 5000;
 const CAUTION_DURATION_MS = 8000;
 const ERROR_DURATION_MS = 8000;
+const LEAVE_DURATION_MS = 250;
 
 function ToastTriggerPage() {
   const { show } = useToast();
@@ -66,8 +67,21 @@ const advanceTimers = (ms: number) => {
 // 목록 상자에 아직 role이 없어 testid로 찾아요
 const getToastList = () => screen.getByTestId("toast-list");
 
+const getToastSlots = () => Array.from(getToastList().children);
+
+// 사라지는 중인 토스트는 낭독기에서 숨겨 둬서, 떠 있는 토스트와 aria-hidden으로 구분해요
+const isLeaving = (slot: Element) =>
+  slot.getAttribute("aria-hidden") === "true";
+
 const getShownMessages = () =>
-  Array.from(getToastList().children, (toast) => toast.textContent);
+  getToastSlots()
+    .filter((slot) => !isLeaving(slot))
+    .map((slot) => slot.textContent);
+
+const getLeavingMessages = () =>
+  getToastSlots()
+    .filter(isLeaving)
+    .map((slot) => slot.textContent);
 
 describe("ToastProvider", () => {
   beforeEach(() => {
@@ -150,7 +164,7 @@ describe("ToastProvider", () => {
 
     advanceTimers(1);
 
-    expect(within(getToastList()).queryByText(SAVED)).not.toBeInTheDocument();
+    expect(getShownMessages()).not.toContain(SAVED);
   });
 
   it("[공통 UI 규칙·떠 있는 시간] 주의 토스트는 8초가 지나면 사라진다", () => {
@@ -165,7 +179,7 @@ describe("ToastProvider", () => {
 
     advanceTimers(1);
 
-    expect(within(getToastList()).queryByText(SAVED)).not.toBeInTheDocument();
+    expect(getShownMessages()).not.toContain(SAVED);
   });
 
   it("[공통 UI 규칙·떠 있는 시간] 오류 토스트는 8초가 지나면 사라진다", () => {
@@ -180,7 +194,7 @@ describe("ToastProvider", () => {
 
     advanceTimers(1);
 
-    expect(within(getToastList()).queryByText(SAVED)).not.toBeInTheDocument();
+    expect(getShownMessages()).not.toContain(SAVED);
   });
 
   it("[공통 UI 규칙·여러 개] 시차를 두고 띄운 토스트는 각자 시간이 지나면 따로 사라진다", () => {
@@ -210,7 +224,53 @@ describe("ToastProvider", () => {
 
     advanceTimers(1);
 
+    expect(getShownMessages()).not.toContain(SAVED);
+  });
+
+  it("[공통 UI 규칙·떠 있는 시간] 시간이 다 된 토스트는 사라지는 동안 남아 있다가 목록에서 빠진다", () => {
+    renderToastTriggerPage();
+
+    clickShow(SAVED);
+    advanceTimers(SUCCESS_DURATION_MS);
+
+    expect(getLeavingMessages()).toEqual([SAVED]);
+
+    advanceTimers(LEAVE_DURATION_MS - 1);
+
+    expect(getLeavingMessages()).toEqual([SAVED]);
+
+    advanceTimers(1);
+
     expect(within(getToastList()).queryByText(SAVED)).not.toBeInTheDocument();
+  });
+
+  it("[공통 UI 규칙·여러 개] 사라지는 중인 토스트는 최대 3개에 세지 않는다", () => {
+    renderToastTriggerPage();
+
+    clickShow(SAVED);
+    advanceTimers(SUCCESS_DURATION_MS);
+    clickShow(COPIED);
+    clickShow(SYNCED);
+    clickShow(RENAMED);
+
+    expect(getShownMessages()).toEqual([COPIED, SYNCED, RENAMED]);
+    expect(getLeavingMessages()).toEqual([SAVED]);
+  });
+
+  it("[공통 UI 규칙·여러 개] 사라지는 중에 같은 토스트를 띄우면 새 토스트로 쌓인다", () => {
+    renderToastTriggerPage();
+
+    clickShow(SAVED);
+    advanceTimers(SUCCESS_DURATION_MS);
+    clickShow(SAVED);
+
+    expect(getLeavingMessages()).toEqual([SAVED]);
+    expect(getShownMessages()).toEqual([SAVED]);
+
+    advanceTimers(LEAVE_DURATION_MS);
+
+    expect(getShownMessages()).toEqual([SAVED]);
+    expect(getLeavingMessages()).toHaveLength(0);
   });
 
   it("[공통 UI 규칙·접근성] 토스트가 없어도 감싸는 영역은 미리 렌더링된다", () => {
