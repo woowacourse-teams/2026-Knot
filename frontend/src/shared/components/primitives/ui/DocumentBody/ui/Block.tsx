@@ -55,7 +55,10 @@ export default function Block({ block }: BlockProps) {
         <List>
           {block.items.map((item, itemIndex) => (
             <ListItem key={itemIndex}>
-              <Inlines inlines={item} />
+              {/* 글 조각을 한 덩어리로 감싸야 flex 칸이 점과 글 두 개가 돼요. 감싸지 않으면 굵은 글마다 칸이 나뉘어 사이가 벌어져요 */}
+              <ItemText>
+                <Inlines inlines={item} />
+              </ItemText>
             </ListItem>
           ))}
         </List>
@@ -92,4 +95,9 @@ const ListItem = styled.li`
     color: ${({ theme }) => theme.neutral[500]};
     content: "•";
   }
+`;
+
+const ItemText = styled.span`
+  /* 긴 항목이 칸 밖으로 넘치지 않고 줄바꿈되게 해요 */
+  min-width: 0;
 `;
