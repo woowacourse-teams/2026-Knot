@@ -86,6 +86,38 @@ class DocumentConfirmationQueryIntegrationTest {
     }
 
     @Test
+    @DisplayName("집계 조회 없이 대상 페이지만 읽어도 JPA 저장이 반영된다")
+    void findPage_success_pendingJpaConfirmation() {
+        entityManager.persist(
+                DocumentConfirmation.require(
+                        documentId,
+                        viewerId
+                )
+        );
+
+        List<DocumentConfirmationItemResult> targets = query.findPage(
+                workspaceId,
+                documentId,
+                50,
+                null
+        );
+
+        assertThat(targets).hasSize(1);
+        assertThat(
+                targets.getFirst()
+                        .memberId()
+        ).isEqualTo(viewerId);
+        assertThat(
+                targets.getFirst()
+                        .state()
+        ).isEqualTo(DocumentConfirmationState.PENDING);
+        assertThat(
+                targets.getFirst()
+                        .confirmedAt()
+        ).isNull();
+    }
+
+    @Test
     @DisplayName("문서가 있고 대상이 없으면 0명 집계와 빈 페이지를 반환한다")
     void findSummary_success_emptyTargets() {
         // when
