@@ -126,7 +126,7 @@ export class DocumentConfirmationItemDto {
   profileImageUrl: string | null;
   /** 처음 확인한 시각(ISO 8601, UTC). 확인하지 않았으면 null */
   confirmedAt: string | null;
-  /** 확인 상태 */
+  /** CONFIRMED · PENDING · EXCLUDED. 확인한 뒤 나간 대상은 CONFIRMED로 남고, EXCLUDED는 확인하지 않은 채 나간 대상이에요 */
   state: DocumentConfirmationState;
 
   constructor(raw: DocumentConfirmationItemRaw) {
