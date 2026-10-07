@@ -1,5 +1,42 @@
 # #494 실패한 문서 생성 작업 재시도 구현 계획
 
+## 2026-10-07 PR #512 리뷰 반영 · 현재 적용 계약 (이부분 수정됨)
+
+사용자가 두 리뷰를 모두 반영하도록 결정했다. 이 절이 아래의 이전 착수 계획·구현 기록을 대체한다. 아래 V31·실행 접수 테이블·Workspace 멤버 전체 재시도 설명은 과거 설계 기록이며 현재 구현 기준이 아니다.
+
+### 범위와 브랜치
+
+기본 체크아웃의 #493 미커밋 리뷰 수정은 그대로 보존한다. 기존 `be/feature/#494`를 `/Users/yongtae/.codex/worktrees/494-review/knot`에 체크아웃해 #512 수정만 진행한다. #493 변경은 커밋 후 부모→자식 순으로 반영하며, 이번에는 미커밋 수정 복사·역방향 병합을 하지 않는다.
+
+### 구현 흐름과 책임
+
+`POST retry` → 인증·CSRF → Workspace 잠금·현재 멤버 검사 → Workspace 범위 Job 잠금 → 연결 Transcript 잠금 → 원본 RecordingSession 조회·`validateControlledBy` → 기한·한도·입력 검사 → Job QUEUED·횟수 갱신 → flush·commit → 202.
+
+입력 조회 DTO·Adapter에 원본 녹음 ID를 추가한다. Service는 기존 RecordingSessionRepository와 도메인 제어 권한 검사를 재사용한다. 같은 Workspace의 다른 멤버 요청은 `403 RECORDING_CONTROL_DENIED`이며 상태·횟수는 유지한다. 생성 Document의 읽기 권한에는 이 소유자 규칙을 확대하지 않는다.
+
+`DocumentGenerationExecutionRequest`와 저장소/Adapter·미병합 V31은 제거한다. V30 횟수 컬럼은 유지한다. Job의 QUEUED 상태와 회차가 재접수의 저장 결과다. 실제 Job 생산·AI 실행·소비·복구·보존 정리 설계는 #501에서 연결하며, 현재 API만으로 AI 호출이 실행된다고 표현하지 않는다.
+
+### 트랜잭션과 TDD
+
+1. 다른 현재 Workspace 멤버의 요청이 403이며 저장 데이터를 유지하는 인수 테스트를 먼저 실행한다. 기존 코드에서 실제 202가 반환되어 RED를 확인했다.
+2. 원본 녹음 소유자 검사를 구현하고, 소유자·비소유자·녹음 부재·Workspace 비멤버를 검증한다.
+3. 실행 접수 테이블을 제거한다. 상태·횟수만 같은 트랜잭션으로 갱신한다. 기존 중복 요청·동시 접수·기한·탈퇴·정리 경합 검증을 유지한다.
+4. 기존 접수 테이블 flush 장애 검증은 Job을 실제 flush한 뒤 장애를 발생시켜 상태·횟수가 롤백되는 PostgreSQL 검증으로 바꾼다. 기존 Transcript FK 보호도 유지한다.
+5. 저장소 검증에서 Job 삭제를 막는 신규 실행 접수 FK가 없으며 원문은 유지되는지 확인한다. 삭제된 모델 전용 검증은 함께 제거한다.
+6. Swagger·FE 명세를 403 소유자 오류와 QUEUED 접수 계약으로 맞추고 focused 및 전체 Gradle 검증을 실행한다.
+
+### 결과 기록
+
+- 다른 멤버 재시도 인수 테스트 RED: 기대 403, 실제 기존 응답 202를 확인했다. 이후 Service 소유자 검사와 실제 HTTP 403·Job 전체 값 보존 GREEN을 확인했다.
+- 집중 검증: 단위 76·통합 24·인수 24 = 124개 PASS. Job 실제 flush 후 장애 롤백·동시 단일 접수·기한·탈퇴·정리 경합을 포함한다.
+- 전체 `spotlessCheck check bootJar` PASS: 단위 515·통합 223·인수 325 = 1,063개. 실패·오류·skip 0이다. 이번 #494 체크아웃에는 아직 커밋되지 않은 #493 리뷰 수정이 포함되지 않았으며, 부모 갱신 후 합친 상태의 검증은 별도다.
+- 신규 PostgreSQL schema에 V31 실행 접수 테이블이 없고 Job 삭제가 이를 위한 FK로 막히지 않는지 확인했다. 기존 Job→Transcript FK 보호는 유지됐다. 실제 운영 DB 이행·STT/AI 공급자는 관측하지 않았다.
+- API 명세·Swagger·제품 결정 문서를 수정했고 diff 공백 검사를 통과했다. 커밋·푸시·GitHub 댓글 게시·PR 본문 수정은 이번 요청에서 수행하지 않았다.
+- Persona 기본 체크아웃의 profile·plan·roles·현재 카드 evidence는 기록됐지만 별도 worktree Java 절대 경로 8개는 `Evidence read unavailable`이었다. 실제 컴파일·테스트 PASS와 하네스 evidence 미인증을 구분한다. 기존 전역 하네스 상태는 초기화하지 않는다.
+- Persona 종료 실행: `plan --report-filled review` PASS, implementation은 기존 보고서 template-like/incomplete로 거절됐다. `workflow finish implement`는 report-coverage-missing·java-role-read-coverage-missing·convention-toolchain-missing·workflow-loop-state-stale·pending-ticket으로 exit 1이다. 제품 검사 PASS와 하네스 완료 판정은 구분한다.
+
+## 이전 착수 계획과 최초 구현 기록 (현재 계약은 위 절 참조)
+
 상태: #494 제품 구현·로컬 검증 완료. 아래 1~6절은 승인된 착수 계획이며, 실제 실행 결과는 다음 기록을 우선한다.
 확인일: 2026-10-07 KST.
 대상: [Issue #494](https://github.com/woowacourse-teams/2026-Knot/issues/494).

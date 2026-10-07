@@ -43,10 +43,10 @@
 
 | Status | Description |
 | --- | --- |
-| 202 Accepted | Job 상태·횟수·영속 실행 접수 기록을 함께 확정함 |
+| 202 Accepted | 같은 Job의 QUEUED 상태·시도 횟수를 한 트랜잭션으로 확정함 |
 | 400 Bad Request | 경로 형식 또는 양수 범위 오류 |
 | 401 Unauthorized | 인증되지 않음 |
-| 403 Forbidden | 현재 Workspace 접근 권한 없음 또는 CSRF 오류 |
+| 403 Forbidden | 현재 Workspace 접근 권한 없음, 녹음 소유자가 아님 또는 CSRF 오류 |
 | 404 Not Found | 해당 Workspace에 Job 없음 |
 | 409 Conflict | 재시도 조건을 충족하지 못함 |
 
@@ -77,6 +77,7 @@
 | 400 | INVALID_PARAMETER | Long 형식·범위 오류 또는 workspaceId/jobId가 0 이하 |
 | 401 | UNAUTHENTICATED | 로그인 access 쿠키 없음 또는 유효하지 않음 |
 | 403 | WORKSPACE_ACCESS_DENIED | 비멤버·탈퇴자·삭제 또는 없는 Workspace |
+| 403 | RECORDING_CONTROL_DENIED | 현재 Workspace 멤버이지만 해당 녹음을 시작한 본인이 아님 |
 | 403 | FORBIDDEN | CSRF cookie/header 누락 또는 불일치 |
 | 404 | DOCUMENT_GENERATION_JOB_NOT_FOUND | Job이 없거나 다른 Workspace에 속함. 보존 정리로 삭제된 Job 포함 |
 | 409 | RETRY_NOT_ALLOWED | FAILED 아님, 사용자 3회 소진, 실패 후 168시간 만료, 입력 원문을 사용할 수 없음 |
@@ -92,11 +93,12 @@
 
 ## 처리 규칙
 
+- 현재 Workspace 멤버이며 원본 녹음을 시작한 본인만 재시도할 수 있다. 기존 `RecordingSession.validateControlledBy` 권한 규칙을 재사용한다. 다른 멤버의 요청은 403이며 Job 상태와 횟수를 변경하지 않는다. **(이부분 수정됨)**
 - 같은 FAILED Job을 QUEUED로 전환한다. 새 Job으로 복제하지 않으며 입력은 저장된 Transcript다. 오디오 재전사·원문 검토·새 주제 제출은 하지 않는다.
 - 사용자 재시도는 Job당 최대 3회다. 최초 실행과 내부 자동 시도는 사용자 한도에 포함하지 않는다. 거절된 요청은 횟수에 포함하지 않는다.
 - 최초 실행만 있으면 전체 시도는 1, 첫 사용자 접수 후 2다. 사용자 3회만 사용했다면 전체는 4이며 자동 시도가 있으면 그만큼 포함한다.
 - `now < expiresAt`일 때만 접수한다. 7일은 168시간이며 정확한 만료 시각부터 409다. 잠금 대기 뒤 시각으로 검사한다.
-- Workspace·Job·입력 잠금 조회 뒤 상태·횟수·접수 기록을 같은 쓰기 트랜잭션에 저장한다. 기록 저장 실패 시 상태와 횟수도 롤백한다.
+- Workspace·Job·입력 잠금 조회와 녹음 소유자 확인 뒤, Job의 QUEUED 상태와 전체·사용자 시도 횟수를 같은 쓰기 트랜잭션에 저장한다. 저장 또는 commit 실패 시 상태와 횟수도 롤백한다. 별도 실행 접수 테이블을 만들지 않는다. **(이부분 수정됨)**
 - 동일 FAILED 상태의 동시 요청 중 하나만 접수한다. QUEUED로 바뀐 뒤의 중복 요청은 409다. 새로 실패한 주기는 남은 한도·기한 안에서 다시 접수할 수 있다.
 - 재실패하면 마지막 실패 시각과 168시간 기한만 갱신한다. 사용자 누적 횟수는 초기화하지 않는다.
 - 재접수된 QUEUED·RUNNING은 과거 실패 기한이 지나도 진행 목록에 남는다. 실패 기한 정리는 FAILED 대상에만 적용하는 #501의 계약이다.
@@ -104,14 +106,16 @@
 
 ## 실행기 연결·DB 이행
 
-접수는 `document_generation_execution_requests`에 jobId·attemptCount·acceptedAt으로 저장된다. `(job_id, attempt_count)`는 UNIQUE이며 Job FK는 RESTRICT다. #501 실행기가 커밋된 접수 회차를 소비하고 실행·복구·접수 기록 정리를 연결해야 한다. 접수된 회차의 실제 AI 실행 시작 시 전체 횟수를 다시 증가시키지 않는다.
+재시도 접수 사실은 기존 Job의 `status=QUEUED`와 `attempt_count`·`user_retry_count` 변경으로 저장한다. 별도 실행 접수 Entity·Repository·V31은 제거했다. 소비·실행·복구·중복 실행 방지와 보존 정리 방식은 #501에서 함께 설계한다. #494는 실행 큐나 삭제 순서를 고정하지 않는다. **(이부분 수정됨)**
 
-V30은 횟수 컬럼·CHECK, V31은 실행 접수 테이블을 추가한다. V27~V29 선행 적용이 필요하다. 기존 Job의 횟수가 미확인인 경우 V30은 상태로 횟수를 추정하지 않고 중단한다. 실제 실행 기록으로 확인한 횟수만 사전 이행하며 기존 값은 유지한다. 운영 DB 적용 여부는 미확인이다.
+현재 운영 코드에는 최초 Job 생성·실패 기록 호출 및 AI 실행 소비 경로가 없다. 따라서 이 API만 배포해도 실행 가능한 FAILED Job이 자동으로 생기거나 실제 문서 재생성이 시작되지는 않는다. #501 연계 전에는 저장된 테스트 데이터로 접수 계약을 검증한 상태다.
+
+V30은 횟수 컬럼·CHECK를 추가한다. 선행 문서/Job 저장 기반 V27·실패 기한 V28에 의존한다. 부모 #493의 녹음 제목 V29 제거는 해당 리뷰 수정 커밋이 반영된 뒤 함께 갱신한다. V30 번호의 공백은 삭제한 V29/V31을 다시 만드는 이유가 아니다. 기존 Job의 횟수가 미확인인 경우 V30은 상태로 횟수를 추정하지 않고 중단한다. 실제 실행 기록으로 확인한 횟수만 사전 이행하며 기존 값은 유지한다. 운영 DB 적용 여부는 미확인이다.
 
 ## 구현 근거
 
 - `DocumentGenerationJobApi`·`DocumentGenerationJobController`: POST·빈 본문·202·Swagger.
-- `DocumentGenerationJobRetryService`: 현재 멤버·입력·잠금·동일 트랜잭션 접수.
+- `DocumentGenerationJobRetryService`: 현재 멤버·녹음 소유자·입력·잠금·동일 트랜잭션 접수.
 - `DocumentGenerationJob.retryByUser(...)`: 상태·사용자 한도·기한·횟수 전이.
-- V30·V31 및 JPA Repository: 횟수 합계, 접수 중복 방지, 참조 보호.
+- V30 및 JPA Repository: 횟수 합계, Job 잠금에 따른 단일 접수, 기존 원문 참조 보호.
 - 도메인·Mockito·MVC·PostgreSQL·실제 Security 인수 검증은 구현 계획의 실행 기록에 둔다.
