@@ -11,7 +11,7 @@ public enum DocumentErrorCode implements ErrorCode {
     INVALID_PARAMETER(
             ErrorCategory.INVALID_INPUT,
             "INVALID_PARAMETER",
-            "조회 조건이 올바르지 않습니다"
+            "문서 조회 조건이 올바르지 않습니다"
     ),
     DOCUMENT_NOT_FOUND(
             ErrorCategory.NOT_FOUND,

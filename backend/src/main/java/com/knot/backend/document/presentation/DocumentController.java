@@ -1,10 +1,13 @@
 package com.knot.backend.document.presentation;
 
 import com.knot.backend.auth.domain.AuthenticatedMember;
+import com.knot.backend.document.application.DocumentConfirmationService;
 import com.knot.backend.document.application.DocumentDetailService;
 import com.knot.backend.document.application.DocumentListService;
 import com.knot.backend.document.application.dto.query.DocumentListParameters;
 import com.knot.backend.document.domain.MyConfirmationState;
+import com.knot.backend.document.application.dto.query.DocumentConfirmationParameters;
+import com.knot.backend.document.presentation.dto.response.DocumentConfirmationsResponse;
 import com.knot.backend.document.presentation.dto.response.DocumentDetailResponse;
 import com.knot.backend.document.presentation.dto.response.DocumentListResponse;
 import lombok.RequiredArgsConstructor;
@@ -19,8 +22,10 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/workspaces/{workspaceId}/documents")
 @RequiredArgsConstructor
 public class DocumentController implements DocumentApi {
+
     private final DocumentDetailService detailService;
     private final DocumentListService listService;
+    private final DocumentConfirmationService confirmationService;
 
     @Override
     @GetMapping
@@ -58,6 +63,28 @@ public class DocumentController implements DocumentApi {
                         workspaceId,
                         authenticatedMember.getMemberId(),
                         documentId
+                )
+        );
+    }
+
+    @Override
+    @GetMapping("/{documentId}/confirmations")
+    public DocumentConfirmationsResponse findDocumentConfirmations(
+            @PathVariable Long workspaceId,
+            @PathVariable Long documentId,
+            @RequestParam(required = false) String cursor,
+            @RequestParam(required = false) Integer size,
+            @AuthenticationPrincipal AuthenticatedMember authenticatedMember
+    ) {
+        return DocumentConfirmationsResponse.from(
+                confirmationService.find(
+                        workspaceId,
+                        authenticatedMember.getMemberId(),
+                        documentId,
+                        DocumentConfirmationParameters.of(
+                                cursor,
+                                size
+                        )
                 )
         );
     }

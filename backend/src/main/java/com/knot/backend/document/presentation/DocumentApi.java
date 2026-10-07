@@ -3,6 +3,7 @@ package com.knot.backend.document.presentation;
 import static com.knot.backend.global.config.OpenApiConfig.ACCESS_TOKEN_COOKIE;
 
 import com.knot.backend.auth.domain.AuthenticatedMember;
+import com.knot.backend.document.presentation.dto.response.DocumentConfirmationsResponse;
 import com.knot.backend.document.presentation.dto.response.DocumentDetailResponse;
 import com.knot.backend.document.presentation.dto.response.DocumentListResponse;
 import com.knot.backend.document.domain.MyConfirmationState;
@@ -78,6 +79,38 @@ public interface DocumentApi {
     DocumentDetailResponse findDocument(
             @Parameter(description = "문서가 속한 Workspace ID") Long workspaceId,
             @Parameter(description = "조회할 Document ID") Long documentId,
+            @Parameter(hidden = true) AuthenticatedMember authenticatedMember
+    );
+
+    @Operation(summary = "문서 확인 대상과 진행 현황 조회",
+            description = "현재 Workspace 멤버는 생성 당시 고정된 확인 대상을 조회합니다. 이후 가입자는 대상에 추가하지 않습니다. "
+                    + "CONFIRMED → PENDING → EXCLUDED 순서이며 같은 상태에서는 memberId 오름차순입니다. "
+                    + "확인한 탈퇴자는 CONFIRMED를 유지합니다. 전체 집계와 confirmedByMe에는 페이지 범위를 적용하지 않습니다. "
+                    + "조회는 확인·보관 상태를 변경하지 않으며 다른 주제의 실패·진행 중 작업에 영향을 받지 않습니다. "
+                    + "한 응답의 집계와 목록은 같은 DB 스냅샷으로 읽지만 페이지 요청 사이의 상태 변경에 따른 이동은 가능합니다.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "문서 확인 현황 조회 성공",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = DocumentConfirmationsResponse.class))),
+            @ApiResponse(responseCode = "400", description = "INVALID_PARAMETER: 경로·size·cursor 오류 또는 cursor 요청 범위 불일치",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "401", description = "UNAUTHENTICATED: 로그인하지 않음",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "403", description = "WORKSPACE_ACCESS_DENIED: 현재 Workspace 멤버가 아님",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "404", description = "DOCUMENT_NOT_FOUND: 문서가 없거나 Workspace 범위가 다름",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = ErrorResponse.class)))
+    })
+    DocumentConfirmationsResponse findDocumentConfirmations(
+            @Parameter(description = "문서가 속한 Workspace ID") Long workspaceId,
+            @Parameter(description = "조회할 Document ID") Long documentId,
+            @Parameter(description = "이전 응답의 nextCursor. 같은 Workspace·문서·Member 요청에 사용") String cursor,
+            @Parameter(description = "페이지 크기. 생략하면 50, 허용 범위 1~100",
+                    schema = @Schema(type = "integer", minimum = "1", maximum = "100", defaultValue = "50")) Integer size,
             @Parameter(hidden = true) AuthenticatedMember authenticatedMember
     );
     // @formatter:on
