@@ -7,12 +7,14 @@ const fromNow = (elapsed: number) =>
   new Date(Date.now() - elapsed).toISOString();
 
 // 같은 녹음(42)에서 나온 두 문서예요. 본문은 문서 생성기 형식(09-29)의 두 예시(결정 있음 · 결정 없음)를 그대로 써요.
-// id는 탐색 mock의 근거 문서 id(101 · 102)와 맞춰, 찾은 기록 카드를 누르면 이 문서가 열려요.
+// id만 탐색 mock의 근거 문서 id(101 · 102)와 맞춰, 찾은 기록 카드를 누르면 404 대신 문서가 열려요.
+// 101은 제목 · 주제도 카드와 같아요. 102는 결정 없음 예시를 써야 해서 맞추지 않았어요.
+// 그래서 「회원 탈퇴 정책 논의」 카드를 누르면 「홈 개편 논의」 문서가 열려요.
 export const documentDetailsResponse = [
   {
     id: 101,
     recordingSessionId: 42,
-    topic: "회원",
+    topic: "회원 관리",
     title: "회원 탈퇴 정책",
     summary: "탈퇴한 사용자의 게시글을 남기는 기준을 정했어요.",
     content: [
