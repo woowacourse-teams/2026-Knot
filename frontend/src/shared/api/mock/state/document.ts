@@ -31,9 +31,7 @@ const isNewlyConfirmed = (document: DocumentDetailResponse) =>
   confirmedAtByDocumentId.has(document.id);
 
 /** 문서 상세. 확인을 누른 문서는 내 상태와 집계를 바꿔서 돌려줘요 */
-export const findDocumentDetail = (
-  documentId: number,
-): DocumentDetailResponse | undefined => {
+export const findDocumentDetail = (documentId: number) => {
   const document = documentDetailsResponse.find(({ id }) => id === documentId);
 
   if (document === undefined || !isNewlyConfirmed(document)) return document;
@@ -46,13 +44,11 @@ export const findDocumentDetail = (
       confirmedCount: document.confirmationSummary.confirmedCount + 1,
       pendingCount: document.confirmationSummary.pendingCount - 1,
     },
-  };
+  } satisfies DocumentDetailResponse;
 };
 
 /** 확인 대상. 확인을 누른 문서는 내 항목을 확인한 상태로 바꾸고 다시 정렬해서 돌려줘요 */
-export const findDocumentConfirmations = (
-  documentId: number,
-): DocumentConfirmationsResponse | undefined => {
+export const findDocumentConfirmations = (documentId: number) => {
   const confirmations = documentConfirmationsResponse.find(
     (response) => response.documentId === documentId,
   );
@@ -80,16 +76,14 @@ export const findDocumentConfirmations = (
       )
       // map이 새 배열을 만들었으므로 여기서 정렬해도 기본 응답의 순서는 바뀌지 않아요
       .sort((a, b) => STATE_ORDER[a.state] - STATE_ORDER[b.state]),
-  };
+  } satisfies DocumentConfirmationsResponse;
 };
 
 /**
  * 내 확인을 기록하고 PUT 응답을 돌려줘요. 없는 문서면 undefined예요.
  * 이미 확인한 문서는 기록을 바꾸지 않고 처음 확인한 시각을 그대로 돌려줘요(서버와 같은 동작).
  */
-export const confirmDocument = (
-  documentId: number,
-): DocumentMyConfirmationResponse | undefined => {
+export const confirmDocument = (documentId: number) => {
   const confirmations = findDocumentConfirmations(documentId);
 
   if (confirmations === undefined) return undefined;
@@ -112,5 +106,5 @@ export const confirmDocument = (
     documentStatus: document.status,
     archivedAt: document.archivedAt,
     confirmationSummary: document.confirmationSummary,
-  };
+  } satisfies DocumentMyConfirmationResponse;
 };
