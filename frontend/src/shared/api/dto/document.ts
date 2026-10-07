@@ -2,6 +2,7 @@
  * 문서 DTO
  *
  * - GET /api/v1/workspaces/{workspaceId}/documents/{documentId}
+ * - GET /api/v1/workspaces/{workspaceId}/documents/{documentId}/confirmations
  */
 
 /** 문서 상태. 확인 대상이 모두 확인하거나 제외되면 ARCHIVED로 바뀌어요 */
@@ -17,7 +18,7 @@ export interface ConfirmationSummaryRaw {
   excludedCount: number;
 }
 
-/** 문서 확인 집계. 문서 상세 응답이 담아요 */
+/** 문서 확인 집계. 문서 상세와 확인 대상 조회 응답이 담아요 */
 export class ConfirmationSummaryDto {
   /** 확인을 마친 대상 수. 확인한 뒤 워크스페이스를 나가도 포함해요 */
   confirmedCount: number;
@@ -97,5 +98,76 @@ export class GetDocumentResponseDto {
     this.confirmationSummary = new ConfirmationSummaryDto(
       raw.confirmationSummary,
     );
+  }
+}
+
+// GET /api/v1/workspaces/{workspaceId}/documents/{documentId}/confirmations
+
+/** 확인 대상 한 명의 상태. EXCLUDED는 확인하지 않은 채 워크스페이스를 나간 대상이에요 */
+export type DocumentConfirmationState = "CONFIRMED" | "PENDING" | "EXCLUDED";
+
+/** 확인 대상 한 명의 서버 응답 모양 */
+export interface DocumentConfirmationItemRaw {
+  memberId: number;
+  nickname: string;
+  profileImageUrl: string | null;
+  confirmedAt: string | null;
+  state: DocumentConfirmationState;
+}
+
+/** 문서의 확인 대상 한 명. 확인 대상 조회 응답의 `items`가 담아요 */
+export class DocumentConfirmationItemDto {
+  /** 대상 멤버 ID */
+  memberId: number;
+  /** 대상의 지금 닉네임 */
+  nickname: string;
+  /** 대상의 지금 프로필 이미지(절대 URL). 없으면 null */
+  profileImageUrl: string | null;
+  /** 처음 확인한 시각(ISO 8601, UTC). 확인하지 않았으면 null */
+  confirmedAt: string | null;
+  /** 확인 상태 */
+  state: DocumentConfirmationState;
+
+  constructor(raw: DocumentConfirmationItemRaw) {
+    this.memberId = raw.memberId;
+    this.nickname = raw.nickname;
+    this.profileImageUrl = raw.profileImageUrl;
+    this.confirmedAt = raw.confirmedAt;
+    this.state = raw.state;
+  }
+}
+
+/**
+ * 확인 대상 조회의 서버 응답 모양.
+ *
+ * `confirmedByMe`는 확인 대상이 아닐 때와 아직 확인하지 않았을 때가 모두 false라 둘을 구분하지 못해요.
+ */
+export interface GetDocumentConfirmationsResponseRaw {
+  documentId: number;
+  confirmedCount: number;
+  pendingCount: number;
+  excludedCount: number;
+  confirmedByMe: boolean;
+  items: DocumentConfirmationItemRaw[];
+  nextCursor: string | null;
+}
+
+/** 문서의 확인 대상과 진행 현황 조회 응답 */
+export class GetDocumentConfirmationsResponseDto {
+  /** 문서 ID */
+  documentId: number;
+  /** 확인 집계. 서버가 따로 준 세 값(confirmedCount · pendingCount · excludedCount)을 문서 상세와 같은 모양으로 묶었어요 */
+  confirmationSummary: ConfirmationSummaryDto;
+  /** 문서가 만들어질 때 정해진 확인 대상. 한 번에 최대 100명 */
+  items: DocumentConfirmationItemDto[];
+  /** 다음 페이지 커서. 마지막 페이지면 null */
+  nextCursor: string | null;
+
+  // 내 확인 상태는 문서 상세의 myConfirmationState를 쓰므로 confirmedByMe는 옮기지 않아요
+  constructor(raw: GetDocumentConfirmationsResponseRaw) {
+    this.documentId = raw.documentId;
+    this.confirmationSummary = new ConfirmationSummaryDto(raw);
+    this.items = raw.items.map((item) => new DocumentConfirmationItemDto(item));
+    this.nextCursor = raw.nextCursor;
   }
 }
