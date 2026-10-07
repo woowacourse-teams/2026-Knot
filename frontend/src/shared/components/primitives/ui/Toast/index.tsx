@@ -18,7 +18,7 @@ export type ToastVariant = "success" | "caution" | "error";
 
 interface ToastProps {
   variant: ToastVariant;
-  /** 알릴 문구. 한 줄로 보여줘요. */
+  /** 알릴 문구. 놓인 자리의 폭을 넘으면 줄을 바꿔요. */
   message: string;
 }
 
@@ -57,7 +57,7 @@ export default function Toast({ variant, message }: ToastProps) {
 
 const Container = styled.div<{ $variant: ToastVariant }>`
   display: inline-flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 0.625rem; /* 10px */
   padding: 0.875rem 1.375rem 0.875rem 1.125rem; /* 14px 22px 14px 18px */
   border-radius: 1rem; /* 16px */
@@ -67,12 +67,17 @@ const Container = styled.div<{ $variant: ToastVariant }>`
   color: ${({ theme }) => theme.neutral[0]};
 `;
 
+/** 문구가 여러 줄이어도 아이콘이 첫 줄 가운데에 오도록 한 줄 높이만큼만 차지해요 */
 const IconWrapper = styled.span`
   display: flex;
   flex-shrink: 0;
+  align-items: center;
+  height: 1.5rem; /* 24px — label01의 한 줄 높이 */
 `;
 
 const Message = styled.p`
   ${({ theme }) => theme.text.label01};
-  white-space: nowrap;
+  min-width: 0;
+  word-break: keep-all; /* 한글 어절 중간에서 줄이 끊기지 않게 해요 */
+  overflow-wrap: break-word;
 `;
