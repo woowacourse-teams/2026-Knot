@@ -6,6 +6,8 @@
 관련 이슈: [#450](https://github.com/woowacourse-teams/2026-Knot/issues/450)
 결정 기록: [Mac Codex OAuth와 읽기 전용 Notion MCP](../adr/450-discord-assistant-local-codex-notion.md) (Proposed)
 
+2026-10-06 추가: `/회의 생성`과 작성자 전용 수정·취소는 [회의 명령 운영 기록](discord-meeting-command.md)에 별도로 정리했다. 아래 모델·문서 품질 결과는 2026-10-03 검증 기록이다.
+
 ## 1. 목적과 현재 상태
 
 Knot 팀의 Notion 문서를 찾아 개발 질문에 답하고, 가벼운 일상 대화도 지원하는 개발 생산성 도구다.
