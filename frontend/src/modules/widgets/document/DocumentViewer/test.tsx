@@ -17,6 +17,7 @@ import {
   fireEvent,
   render,
   screen,
+  waitFor,
   waitForElementToBeRemoved,
   within,
 } from "@testing-library/react";
@@ -34,6 +35,7 @@ const WORKSPACE_ID = "1";
 const DOCUMENT_REQUEST =
   "*/api/v1/workspaces/:workspaceId/documents/:documentId";
 const CONFIRMATIONS_REQUEST = `${DOCUMENT_REQUEST}/confirmations`;
+const MY_CONFIRMATION_REQUEST = `${CONFIRMATIONS_REQUEST}/me`;
 
 const expectedConfirmations = new GetDocumentConfirmationsResponseDto(
   documentConfirmationsResponse[0],
@@ -60,6 +62,7 @@ const [pendingPerson, excludedPerson, confirmedPerson] =
 
 const LOAD_FAILED_NOTICE = "목록을 불러오지 못했어요";
 const COPIED_DURATION_MS = 3000;
+const CONFIRM_BUTTON_NAME = "문서를 확인했어요";
 
 const writeText = vi.fn<(text: string) => Promise<void>>();
 
@@ -114,6 +117,9 @@ const findPeopleRows = async () => {
 
   return within(peopleList).getAllByRole("listitem");
 };
+
+const queryConfirmButton = () =>
+  screen.queryByRole("button", { name: CONFIRM_BUTTON_NAME });
 
 const click = async (element: HTMLElement) => {
   await act(async () => {
@@ -269,6 +275,115 @@ describe("DocumentViewer", () => {
     expect(
       screen.queryByRole("button", { name: "복사됨" }),
     ).not.toBeInTheDocument();
+  });
+
+  it("아직 확인하지 않았으면 확인 버튼을 보여주고, 누르면 버튼이 사라지고 확인 수가 늘어난다", async () => {
+    renderViewer(String(expected.id));
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: CONFIRM_BUTTON_NAME }),
+    );
+
+    await waitForElementToBeRemoved(queryConfirmButton);
+    expect(
+      screen.getByText(
+        `${expected.confirmationSummary.confirmedCount + 1}명 확인했어요`,
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it.each(["CONFIRMED", "NOT_REQUIRED"] as const)(
+    "내 확인 상태가 %s이면 확인 버튼을 보여주지 않는다",
+    async (myConfirmationState) => {
+      mockServer.use(
+        http.get(DOCUMENT_REQUEST, () =>
+          HttpResponse.json({
+            ...documentDetailsResponse[0],
+            myConfirmationState,
+          }),
+        ),
+      );
+      renderViewer(String(expected.id));
+
+      await screen.findByRole("heading", { level: 2, name: expected.title });
+
+      expect(queryConfirmButton()).not.toBeInTheDocument();
+    },
+  );
+
+  it("확인 대상이 아니라는 응답(409)을 받으면 문서를 다시 불러와 확인 버튼을 없앤다", async () => {
+    mockServer.use(
+      // 처음에는 확인이 필요하다고 하고, 다시 불러오면 확인 대상이 아니라고 답해요
+      http.get(
+        DOCUMENT_REQUEST,
+        () => HttpResponse.json(documentDetailsResponse[0]),
+        { once: true },
+      ),
+      http.get(DOCUMENT_REQUEST, () =>
+        HttpResponse.json({
+          ...documentDetailsResponse[0],
+          myConfirmationState: "NOT_REQUIRED",
+        }),
+      ),
+      http.put(MY_CONFIRMATION_REQUEST, () =>
+        HttpResponse.json(
+          {
+            code: "CONFIRMATION_NOT_REQUIRED",
+            message: "확인 대상이 아닙니다.",
+          },
+          { status: 409 },
+        ),
+      ),
+    );
+    renderViewer(String(expected.id));
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: CONFIRM_BUTTON_NAME }),
+    );
+
+    await waitForElementToBeRemoved(queryConfirmButton);
+  });
+
+  it("확인 요청이 서버 오류로 실패하면 버튼을 남겨 다시 누를 수 있게 한다", async () => {
+    let requestCount = 0;
+    mockServer.use(
+      http.put(MY_CONFIRMATION_REQUEST, async () => {
+        requestCount += 1;
+        // 응답이 바로 오면 누를 수 없는 상태가 그려지기 전에 지나가서, 잠깐 늦게 답해요
+        await delay(100);
+        return new HttpResponse(null, { status: 500 });
+      }),
+    );
+    renderViewer(String(expected.id));
+
+    const confirmButton = await screen.findByRole("button", {
+      name: CONFIRM_BUTTON_NAME,
+    });
+    fireEvent.click(confirmButton);
+
+    // 응답을 기다리는 동안에는 누를 수 없고, 실패하면 다시 누를 수 있어요
+    await waitFor(() => expect(confirmButton).toBeDisabled());
+    await waitFor(() => expect(confirmButton).toBeEnabled());
+
+    fireEvent.click(confirmButton);
+
+    await waitFor(() => expect(requestCount).toBe(2));
+  });
+
+  it("확인 요청에서 로그인이 풀렸으면(401) 로그인 화면으로 보낸다", async () => {
+    mockServer.use(
+      http.put(
+        MY_CONFIRMATION_REQUEST,
+        () => new HttpResponse(null, { status: 401 }),
+      ),
+    );
+    renderViewer(String(expected.id));
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: CONFIRM_BUTTON_NAME }),
+    );
+
+    expect(await screen.findByText("로그인 화면")).toBeInTheDocument();
   });
 
   it("없는 문서면 문서를 찾을 수 없다고 알리고, 홈으로를 누르면 워크스페이스 홈으로 간다", async () => {
