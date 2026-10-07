@@ -20,10 +20,12 @@ import org.springframework.http.MediaType;
 public interface DocumentGenerationJobApi {
 
     // @formatter:off
-    @Operation(summary = "워크스페이스 문서 생성 작업 목록 조회",
-            description = "현재 Workspace 멤버에게 QUEUED·RUNNING·마지막 실패 후 7일 미만인 FAILED를 반환합니다. "
+    @Operation(summary = "내 녹음의 문서 생성 작업 목록 조회",
+            description = "현재 Workspace에서 로그인한 멤버가 시작한 녹음의 QUEUED·RUNNING·마지막 실패 후 7일 미만인 FAILED를 반환합니다. "
+                    + "다른 멤버의 녹음 작업은 반환하지 않습니다. 녹음 제목 필드는 제공하지 않습니다. "
                     + "성공·만료된 실패 작업은 제외하며 생성 시각 내림차순, 동률이면 Job ID 내림차순입니다. "
-                    + "한 녹음의 여러 작업을 개별 반환합니다. 조회는 상태를 변경하거나 자료를 삭제하지 않습니다. "
+                    + "한 녹음의 여러 작업을 개별 반환합니다. 홈의 한 카드 선택과 종합 상태 판단은 녹음 조회 계약에서 연결합니다. "
+                    + "조회는 상태를 변경하거나 자료를 삭제하지 않습니다. "
                     + "목록에서 사라진 사실만으로 녹음 전체의 완료를 판단하지 않으며 녹음 상세의 종합 결과를 확인합니다. "
                     + "페이지 요청 사이에 실행 상태와 만료 여부가 바뀔 수 있습니다. 요청 본문은 없습니다.")
     @ApiResponses({
