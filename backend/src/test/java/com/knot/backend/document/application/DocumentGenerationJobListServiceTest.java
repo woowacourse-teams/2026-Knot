@@ -60,6 +60,7 @@ class DocumentGenerationJobListServiceTest {
         when(
                 query.findPage(
                         1,
+                        2,
                         3,
                         null,
                         NOW
@@ -98,6 +99,7 @@ class DocumentGenerationJobListServiceTest {
         ).isEqualTo(2);
         verify(query).findPage(
                 1,
+                2,
                 3,
                 null,
                 NOW
@@ -117,6 +119,7 @@ class DocumentGenerationJobListServiceTest {
         when(
                 query.findPage(
                         1,
+                        2,
                         2,
                         null,
                         NOW
@@ -151,6 +154,7 @@ class DocumentGenerationJobListServiceTest {
         when(
                 query.findPage(
                         1,
+                        2,
                         21,
                         null,
                         NOW
@@ -234,6 +238,7 @@ class DocumentGenerationJobListServiceTest {
         when(
                 query.findPage(
                         eq(1L),
+                        eq(2L),
                         eq(21),
                         any(DocumentGenerationJobCursor.class),
                         eq(NOW)
@@ -261,6 +266,7 @@ class DocumentGenerationJobListServiceTest {
         assertThat(result.items()).isEmpty();
         verify(query).findPage(
                 eq(1L),
+                eq(2L),
                 eq(21),
                 any(DocumentGenerationJobCursor.class),
                 eq(NOW)
@@ -271,7 +277,6 @@ class DocumentGenerationJobListServiceTest {
         return new DocumentGenerationJobItemResult(
                 id,
                 42,
-                null,
                 DocumentGenerationJobStatus.QUEUED,
                 NOW,
                 NOW
