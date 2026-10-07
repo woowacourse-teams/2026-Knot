@@ -6,31 +6,15 @@ import com.knot.backend.document.application.dto.result.DocumentConfirmationOver
 import com.knot.backend.document.application.dto.result.DocumentConfirmationSummaryResult;
 import com.knot.backend.document.domain.DocumentConfirmationCursor;
 import com.knot.backend.document.domain.DocumentConfirmationState;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Timestamp;
-import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
-import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Repository;
 
 @Repository
 @RequiredArgsConstructor
 public class DocumentConfirmationQueryAdapter implements DocumentConfirmationQuery {
-    private static final String TARGETS = """
-            WITH targets AS (
-                SELECT c.member_id, c.confirmed_at, EXISTS (
-                    SELECT 1 FROM workspace_members wm
-                    WHERE wm.workspace_id = d.workspace_id AND wm.member_id = c.member_id AND wm.left_at IS NULL
-                ) AS active_member
-                FROM document_confirmations c
-                JOIN documents d ON d.id = c.document_id
-                WHERE d.workspace_id = :workspaceId AND d.id = :documentId
-            )
-            """;
-    private final JdbcClient jdbc;
     private final DocumentConfirmationReadJpaRepository confirmations;
 
     @Override
@@ -54,83 +38,38 @@ public class DocumentConfirmationQueryAdapter implements DocumentConfirmationQue
             int size,
             DocumentConfirmationCursor cursor
     ) {
-        JdbcClient.StatementSpec statement = bindScope(
-                jdbc.sql(TARGETS + """
-                        , ordered_targets AS (
-                            SELECT t.*, CASE
-                                WHEN t.confirmed_at IS NOT NULL THEN :confirmedOrder
-                                WHEN t.active_member THEN :pendingOrder
-                                ELSE :excludedOrder
-                            END AS state_order
-                            FROM targets t
-                        )
-                        SELECT t.*, m.nickname, m.profile_image_url
-                        FROM ordered_targets t JOIN members m ON m.id = t.member_id
-                        """ + cursorCondition(cursor) + " ORDER BY t.state_order, t.member_id LIMIT :limit"),
+        return confirmations.findPage(
                 workspaceId,
-                documentId
-        ).param(
-                "confirmedOrder",
-                DocumentConfirmationState.CONFIRMED.getSortOrder()
-        )
-                .param(
-                        "pendingOrder",
-                        DocumentConfirmationState.PENDING.getSortOrder()
-                )
-                .param(
-                        "excludedOrder",
-                        DocumentConfirmationState.EXCLUDED.getSortOrder()
-                )
-                .param(
-                        "limit",
+                documentId,
+                DocumentConfirmationState.CONFIRMED.getSortOrder(),
+                DocumentConfirmationState.PENDING.getSortOrder(),
+                DocumentConfirmationState.EXCLUDED.getSortOrder(),
+                cursor != null,
+                cursorOrder(cursor),
+                cursorMemberId(cursor),
+                PageRequest.of(
+                        0,
                         size + 1
-                );
-        bindCursor(
-                statement,
-                cursor
-        );
-        return statement.query(this::mapItem)
-                .list();
-    }
-
-    private JdbcClient.StatementSpec bindScope(
-            JdbcClient.StatementSpec statement,
-            long workspaceId,
-            long documentId
-    ) {
-        return statement.param(
-                "workspaceId",
-                workspaceId
+                )
         )
-                .param(
-                        "documentId",
-                        documentId
-                );
+                .stream()
+                .map(this::toItem)
+                .toList();
     }
 
-    private String cursorCondition(DocumentConfirmationCursor cursor) {
+    private int cursorOrder(DocumentConfirmationCursor cursor) {
         if (cursor == null) {
-            return "";
+            return DocumentConfirmationState.CONFIRMED.getSortOrder();
         }
-        return " WHERE (t.state_order, t.member_id) > (:cursorOrder, :cursorMemberId)";
+        return cursor.getState()
+                .getSortOrder();
     }
 
-    private void bindCursor(
-            JdbcClient.StatementSpec statement,
-            DocumentConfirmationCursor cursor
-    ) {
+    private long cursorMemberId(DocumentConfirmationCursor cursor) {
         if (cursor == null) {
-            return;
+            return 0;
         }
-        statement.param(
-                "cursorOrder",
-                cursor.getState()
-                        .getSortOrder()
-        )
-                .param(
-                        "cursorMemberId",
-                        cursor.getTargetMemberId()
-                );
+        return cursor.getTargetMemberId();
     }
 
     private DocumentConfirmationOverviewResult toOverview(DocumentConfirmationSummaryRow row) {
@@ -145,27 +84,16 @@ public class DocumentConfirmationQueryAdapter implements DocumentConfirmationQue
         );
     }
 
-    private DocumentConfirmationItemResult mapItem(
-            ResultSet row,
-            int rowNumber
-    ) throws SQLException {
-        Instant confirmedAt = nullableInstant(row.getTimestamp("confirmed_at"));
+    private DocumentConfirmationItemResult toItem(DocumentConfirmationTargetRow row) {
         return new DocumentConfirmationItemResult(
-                row.getLong("member_id"),
-                row.getString("nickname"),
-                row.getString("profile_image_url"),
-                confirmedAt,
+                row.memberId(),
+                row.nickname(),
+                row.profileImageUrl(),
+                row.confirmedAt(),
                 DocumentConfirmationState.resolve(
-                        row.getBoolean("active_member"),
-                        confirmedAt
+                        row.activeMember(),
+                        row.confirmedAt()
                 )
         );
-    }
-
-    private Instant nullableInstant(Timestamp timestamp) {
-        if (timestamp == null) {
-            return null;
-        }
-        return timestamp.toInstant();
     }
 }
