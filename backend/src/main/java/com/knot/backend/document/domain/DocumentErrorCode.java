@@ -8,6 +8,11 @@ import lombok.RequiredArgsConstructor;
 @Getter
 @RequiredArgsConstructor
 public enum DocumentErrorCode implements ErrorCode {
+    INVALID_PARAMETER(
+            ErrorCategory.INVALID_INPUT,
+            "INVALID_PARAMETER",
+            "요청 값이 올바르지 않습니다"
+    ),
     DOCUMENT_NOT_FOUND(
             ErrorCategory.NOT_FOUND,
             "DOCUMENT_NOT_FOUND",
