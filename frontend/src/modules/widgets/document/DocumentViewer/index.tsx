@@ -1,5 +1,6 @@
 import { NO_DECISION_SENTENCE } from "@constants/document";
 import styled from "@emotion/styled";
+import DocumentHeader from "@features/document/DocumentHeader";
 import useNavigateToWorkspaceHome from "@hooks/domain/workspace/useNavigateToWorkspaceHome";
 import DocumentBody from "@primitives/ui/DocumentBody";
 import RetryNotice from "@primitives/ui/RetryNotice";
@@ -11,10 +12,10 @@ import DocumentNotFound from "./ui/DocumentNotFound";
 import DocumentSkeleton from "./ui/DocumentSkeleton";
 
 /**
- * 문서 보기 섹션. 주소의 문서를 불러와 제목과 본문을 보여줘요.
+ * 문서 보기 섹션. 주소의 문서를 불러와 문서 머리와 본문을 보여줘요.
  *
  * 결정이 없는 회의 문서는 본문의 결정 없음 문장을 흐리게 그려요(STT-R23).
- * 문서 머리(경로 · 날짜 · 확인 수 · 복사)와 확인 버튼은 다음 PR에서 더해요.
+ * 제목은 문서 머리가 그리고, 섹션의 이름으로 쓰도록 제목 id를 넘겨요.
  */
 export default function DocumentViewer() {
   const titleId = useId();
@@ -56,7 +57,7 @@ export default function DocumentViewer() {
 
   return (
     <Container aria-labelledby={titleId}>
-      <Title id={titleId}>{viewer.document.title}</Title>
+      <DocumentHeader documentId={viewer.document.id} titleId={titleId} />
       <DocumentBody
         content={viewer.document.content}
         mutedLines={[NO_DECISION_SENTENCE]}
@@ -65,17 +66,11 @@ export default function DocumentViewer() {
   );
 }
 
-/** 피그마 문서 열(Standard): 폭 720px, 제목과 본문 사이 24px */
+/** 피그마 문서 열(Standard): 폭 720px, 문서 머리와 본문 사이 24px */
 const Container = styled.section`
   display: flex;
   flex-direction: column;
   gap: 1.5rem; /* 24px */
   width: 100%;
   max-width: 45rem; /* 720px */
-`;
-
-const Title = styled.h2`
-  ${({ theme }) => theme.text.heading02};
-  color: ${({ theme }) => theme.neutral[900]};
-  overflow-wrap: break-word;
 `;

@@ -6,6 +6,8 @@ import { theme } from "@provider/themeProvider";
 import { getRouterPath, PATH_ROUTE } from "@routes/PATH_ROUTE";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen } from "@testing-library/react";
+import { formatDate } from "@utils/formatDate";
+import { formatDurationFromSeconds } from "@utils/formatDurationFromSeconds";
 import { delay, http, HttpResponse } from "msw";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { describe, expect, it } from "vitest";
@@ -75,6 +77,24 @@ describe("DocumentViewer", () => {
     // 결정 있는 문서: 구역 제목(##) 4개와 미결정 항목 2개
     expect(screen.getAllByRole("heading", { level: 4 })).toHaveLength(4);
     expect(screen.getAllByRole("listitem")).toHaveLength(2);
+  });
+
+  it("문서 머리에 경로 · 만든 날짜 · 녹음 길이를 보여준다", async () => {
+    renderViewer(String(expected.id));
+
+    await screen.findByRole("heading", { level: 2, name: expected.title });
+
+    // 경로는 위 단계 「문서」와 지금 문서의 제목이에요. 그래서 제목은 경로와 제목 줄 두 곳에 보여요
+    expect(screen.getByText("문서")).toBeInTheDocument();
+    expect(screen.getAllByText(expected.title)).toHaveLength(2);
+    expect(
+      screen.getByText(formatDate(expected.createdAt)),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        formatDurationFromSeconds(expected.recordingDurationSeconds),
+      ),
+    ).toBeInTheDocument();
   });
 
   it("없는 문서면 문서를 찾을 수 없다고 알리고, 홈으로를 누르면 워크스페이스 홈으로 간다", async () => {
