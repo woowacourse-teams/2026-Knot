@@ -3,7 +3,14 @@ import { DialogProvider } from "@provider/context/dialogContext";
 import { theme } from "@provider/themeProvider";
 import { useRecordingStore } from "@store/recordingStore";
 import { getRouterPath, PATH_ROUTE } from "@routes/PATH_ROUTE";
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { createMemoryRouter, Outlet, RouterProvider } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -34,11 +41,17 @@ const renderRecorderBar = () => {
     { initialEntries: [RECORDING_PATH] },
   );
 
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
+
   render(
     <ThemeProvider theme={theme}>
-      <DialogProvider>
-        <RouterProvider router={router} />
-      </DialogProvider>
+      <QueryClientProvider client={queryClient}>
+        <DialogProvider>
+          <RouterProvider router={router} />
+        </DialogProvider>
+      </QueryClientProvider>
     </ThemeProvider>,
   );
 
@@ -48,7 +61,11 @@ const renderRecorderBar = () => {
 /** 녹음은 독에서 마이크를 받은 뒤 시작하므로, 녹음 화면에 들어오기 전에 미리 시작해 둬요. */
 const startRecording = async () => {
   await act(async () => {
-    await useRecordingStore.getState().startRecording();
+    await useRecordingStore.getState().connectMicrophone();
+    useRecordingStore.getState().startRecording({
+      workspaceId: Number(WORKSPACE_ID),
+      recordingId: 10,
+    });
   });
 };
 
@@ -77,7 +94,7 @@ describe("RecorderBar", () => {
 
   afterEach(() => {
     // 전역 저장소라 테스트끼리 녹음이 새지 않도록 처음 상태로 되돌려요
-    useRecordingStore.getState().endRecording();
+    useRecordingStore.getState().discardRecording();
     vi.useRealTimers();
   });
 
@@ -130,6 +147,8 @@ describe("RecorderBar", () => {
   });
 
   it("녹음을 끝내면 마이크를 끈다", async () => {
+    // 끝내기는 요청을 주고받은 뒤 마이크를 끄므로, 응답을 기다릴 수 있게 실제 시계로 돌려요
+    vi.useRealTimers();
     const getUserMedia = vi.spyOn(navigator.mediaDevices, "getUserMedia");
     await startRecording();
     const stream = await getUserMedia.mock.results[0].value;
@@ -139,7 +158,9 @@ describe("RecorderBar", () => {
       fireEvent.click(screen.getByRole("button", { name: "녹음 끝내기" }));
     });
 
-    expect(stream.getTracks()[0].readyState).toBe("ended");
+    await waitFor(() =>
+      expect(stream.getTracks()[0].readyState).toBe("ended"),
+    );
   });
 
   it("녹음 중에 마이크가 끊기면 저절로 일시정지한다", async () => {

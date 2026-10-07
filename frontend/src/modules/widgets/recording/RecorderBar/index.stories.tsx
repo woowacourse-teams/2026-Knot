@@ -7,7 +7,7 @@ import RecorderBar from ".";
 
 /** 녹음이 없는 처음 상태로 되돌려요. 녹음은 전역 저장소에 있어 스토리끼리 이어지기 때문이에요. */
 const resetRecording = () => {
-  useRecordingStore.getState().endRecording();
+  useRecordingStore.getState().discardRecording();
 };
 
 /**

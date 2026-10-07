@@ -10,7 +10,7 @@ import { useParams } from "react-router";
  * 그래서 녹음 없이 들어오거나(주소를 직접 친 경우 등) 녹음을 끝내면 홈으로 나가요.
  * 뒤로 가기로 빈 녹음 화면에 돌아오지 않도록 기록을 바꿔요.
  *
- * 녹음 시간을 다시 그리는 타이머가 필요 없어 `useRecording` 대신 상태만 읽어요.
+ * 녹음 상태 하나만 필요해 `useRecording` 대신 저장소에서 바로 읽어요.
  */
 export const useRecordingEntryGuard = () => {
   const { workspaceId } = useParams();
