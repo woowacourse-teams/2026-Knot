@@ -1,22 +1,18 @@
+import { HTTP_ERROR_TYPE, isHttpError } from "@api/httpClient/error";
 import useNavigateToLogin from "@hooks/domain/auth/useNavigateToLogin";
 import useNavigateToWorkspace from "@hooks/domain/workspace/useNavigateToWorkspace";
 import { isUnauthorizedError } from "@utils/isUnauthorizedError";
-import axios from "axios";
 import { useEffect } from "react";
-
-// TODO: api 내부 구현(401·403·404)이 노출됨. 수정 필요
 
 interface UseWorkspaceAccessGuardParams {
   /** 워크스페이스 관련 쿼리의 에러. 없으면 아무것도 하지 않아요. */
   error: unknown;
 }
 
-/** 멤버가 아니거나(403) 없는 워크스페이스(404)라 들어갈 수 없는 상태 코드 */
-const ACCESS_DENIED_STATUSES = [403, 404];
-
+/** 멤버가 아니거나(403) 없는 워크스페이스(404)라 들어갈 수 없는 실패 */
 const isAccessDeniedError = (error: unknown) =>
-  axios.isAxiosError(error) &&
-  ACCESS_DENIED_STATUSES.includes(error.response?.status ?? 0);
+  isHttpError(error, HTTP_ERROR_TYPE.forbidden) ||
+  isHttpError(error, HTTP_ERROR_TYPE.notFound);
 
 /**
  * 워크스페이스 조회 실패를 한 곳에서 판정해 이동시키는 도메인 훅.
