@@ -1,4 +1,4 @@
-import type { Theme } from "@emotion/react";
+import { css, type Theme } from "@emotion/react";
 import styled from "@emotion/styled";
 import { Fragment } from "react";
 
@@ -54,14 +54,28 @@ export default function Block({ block }: BlockProps) {
       return (
         <List>
           {block.items.map((item, itemIndex) => (
-            <ListItem key={itemIndex}>
+            <BulletItem key={itemIndex}>
               {/* 글 조각을 한 덩어리로 감싸야 flex 칸이 점과 글 두 개가 돼요. 감싸지 않으면 굵은 글마다 칸이 나뉘어 사이가 벌어져요 */}
+              <ItemText>
+                <Inlines inlines={item} />
+              </ItemText>
+            </BulletItem>
+          ))}
+        </List>
+      );
+    case "orderedList":
+      return (
+        <OrderedList start={block.start}>
+          {block.items.map((item, itemIndex) => (
+            <ListItem key={itemIndex}>
+              {/* 번호는 점과 달리 내용이라, 장식이 아닌 글자로 그려 화면 낭독기도 읽게 해요 */}
+              <ItemNumber>{block.start + itemIndex}.</ItemNumber>
               <ItemText>
                 <Inlines inlines={item} />
               </ItemText>
             </ListItem>
           ))}
-        </List>
+        </OrderedList>
       );
   }
 }
@@ -77,10 +91,18 @@ const Paragraph = styled.p<{ $isMuted: boolean }>`
     $isMuted ? theme.neutral[500] : theme.neutral[700]};
 `;
 
-const List = styled.ul`
+const listLayout = css`
   display: flex;
   flex-direction: column;
   gap: 0.375rem; /* 6px */
+`;
+
+const List = styled.ul`
+  ${listLayout};
+`;
+
+const OrderedList = styled.ol`
+  ${listLayout};
 `;
 
 const ListItem = styled.li`
@@ -88,13 +110,22 @@ const ListItem = styled.li`
   gap: 0.5rem; /* 8px */
   ${({ theme }) => theme.text.body01};
   color: ${({ theme }) => theme.neutral[700]};
+`;
 
+const BulletItem = styled(ListItem)`
   /* 점은 낭독기가 읽지 않도록 글자가 아닌 장식으로 그려요. 목록이라는 사실은 ul · li가 알려줘요 */
   &::before {
     flex-shrink: 0;
     color: ${({ theme }) => theme.neutral[500]};
     content: "•";
   }
+`;
+
+/** 피그마 `Doc/ListItem · number`의 번호 자리. 두 자리 번호는 글자만큼 넓어져요 */
+const ItemNumber = styled.span`
+  flex-shrink: 0;
+  min-width: 1rem; /* 16px */
+  color: ${({ theme }) => theme.neutral[500]};
 `;
 
 const ItemText = styled.span`
