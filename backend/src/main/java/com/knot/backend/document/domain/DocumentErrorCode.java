@@ -18,6 +18,16 @@ public enum DocumentErrorCode implements ErrorCode {
             "DOCUMENT_NOT_FOUND",
             "문서를 찾을 수 없습니다"
     ),
+    DOCUMENT_GENERATION_JOB_NOT_FOUND(
+            ErrorCategory.NOT_FOUND,
+            "DOCUMENT_GENERATION_JOB_NOT_FOUND",
+            "문서 생성 작업을 찾을 수 없습니다"
+    ),
+    RETRY_NOT_ALLOWED(
+            ErrorCategory.CONFLICT,
+            "RETRY_NOT_ALLOWED",
+            "문서 생성 작업을 재시도할 수 없습니다"
+    ),
     INVALID_DOCUMENT_DATA(
             ErrorCategory.INVALID_INPUT,
             "INVALID_DOCUMENT_DATA",

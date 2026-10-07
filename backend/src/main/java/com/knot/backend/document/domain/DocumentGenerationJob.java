@@ -20,6 +20,7 @@ import lombok.Getter;
 public class DocumentGenerationJob {
 
     private static final Duration FAILURE_RETENTION = Duration.ofDays(7);
+    private static final int MAX_USER_RETRIES = 3;
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -44,7 +45,51 @@ public class DocumentGenerationJob {
     @Column(name = "expires_at")
     private Instant expiresAt;
 
+    @Column(name = "attempt_count", nullable = false)
+    private int attemptCount;
+
+    @Column(name = "user_retry_count", nullable = false)
+    private int userRetryCount;
+
+    @Column(name = "automatic_retry_count", nullable = false)
+    private int automaticRetryCount;
+
     protected DocumentGenerationJob() {}
+
+    private DocumentGenerationJob(
+            long transcriptId,
+            Instant createdAt
+    ) {
+        validateTranscriptId(transcriptId);
+        validateCreatedAt(createdAt);
+        this.transcriptId = transcriptId;
+        this.status = DocumentGenerationJobStatus.QUEUED;
+        this.createdAt = createdAt;
+        this.updatedAt = createdAt;
+        this.attemptCount = 1;
+    }
+
+    public static DocumentGenerationJob queue(
+            long transcriptId,
+            Instant createdAt
+    ) {
+        return new DocumentGenerationJob(
+                transcriptId,
+                createdAt
+        );
+    }
+
+    public void retryByUser(Instant acceptedAt) {
+        validateRetryState();
+        validateUserRetryLimit();
+        validateRetryTime(acceptedAt);
+        validateRetryDeadline(acceptedAt);
+        validateAttemptCapacity();
+        status = DocumentGenerationJobStatus.QUEUED;
+        updatedAt = acceptedAt;
+        attemptCount++;
+        userRetryCount++;
+    }
 
     public void recordFailure(Instant failedAt) {
         validateFailureState();
@@ -85,26 +130,58 @@ public class DocumentGenerationJob {
         }
     }
 
-    private DocumentGenerationJob(
-            long transcriptId,
-            Instant createdAt
-    ) {
-        if (transcriptId <= 0 || createdAt == null) {
+    private void validateTranscriptId(long transcriptId) {
+        if (transcriptId <= 0) {
             throw new DocumentException(DocumentErrorCode.INVALID_DOCUMENT_DATA);
         }
-        this.transcriptId = transcriptId;
-        this.status = DocumentGenerationJobStatus.QUEUED;
-        this.createdAt = createdAt;
-        this.updatedAt = createdAt;
     }
 
-    public static DocumentGenerationJob queue(
-            long transcriptId,
-            Instant createdAt
-    ) {
-        return new DocumentGenerationJob(
-                transcriptId,
-                createdAt
-        );
+    private void validateCreatedAt(Instant createdAt) {
+        if (createdAt == null) {
+            throw new DocumentException(DocumentErrorCode.INVALID_DOCUMENT_DATA);
+        }
+        validateFailureYear(createdAt);
+    }
+
+    private void validateRetryState() {
+        if (status != DocumentGenerationJobStatus.FAILED) {
+            throw new DocumentException(DocumentErrorCode.RETRY_NOT_ALLOWED);
+        }
+    }
+
+    private void validateUserRetryLimit() {
+        if (userRetryCount >= MAX_USER_RETRIES) {
+            throw new DocumentException(DocumentErrorCode.RETRY_NOT_ALLOWED);
+        }
+    }
+
+    private void validateRetryTime(Instant acceptedAt) {
+        if (acceptedAt == null) {
+            throw new DocumentException(DocumentErrorCode.RETRY_NOT_ALLOWED);
+        }
+        if (acceptedAt.isBefore(updatedAt)) {
+            throw new DocumentException(DocumentErrorCode.RETRY_NOT_ALLOWED);
+        }
+        try {
+            int year = acceptedAt.atOffset(ZoneOffset.UTC)
+                    .getYear();
+            if (year < 1 || year > 9999) {
+                throw new DocumentException(DocumentErrorCode.RETRY_NOT_ALLOWED);
+            }
+        } catch (DateTimeException exception) {
+            throw new DocumentException(DocumentErrorCode.RETRY_NOT_ALLOWED);
+        }
+    }
+
+    private void validateRetryDeadline(Instant acceptedAt) {
+        if (expiresAt == null || !acceptedAt.isBefore(expiresAt)) {
+            throw new DocumentException(DocumentErrorCode.RETRY_NOT_ALLOWED);
+        }
+    }
+
+    private void validateAttemptCapacity() {
+        if (attemptCount == Integer.MAX_VALUE) {
+            throw new DocumentException(DocumentErrorCode.RETRY_NOT_ALLOWED);
+        }
     }
 }
