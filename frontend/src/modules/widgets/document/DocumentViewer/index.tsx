@@ -1,6 +1,7 @@
 import { NO_DECISION_SENTENCE } from "@constants/document";
 import styled from "@emotion/styled";
 import DocumentConfirmCount from "@features/document/DocumentConfirmCount";
+import DocumentCopyButton from "@features/document/DocumentCopyButton";
 import useNavigateToWorkspaceHome from "@hooks/domain/workspace/useNavigateToWorkspaceHome";
 import Breadcrumb from "@primitives/ui/Breadcrumb";
 import Chip from "@primitives/ui/Chip";
@@ -16,12 +17,12 @@ import DocumentNotFound from "./ui/DocumentNotFound";
 import DocumentSkeleton from "./ui/DocumentSkeleton";
 
 /**
- * 문서 보기 섹션. 주소의 문서를 불러와 경로 · 제목 · 만든 날짜 · 녹음 길이 · 확인 수 · 본문을 보여줘요.
+ * 문서 보기 섹션. 주소의 문서를 불러와 경로 · 복사 버튼 · 제목 · 만든 날짜 · 녹음 길이 · 확인 수 · 본문을 보여줘요.
  *
  * 받은 문서 값을 그리기만 하면 되는 것(경로 · 제목 · 날짜 · 녹음 길이 · 본문)은 여기서 직접 그려요.
- * 스스로 조회하거나 동작하는 것(확인 수)은 문서 ID만 받는 features를 놓아요.
+ * 스스로 조회하거나 동작하는 것(복사 버튼 · 확인 수)은 문서 ID만 받는 features를 놓아요.
  * 결정이 없는 회의 문서는 본문의 결정 없음 문장을 흐리게 그려요(STT-R23).
- * 복사 버튼과 확인 버튼은 다음 작업에서 더해요.
+ * 확인 버튼은 다음 작업에서 더해요.
  */
 export default function DocumentViewer() {
   const titleId = useId();
@@ -64,6 +65,9 @@ export default function DocumentViewer() {
   return (
     <Container aria-labelledby={titleId}>
       <Breadcrumb parent="문서" current={viewer.document.title} />
+      <TopRow>
+        <DocumentCopyButton documentId={viewer.document.id} />
+      </TopRow>
       <TitleBlock>
         <Title id={titleId}>{viewer.document.title}</Title>
         <MetaRow>
@@ -88,13 +92,19 @@ export default function DocumentViewer() {
   );
 }
 
-/** 피그마 문서 열(Standard): 폭 720px, 경로 · 제목 묶음 · 본문 사이 24px */
+/** 피그마 문서 열(Standard): 폭 720px, 경로 · 복사 줄 · 제목 묶음 · 본문 사이 24px */
 const Container = styled.section`
   display: flex;
   flex-direction: column;
   gap: 1.5rem; /* 24px */
   width: 100%;
   max-width: 45rem; /* 720px */
+`;
+
+/** 피그마 TopRow: 복사 버튼을 오른쪽 끝에 놓는 줄 */
+const TopRow = styled.div`
+  display: flex;
+  justify-content: flex-end;
 `;
 
 /** 피그마 TitleBlock: 제목과 날짜 줄 사이 4px */

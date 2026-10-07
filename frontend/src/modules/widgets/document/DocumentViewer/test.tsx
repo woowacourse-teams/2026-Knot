@@ -13,6 +13,7 @@ import { theme } from "@provider/themeProvider";
 import { getRouterPath, PATH_ROUTE } from "@routes/PATH_ROUTE";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
+  act,
   fireEvent,
   render,
   screen,
@@ -23,7 +24,7 @@ import { formatDate } from "@utils/formatDate";
 import { formatDurationFromSeconds } from "@utils/formatDurationFromSeconds";
 import { delay, http, HttpResponse } from "msw";
 import { createMemoryRouter, RouterProvider } from "react-router";
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import DocumentViewer from ".";
 
@@ -58,6 +59,9 @@ const [pendingPerson, excludedPerson, confirmedPerson] =
   new GetDocumentConfirmationsResponseDto(shuffledConfirmationsResponse).items;
 
 const LOAD_FAILED_NOTICE = "목록을 불러오지 못했어요";
+const COPIED_DURATION_MS = 3000;
+
+const writeText = vi.fn<(text: string) => Promise<void>>();
 
 const renderViewer = (documentId: string) => {
   const queryClient = new QueryClient({
@@ -111,7 +115,33 @@ const findPeopleRows = async () => {
   return within(peopleList).getAllByRole("listitem");
 };
 
+const click = async (element: HTMLElement) => {
+  await act(async () => {
+    fireEvent.click(element);
+  });
+};
+
+const advanceTimers = async (ms: number) => {
+  await act(async () => {
+    vi.advanceTimersByTime(ms);
+  });
+};
+
 describe("DocumentViewer", () => {
+  beforeEach(() => {
+    writeText.mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", {
+      value: { writeText },
+      configurable: true,
+    });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    writeText.mockReset();
+    Reflect.deleteProperty(navigator, "clipboard");
+  });
+
   it("문서를 불러오는 동안에는 불러오는 중이라고 알린다", () => {
     mockServer.use(
       http.get(DOCUMENT_REQUEST, async () => {
@@ -214,6 +244,31 @@ describe("DocumentViewer", () => {
     expect(await findPeopleRows()).toHaveLength(
       expectedConfirmations.items.length,
     );
+  });
+
+  it("복사를 누르면 제목과 본문을 마크다운으로 복사하고, 3초 동안 복사됨을 보여준다", async () => {
+    renderViewer(String(expected.id));
+    await screen.findByRole("heading", { level: 2, name: expected.title });
+    vi.useFakeTimers();
+
+    await click(screen.getByRole("button", { name: "복사" }));
+
+    // 본문에는 제목이 없어서 제목을 `#` 제목으로 앞에 붙여요
+    expect(writeText).toHaveBeenCalledWith(
+      `# ${expected.title}\n\n${expected.content}`,
+    );
+    expect(screen.getByRole("button", { name: "복사됨" })).toBeInTheDocument();
+
+    await advanceTimers(COPIED_DURATION_MS - 1);
+
+    expect(screen.getByRole("button", { name: "복사됨" })).toBeInTheDocument();
+
+    await advanceTimers(1);
+
+    expect(screen.getByRole("button", { name: "복사" })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "복사됨" }),
+    ).not.toBeInTheDocument();
   });
 
   it("없는 문서면 문서를 찾을 수 없다고 알리고, 홈으로를 누르면 워크스페이스 홈으로 간다", async () => {
