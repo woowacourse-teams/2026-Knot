@@ -251,14 +251,18 @@ describe("mock 기본 핸들러와 fetch 요청 함수의 대응", () => {
       };
 
       it("확인하지 않은 문서를 확인하면 확인 수가 1 늘고 미확인 수가 1 준 집계를 돌려준다", async () => {
+        const { id, confirmationSummary } = new GetDocumentResponseDto(
+          pendingDocument,
+        );
+
         const result = await confirmDocumentApi(pendingParams);
 
         expect(result).toBeInstanceOf(PutDocumentConfirmationResponseDto);
-        expect(result.documentId).toBe(pendingDocument.id);
+        expect(result.documentId).toBe(id);
         expect(result.confirmationSummary).toEqual({
-          confirmedCount: pendingDocument.confirmationSummary.confirmedCount + 1,
-          pendingCount: pendingDocument.confirmationSummary.pendingCount - 1,
-          excludedCount: pendingDocument.confirmationSummary.excludedCount,
+          ...confirmationSummary,
+          confirmedCount: confirmationSummary.confirmedCount + 1,
+          pendingCount: confirmationSummary.pendingCount - 1,
         });
       });
 
@@ -293,18 +297,22 @@ describe("mock 기본 핸들러와 fetch 요청 함수의 대응", () => {
 
       it("이미 확인한 문서를 확인하면 집계를 바꾸지 않고 처음 확인한 시각을 돌려준다", async () => {
         const [, confirmations] = documentConfirmationsResponse;
-        const myItem = confirmations.items.find(
+        const { items } = new GetDocumentConfirmationsResponseDto(
+          confirmations,
+        );
+        const myItem = items.find(
           ({ memberId }) => memberId === meResponse.memberId,
         );
+        const expected = new GetDocumentResponseDto(confirmedDocument);
 
         const result = await confirmDocumentApi({
           workspaceId: WORKSPACE_ID,
-          documentId: confirmedDocument.id,
+          documentId: expected.id,
         });
 
         expect(result.confirmedAt).toBe(myItem?.confirmedAt);
         expect(result.confirmationSummary).toEqual(
-          confirmedDocument.confirmationSummary,
+          expected.confirmationSummary,
         );
       });
 
