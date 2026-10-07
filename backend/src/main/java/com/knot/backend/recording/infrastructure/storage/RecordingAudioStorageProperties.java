@@ -10,11 +10,16 @@ public record RecordingAudioStorageProperties(
         String bucket,
         String accessKey,
         String secretKey,
+        String keyPrefix,
         Duration uploadUrlTtl
 ) {
 
     public boolean isConfigured() {
-        return hasText(endpoint) && hasText(region) && hasText(bucket) && hasText(accessKey) && hasText(secretKey);
+        return hasText(endpoint) && hasText(region) && hasText(bucket) && hasText(accessKey) == hasText(secretKey);
+    }
+
+    public boolean hasStaticCredentials() {
+        return hasText(accessKey) && hasText(secretKey);
     }
 
     @Override

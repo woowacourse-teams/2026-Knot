@@ -29,19 +29,19 @@ const meta = {
     layout: "padded",
     design: [
       {
-        name: "탐색 결과/채팅 세션 목록",
+        name: "Sidebar/Chat",
         type: "figma",
-        url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=526-772",
+        url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=1989-13265",
       },
       {
         name: "DrawerHead",
         type: "figma",
-        url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=1379-8238",
+        url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=1989-13182",
       },
       {
         name: "Btn/새채팅",
         type: "figma",
-        url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=1379-8240",
+        url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=1989-13184",
       },
     ],
   },
