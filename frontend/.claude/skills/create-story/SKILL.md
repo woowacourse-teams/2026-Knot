@@ -59,6 +59,7 @@ description: 구현·설계를 마친 컴포넌트의 스토리북 스토리(`in
 - `title`은 코드 레이어가 아니라 **리뷰어가 찾는 기준**으로 적는다. 리뷰어는 「녹음 바」, 「초대 카드」처럼 영역으로 찾지 `widgets`·`primitives` 같은 코드 설계 용어로 찾지 않는다.
   - `shared/components`(primitives·composites) → `Shared/{컴포넌트}`. 예: `Shared/Button`, `Shared/DockablePanel`
   - `primitives/layout` → `Shared/Layout/{컴포넌트}`. 예: `Shared/Layout/Stack`
+  - `primitives/animation` → `Shared/Animation/{컴포넌트}`. 예: `Shared/Animation/FadeCollapse`
   - `modules`(widgets·features) → `{도메인}/{컴포넌트}`. 도메인 폴더 이름을 PascalCase로 쓰고 widgets와 features를 구분하지 않는다. 예: `Workspace/WorkspaceInviteCard`, `Recording/RecorderBar`, `Auth/GithubLoginButton`
   - 파일을 다른 레이어로 옮겨도 도메인이 같으면 title은 바꾸지 않는다.
 - `meta`의 JSDoc이 문서 페이지의 설명이 된다. 코드를 읽지 않는 사람도 이것만 보고 이해하도록 아래를 담는다.
