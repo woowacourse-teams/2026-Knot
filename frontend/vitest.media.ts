@@ -54,6 +54,8 @@ class FakeMediaRecorder extends EventTarget {
 
   stop() {
     this.state = "inactive";
+    // 실제 녹음기처럼 멈춘 뒤 비동기로 `stop`을 알려요
+    queueMicrotask(() => this.dispatchEvent(new Event("stop")));
   }
 }
 
