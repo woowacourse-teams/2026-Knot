@@ -116,7 +116,7 @@ class DocumentGenerationJobRetryAcceptanceTest {
                 .andExpect(jsonPath("$.items[0].jobId").value(jobId))
                 .andExpect(jsonPath("$.items[0].status").value("QUEUED"))
                 .andExpect(jsonPath("$.items[0].updatedAt").value(NOW.toString()));
-        assertThat(requestCount()).isEqualTo(1);
+        assertThat(userRetryCount()).isEqualTo(1);
         assertThat(
                 jdbc.sql("SELECT count(*) FROM document_generation_jobs")
                         .query(Long.class)
@@ -141,7 +141,7 @@ class DocumentGenerationJobRetryAcceptanceTest {
                 jobId
         ).andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("RETRY_NOT_ALLOWED"));
-        assertThat(requestCount()).isEqualTo(1);
+        assertThat(userRetryCount()).isEqualTo(1);
         assertThat(
                 jdbc.sql("SELECT user_retry_count FROM document_generation_jobs WHERE id = :id")
                         .param(
@@ -302,7 +302,7 @@ class DocumentGenerationJobRetryAcceptanceTest {
                 jobId
         ).andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("DOCUMENT_GENERATION_JOB_NOT_FOUND"));
-        assertThat(requestCount()).isZero();
+        assertThat(userRetryCount()).isZero();
     }
 
     @Test
@@ -327,7 +327,7 @@ class DocumentGenerationJobRetryAcceptanceTest {
                 jobId
         ).andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value("WORKSPACE_ACCESS_DENIED"));
-        assertThat(requestCount()).isZero();
+        assertThat(userRetryCount()).isZero();
     }
 
     @Test
@@ -371,7 +371,7 @@ class DocumentGenerationJobRetryAcceptanceTest {
         )
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("UNAUTHENTICATED"));
-        assertThat(requestCount()).isZero();
+        assertThat(userRetryCount()).isZero();
     }
 
     @Test
@@ -401,7 +401,7 @@ class DocumentGenerationJobRetryAcceptanceTest {
                         )
         )
                 .andExpect(status().isForbidden());
-        assertThat(requestCount()).isZero();
+        assertThat(userRetryCount()).isZero();
     }
 
     @ParameterizedTest
@@ -425,7 +425,7 @@ class DocumentGenerationJobRetryAcceptanceTest {
         )
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("INVALID_PARAMETER"));
-        assertThat(requestCount()).isZero();
+        assertThat(userRetryCount()).isZero();
     }
 
     @Test
@@ -513,8 +513,32 @@ class DocumentGenerationJobRetryAcceptanceTest {
                 );
     }
 
+    @Test
+    @DisplayName("같은 Workspace의 다른 멤버는 녹음 소유자의 재시도 기회를 사용할 수 없다")
+    void retryDocumentGenerationJob_failure_otherRecordingOwner() throws Exception {
+        // given
+        long otherMemberId = fixtures.saveMember("다른 팀원");
+        fixtures.join(
+                workspaceId,
+                otherMemberId
+        );
+        String before = fixtures.snapshot();
+        String jobBefore = jobSnapshot();
+
+        // when & then
+        retry(
+                workspaceId,
+                otherMemberId,
+                jobId
+        ).andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("RECORDING_CONTROL_DENIED"));
+        assertThat(fixtures.snapshot()).isEqualTo(before);
+        assertThat(jobSnapshot()).isEqualTo(jobBefore);
+    }
+
     private void assertRetryDenied() throws Exception {
         String before = fixtures.snapshot();
+        String jobBefore = jobSnapshot();
         retry(
                 workspaceId,
                 memberId,
@@ -522,7 +546,7 @@ class DocumentGenerationJobRetryAcceptanceTest {
         ).andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("RETRY_NOT_ALLOWED"));
         assertThat(fixtures.snapshot()).isEqualTo(before);
-        assertThat(requestCount()).isZero();
+        assertThat(jobSnapshot()).isEqualTo(jobBefore);
     }
 
     private ResultActions retry(
@@ -560,9 +584,19 @@ class DocumentGenerationJobRetryAcceptanceTest {
         );
     }
 
-    private long requestCount() {
-        return jdbc.sql("SELECT count(*) FROM document_generation_execution_requests")
+    private long userRetryCount() {
+        return jdbc.sql("SELECT COALESCE(SUM(user_retry_count), 0) FROM document_generation_jobs")
                 .query(Long.class)
+                .single();
+    }
+
+    private String jobSnapshot() {
+        return jdbc.sql("SELECT row_to_json(j)::text FROM document_generation_jobs j WHERE id = :id")
+                .param(
+                        "id",
+                        jobId
+                )
+                .query(String.class)
                 .single();
     }
 

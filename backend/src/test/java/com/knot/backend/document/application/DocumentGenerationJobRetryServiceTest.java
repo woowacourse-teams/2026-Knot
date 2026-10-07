@@ -2,9 +2,9 @@ package com.knot.backend.document.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -13,11 +13,14 @@ import com.knot.backend.document.application.dto.result.DocumentGenerationInputR
 import com.knot.backend.document.application.dto.result.DocumentGenerationJobRetryResult;
 import com.knot.backend.document.domain.DocumentErrorCode;
 import com.knot.backend.document.domain.DocumentException;
-import com.knot.backend.document.domain.DocumentGenerationExecutionRequest;
-import com.knot.backend.document.domain.DocumentGenerationExecutionRequestRepository;
 import com.knot.backend.document.domain.DocumentGenerationJob;
 import com.knot.backend.document.domain.DocumentGenerationJobRepository;
 import com.knot.backend.document.domain.DocumentGenerationJobStatus;
+import com.knot.backend.recording.domain.RecordingErrorCode;
+import com.knot.backend.recording.domain.RecordingException;
+import com.knot.backend.recording.domain.RecordingSession;
+import com.knot.backend.recording.domain.RecordingSessionRepository;
+import java.util.UUID;
 import com.knot.backend.workspace.domain.Workspace;
 import com.knot.backend.workspace.domain.WorkspaceException;
 import com.knot.backend.workspace.domain.WorkspaceMemberRepository;
@@ -31,7 +34,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
-import org.mockito.ArgumentCaptor;
 
 class DocumentGenerationJobRetryServiceTest {
 
@@ -42,7 +44,7 @@ class DocumentGenerationJobRetryServiceTest {
     private WorkspaceMemberRepository members;
     private DocumentGenerationJobRepository jobs;
     private DocumentGenerationInputQuery inputs;
-    private DocumentGenerationExecutionRequestRepository requests;
+    private RecordingSessionRepository recordings;
     private DocumentGenerationJobRetryService service;
     private DocumentGenerationJob job;
 
@@ -52,18 +54,19 @@ class DocumentGenerationJobRetryServiceTest {
         members = mock(WorkspaceMemberRepository.class);
         jobs = mock(DocumentGenerationJobRepository.class);
         inputs = mock(DocumentGenerationInputQuery.class);
-        requests = mock(DocumentGenerationExecutionRequestRepository.class);
+        recordings = mock(RecordingSessionRepository.class);
         service = new DocumentGenerationJobRetryService(
                 workspaces,
                 members,
                 jobs,
                 inputs,
-                requests,
+                recordings,
                 Clock.fixed(
                         NOW,
                         ZoneOffset.UTC
                 )
         );
+        when(recordings.findById(4L)).thenReturn(Optional.of(recording(2L)));
         job = DocumentGenerationJob.queue(
                 3,
                 CREATED_AT
@@ -98,6 +101,7 @@ class DocumentGenerationJobRetryServiceTest {
                 Optional.of(
                         new DocumentGenerationInputResult(
                                 3,
+                                4,
                                 "저장된 원문"
                         )
                 )
@@ -118,23 +122,8 @@ class DocumentGenerationJobRetryServiceTest {
         assertThat(result.jobId()).isEqualTo(88);
         assertThat(result.status()).isEqualTo(DocumentGenerationJobStatus.QUEUED);
         assertThat(result.attemptCount()).isEqualTo(2);
-        ArgumentCaptor<DocumentGenerationExecutionRequest> captor = ArgumentCaptor
-                .forClass(DocumentGenerationExecutionRequest.class);
-        verify(requests).save(captor.capture());
-        assertThat(
-                captor.getValue()
-                        .getJobId()
-        ).isEqualTo(88);
-        assertThat(
-                captor.getValue()
-                        .getAttemptCount()
-        ).isEqualTo(2);
-        assertThat(
-                captor.getValue()
-                        .getAcceptedAt()
-        ).isEqualTo(NOW);
+        assertThat(job.getUserRetryCount()).isEqualTo(1);
         verify(jobs).flush();
-        verify(requests).flush();
     }
 
     @Test
@@ -154,7 +143,7 @@ class DocumentGenerationJobRetryServiceTest {
         verifyNoInteractions(
                 jobs,
                 inputs,
-                requests
+                recordings
         );
     }
 
@@ -180,7 +169,7 @@ class DocumentGenerationJobRetryServiceTest {
         verifyNoInteractions(
                 jobs,
                 inputs,
-                requests
+                recordings
         );
     }
 
@@ -206,7 +195,7 @@ class DocumentGenerationJobRetryServiceTest {
                 .hasMessage(DocumentErrorCode.DOCUMENT_GENERATION_JOB_NOT_FOUND.getMessage());
         verifyNoInteractions(
                 inputs,
-                requests
+                recordings
         );
     }
 
@@ -239,6 +228,7 @@ class DocumentGenerationJobRetryServiceTest {
                 Optional.of(
                         new DocumentGenerationInputResult(
                                 3,
+                                4,
                                 content
                         )
                 )
@@ -264,15 +254,18 @@ class DocumentGenerationJobRetryServiceTest {
         ).isInstanceOf(DocumentException.class)
                 .hasMessage(DocumentErrorCode.RETRY_NOT_ALLOWED.getMessage());
         assertThat(job.getAttemptCount()).isEqualTo(2);
-        verifyNoInteractions(requests);
+        verify(
+                jobs,
+                never()
+        ).flush();
     }
 
     @Test
     @DisplayName("접수 저장 장애는 숨기지 않고 트랜잭션 경계 밖으로 전달한다")
     void retry_failure_requestPersistence() {
         // given
-        doThrow(new IllegalStateException("접수 저장 장애")).when(requests)
-                .save(any(DocumentGenerationExecutionRequest.class));
+        doThrow(new IllegalStateException("접수 저장 장애")).when(jobs)
+                .flush();
 
         // when & then
         assertThatThrownBy(
@@ -315,7 +308,52 @@ class DocumentGenerationJobRetryServiceTest {
                 members,
                 jobs,
                 inputs,
-                requests
+                recordings
+        );
+    }
+
+    @Test
+    @DisplayName("다른 Workspace 멤버의 녹음은 상태와 횟수를 변경하지 않고 거절한다")
+    void retry_failure_otherRecordingOwner() {
+        // given
+        when(recordings.findById(4L)).thenReturn(Optional.of(recording(9L)));
+
+        // when & then
+        assertThatThrownBy(
+                () -> service.retry(
+                        1,
+                        2,
+                        88
+                )
+        ).isInstanceOf(RecordingException.class)
+                .hasMessage(RecordingErrorCode.RECORDING_CONTROL_DENIED.getMessage());
+        assertThat(job.getStatus()).isEqualTo(DocumentGenerationJobStatus.FAILED);
+        assertThat(job.getAttemptCount()).isEqualTo(1);
+        assertThat(job.getUserRetryCount()).isZero();
+        verify(
+                jobs,
+                never()
+        ).flush();
+    }
+
+    @Test
+    @DisplayName("연결된 녹음이 없으면 재시도를 접수하지 않는다")
+    void retry_failure_missingRecording() {
+        // given
+        when(recordings.findById(4L)).thenReturn(Optional.empty());
+
+        // when & then
+        assertDeniedWithoutRequest();
+    }
+
+    private RecordingSession recording(long ownerId) {
+        return RecordingSession.start(
+                1L,
+                ownerId,
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                "a".repeat(64),
+                CREATED_AT
         );
     }
 
@@ -330,6 +368,9 @@ class DocumentGenerationJobRetryServiceTest {
                 .hasMessage(DocumentErrorCode.RETRY_NOT_ALLOWED.getMessage());
         assertThat(job.getStatus()).isEqualTo(DocumentGenerationJobStatus.FAILED);
         assertThat(job.getAttemptCount()).isEqualTo(1);
-        verifyNoInteractions(requests);
+        verify(
+                jobs,
+                never()
+        ).flush();
     }
 }

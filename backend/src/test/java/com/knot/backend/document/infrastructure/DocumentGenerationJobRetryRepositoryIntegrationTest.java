@@ -5,9 +5,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.knot.backend.document.DocumentFixtures;
 import com.knot.backend.document.application.DocumentGenerationInputQuery;
-import com.knot.backend.document.domain.DocumentGenerationExecutionRequest;
-import com.knot.backend.document.domain.DocumentGenerationExecutionRequestRepository;
 import com.knot.backend.document.domain.DocumentGenerationJob;
+import com.knot.backend.document.domain.DocumentGenerationJobStatus;
 import com.knot.backend.document.domain.DocumentGenerationJobRepository;
 import com.knot.backend.testsupport.TestcontainersConfiguration;
 import jakarta.persistence.EntityManager;
@@ -27,15 +26,13 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 @Tag("integration")
 @DataJpaTest
 @Import({TestcontainersConfiguration.class, DocumentGenerationJobRepositoryAdapter.class,
-        DocumentGenerationExecutionRequestRepositoryAdapter.class, DocumentGenerationInputQueryAdapter.class})
+        DocumentGenerationInputQueryAdapter.class})
 class DocumentGenerationJobRetryRepositoryIntegrationTest {
 
     private static final Instant NOW = DocumentFixtures.CREATED_AT.plusSeconds(120);
 
     @Autowired
     private DocumentGenerationJobRepository jobs;
-    @Autowired
-    private DocumentGenerationExecutionRequestRepository requests;
     @Autowired
     private DocumentGenerationInputQuery inputs;
     @Autowired
@@ -64,8 +61,8 @@ class DocumentGenerationJobRetryRepositoryIntegrationTest {
     }
 
     @Test
-    @DisplayName("잠금 조회한 Job의 재시도 상태·횟수와 접수 기록을 저장한다")
-    void retry_success_persistAttemptAndRequest() {
+    @DisplayName("잠금 조회한 Job의 재시도 상태와 횟수를 저장한다")
+    void retry_success_persistAttempt() {
         // given
         DocumentGenerationJob job = jobs.findByWorkspaceIdAndIdForUpdate(
                 workspaceId,
@@ -76,14 +73,6 @@ class DocumentGenerationJobRetryRepositoryIntegrationTest {
         // when
         job.retryByUser(NOW);
         jobs.flush();
-        requests.save(
-                DocumentGenerationExecutionRequest.accept(
-                        jobId,
-                        job.getAttemptCount(),
-                        NOW
-                )
-        );
-        requests.flush();
         entityManager.clear();
 
         // then
@@ -95,15 +84,7 @@ class DocumentGenerationJobRetryRepositoryIntegrationTest {
         assertThat(stored.getAttemptCount()).isEqualTo(2);
         assertThat(stored.getUserRetryCount()).isEqualTo(1);
         assertThat(stored.getAutomaticRetryCount()).isZero();
-        assertThat(
-                jdbc.sql("SELECT attempt_count FROM document_generation_execution_requests WHERE job_id = :id")
-                        .param(
-                                "id",
-                                jobId
-                        )
-                        .query(Integer.class)
-                        .single()
-        ).isEqualTo(2);
+        assertThat(stored.getStatus()).isEqualTo(DocumentGenerationJobStatus.QUEUED);
     }
 
     @Test
@@ -151,78 +132,6 @@ class DocumentGenerationJobRetryRepositoryIntegrationTest {
         ).isEmpty();
     }
 
-    @Test
-    @DisplayName("같은 Job의 같은 접수 회차는 DB에서 중복 저장하지 못한다")
-    void saveRequest_failure_duplicateAttempt() {
-        // given
-        requests.save(
-                DocumentGenerationExecutionRequest.accept(
-                        jobId,
-                        2,
-                        NOW
-                )
-        );
-        requests.flush();
-
-        // when & then
-        assertThatThrownBy(
-                () -> requests.save(
-                        DocumentGenerationExecutionRequest.accept(
-                                jobId,
-                                2,
-                                NOW
-                        )
-                )
-        ).isInstanceOf(DataIntegrityViolationException.class);
-    }
-
-    @Test
-    @DisplayName("서로 다른 접수 회차는 동일 Job에 기록할 수 있다")
-    void saveRequest_success_distinctAttempt() {
-        // when
-        requests.save(
-                DocumentGenerationExecutionRequest.accept(
-                        jobId,
-                        2,
-                        NOW
-                )
-        );
-        requests.save(
-                DocumentGenerationExecutionRequest.accept(
-                        jobId,
-                        3,
-                        NOW.plusSeconds(1)
-                )
-        );
-        requests.flush();
-
-        // then
-        assertThat(
-                jdbc.sql("SELECT count(*) FROM document_generation_execution_requests WHERE job_id = :id")
-                        .param(
-                                "id",
-                                jobId
-                        )
-                        .query(Long.class)
-                        .single()
-        ).isEqualTo(2);
-    }
-
-    @Test
-    @DisplayName("없는 Job의 실행 접수 기록은 FK로 차단한다")
-    void saveRequest_failure_missingJob() {
-        // when & then
-        assertThatThrownBy(
-                () -> requests.save(
-                        DocumentGenerationExecutionRequest.accept(
-                                jobId + 100,
-                                2,
-                                NOW
-                        )
-                )
-        ).isInstanceOf(DataIntegrityViolationException.class);
-    }
-
     @ParameterizedTest
     @ValueSource(strings = {"attempt_count = 0", "user_retry_count = 4", "automatic_retry_count = -1",
             "attempt_count = 5", "attempt_count = 2147483647, automatic_retry_count = 2147483647"})
@@ -240,27 +149,32 @@ class DocumentGenerationJobRetryRepositoryIntegrationTest {
     }
 
     @Test
-    @DisplayName("접수 기록이 있는 Job과 참조 원문은 먼저 삭제하지 못한다")
-    void deleteJob_failure_executionRequestReference() {
-        // given
-        requests.save(
-                DocumentGenerationExecutionRequest.accept(
-                        jobId,
-                        2,
-                        NOW
+    @DisplayName("별도 실행 접수 테이블로 Job 정리 순서를 고정하지 않는다")
+    void deleteJob_success_withoutExecutionRequestReference() {
+        // when
+        int deleted = jdbc.sql("DELETE FROM document_generation_jobs WHERE id = :id")
+                .param(
+                        "id",
+                        jobId
                 )
-        );
-        requests.flush();
+                .update();
 
-        // when & then
-        assertThatThrownBy(
-                () -> jdbc.sql("DELETE FROM document_generation_jobs WHERE id = :id")
+        // then
+        assertThat(deleted).isEqualTo(1);
+        assertThat(
+                jdbc.sql("SELECT count(*) FROM transcripts WHERE id = :id")
                         .param(
                                 "id",
-                                jobId
+                                transcriptId
                         )
-                        .update()
-        ).isInstanceOf(DataIntegrityViolationException.class);
+                        .query(Long.class)
+                        .single()
+        ).isEqualTo(1);
+        assertThat(
+                jdbc.sql("SELECT to_regclass('document_generation_execution_requests') IS NULL")
+                        .query(Boolean.class)
+                        .single()
+        ).isTrue();
     }
 
     @Test

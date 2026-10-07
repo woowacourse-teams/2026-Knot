@@ -8,7 +8,6 @@ import static org.mockito.Mockito.when;
 import com.knot.backend.document.DocumentFixtures;
 import com.knot.backend.document.application.dto.result.DocumentGenerationJobRetryResult;
 import com.knot.backend.document.domain.DocumentException;
-import com.knot.backend.document.domain.DocumentGenerationExecutionRequestRepository;
 import com.knot.backend.document.domain.DocumentGenerationJob;
 import com.knot.backend.document.domain.DocumentGenerationJobRepository;
 import com.knot.backend.document.domain.DocumentGenerationJobStatus;
@@ -50,7 +49,7 @@ class DocumentGenerationJobRetryTransactionIntegrationTest {
 
     @Autowired
     private DocumentGenerationJobRetryService service;
-    @Autowired
+    @MockitoSpyBean
     private DocumentGenerationJobRepository jobs;
     @Autowired
     private TransactionTemplate transactions;
@@ -58,8 +57,6 @@ class DocumentGenerationJobRetryTransactionIntegrationTest {
     private JdbcClient jdbc;
     @MockitoBean
     private Clock clock;
-    @MockitoSpyBean
-    private DocumentGenerationExecutionRequestRepository requests;
     private DocumentFixtures fixtures;
     private long memberId;
     private long workspaceId;
@@ -91,7 +88,7 @@ class DocumentGenerationJobRetryTransactionIntegrationTest {
     }
 
     @Test
-    @DisplayName("202 결과는 Job 상태·횟수·영속 접수 기록의 실제 커밋과 일치한다")
+    @DisplayName("202 결과는 Job 상태·횟수의 실제 커밋과 일치한다")
     void retry_success_committedResult() {
         // when
         DocumentGenerationJobRetryResult result = service.retry(
@@ -103,26 +100,16 @@ class DocumentGenerationJobRetryTransactionIntegrationTest {
         // then
         assertThat(result.status()).isEqualTo(DocumentGenerationJobStatus.QUEUED);
         assertQueuedOnce();
-        assertThat(
-                jdbc.sql("SELECT accepted_at FROM document_generation_execution_requests WHERE job_id = :id")
-                        .param(
-                                "id",
-                                jobId
-                        )
-                        .query(Timestamp.class)
-                        .single()
-                        .toInstant()
-        ).isEqualTo(NOW);
     }
 
     @Test
-    @DisplayName("접수 기록까지 flush한 뒤 장애가 나도 Job·횟수·접수 행 전부 롤백된다")
-    void retry_failure_rollbackAfterRequestFlush() {
+    @DisplayName("Job 변경을 flush한 뒤 장애가 나도 상태와 횟수는 모두 롤백된다")
+    void retry_failure_rollbackAfterJobFlush() {
         // given
         doAnswer(invocation -> {
             invocation.callRealMethod();
-            throw new IllegalStateException("접수 flush 이후 장애");
-        }).when(requests)
+            throw new IllegalStateException("Job flush 이후 장애");
+        }).when(jobs)
                 .flush();
 
         // when & then
@@ -134,7 +121,7 @@ class DocumentGenerationJobRetryTransactionIntegrationTest {
                 )
         ).isInstanceOf(InvalidDataAccessApiUsageException.class)
                 .hasCauseInstanceOf(IllegalStateException.class)
-                .hasRootCauseMessage("접수 flush 이후 장애");
+                .hasRootCauseMessage("Job flush 이후 장애");
         assertUnchangedFailure();
     }
 
@@ -421,7 +408,15 @@ class DocumentGenerationJobRetryTransactionIntegrationTest {
                                     TimeUnit.SECONDS
                             )
             ).isEqualTo("DOCUMENT_GENERATION_JOB_NOT_FOUND");
-            assertThat(requestCount()).isZero();
+            assertThat(
+                    jdbc.sql("SELECT count(*) FROM document_generation_jobs WHERE id = :id")
+                            .param(
+                                    "id",
+                                    jobId
+                            )
+                            .query(Long.class)
+                            .single()
+            ).isZero();
         }
     }
 
@@ -463,7 +458,7 @@ class DocumentGenerationJobRetryTransactionIntegrationTest {
     }
 
     @Test
-    @DisplayName("재실패는 기한만 갱신하고 사용자 3회·전체 회차·접수 이력을 유지한다")
+    @DisplayName("재실패는 기한만 갱신하고 사용자 3회·전체 회차를 유지한다")
     void retry_failure_fourthAttemptAfterRefailure() {
         // given
         for (int retry = 1; retry <= 3; retry++) {
@@ -499,7 +494,7 @@ class DocumentGenerationJobRetryTransactionIntegrationTest {
         ).isInstanceOf(DocumentException.class);
         assertThat(counter("attempt_count")).isEqualTo(4);
         assertThat(counter("user_retry_count")).isEqualTo(3);
-        assertThat(requestCount()).isEqualTo(3);
+        assertThat(userRetryCount()).isEqualTo(3);
         assertThat(
                 jdbc.sql("SELECT expires_at FROM document_generation_jobs WHERE id = :id")
                         .param(
@@ -617,8 +612,8 @@ class DocumentGenerationJobRetryTransactionIntegrationTest {
                 .single();
     }
 
-    private long requestCount() {
-        return jdbc.sql("SELECT count(*) FROM document_generation_execution_requests WHERE job_id = :id")
+    private long userRetryCount() {
+        return jdbc.sql("SELECT user_retry_count FROM document_generation_jobs WHERE id = :id")
                 .param(
                         "id",
                         jobId
@@ -641,13 +636,13 @@ class DocumentGenerationJobRetryTransactionIntegrationTest {
         assertThat(jobStatus()).isEqualTo("QUEUED");
         assertThat(counter("attempt_count")).isEqualTo(2);
         assertThat(counter("user_retry_count")).isEqualTo(1);
-        assertThat(requestCount()).isEqualTo(1);
+        assertThat(userRetryCount()).isEqualTo(1);
     }
 
     private void assertUnchangedFailure() {
         assertThat(jobStatus()).isEqualTo("FAILED");
         assertThat(counter("attempt_count")).isEqualTo(1);
         assertThat(counter("user_retry_count")).isZero();
-        assertThat(requestCount()).isZero();
+        assertThat(userRetryCount()).isZero();
     }
 }
