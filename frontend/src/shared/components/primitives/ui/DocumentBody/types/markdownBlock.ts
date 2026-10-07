@@ -37,5 +37,16 @@ export interface MarkdownListBlock {
   items: MarkdownInline[][];
 }
 
+/** `1. `처럼 숫자와 점으로 시작하는 줄이 이어진 번호 목록 */
+export interface MarkdownOrderedListBlock {
+  type: "orderedList";
+  /** 첫 항목의 번호. 뒤 항목은 적힌 숫자와 상관없이 1씩 늘려 그려요 */
+  start: number;
+  items: MarkdownInline[][];
+}
+
 export type MarkdownBlock =
-  MarkdownHeadingBlock | MarkdownParagraphBlock | MarkdownListBlock;
+  | MarkdownHeadingBlock
+  | MarkdownParagraphBlock
+  | MarkdownListBlock
+  | MarkdownOrderedListBlock;

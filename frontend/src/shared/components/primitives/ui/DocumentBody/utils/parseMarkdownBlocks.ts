@@ -14,6 +14,8 @@ interface ParseMarkdownBlocksParams {
 const HEADING_PATTERN = /^(#{1,3}) (.+)$/;
 // 들여쓴 `- `(Markdown의 하위 목록)도 깊이를 따지지 않고 같은 목록의 항목으로 받아요
 const LIST_ITEM_PATTERN = /^\s*- (.+)$/;
+// 번호 목록도 들여쓴 줄을 같은 목록의 항목으로 받아요. 숫자 뒤에는 점과 공백이 있어야 해요
+const ORDERED_ITEM_PATTERN = /^\s*(\d+)\. (.+)$/;
 
 // 패턴은 `#`을 1~3개만 받지만 `length`의 타입은 number라, 단계 값인지 확인해 타입을 좁혀요
 const isHeadingLevel = (level: number): level is MarkdownHeadingLevel =>
@@ -65,6 +67,8 @@ export const parseMarkdownBlocks = ({
   // 빈 줄이나 다른 블록을 만나기 전까지 이어진 줄을 모아 한 블록으로 내보내요
   let paragraphLines: string[] = [];
   let listItems: string[] = [];
+  let orderedItems: string[] = [];
+  let orderedStart = 1;
 
   const flushParagraph = () => {
     if (paragraphLines.length === 0) return;
@@ -87,6 +91,17 @@ export const parseMarkdownBlocks = ({
     listItems = [];
   };
 
+  const flushOrderedList = () => {
+    if (orderedItems.length === 0) return;
+
+    blocks.push({
+      type: "orderedList",
+      start: orderedStart,
+      items: orderedItems.map(parseInlines),
+    });
+    orderedItems = [];
+  };
+
   // `\r`이 줄 끝에 남으면 제목 패턴의 `.`이 받지 못해 제목이 문단이 되므로 함께 잘라요
   for (const line of content.split(/\r?\n/)) {
     const headingBlock = toHeadingBlock(line);
@@ -94,6 +109,7 @@ export const parseMarkdownBlocks = ({
     if (headingBlock) {
       flushParagraph();
       flushList();
+      flushOrderedList();
       blocks.push(headingBlock);
       continue;
     }
@@ -102,22 +118,37 @@ export const parseMarkdownBlocks = ({
 
     if (listItem) {
       flushParagraph();
+      flushOrderedList();
       listItems.push(listItem[1]);
+      continue;
+    }
+
+    const orderedItem = ORDERED_ITEM_PATTERN.exec(line);
+
+    if (orderedItem) {
+      flushParagraph();
+      flushList();
+      // 첫 항목의 숫자에서 시작해요. 뒤 항목에 적힌 숫자는 쓰지 않고 그릴 때 1씩 늘려요
+      if (orderedItems.length === 0) orderedStart = Number(orderedItem[1]);
+      orderedItems.push(orderedItem[2]);
       continue;
     }
 
     if (line.trim() === "") {
       flushParagraph();
       flushList();
+      flushOrderedList();
       continue;
     }
 
     flushList();
+    flushOrderedList();
     paragraphLines.push(line);
   }
 
   flushParagraph();
   flushList();
+  flushOrderedList();
 
   return blocks;
 };

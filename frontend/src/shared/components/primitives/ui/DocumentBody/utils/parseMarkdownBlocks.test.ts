@@ -203,9 +203,100 @@ describe("parseMarkdownBlocks", () => {
     ]);
   });
 
-  // 정한 문법(# · ## · ### · - · **)만 처리하고 나머지는 바꾸지 않아요 (DOC-R6, 09-29 본문 형식)
+  it("숫자와 점으로 시작하는 줄이 이어지면 번호 목록 하나가 된다", () => {
+    expect(parseMarkdownBlocks({ content: lines("1. 하나", "2. 둘") })).toEqual(
+      [
+        {
+          type: "orderedList",
+          start: 1,
+          items: [
+            [{ type: "text", value: "하나" }],
+            [{ type: "text", value: "둘" }],
+          ],
+        },
+      ],
+    );
+  });
+
+  it("번호 목록은 첫 항목의 숫자에서 시작하고, 뒤 항목에 적힌 숫자는 쓰지 않는다", () => {
+    expect(
+      parseMarkdownBlocks({ content: lines("3. 셋", "3. 넷", "9. 다섯") }),
+    ).toEqual([
+      {
+        type: "orderedList",
+        start: 3,
+        items: [
+          [{ type: "text", value: "셋" }],
+          [{ type: "text", value: "넷" }],
+          [{ type: "text", value: "다섯" }],
+        ],
+      },
+    ]);
+  });
+
+  it("들여쓴 번호 줄도 같은 번호 목록의 항목이다", () => {
+    expect(
+      parseMarkdownBlocks({ content: lines("1. 하나", "   1. 둘") }),
+    ).toEqual([
+      {
+        type: "orderedList",
+        start: 1,
+        items: [
+          [{ type: "text", value: "하나" }],
+          [{ type: "text", value: "둘" }],
+        ],
+      },
+    ]);
+  });
+
+  it("점 목록과 번호 목록이 이어지면 서로 다른 블록이 된다", () => {
+    expect(
+      parseMarkdownBlocks({ content: lines("- 가", "1. 나", "- 다") }),
+    ).toEqual([
+      { type: "list", items: [[{ type: "text", value: "가" }]] },
+      {
+        type: "orderedList",
+        start: 1,
+        items: [[{ type: "text", value: "나" }]],
+      },
+      { type: "list", items: [[{ type: "text", value: "다" }]] },
+    ]);
+  });
+
+  it("번호 목록은 앞 문단을 끝내고, 뒤따르는 글은 새 문단이 된다", () => {
+    expect(
+      parseMarkdownBlocks({ content: lines("문장 A", "1. 하나", "문장 B") }),
+    ).toEqual([
+      ...paragraphOf("문장 A"),
+      {
+        type: "orderedList",
+        start: 1,
+        items: [[{ type: "text", value: "하나" }]],
+      },
+      ...paragraphOf("문장 B"),
+    ]);
+  });
+
+  it("번호 목록 항목 안의 ** 도 굵게 조각이 된다", () => {
+    expect(parseMarkdownBlocks({ content: "1. **법무** 검토" })).toEqual([
+      {
+        type: "orderedList",
+        start: 1,
+        items: [
+          [
+            { type: "bold", value: "법무" },
+            { type: "text", value: " 검토" },
+          ],
+        ],
+      },
+    ]);
+  });
+
+  // 정한 문법(# · ## · ### · - · 1. · **)만 처리하고 나머지는 바꾸지 않아요 (DOC-R6, 09-29 본문 형식)
   it.each([
-    ["번호 목록", "1. 하나"],
+    ["점 뒤에 공백이 없는 번호", "1.하나"],
+    ["괄호 번호", "1) 하나"],
+    ["글자 번호", "a. 하나"],
     ["인용", "> 인용"],
     ["코드", "`코드`"],
     ["링크", "[링크](https://example.com)"],
