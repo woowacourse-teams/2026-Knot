@@ -152,6 +152,9 @@
       (`grep -rn "new [A-Za-z]*Dto(" src --exclude=test.tsx --exclude='*.test.ts'`로 확인. 테스트 파일의 응답 클래스 `new`는 예외 — C-7-6)
 - [ ] C-5-18. **`Raw`/`Input`이 클래스와 분리돼 있는가** — 응답 클래스의 생성자 입력은 서버 JSON 모양(`Raw`), 요청 클래스의 생성자 입력은 앱 값(`Input`).
       클래스를 `httpClient` 제네릭이나 `mutationFn` 인자 타입에 그대로 쓰지 않았는가
+- [ ] C-5-19. 요청으로 응답이 바뀌는 mock 도메인(`mock/state/{도메인}.ts`가 있는 도메인)의 핸들러가 `responses/`를 직접 읽지 않고 `state/`의 함수만 거치는가.
+      `responses/`의 기본값을 바꾸지 않고, 빈 목록·에러 같은 변형을 `state/`로 만들지 않았는가 (`.claude/rules/api-guide.md` 「요청으로 바뀌는 상태」)
+- [ ] C-5-20. `reset{Domain}MockState`가 `vitest.setup.ts`의 `afterEach`와, 그 상태를 바꾸거나 읽는 컴포넌트 스토리의 meta `loaders`에서 불리는가
 
 ### C-6. 쿼리·뮤테이션 훅
 
