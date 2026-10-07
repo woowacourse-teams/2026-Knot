@@ -1,7 +1,11 @@
+import {
+  HTTP_ERROR_TYPE,
+  type HttpErrorType,
+  isHttpError,
+} from "@api/httpClient/error";
 import useDocumentQuery from "@api/queries/useDocumentQuery";
 import useNavigateToLogin from "@hooks/domain/auth/useNavigateToLogin";
 import { isUnauthorizedError } from "@utils/isUnauthorizedError";
-import axios from "axios";
 import { useEffect } from "react";
 
 interface UseDocumentViewerParams {
@@ -10,11 +14,14 @@ interface UseDocumentViewerParams {
 }
 
 /** 다시 불러와도 결과가 같은 잘못된 요청. 경로 형식 오류(400) · 워크스페이스 멤버 아님(403) · 문서 없음(404) */
-const INVALID_REQUEST_STATUSES = [400, 403, 404];
+const INVALID_REQUEST_TYPES: HttpErrorType[] = [
+  HTTP_ERROR_TYPE.badRequest,
+  HTTP_ERROR_TYPE.forbidden,
+  HTTP_ERROR_TYPE.notFound,
+];
 
 const isInvalidRequestError = (error: unknown) =>
-  axios.isAxiosError(error) &&
-  INVALID_REQUEST_STATUSES.includes(error.response?.status ?? 0);
+  isHttpError(error) && INVALID_REQUEST_TYPES.includes(error.type);
 
 /**
  * 문서 보기 섹션이 그릴 상태를 정해요.

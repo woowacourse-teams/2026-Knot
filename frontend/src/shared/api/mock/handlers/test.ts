@@ -58,6 +58,7 @@ import {
 import { endRecordingApi } from "@api/fetch/api/v1/workspaces/[workspaceId]/recordings/[recordingId]/end";
 import { pauseRecordingApi } from "@api/fetch/api/v1/workspaces/[workspaceId]/recordings/[recordingId]/pause";
 import { resumeRecordingApi } from "@api/fetch/api/v1/workspaces/[workspaceId]/recordings/[recordingId]/resume";
+import { HTTP_ERROR_TYPE } from "@api/httpClient/error";
 import { csrfTokenResponse, meResponse } from "@api/mock/responses/auth";
 import {
   notionConnectionResponse,
@@ -195,12 +196,11 @@ describe("mock 기본 핸들러와 fetch 요청 함수의 대응", () => {
       ).resolves.toEqual(new GetDocumentResponseDto(document));
     });
 
-    it("documentDetailsResponse에 없는 id면 404 DOCUMENT_NOT_FOUND로 답한다", async () => {
+    it("documentDetailsResponse에 없는 id면 404로 답한다", async () => {
+      // 응답 본문의 DOCUMENT_NOT_FOUND는 지금 HttpError의 code에 담기지 않아 여기서 확인하지 못해요
       await expect(
         getDocumentApi({ workspaceId: WORKSPACE_ID, documentId: 999 }),
-      ).rejects.toMatchObject({
-        response: { status: 404, data: { code: "DOCUMENT_NOT_FOUND" } },
-      });
+      ).rejects.toMatchObject({ type: HTTP_ERROR_TYPE.notFound });
     });
   });
 
