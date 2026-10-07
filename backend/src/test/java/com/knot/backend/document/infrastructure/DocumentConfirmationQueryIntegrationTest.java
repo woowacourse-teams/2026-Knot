@@ -8,8 +8,10 @@ import com.knot.backend.document.application.dto.result.DocumentConfirmationItem
 import com.knot.backend.document.application.dto.result.DocumentConfirmationOverviewResult;
 import com.knot.backend.document.application.dto.result.DocumentConfirmationSummaryResult;
 import com.knot.backend.document.domain.DocumentConfirmationCursor;
+import com.knot.backend.document.domain.DocumentConfirmation;
 import com.knot.backend.document.domain.DocumentConfirmationState;
 import com.knot.backend.testsupport.TestcontainersConfiguration;
+import jakarta.persistence.EntityManager;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -30,6 +32,8 @@ class DocumentConfirmationQueryIntegrationTest {
     private DocumentConfirmationQuery query;
     @Autowired
     private JdbcClient jdbc;
+    @Autowired
+    private EntityManager entityManager;
     private DocumentFixtures fixtures;
     private long workspaceId;
     private long viewerId;
@@ -60,6 +64,25 @@ class DocumentConfirmationQueryIntegrationTest {
                 ),
                 "정책"
         );
+    }
+
+    @Test
+    @DisplayName("JPA로 저장한 확인 대상은 전체 집계에 즉시 반영된다")
+    void findSummary_success_pendingJpaConfirmation() {
+        entityManager.persist(
+                DocumentConfirmation.require(
+                        documentId,
+                        viewerId
+                )
+        );
+
+        DocumentConfirmationOverviewResult result = summary(viewerId);
+
+        assertThat(
+                result.summary()
+                        .pendingCount()
+        ).isEqualTo(1);
+        assertThat(result.confirmedByMe()).isFalse();
     }
 
     @Test
