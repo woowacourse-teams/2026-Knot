@@ -18,7 +18,9 @@ import lombok.Getter;
 @Entity
 @Table(name = "document_generation_jobs")
 public class DocumentGenerationJob {
+
     private static final Duration FAILURE_RETENTION = Duration.ofDays(7);
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;

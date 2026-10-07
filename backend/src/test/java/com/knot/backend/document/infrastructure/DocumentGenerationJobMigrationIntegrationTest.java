@@ -21,6 +21,7 @@ import org.springframework.context.annotation.Import;
 @DataJpaTest
 @Import(TestcontainersConfiguration.class)
 class DocumentGenerationJobMigrationIntegrationTest {
+
     @Autowired
     private DataSource dataSource;
 

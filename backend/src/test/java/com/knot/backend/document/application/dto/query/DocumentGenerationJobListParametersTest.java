@@ -10,6 +10,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
 class DocumentGenerationJobListParametersTest {
+
     @Test
     @DisplayName("생략한 페이지 크기는 20이다")
     void of_success_defaultSize() {

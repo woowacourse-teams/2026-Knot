@@ -13,10 +13,12 @@ import org.springframework.stereotype.Repository;
 @Repository
 @RequiredArgsConstructor
 public class DocumentGenerationJobListQueryAdapter implements DocumentGenerationJobListQuery {
+
     private static final List<DocumentGenerationJobStatus> ACTIVE_STATUSES = List.of(
             DocumentGenerationJobStatus.QUEUED,
             DocumentGenerationJobStatus.RUNNING
     );
+
     private final DocumentGenerationJobReadJpaRepository jobs;
 
     @Override

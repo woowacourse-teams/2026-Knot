@@ -30,7 +30,9 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 class DocumentGenerationJobControllerTest {
+
     private static final String PATH = "/api/v1/workspaces/{workspaceId}/document-generation-jobs";
+
     private DocumentGenerationJobListService service;
     private MockMvc mvc;
 

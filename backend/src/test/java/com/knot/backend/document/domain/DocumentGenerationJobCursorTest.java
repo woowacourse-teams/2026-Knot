@@ -13,6 +13,7 @@ import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 class DocumentGenerationJobCursorTest {
+
     private static final Instant CREATED_AT = Instant.parse("2026-10-07T00:00:00.123456Z");
 
     @Test

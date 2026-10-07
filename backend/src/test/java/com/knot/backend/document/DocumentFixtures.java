@@ -7,7 +7,9 @@ import java.util.UUID;
 import org.springframework.jdbc.core.simple.JdbcClient;
 
 public class DocumentFixtures {
+
     public static final Instant CREATED_AT = Instant.parse("2026-10-06T00:00:00Z");
+
     private final JdbcClient jdbc;
 
     public DocumentFixtures(JdbcClient jdbc) {

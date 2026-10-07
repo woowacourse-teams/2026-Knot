@@ -9,9 +9,11 @@ import lombok.Getter;
 
 @Getter
 public class DocumentGenerationJobCursor {
+
     private static final String VERSION = "1";
     private static final int FIELD_COUNT = 5;
     private static final int MAX_LENGTH = 512;
+
     private final long workspaceId;
     private final long memberId;
     private final Instant createdAt;

@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/workspaces/{workspaceId}/document-generation-jobs")
 @RequiredArgsConstructor
 public class DocumentGenerationJobController implements DocumentGenerationJobApi {
+
     private final DocumentGenerationJobListService service;
 
     @Override

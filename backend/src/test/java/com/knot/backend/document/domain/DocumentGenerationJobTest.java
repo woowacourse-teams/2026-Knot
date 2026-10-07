@@ -8,6 +8,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 class DocumentGenerationJobTest {
+
     @Test
     @DisplayName("실패 기록은 마지막 실패 시각과 168시간 만료 시각을 저장한다")
     void recordFailure_success() {
@@ -66,6 +67,7 @@ class DocumentGenerationJobTest {
         assertThat(job.getStatus()).isEqualTo(DocumentGenerationJobStatus.QUEUED);
         assertThat(job.getLastFailedAt()).isNull();
     }
+
     @Test
     @DisplayName("Job은 입력 원문과 QUEUED 상태로 생성한다")
     void queue_success() {

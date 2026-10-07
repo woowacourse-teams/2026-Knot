@@ -17,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class DocumentGenerationJobListService {
+
     private final WorkspaceMemberRepository memberships;
     private final DocumentGenerationJobListQuery query;
     private final Clock clock;

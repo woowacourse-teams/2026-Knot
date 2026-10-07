@@ -42,8 +42,10 @@ import org.springframework.test.web.servlet.ResultActions;
 @Import(TestcontainersConfiguration.class)
 @TestApplicationProperties
 class DocumentGenerationJobListAcceptanceTest {
+
     private static final String PATH = "/api/v1/workspaces/{workspaceId}/document-generation-jobs";
     private static final Instant NOW = DocumentFixtures.CREATED_AT.plusSeconds(8 * 24 * 60 * 60);
+
     @Autowired
     private MockMvc mvc;
     @Autowired

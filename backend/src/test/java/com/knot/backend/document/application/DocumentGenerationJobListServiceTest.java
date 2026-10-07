@@ -26,7 +26,9 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 class DocumentGenerationJobListServiceTest {
+
     private static final Instant NOW = Instant.parse("2026-10-07T00:00:00Z");
+
     private WorkspaceMemberRepository memberships;
     private DocumentGenerationJobListQuery query;
     private DocumentGenerationJobListService service;
