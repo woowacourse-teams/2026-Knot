@@ -173,6 +173,24 @@ describe("DocumentViewer", () => {
     expect(screen.getAllByRole("listitem")).toHaveLength(2);
   });
 
+  it("복사 버튼 · 확인 수 · 확인 버튼이 그려져도 문서 상세는 한 번만 요청한다", async () => {
+    let requestCount = 0;
+    mockServer.use(
+      http.get(DOCUMENT_REQUEST, () => {
+        requestCount += 1;
+        return HttpResponse.json(documentDetailsResponse[0]);
+      }),
+    );
+    renderViewer(String(expected.id));
+
+    // 문서를 받은 뒤에 그려지는 컴포넌트들이 같은 문서를 다시 요청하지 않는지 보려고,
+    // 그 뒤에 나가는 확인 대상 조회가 끝날 때까지 기다린 다음 세요
+    await hoverConfirmCount();
+    await findPeopleRows();
+
+    expect(requestCount).toBe(1);
+  });
+
   it("문서 머리에 경로 · 만든 날짜 · 녹음 길이를 보여준다", async () => {
     renderViewer(String(expected.id));
 
@@ -312,28 +330,31 @@ describe("DocumentViewer", () => {
   );
 
   it("확인 대상이 아니라는 응답(409)을 받으면 문서를 다시 불러와 확인 버튼을 없앤다", async () => {
+    // 확인 요청을 받기 전에는 확인이 필요하다고, 받은 뒤에는 확인 대상이 아니라고 답해요.
+    // 요청 순서로 나누면 409와 관계없는 문서 조회가 바뀐 응답을 먼저 받아, 409 처리가 없어도 통과해요
+    let isConfirmRequested = false;
     mockServer.use(
-      // 처음에는 확인이 필요하다고 하고, 다시 불러오면 확인 대상이 아니라고 답해요
-      http.get(
-        DOCUMENT_REQUEST,
-        () => HttpResponse.json(documentDetailsResponse[0]),
-        { once: true },
-      ),
       http.get(DOCUMENT_REQUEST, () =>
-        HttpResponse.json({
-          ...documentDetailsResponse[0],
-          myConfirmationState: "NOT_REQUIRED",
-        }),
-      ),
-      http.put(MY_CONFIRMATION_REQUEST, () =>
         HttpResponse.json(
+          isConfirmRequested
+            ? {
+                ...documentDetailsResponse[0],
+                myConfirmationState: "NOT_REQUIRED",
+              }
+            : documentDetailsResponse[0],
+        ),
+      ),
+      http.put(MY_CONFIRMATION_REQUEST, () => {
+        isConfirmRequested = true;
+
+        return HttpResponse.json(
           {
             code: "CONFIRMATION_NOT_REQUIRED",
             message: "확인 대상이 아닙니다.",
           },
           { status: 409 },
-        ),
-      ),
+        );
+      }),
     );
     renderViewer(String(expected.id));
 
