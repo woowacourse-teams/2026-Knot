@@ -5,9 +5,12 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.doReturn;
 
 import com.knot.backend.document.DocumentFixtures;
 import com.knot.backend.document.application.dto.result.DocumentGenerationResult;
+import com.knot.backend.document.application.dto.query.DocumentListParameters;
+import com.knot.backend.document.application.dto.result.DocumentCardResult;
 import com.knot.backend.document.application.dto.result.DocumentTopicClassificationResult;
 import com.knot.backend.document.domain.DocumentConfirmationRepository;
 import com.knot.backend.document.domain.DocumentErrorCode;
@@ -23,9 +26,12 @@ import com.knot.backend.workspace.application.WorkspaceInvitationService;
 import com.knot.backend.workspace.application.WorkspaceInvitationAcceptanceService;
 import com.knot.backend.workspace.application.WorkspaceLeaveService;
 import com.knot.backend.workspace.domain.WorkspaceRepository;
+import com.knot.backend.workspace.domain.WorkspaceException;
+import com.knot.backend.workspace.domain.WorkspaceErrorCode;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicLong;
@@ -43,6 +49,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.dao.InvalidDataAccessApiUsageException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -72,6 +79,8 @@ class DocumentGenerationResultIntegrationTest {
     @Autowired
     private DocumentDetailService details;
     @Autowired
+    private DocumentListService lists;
+    @Autowired
     private DocumentConfirmationCommandService confirmationCommands;
     @Autowired
     private WorkspaceInvitationService invitations;
@@ -91,6 +100,8 @@ class DocumentGenerationResultIntegrationTest {
     private DocumentConfirmationRepository confirmations;
     @MockitoSpyBean
     private DocumentGenerationJobRepository jobs;
+    @MockitoSpyBean
+    private DocumentGenerationInputQuery inputs;
     @MockitoBean
     private Clock clock;
     private DocumentFixtures fixtures;
@@ -537,6 +548,320 @@ class DocumentGenerationResultIntegrationTest {
                 release.countDown();
             }
         }
+    }
+
+    @Test
+    @DisplayName("일부 주제 성공은 다른 주제 실패와 관계없이 목록·상세·확인에 공개된다")
+    void completeGeneration_success_partialRecordingResults() {
+        // given
+        long sibling = transactions.execute(status -> {
+            DocumentGenerationJob current = jobs.findByWorkspaceIdAndIdForUpdate(
+                    workspaceId,
+                    jobId
+            )
+                    .orElseThrow();
+            jdbc.sql("INSERT INTO document_generation_batch_topics (batch_id, position, topic) VALUES (:id, 1, '알림')")
+                    .param(
+                            "id",
+                            current.getBatchId()
+                    )
+                    .update();
+            DocumentGenerationJob other = jobs.save(
+                    DocumentGenerationJob.queueGeneration(
+                            current.getBatchId(),
+                            transcriptId,
+                            "알림",
+                            NOW
+                    )
+            );
+            other.startRunning(NOW);
+            other.recordFailure(NOW);
+            return other.getId();
+        });
+        // when
+        long documentId = results.completeGeneration(
+                workspaceId,
+                jobId,
+                1,
+                new DocumentGenerationResult(
+                        RESULT.title(),
+                        null,
+                        RESULT.content()
+                )
+        );
+        // then
+        assertThat(
+                lists.find(
+                        workspaceId,
+                        memberId,
+                        DocumentListParameters.of(
+                                null,
+                                null,
+                                null,
+                                recordingId
+                        )
+                )
+                        .items()
+        ).extracting(DocumentCardResult::id)
+                .containsExactly(documentId);
+        assertThat(
+                details.find(
+                        workspaceId,
+                        memberId,
+                        documentId
+                )
+                        .summary()
+        ).isNull();
+        assertThat(
+                confirmationCommands.confirm(
+                        workspaceId,
+                        memberId,
+                        documentId
+                )
+                        .documentStatus()
+        ).isEqualTo(DocumentStatus.ARCHIVED);
+        assertThat(
+                jdbc.sql("SELECT status FROM document_generation_jobs WHERE id = :id")
+                        .param(
+                                "id",
+                                sibling
+                        )
+                        .query(String.class)
+                        .single()
+        ).isEqualTo("FAILED");
+    }
+
+    @Test
+    @DisplayName("마지막 멤버가 탈퇴해 삭제된 Workspace에는 문서를 저장하지 않는다")
+    void completeGeneration_failure_deletedWorkspace() {
+        // given
+        departures.leave(
+                memberId,
+                workspaceId
+        );
+        // when & then
+        assertThatThrownBy(this::complete).isInstanceOf(WorkspaceException.class)
+                .hasMessage(WorkspaceErrorCode.WORKSPACE_ACCESS_DENIED.getMessage());
+        assertNoSavedDocument();
+    }
+
+    @Test
+    @DisplayName("없는 Job 또는 다른 Workspace의 Job은 범위를 넘어 저장할 수 없다")
+    void completeGeneration_failure_jobScope() {
+        // given
+        long otherWorkspace = fixtures.saveWorkspace();
+        // when & then
+        assertThatThrownBy(
+                () -> results.completeGeneration(
+                        workspaceId,
+                        Long.MAX_VALUE,
+                        1,
+                        RESULT
+                )
+        ).isInstanceOf(DocumentException.class)
+                .hasMessage(DocumentErrorCode.DOCUMENT_GENERATION_JOB_NOT_FOUND.getMessage());
+        assertThatThrownBy(
+                () -> results.completeGeneration(
+                        otherWorkspace,
+                        jobId,
+                        1,
+                        RESULT
+                )
+        ).isInstanceOf(DocumentException.class)
+                .hasMessage(DocumentErrorCode.DOCUMENT_GENERATION_JOB_NOT_FOUND.getMessage());
+        assertNoSavedDocument();
+    }
+
+    @ParameterizedTest
+    @ValueSource(longs = {0, -1})
+    @DisplayName("잘못된 Workspace 또는 Job 식별자를 거절한다")
+    void completeGeneration_failure_invalidIdentifier(long invalid) {
+        // when & then
+        assertThatThrownBy(
+                () -> results.completeGeneration(
+                        invalid,
+                        jobId,
+                        1,
+                        RESULT
+                )
+        ).isInstanceOf(DocumentException.class)
+                .hasMessage(DocumentErrorCode.INVALID_PARAMETER.getMessage());
+        assertThatThrownBy(
+                () -> results.completeGeneration(
+                        workspaceId,
+                        invalid,
+                        1,
+                        RESULT
+                )
+        ).isInstanceOf(DocumentException.class)
+                .hasMessage(DocumentErrorCode.INVALID_PARAMETER.getMessage());
+        assertNoSavedDocument();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"QUEUED", "FAILED"})
+    @DisplayName("현재 시도라도 실행 중이 아니면 성공 결과를 반영하지 않는다")
+    void completeGeneration_failure_notRunning(String jobState) {
+        // given
+        transactions.executeWithoutResult(status -> {
+            DocumentGenerationJob job = jobs.findByWorkspaceIdAndIdForUpdate(
+                    workspaceId,
+                    jobId
+            )
+                    .orElseThrow();
+            job.recordFailure(NOW);
+            if (jobState.equals("QUEUED")) {
+                job.retryByUser(NOW);
+            }
+        });
+        int attempt = jdbc.sql("SELECT attempt_count FROM document_generation_jobs WHERE id = :id")
+                .param(
+                        "id",
+                        jobId
+                )
+                .query(Integer.class)
+                .single();
+        // when & then
+        assertThatThrownBy(
+                () -> results.completeGeneration(
+                        workspaceId,
+                        jobId,
+                        attempt,
+                        RESULT
+                )
+        ).isInstanceOf(DocumentException.class)
+                .hasMessage(DocumentErrorCode.GENERATION_REGISTRATION_CONFLICT.getMessage());
+        assertThat(
+                jdbc.sql("SELECT count(*) FROM documents")
+                        .query(Long.class)
+                        .single()
+        ).isZero();
+        assertThat(jobStatus()).isEqualTo(jobState);
+    }
+
+    @Test
+    @DisplayName("이미 성공한 분류 Job의 결과를 문서로 저장하지 않는다")
+    void completeGeneration_failure_classificationJob() {
+        // given
+        long classifier = jdbc.sql("SELECT id FROM document_generation_jobs WHERE stage = 'CLASSIFICATION'")
+                .query(Long.class)
+                .single();
+        // when & then
+        assertThatThrownBy(
+                () -> results.completeGeneration(
+                        workspaceId,
+                        classifier,
+                        1,
+                        RESULT
+                )
+        ).isInstanceOf(DocumentException.class)
+                .hasMessage(DocumentErrorCode.GENERATION_REGISTRATION_CONFLICT.getMessage());
+        assertNoSavedDocument();
+    }
+
+    @Test
+    @DisplayName("입력 조회가 원문 없음으로 끝나면 문서와 확인 대상을 만들지 않는다")
+    void completeGeneration_failure_missingInput() {
+        // given
+        doReturn(Optional.empty()).when(inputs)
+                .findForUpdate(
+                        workspaceId,
+                        transcriptId
+                );
+        // when & then
+        assertThatThrownBy(this::complete).isInstanceOf(DocumentException.class)
+                .hasMessage(DocumentErrorCode.TRANSCRIPT_NOT_FOUND.getMessage());
+        assertNoSavedDocument();
+    }
+
+    @Test
+    @DisplayName("사용할 수 없는 빈 저장 원문은 생성 결과를 접수하지 않는다")
+    void completeGeneration_failure_blankStoredTranscript() {
+        // given
+        jdbc.sql("UPDATE transcripts SET content = :text WHERE id = :id")
+                .param(
+                        "text",
+                        "\u00a0\u3000"
+                )
+                .param(
+                        "id",
+                        transcriptId
+                )
+                .update();
+        // when & then
+        assertThatThrownBy(this::complete).isInstanceOf(DocumentException.class)
+                .hasMessage(DocumentErrorCode.INVALID_DOCUMENT_GENERATION_INPUT.getMessage());
+        assertNoSavedDocument();
+    }
+
+    @Test
+    @DisplayName("주제 등록 완료가 아닌 Batch에서는 생성 결과를 저장하지 않는다")
+    void completeGeneration_failure_unregisteredBatch() {
+        // given
+        jdbc.sql(
+                "UPDATE document_generation_batches SET topic_registration_state = 'WAITING_CLASSIFICATION', registered_at = NULL"
+        )
+                .update();
+        // when & then
+        assertThatThrownBy(this::complete).isInstanceOf(DocumentException.class)
+                .hasMessage(DocumentErrorCode.GENERATION_REGISTRATION_CONFLICT.getMessage());
+        assertNoSavedDocument();
+    }
+
+    @Test
+    @DisplayName("활성 확인 대상이 없는 불일치 Workspace에서는 DRAFT를 만들지 않는다")
+    void completeGeneration_failure_noActiveTargets() {
+        // given
+        fixtures.leave(
+                workspaceId,
+                memberId
+        );
+        // when & then
+        assertThatThrownBy(this::complete).isInstanceOf(DocumentException.class)
+                .hasMessage(DocumentErrorCode.GENERATION_REGISTRATION_CONFLICT.getMessage());
+        assertNoSavedDocument();
+    }
+
+    @Test
+    @DisplayName("성공 시각이 실행 시작 이전이면 문서 삽입도 롤백한다")
+    void completeGeneration_failure_timeBeforeStart() {
+        // given
+        when(clock.instant()).thenReturn(NOW.minusSeconds(1));
+        // when & then
+        assertThatThrownBy(this::complete).isInstanceOf(DocumentException.class)
+                .hasMessage(DocumentErrorCode.INVALID_DOCUMENT_DATA.getMessage());
+        assertNoSavedDocument();
+    }
+
+    @Test
+    @DisplayName("DB는 성공 문서의 원문 삭제와 같은 Job의 중복 문서를 거절한다")
+    void completeGeneration_success_preservedSourceAndUniqueness() {
+        // given
+        complete();
+        // when & then
+        assertThatThrownBy(
+                () -> jdbc.sql("DELETE FROM transcripts WHERE id = :id")
+                        .param(
+                                "id",
+                                transcriptId
+                        )
+                        .update()
+        ).isInstanceOf(DataIntegrityViolationException.class);
+        assertThatThrownBy(
+                () -> jdbc.sql("""
+                        INSERT INTO documents (workspace_id, recording_session_id, source_transcript_id,
+                            document_generation_job_id, topic, title, content, status, created_at)
+                        SELECT workspace_id, recording_session_id, source_transcript_id, document_generation_job_id,
+                            '다른 주제', title, content, status, created_at FROM documents
+                        """)
+                        .update()
+        ).isInstanceOf(DataIntegrityViolationException.class);
+        assertThat(
+                jdbc.sql("SELECT count(*) FROM documents")
+                        .query(Long.class)
+                        .single()
+        ).isEqualTo(1);
+        assertThat(jobStatus()).isEqualTo("SUCCEEDED");
     }
 
     private Runnable membershipChange(
