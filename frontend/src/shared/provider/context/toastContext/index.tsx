@@ -18,8 +18,6 @@ import type { ToastVariant } from "@primitives/ui/Toast";
 
 const MAX_TOAST_COUNT = 3;
 
-export type ToastSurface = "docked" | "floating";
-
 interface ToastOptions {
   variant: ToastVariant;
   message: string;
@@ -58,14 +56,14 @@ const ToastStackContext = createContext<ReturnType<typeof useToastStack> | null>
 const isSameToast = (a: ToastOptions, b: ToastOptions) =>
   a.variant === b.variant && a.message === b.message;
 
-const useToastStack = (surface: ToastSurface) => {
+const useToastStack = (hasDock: boolean) => {
   const [toasts, setToasts] = useState<ShownToast[]>([]);
-  const [previousSurface, setPreviousSurface] = useState(surface);
+  const [previousHasDock, setPreviousHasDock] = useState(hasDock);
   const nextIdRef = useRef(0);
 
   // 자식이 새 화면의 알림을 요청하기 전에 이전 목록을 정리해요.
-  if (previousSurface !== surface) {
-    setPreviousSurface(surface);
+  if (previousHasDock !== hasDock) {
+    setPreviousHasDock(hasDock);
     setToasts([]);
   }
 
@@ -119,14 +117,15 @@ const useToastStack = (surface: ToastSurface) => {
  */
 interface ToastProviderProps {
   children: ReactNode;
-  surface?: ToastSurface;
+  /** 현재 화면에 독이 있는지. 독이 있으면 레이아웃이 Viewport를 직접 배치해요. */
+  hasDock?: boolean;
 }
 
 export function ToastProvider({
   children,
-  surface = "floating",
+  hasDock = false,
 }: ToastProviderProps) {
-  const stack = useToastStack(surface);
+  const stack = useToastStack(hasDock);
   const { show } = stack;
   const location = useLocation();
   const navigate = useNavigate();
@@ -171,7 +170,7 @@ export function ToastProvider({
     <ToastContext.Provider value={contextValue}>
       <ToastStackContext.Provider value={stack}>
         {children}
-        {surface === "floating" && <ToastViewport />}
+        {!hasDock && <ToastViewport />}
       </ToastStackContext.Provider>
     </ToastContext.Provider>
   );

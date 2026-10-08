@@ -83,7 +83,7 @@ export const Playground: Story = {
 /** 독이 있는 화면이에요. 토스트가 독 바로 위에 쌓여요. 예: 워크스페이스 홈·탐색 */
 export const AboveDock: Story = {
   render: () => (
-    <ToastProvider surface="docked">
+    <ToastProvider hasDock>
       <ToastPlayground />
       <DockContainer>
         <ToastViewport placement="inline" />

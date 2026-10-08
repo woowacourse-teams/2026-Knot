@@ -17,7 +17,7 @@ export default function AppProviders({ children, routes }: AppProvidersProps) {
     ) ?? false;
 
   return (
-    <ToastProvider surface={hasDock ? "docked" : "floating"}>
+    <ToastProvider hasDock={hasDock}>
       <DialogProvider>{children}</DialogProvider>
     </ToastProvider>
   );
