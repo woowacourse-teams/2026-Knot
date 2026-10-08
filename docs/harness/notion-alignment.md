@@ -90,15 +90,23 @@ API 내부의 충돌 또는 영향이 큰 정책이 정해지지 않았다면 �
 
 후보의 실제 비교와 필요한 저장소 반영이 끝나면 해당 row를 `status=verified`로 표시한다.
 저장소 변경이 불필요한 행은 no-change 사유를 남긴 뒤 표시한다. 완료 워크플로는 다음 조건을
-모두 다시 확인한 뒤 `status=processed`로 바꾼다.
+모두 다시 확인한 뒤 `status=processed`로 바꾼다. 2026-10-07 사용자 결정에 따라
+완료 기록을 저장소 밖에 보관하고, 현재 source와 일치하는 processed 행을 queue에서 정리한다.
 
 1. 비교 결과와 사용자 제품 결정이 기록되어 있다.
 2. 결정에 따른 저장소 문서와 필요한 하네스가 반영되어 있다. 코드 변경이 필요하면
    별도의 확정 Issue와 구현·검증 단계를 거친다.
 3. GitHub 기록이 필요하고 사용자가 원격 쓰기를 요청했다면 링크와 상태가 확인되어 있다.
-4. `page_id`, `candidate_hash`와 `snapshot_hash`, 후보 본문과 snapshot 본문,
+4. `page_id`, 제목, `candidate_hash`와 `snapshot_hash`, 후보 본문과 snapshot 본문,
    `source_edited_time`과 `last_edited_time`이 모두 일치한다.
-5. 완료 기록은 `processed` 상태로 보존되어 같은 후보를 두 번 처리해도 중복 효과가 없다.
+5. 삭제 전 CSV와 행별 비교 결과는 저장소 밖에 보관한다. sources는 최신 snapshot으로
+   유지하고, source와 일치하는 processed queue 행만 삭제한다. 갱신·삭제는 행 ID와
+   상태·후보 revision 조건을 함께 적용해 이미 바뀐 후보를 건드리지 않는다.
+
+verified 후보가 누락·불일치하면 pending으로 되돌린다. 기존 processed 후보가 더 최신의
+source와 다르면 정리 대상에서 제외한다. 이전 후보를 sources에 덮어쓰거나 새 pending
+revision 대신 다시 pending으로 만들지 않는다. 영구 삭제와 예약 정리 게시에는 해당 도구의
+실행 확인 규칙을 따른다.
 
 실패·충돌·사용자 판단 대기·hash 불일치·snapshot 누락은 완료 처리하지 않는다. 현재
 수집기가 `sources`를 먼저 갱신하므로 이전 후보를 최신 baseline으로 다시 쓰지 않는다.
@@ -107,9 +115,9 @@ API 내부의 충돌 또는 영향이 큰 정책이 정해지지 않았다면 �
 `verified` 후보에서 page ID로 source snapshot을 조회하고, page ID·hash·본문·수정 시각이
 모두 일치하면 `processed`, 누락·불일치면 `pending`으로 갱신한다. 15:00 KST 화면에서
 게시 상태와 성공 실행을 다시 확인했다. 앞선 게시 전 수동 실행은 후보 0건으로 하위 변경 없이 끝났다.
-`processed`는 검토 완료 상태이며 팀 승인이나 제품
-요구사항의 확정을 뜻하지 않는다. queue row 자체를 삭제하지 않아 처리 이력과 재검토 근거를
-보존한다.
+`processed`는 검토 완료 상태이며 팀 승인이나 제품 요구사항의 확정을 뜻하지 않는다.
+당시에는 queue row를 삭제하지 않고 보존했다. 이 보존 방식은 아래 10/7 사용자 결정으로
+대체되며 새 workflow의 게시·실행 관측과 구분한다.
 
 ## 2026-10-01 queue 대조 checkpoint (15:00 KST)
 
@@ -198,6 +206,74 @@ API 내부의 미정·제안 또는 실제 구현과의 차이, 연구 원자료
 `full-review-sources.csv`, `full-review-sources-after.csv`로 보관했다. 개인 연구 원문을
 저장소에 복제하지 않았다. 로컬 문서 변경은 이 문서와 `docs/product/current-v2-mvp.md`뿐이며,
 구현·GitHub·Notion 원문·commit·push는 변경하지 않았다.
+
+## 2026-10-07 processed 정리 및 예약 게시 checkpoint
+
+사용자는 완료된 processed 행을 pending 테이블에서 정리하는 흐름을 선택했다. source에는
+수집 단계에서 최신 본문이 이미 저장되므로 완료 후보를 다시 복사하지 않는다. 다음 변경은
+새 pending 후보로 들어오고, 완료된 후보는 검증 후 queue에서 빠지는 것을 목표로 한다.
+
+실시간 UI에서 queue 208개(processed 80개·pending 128개), sources 820개를 내보냈다.
+processed 80개 모두 고유 source의 제목·본문·hash·수정 시각과 일치했다. 삭제 전 두 CSV,
+기존 완료 workflow와 ID 목록은 바탕화면 `Knot-Notion-Cleanup-2026-10-07`에 보관했다.
+저장소 HEAD는 `65b1e83f6d2967e0f6b2bf9c88d55284fc5acd88`이다.
+
+완료 workflow의 초안은 verified/processed 조회 → source 조회 → revision 검증 →
+조건부 상태 갱신 → processed 행만 조건부 삭제 순서다. verified 불일치는 pending으로
+복귀하고 processed 불일치는 유지한다. 상태 갱신과 삭제에 ID·상태·page ID·제목·hash·
+본문·수정 시각 필터를 적용한다. source 테이블에 쓰는 노드는 없다.
+실제 n8n에서 조회와 Code 노드까지만 실행한 결과 80개 모두 `next_status=processed`,
+`source_match_count=1`이었다. 업데이트·삭제 노드는 실행하지 않았다. 초안을 다시 열어
+6개 노드와 5개 연결의 저장을 확인했고, 조회 조건은 `Any Condition`이다. 저장된 초안
+JSON과 캔버스 화면도 같은 바탕화면 폴더에 보관했다.
+이후 사용자가 검증된 processed 80개 삭제와 같은 조건의 5분 예약 정리 게시를
+명시적으로 승인했다. 실행 직전 CSV가 백업과 동일한지 다시 확인하고 전체 workflow를
+수동 실행했다. 실행 뒤 내보낸 CSV에서 queue는 pending 128개만 남았으며, 기존
+pending 128개 전체 필드와 sources 820개 전체 데이터는 실행 전과 동일했다.
+Update와 Delete 노드의 80개 처리도 실제 캔버스에서 확인했다.
+
+`Processed queue cleanup 2026-10-07` 버전을 게시했고 편집기의 `Published` 표시를
+확인했다. 이는 수동 실행의 실제 삭제 결과와 예약 정리의 게시 확인이다. 앞으로 새
+검토 후보를 정리하는 예약 실행의 결과는 해당 실행과 CSV로 따로 확인한다.
+실행 직전·직후 CSV와 게시 화면은 같은 바탕화면 패키지의
+`pending-at-execution.csv`, `sources-at-execution.csv`, `pending-after-cleanup.csv`,
+`sources-after-cleanup.csv`, `cleanup-published.png`에 보관했다.
+
+## 2026-10-07 재수집 및 잔여 비교 checkpoint
+
+HEAD `8476b58cbdde7201be76eba19e84fb8d6d7f753b`에서 최신 API와 현재 사용자 결정을
+우선해 비교했다. 수동 수집 성공 후 sources는 1,025개, 후보는 341개였다. 비교를 마친
+323개를 verified로 표시했고, 게시된 완료 workflow의 예약 실행이 revision을 다시
+검증한 뒤 processed로 갱신하고 삭제했다. 마지막 실행 `523338`은 2026-10-07
+22:55:54 KST에 성공했으며 Update/Delete 노드의 5개 처리를 확인했다.
+최종 native CSV는 **18개 모두 pending, verified/processed 0개**였다. 검토 기록의
+323개 ID는 최종 queue에 없었고, 마지막 잔여 검토 74개의 제목·본문·hash·수정 시각은
+각각 고유한 실제 source와 일치했다. 비교 완료는 기능 구현 또는 QA 통과를 뜻하지 않는다.
+
+보류 이유는 다음 네 가지다. 같은 기준의 QA 항목과 기준 문서는 각각 한 행으로 센다.
+
+- 무음 종료의 V2 포함 여부 및 무음·무응답 시간 미정: 10개.
+- 짧은 녹음의 Figma 30초 제외와 Notion 길이 일괄 제외 금지 기준 충돌: 2개.
+- 일부 실패 시 상세 화면 배치·문구 미정: 4개. 자동 이동 금지와 성공/실패 분리 원칙은 확인했다.
+- unsupported 블록이 있는 기술 요구사항 및 이미지가 있는 인터뷰의 원문 확인 불가: 2개.
+  직접 Notion 조회도 NOT_FOUND였으며 이를 문서 삭제나 빈 본문으로 해석하지 않았다.
+
+본문 블록이 없던 회고 카드 5개는 실제 Notion 검색 출력의 데이터베이스 속성에 업무
+내용이 있어 속성까지 읽고 완료 처리했다. 현재 sources 본문에 해당 속성이 포함되지 않는
+수집 한계는 남아 있다. 인터뷰 원자료는 제품 관련 관찰·결론을 비교했으며 전사 전체의
+단어별 검증이나 관찰·가설의 제품 결정 승인은 수행하지 않았다.
+
+수집 workflow의 저장된 초안 JSON에서 변경분 필터 복원, 순차 수집·대기,
+최대 5회/5초 재시도와 PW/PWD 마스킹을 확인했다. 수집은 unpublished이며,
+5분 예약으로 게시된 것은 완료 행 정리 workflow다. 전체 강제 재수집은 복원했다.
+
+행별 revision·비교 이유는 저장소 밖 바탕화면 `Knot-Notion-Cleanup-2026-10-07`의
+`reviewed-candidates.json`, 보류 근거는 `remaining-holds.json`, 실제 최종 queue는
+`pending-final.csv`에 보관했다. `sources-final-safe.csv`는 1,025개 행을 유지하며
+수집 제외 영역 본문과 비밀값을 생략한 백업이다. hash는 원본 revision의 값으로 유지한다.
+예약 실행 및 최종 화면 증거는 `completion-final-execution.png`, `pending-final.png`다.
+이 checkpoint는 원문·API·현재 구현의 비교와 queue 처리 기록이다. 새 기능 구현,
+Notion 원문 변경, GitHub 쓰기, commit 또는 push는 수행하지 않았다.
 
 ## 자격 증명과 문서 안전
 
