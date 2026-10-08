@@ -20,6 +20,11 @@ public class DocumentRepositoryAdapter implements DocumentRepository {
     }
 
     @Override
+    public Optional<Document> findByGenerationJobId(long jobId) {
+        return repository.findByDocumentGenerationJobId(jobId);
+    }
+
+    @Override
     public Optional<Document> findByWorkspaceIdAndIdForUpdate(
             long workspaceId,
             long documentId

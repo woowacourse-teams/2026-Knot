@@ -7,6 +7,8 @@ public interface DocumentRepository {
 
     Document save(Document document);
 
+    Optional<Document> findByGenerationJobId(long jobId);
+
     Optional<Document> findByWorkspaceIdAndIdForUpdate(
             long workspaceId,
             long documentId

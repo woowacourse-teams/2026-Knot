@@ -11,6 +11,8 @@ import org.springframework.data.jpa.repository.Query;
 
 interface DocumentJpaRepository extends JpaRepository<Document, Long> {
 
+    Optional<Document> findByDocumentGenerationJobId(long jobId);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     Optional<Document> findByWorkspaceIdAndId(
             long workspaceId,

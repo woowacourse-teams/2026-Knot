@@ -13,6 +13,7 @@ import com.knot.backend.document.domain.DocumentConfirmationRepository;
 import com.knot.backend.document.domain.DocumentErrorCode;
 import com.knot.backend.document.domain.DocumentException;
 import com.knot.backend.document.domain.DocumentGenerationJobRepository;
+import com.knot.backend.document.domain.DocumentGenerationJob;
 import com.knot.backend.document.domain.DocumentRepository;
 import com.knot.backend.document.domain.DocumentStatus;
 import com.knot.backend.document.domain.MyConfirmationState;
@@ -21,6 +22,11 @@ import com.knot.backend.testsupport.TestcontainersConfiguration;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
+import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
@@ -59,6 +65,8 @@ class DocumentGenerationResultIntegrationTest {
     private DocumentClassificationResultService classifications;
     @Autowired
     private DocumentDetailService details;
+    @Autowired
+    private DocumentConfirmationCommandService confirmationCommands;
     @Autowired
     private TransactionTemplate transactions;
     @Autowired
@@ -235,6 +243,154 @@ class DocumentGenerationResultIntegrationTest {
         ).isInstanceOf(DocumentException.class)
                 .hasMessage(DocumentErrorCode.INVALID_DOCUMENT_GENERATION_RESPONSE.getMessage());
         assertNoSavedDocument();
+    }
+
+    @Test
+    @DisplayName("성공 재전달은 최초 문서·확인 대상·보관 상태를 유지한다")
+    void completeGeneration_success_repeatedAfterArchive() {
+        // given
+        long documentId = complete();
+        confirmationCommands.confirm(
+                workspaceId,
+                memberId,
+                documentId
+        );
+        long newcomer = fixtures.saveMember("새 멤버");
+        fixtures.join(
+                workspaceId,
+                newcomer
+        );
+        when(clock.instant()).thenReturn(NOW.plusSeconds(30));
+        // when
+        long repeated = results.completeGeneration(
+                workspaceId,
+                jobId,
+                1,
+                null
+        );
+        // then
+        assertThat(repeated).isEqualTo(documentId);
+        assertThat(targets(documentId)).containsExactly(memberId);
+        assertThat(
+                details.find(
+                        workspaceId,
+                        newcomer,
+                        documentId
+                )
+        ).satisfies(document -> {
+            assertThat(document.status()).isEqualTo(DocumentStatus.ARCHIVED);
+            assertThat(document.archivedAt()).isEqualTo(NOW);
+            assertThat(document.createdAt()).isEqualTo(NOW);
+            assertThat(document.content()).isEqualTo(RESULT.content());
+            assertThat(document.myConfirmationState()).isEqualTo(MyConfirmationState.NOT_REQUIRED);
+            assertThat(
+                    document.confirmationSummary()
+                            .confirmedCount()
+            ).isEqualTo(1);
+        });
+    }
+
+    @Test
+    @DisplayName("같은 시도의 동시 완료도 문서와 확인 대상을 하나만 생성한다")
+    void completeGeneration_success_concurrent() throws Exception {
+        // given
+        CyclicBarrier start = new CyclicBarrier(2);
+        try (ExecutorService executor = Executors.newFixedThreadPool(2)) {
+            // when
+            Future<Long> first = executor.submit(() -> {
+                start.await();
+                return complete();
+            });
+            Future<Long> second = executor.submit(() -> {
+                start.await();
+                return complete();
+            });
+            // then
+            long documentId = first.get(
+                    10,
+                    TimeUnit.SECONDS
+            );
+            assertThat(
+                    second.get(
+                            10,
+                            TimeUnit.SECONDS
+                    )
+            ).isEqualTo(documentId);
+            assertThat(
+                    jdbc.sql("SELECT count(*) FROM documents")
+                            .query(Long.class)
+                            .single()
+            ).isEqualTo(1);
+            assertThat(targets(documentId)).containsExactly(memberId);
+        }
+    }
+
+    @Test
+    @DisplayName("이전 시도의 결과는 현재 RUNNING 또는 SUCCEEDED Job을 변경하지 않는다")
+    void completeGeneration_failure_staleAttempt() {
+        // given
+        transactions.executeWithoutResult(status -> {
+            DocumentGenerationJob job = jobs.findByWorkspaceIdAndIdForUpdate(
+                    workspaceId,
+                    jobId
+            )
+                    .orElseThrow();
+            job.recordFailure(NOW);
+            job.retryByUser(NOW);
+            job.startRunning(NOW);
+        });
+        // when & then
+        assertThatThrownBy(this::complete).isInstanceOf(DocumentException.class)
+                .hasMessage(DocumentErrorCode.GENERATION_REGISTRATION_CONFLICT.getMessage());
+        assertNoSavedDocument();
+        long documentId = results.completeGeneration(
+                workspaceId,
+                jobId,
+                2,
+                RESULT
+        );
+        assertThatThrownBy(this::complete).isInstanceOf(DocumentException.class)
+                .hasMessage(DocumentErrorCode.GENERATION_REGISTRATION_CONFLICT.getMessage());
+        assertThat(
+                results.completeGeneration(
+                        workspaceId,
+                        jobId,
+                        2,
+                        RESULT
+                )
+        ).isEqualTo(documentId);
+        assertThat(jobStatus()).isEqualTo("SUCCEEDED");
+        assertThat(
+                jdbc.sql("SELECT attempt_count FROM document_generation_jobs WHERE id = :id")
+                        .param(
+                                "id",
+                                jobId
+                        )
+                        .query(Integer.class)
+                        .single()
+        ).isEqualTo(2);
+    }
+
+    @Test
+    @DisplayName("성공 Job의 문서가 없으면 재생성하지 않고 저장 불일치로 거절한다")
+    void completeGeneration_failure_successWithoutDocument() {
+        // given
+        transactions.executeWithoutResult(
+                status -> jobs.findByWorkspaceIdAndIdForUpdate(
+                        workspaceId,
+                        jobId
+                )
+                        .orElseThrow()
+                        .recordSuccess(NOW)
+        );
+        // when & then
+        assertThatThrownBy(this::complete).isInstanceOf(DocumentException.class)
+                .hasMessage(DocumentErrorCode.GENERATION_REGISTRATION_CONFLICT.getMessage());
+        assertThat(
+                jdbc.sql("SELECT count(*) FROM documents")
+                        .query(Long.class)
+                        .single()
+        ).isZero();
     }
 
     private long complete() {

@@ -11,6 +11,7 @@ import com.knot.backend.document.domain.DocumentGenerationBatch;
 import com.knot.backend.document.domain.DocumentGenerationBatchRepository;
 import com.knot.backend.document.domain.DocumentGenerationJob;
 import com.knot.backend.document.domain.DocumentGenerationJobRepository;
+import com.knot.backend.document.domain.DocumentGenerationJobStatus;
 import com.knot.backend.document.domain.DocumentRepository;
 import com.knot.backend.document.domain.DocumentTopicRegistrationState;
 import com.knot.backend.workspace.domain.WorkspaceErrorCode;
@@ -52,6 +53,12 @@ public class DocumentGenerationResultService {
                 jobId,
                 expectedAttemptCount
         );
+        if (job.getStatus() == DocumentGenerationJobStatus.SUCCEEDED) {
+            return findCompletedDocument(
+                    workspaceId,
+                    job
+            ).getId();
+        }
         job.validateRunningAttempt(expectedAttemptCount);
         DocumentGenerationInputResult input = lockRegisteredInput(
                 workspaceId,
@@ -87,6 +94,22 @@ public class DocumentGenerationResultService {
         validateIdentifier(workspaceId);
         workspaces.findByIdForUpdate(workspaceId)
                 .orElseThrow(() -> new WorkspaceException(WorkspaceErrorCode.WORKSPACE_ACCESS_DENIED));
+    }
+
+    private Document findCompletedDocument(
+            long workspaceId,
+            DocumentGenerationJob job
+    ) {
+        Document document = documents.findByGenerationJobId(job.getId())
+                .orElseThrow(() -> new DocumentException(DocumentErrorCode.GENERATION_REGISTRATION_CONFLICT));
+        if (document.getWorkspaceId() != workspaceId || document.getSourceTranscriptId() != job.getTranscriptId()) {
+            throw new DocumentException(DocumentErrorCode.GENERATION_REGISTRATION_CONFLICT);
+        }
+        if (!document.getTopic()
+                .equals(job.getTopic())) {
+            throw new DocumentException(DocumentErrorCode.GENERATION_REGISTRATION_CONFLICT);
+        }
+        return document;
     }
 
     private DocumentGenerationJob lockGenerationJob(
