@@ -67,6 +67,11 @@ public enum DocumentErrorCode implements ErrorCode {
             ErrorCategory.INVALID_INPUT,
             "INVALID_DOCUMENT_DATA",
             "문서 저장 정보가 올바르지 않습니다"
+    ),
+    GENERATION_REGISTRATION_CONFLICT(
+            ErrorCategory.CONFLICT,
+            "GENERATION_REGISTRATION_CONFLICT",
+            "문서 생성 등록 상태 또는 실행 시도가 일치하지 않습니다"
     );
 
     private final ErrorCategory category;

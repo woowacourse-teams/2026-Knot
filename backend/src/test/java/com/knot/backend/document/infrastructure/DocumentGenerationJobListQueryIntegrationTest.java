@@ -207,7 +207,8 @@ class DocumentGenerationJobListQueryIntegrationTest {
     @DisplayName("JPA로 추가한 작업은 조회에 자동 반영한다")
     void findPage_success_jpaFlush() {
         // given
-        DocumentGenerationJob job = DocumentGenerationJob.queue(
+        DocumentGenerationJob job = DocumentGenerationJob.queueClassification(
+                fixtures.saveGenerationBatch(transcriptId),
                 transcriptId,
                 NOW
         );

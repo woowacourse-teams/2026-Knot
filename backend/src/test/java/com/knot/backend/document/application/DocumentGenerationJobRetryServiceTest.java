@@ -67,7 +67,8 @@ class DocumentGenerationJobRetryServiceTest {
                 )
         );
         when(recordings.findById(4L)).thenReturn(Optional.of(recording(2L)));
-        job = DocumentGenerationJob.queue(
+        job = DocumentGenerationJob.queueClassification(
+                1,
                 3,
                 CREATED_AT
         );

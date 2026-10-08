@@ -19,7 +19,8 @@ class DocumentGenerationJobTest {
     @DisplayName("첫 접수는 최초 시도 1회이며 사용자·자동 재시도는 0회다")
     void queue_success_initialAttemptCounts() {
         // when
-        DocumentGenerationJob job = DocumentGenerationJob.queue(
+        DocumentGenerationJob job = DocumentGenerationJob.queueClassification(
+                1,
                 1,
                 CREATED_AT
         );
@@ -195,7 +196,8 @@ class DocumentGenerationJobTest {
     }
 
     private DocumentGenerationJob failedJob() {
-        DocumentGenerationJob job = DocumentGenerationJob.queue(
+        DocumentGenerationJob job = DocumentGenerationJob.queueClassification(
+                1,
                 1,
                 CREATED_AT
         );
@@ -225,7 +227,8 @@ class DocumentGenerationJobTest {
         // given
         Instant createdAt = Instant.parse("2026-10-06T00:00:00Z");
         Instant failedAt = createdAt.plusSeconds(60);
-        DocumentGenerationJob job = DocumentGenerationJob.queue(
+        DocumentGenerationJob job = DocumentGenerationJob.queueClassification(
+                1,
                 1,
                 createdAt
         );
@@ -245,7 +248,8 @@ class DocumentGenerationJobTest {
     void recordFailure_success_renewDeadline() {
         // given
         Instant createdAt = Instant.parse("2026-10-06T00:00:00Z");
-        DocumentGenerationJob job = DocumentGenerationJob.queue(
+        DocumentGenerationJob job = DocumentGenerationJob.queueClassification(
+                1,
                 1,
                 createdAt
         );
@@ -265,7 +269,8 @@ class DocumentGenerationJobTest {
     void recordFailure_failure_invalidTime() {
         // given
         Instant createdAt = Instant.parse("2026-10-06T00:00:00Z");
-        DocumentGenerationJob job = DocumentGenerationJob.queue(
+        DocumentGenerationJob job = DocumentGenerationJob.queueClassification(
+                1,
                 1,
                 createdAt
         );
@@ -285,7 +290,8 @@ class DocumentGenerationJobTest {
         Instant time = Instant.parse("2026-10-06T00:00:00Z");
 
         // when
-        DocumentGenerationJob job = DocumentGenerationJob.queue(
+        DocumentGenerationJob job = DocumentGenerationJob.queueClassification(
+                1,
                 1,
                 time
         );
@@ -300,7 +306,8 @@ class DocumentGenerationJobTest {
     void queue_failure_invalidTranscript() {
         // when & then
         assertThatThrownBy(
-                () -> DocumentGenerationJob.queue(
+                () -> DocumentGenerationJob.queueClassification(
+                        1,
                         0,
                         Instant.now()
                 )
