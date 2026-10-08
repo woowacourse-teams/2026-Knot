@@ -15,6 +15,12 @@ import java.net.http.HttpClient;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
+import org.springframework.boot.test.context.FilteredClassLoader;
+import org.springframework.core.io.ClassPathResource;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
+import com.knot.backend.global.exception.LlmErrorCode;
+import com.knot.backend.global.exception.LlmException;
 import tools.jackson.databind.ObjectMapper;
 
 class LlmConfigTest {
@@ -96,5 +102,22 @@ class LlmConfigTest {
                 "knot.llm.provider=unsupported"
         )
                 .run(context -> assertThat(context).hasFailed());
+    }
+    @ParameterizedTest
+    @ValueSource(strings = {"generation-system.txt", "generation-template.md", "generation-schema.json"})
+    @DisplayName("작성 리소스가 빠지면 시작 시 명시적인 LLM 설정 오류로 실패한다")
+    void configuration_failure_missingWriterResource(String filename) {
+        runner.withClassLoader(new FilteredClassLoader(new ClassPathResource("llm/document/" + filename)))
+                .withPropertyValues(
+                        "knot.llm.enabled=true",
+                        "knot.llm.base-url=https://llm.example.com",
+                        "knot.llm.api-token=test-secret",
+                        "knot.llm.model=test-model"
+                )
+                .run(context -> {
+                    assertThat(context).hasFailed();
+                    assertThat(context.getStartupFailure()).hasRootCauseInstanceOf(LlmException.class)
+                            .hasRootCauseMessage(LlmErrorCode.LLM_INVALID_CONFIGURATION.getMessage());
+                });
     }
 }
