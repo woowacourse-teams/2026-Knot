@@ -11,6 +11,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.ValueSource;
 import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
 
 class DocumentGenerationPromptTest {
 
@@ -51,7 +52,7 @@ class DocumentGenerationPromptTest {
                         .get(1)
                         .role()
         ).isEqualTo("user");
-        var input = mapper.readTree(
+        JsonNode input = mapper.readTree(
                 request.messages()
                         .get(1)
                         .content()
