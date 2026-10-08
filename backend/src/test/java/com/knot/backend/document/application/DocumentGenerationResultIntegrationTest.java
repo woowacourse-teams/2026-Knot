@@ -19,10 +19,16 @@ import com.knot.backend.document.domain.DocumentStatus;
 import com.knot.backend.document.domain.MyConfirmationState;
 import com.knot.backend.testsupport.TestApplicationProperties;
 import com.knot.backend.testsupport.TestcontainersConfiguration;
+import com.knot.backend.workspace.application.WorkspaceInvitationService;
+import com.knot.backend.workspace.application.WorkspaceInvitationAcceptanceService;
+import com.knot.backend.workspace.application.WorkspaceLeaveService;
+import com.knot.backend.workspace.domain.WorkspaceRepository;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
 import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -68,6 +74,14 @@ class DocumentGenerationResultIntegrationTest {
     @Autowired
     private DocumentConfirmationCommandService confirmationCommands;
     @Autowired
+    private WorkspaceInvitationService invitations;
+    @Autowired
+    private WorkspaceInvitationAcceptanceService acceptance;
+    @Autowired
+    private WorkspaceLeaveService departures;
+    @Autowired
+    private WorkspaceRepository workspaces;
+    @Autowired
     private TransactionTemplate transactions;
     @Autowired
     private JdbcClient jdbc;
@@ -98,6 +112,12 @@ class DocumentGenerationResultIntegrationTest {
                 workspaceId,
                 memberId
         );
+        jdbc.sql("UPDATE workspace_members SET role = 'OWNER' WHERE workspace_id = :id")
+                .param(
+                        "id",
+                        workspaceId
+                )
+                .update();
         recordingId = fixtures.saveRecording(
                 workspaceId,
                 memberId,
@@ -391,6 +411,196 @@ class DocumentGenerationResultIntegrationTest {
                         .query(Long.class)
                         .single()
         ).isZero();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"join", "leave"})
+    @DisplayName("가입·탈퇴가 먼저 커밋되면 잠금 대기 후 최신 멤버로 확인 대상을 고정한다")
+    void completeGeneration_success_membershipCommitsFirst(String change) throws Exception {
+        // given
+        long teammate = fixtures.saveMember("변경할 멤버");
+        Runnable mutation = membershipChange(
+                change,
+                teammate
+        );
+        CountDownLatch locked = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+        AtomicLong holderPid = new AtomicLong();
+        try (ExecutorService executor = Executors.newFixedThreadPool(2)) {
+            Future<?> membership = executor.submit(() -> transactions.executeWithoutResult(status -> {
+                workspaces.findByIdForUpdate(workspaceId)
+                        .orElseThrow();
+                mutation.run();
+                holderPid.set(databasePid());
+                locked.countDown();
+                awaitSignal(release);
+            }));
+            try {
+                awaitSignal(locked);
+                Future<Long> generation = executor.submit(this::complete);
+                // when
+                awaitDatabaseWaiter(holderPid.get());
+                release.countDown();
+                membership.get(
+                        10,
+                        TimeUnit.SECONDS
+                );
+                long documentId = generation.get(
+                        10,
+                        TimeUnit.SECONDS
+                );
+                // then
+                if (change.equals("join")) {
+                    assertThat(targets(documentId)).containsExactly(
+                            memberId,
+                            teammate
+                    );
+                } else {
+                    assertThat(targets(documentId)).containsExactly(memberId);
+                }
+            } finally {
+                release.countDown();
+            }
+        }
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"join", "leave"})
+    @DisplayName("생성이 먼저 커밋되면 가입은 대상에 추가하지 않고 탈퇴는 기존 대상에서 제외한다")
+    void completeGeneration_success_generationCommitsFirst(String change) throws Exception {
+        // given
+        long teammate = fixtures.saveMember("변경할 멤버");
+        Runnable mutation = membershipChange(
+                change,
+                teammate
+        );
+        CountDownLatch locked = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+        AtomicLong holderPid = new AtomicLong();
+        try (ExecutorService executor = Executors.newFixedThreadPool(2)) {
+            Future<Long> generation = executor.submit(() -> transactions.execute(status -> {
+                long documentId = complete();
+                holderPid.set(databasePid());
+                locked.countDown();
+                awaitSignal(release);
+                return documentId;
+            }));
+            try {
+                awaitSignal(locked);
+                Future<?> membership = executor.submit(mutation);
+                // when
+                awaitDatabaseWaiter(holderPid.get());
+                release.countDown();
+                long documentId = generation.get(
+                        10,
+                        TimeUnit.SECONDS
+                );
+                membership.get(
+                        10,
+                        TimeUnit.SECONDS
+                );
+                // then
+                if (change.equals("join")) {
+                    assertThat(targets(documentId)).containsExactly(memberId);
+                    assertThat(
+                            details.find(
+                                    workspaceId,
+                                    teammate,
+                                    documentId
+                            )
+                                    .myConfirmationState()
+                    ).isEqualTo(MyConfirmationState.NOT_REQUIRED);
+                } else {
+                    assertThat(targets(documentId)).containsExactly(
+                            memberId,
+                            teammate
+                    );
+                    assertThat(
+                            details.find(
+                                    workspaceId,
+                                    memberId,
+                                    documentId
+                            )
+                                    .confirmationSummary()
+                                    .excludedCount()
+                    ).isEqualTo(1);
+                    assertThat(
+                            confirmationCommands.confirm(
+                                    workspaceId,
+                                    memberId,
+                                    documentId
+                            )
+                                    .documentStatus()
+                    ).isEqualTo(DocumentStatus.ARCHIVED);
+                }
+            } finally {
+                release.countDown();
+            }
+        }
+    }
+
+    private Runnable membershipChange(
+            String change,
+            long teammate
+    ) {
+        if (change.equals("join")) {
+            String code = invitations.issue(
+                    workspaceId,
+                    memberId
+            )
+                    .code();
+            return () -> acceptance.accept(
+                    code,
+                    "127.0.0.1",
+                    teammate
+            );
+        }
+        fixtures.join(
+                workspaceId,
+                teammate
+        );
+        return () -> departures.leave(
+                teammate,
+                workspaceId
+        );
+    }
+
+    private long databasePid() {
+        return jdbc.sql("SELECT pg_backend_pid()")
+                .query(Long.class)
+                .single();
+    }
+
+    private void awaitSignal(CountDownLatch signal) {
+        try {
+            if (!signal.await(
+                    10,
+                    TimeUnit.SECONDS
+            )) {
+                throw new AssertionError("트랜잭션 진행 신호를 받지 못했습니다");
+            }
+        } catch (InterruptedException exception) {
+            Thread.currentThread()
+                    .interrupt();
+            throw new AssertionError(exception);
+        }
+    }
+
+    private void awaitDatabaseWaiter(long holderPid) throws InterruptedException {
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
+        while (System.nanoTime() < deadline) {
+            if (jdbc.sql("SELECT EXISTS(SELECT 1 FROM pg_stat_activity WHERE :pid = ANY(pg_blocking_pids(pid)))")
+                    .param(
+                            "pid",
+                            holderPid
+                    )
+                    .query(Boolean.class)
+                    .single()) {
+                return;
+            }
+            Thread.sleep(10);
+        }
+        throw new AssertionError("Workspace의 실제 PostgreSQL 잠금 대기를 확인하지 못했습니다");
     }
 
     private long complete() {
