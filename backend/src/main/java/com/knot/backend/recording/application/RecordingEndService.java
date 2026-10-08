@@ -1,5 +1,6 @@
 package com.knot.backend.recording.application;
 
+import com.knot.backend.recording.application.dto.command.RecordingControlCommand;
 import com.knot.backend.recording.application.dto.result.RecordingEndResult;
 import com.knot.backend.recording.domain.RecordingErrorCode;
 import com.knot.backend.recording.domain.RecordingException;
@@ -16,13 +17,15 @@ import org.springframework.transaction.annotation.Transactional;
 public class RecordingEndService {
     private final RecordingWorkspaceAccessValidator workspaceAccessValidator;
     private final RecordingSessionRepository recordingSessionRepository;
+    private final RecordingControlTokenHasher controlTokenHasher;
     private final Clock clock;
 
     @Transactional
     public RecordingEndResult end(
             long workspaceId,
             long memberId,
-            long recordingId
+            long recordingId,
+            RecordingControlCommand command
     ) {
         workspaceAccessValidator.validateAndLock(
                 workspaceId,
@@ -36,6 +39,10 @@ public class RecordingEndService {
         session.validateControlledBy(
                 workspaceId,
                 memberId
+        );
+        session.validateControlProof(
+                command.tabId(),
+                controlTokenHasher.hash(command.controlToken())
         );
         session.end(
                 clock.instant()
