@@ -137,15 +137,12 @@ public class DocumentMarkdownValidator {
     }
 
     private void validateSectionBody(String body) {
-        if (BLANK.matcher(body)
-                .matches()) {
+        if (body.lines()
+                .noneMatch(this::isBodyLine)) {
             throw invalidResponse();
         }
         boolean onlyPlaceholders = body.lines()
-                .filter(
-                        line -> !BLANK.matcher(line)
-                                .matches()
-                )
+                .filter(this::isBodyLine)
                 .map(String::strip)
                 .map(
                         line -> line.replaceFirst(
@@ -166,6 +163,16 @@ public class DocumentMarkdownValidator {
         if (onlyPlaceholders) {
             throw invalidResponse();
         }
+    }
+
+    private boolean isBodyLine(String line) {
+        if (BLANK.matcher(line)
+                .matches()
+                || FENCE.matcher(line)
+                        .matches()) {
+            return false;
+        }
+        return !line.matches("^ {0,3}#{1,6}[ \\t]+.*|^\\s*[-*+]\\s*$");
     }
 
     private void validateLinks(String value) {

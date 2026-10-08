@@ -89,4 +89,19 @@ class DocumentMarkdownValidatorTest {
                 )
         ).hasMessage(DocumentErrorCode.INVALID_DOCUMENT_GENERATION_RESPONSE.getMessage());
     }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"## 핵심 요약\n### 요약 제목만 있음", "## 핵심 요약\n```text\n```", "## 핵심 요약\n-"})
+    @DisplayName("heading·빈 코드 블록·빈 목록만 있으면 본문으로 인정하지 않는다")
+    void validate_failure_markupOnlyBody(String content) {
+        assertThatThrownBy(
+                () -> validator.validate(
+                        new DocumentGenerationResult(
+                                "제목",
+                                null,
+                                content
+                        )
+                )
+        ).hasMessage(DocumentErrorCode.INVALID_DOCUMENT_GENERATION_RESPONSE.getMessage());
+    }
 }
