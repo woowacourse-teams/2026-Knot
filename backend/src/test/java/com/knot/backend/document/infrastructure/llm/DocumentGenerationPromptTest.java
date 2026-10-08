@@ -115,11 +115,11 @@ class DocumentGenerationPromptTest {
         assertThat(
                 request.options()
                         .thinkingEnabled()
-        ).isTrue();
+        ).isFalse();
         assertThat(
                 request.options()
                         .thinkingBudgetTokens()
-        ).isEqualTo(512);
+        ).isNull();
         assertThat(
                 request.options()
                         .maxTokens()

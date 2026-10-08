@@ -109,8 +109,8 @@ public class DocumentGenerationPrompt {
                 0.9,
                 20,
                 1.0,
-                true,
-                512,
+                false,
+                null,
                 4096
         );
     }

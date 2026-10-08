@@ -91,11 +91,8 @@ class DocumentGenerationIntegrationTest {
             assertThat(
                     request.path("reasoning")
                             .asString()
-            ).isEqualTo("on");
-            assertThat(
-                    request.path("reasoning_budget")
-                            .asInt()
-            ).isEqualTo(512);
+            ).isEqualTo("off");
+            assertThat(request.has("reasoning_budget")).isFalse();
             assertThat(
                     request.path("max_tokens")
                             .asInt()
