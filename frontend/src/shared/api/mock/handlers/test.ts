@@ -9,6 +9,7 @@ import {
   PostChatSessionResponseDto,
 } from "@api/dto/chatSession";
 import {
+  GetRecordingResponseDto,
   PostRecordingAudioUploadCompleteResponseDto,
   PostRecordingAudioUploadUrlResponseDto,
   PostRecordingEndResponseDto,
@@ -50,6 +51,7 @@ import { startNotionOAuthApi } from "@api/fetch/api/v1/workspaces/[workspaceId]/
 import { issueWorkspaceInvitationApi } from "@api/fetch/api/v1/workspaces/[workspaceId]/invitations";
 import { reissueWorkspaceInvitationApi } from "@api/fetch/api/v1/workspaces/[workspaceId]/invitations/reissue";
 import { startRecordingApi } from "@api/fetch/api/v1/workspaces/[workspaceId]/recordings";
+import { getRecordingApi } from "@api/fetch/api/v1/workspaces/[workspaceId]/recordings/[recordingId]";
 import { completeRecordingAudioUploadApi } from "@api/fetch/api/v1/workspaces/[workspaceId]/recordings/[recordingId]/audioUploadComplete";
 import {
   issueRecordingAudioUploadUrlApi,
@@ -58,6 +60,7 @@ import {
 import { endRecordingApi } from "@api/fetch/api/v1/workspaces/[workspaceId]/recordings/[recordingId]/end";
 import { pauseRecordingApi } from "@api/fetch/api/v1/workspaces/[workspaceId]/recordings/[recordingId]/pause";
 import { resumeRecordingApi } from "@api/fetch/api/v1/workspaces/[workspaceId]/recordings/[recordingId]/resume";
+import { HTTP_ERROR_TYPE } from "@api/httpClient/error";
 import { csrfTokenResponse, meResponse } from "@api/mock/responses/auth";
 import {
   notionConnectionResponse,
@@ -71,6 +74,7 @@ import {
 import {
   recordingAudioUploadCompleteResponse,
   recordingAudioUploadUrlResponse,
+  recordingDetailsResponse,
   recordingEndResponse,
   recordingPauseResponse,
   recordingResumeResponse,
@@ -303,6 +307,27 @@ describe("mock 기본 핸들러와 fetch 요청 함수의 대응", () => {
           recordingAudioUploadCompleteResponse,
         ),
       );
+    });
+
+    it("GET .../recordings/:recordingId는 recordingDetailsResponse에서 그 녹음을 찾아 돌려준다", async () => {
+      // 상태가 서로 다른 녹음을 모두 물어, 핸들러가 id로 골라 주는지 확인해요
+      for (const recording of recordingDetailsResponse) {
+        await expect(
+          getRecordingApi({
+            workspaceId: WORKSPACE_ID,
+            recordingId: recording.recordingId,
+          }),
+        ).resolves.toEqual(new GetRecordingResponseDto(recording));
+      }
+    });
+
+    it("recordingDetailsResponse에 없는 녹음을 물으면 404 RECORDING_NOT_FOUND로 답한다", async () => {
+      await expect(
+        getRecordingApi({ workspaceId: WORKSPACE_ID, recordingId: 999 }),
+      ).rejects.toMatchObject({
+        type: HTTP_ERROR_TYPE.notFound,
+        code: "RECORDING_NOT_FOUND",
+      });
     });
   });
 });

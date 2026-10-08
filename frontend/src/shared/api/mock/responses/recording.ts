@@ -1,6 +1,7 @@
 import type {
   RecordingAudioUploadCompleteResponse,
   RecordingAudioUploadUrlResponse,
+  RecordingDetailResponse,
   RecordingEndResponse,
   RecordingPauseResponse,
   RecordingResumeResponse,
@@ -43,6 +44,74 @@ export const recordingEndResponse = {
   status: "ENDED",
   endedAt: fromNow(0),
 } satisfies RecordingEndResponse;
+
+// 32분 녹음을 8분 전에 끝낸 뒤의 공통 값이에요
+const endedRecording = {
+  sessionStatus: "ENDED",
+  startedAt: fromNow(-40 * MINUTE),
+  endedAt: fromNow(-8 * MINUTE),
+  durationMillis: 32 * MINUTE,
+} satisfies Partial<RecordingDetailResponse>;
+
+// 녹음을 끝낸 뒤의 상태를 녹음마다 하나씩 둬, 정리 화면 주소의 녹음 ID만 바꿔 각 상태를 볼 수 있어요.
+// 10은 녹음 시작·종료 mock과 같은 녹음이라, 끝낸 직후에 보게 되는 정리 중으로 뒀어요
+export const recordingDetailsResponse = [
+  {
+    ...endedRecording,
+    recordingId: 10,
+    status: "PROCESSING",
+    audioUploadStatus: "COMPLETED",
+    transcriptionStatus: "SUCCEEDED",
+    documentGenerationStatus: "RUNNING",
+    documentGenerationJobId: 86,
+    failureStage: null,
+    failureReason: null,
+  },
+  {
+    ...endedRecording,
+    recordingId: 11,
+    status: "NO_CONTENT",
+    audioUploadStatus: "COMPLETED",
+    transcriptionStatus: "SUCCEEDED",
+    documentGenerationStatus: "NOT_STARTED",
+    documentGenerationJobId: null,
+    failureStage: null,
+    failureReason: null,
+  },
+  {
+    ...endedRecording,
+    recordingId: 12,
+    status: "FAILED",
+    audioUploadStatus: "COMPLETED",
+    transcriptionStatus: "SUCCEEDED",
+    documentGenerationStatus: "FAILED",
+    documentGenerationJobId: 88,
+    failureStage: "DOCUMENT_GENERATION",
+    failureReason: "DOCUMENT_GENERATION_FAILED",
+  },
+  {
+    ...endedRecording,
+    recordingId: 13,
+    status: "FAILED",
+    audioUploadStatus: "COMPLETED",
+    transcriptionStatus: "FAILED",
+    documentGenerationStatus: "NOT_STARTED",
+    documentGenerationJobId: null,
+    failureStage: "TRANSCRIPTION",
+    failureReason: "TRANSCRIPTION_FAILED",
+  },
+  {
+    ...endedRecording,
+    recordingId: 14,
+    status: "COMPLETED",
+    audioUploadStatus: "COMPLETED",
+    transcriptionStatus: "SUCCEEDED",
+    documentGenerationStatus: "SUCCEEDED",
+    documentGenerationJobId: 87,
+    failureStage: null,
+    failureReason: null,
+  },
+] satisfies RecordingDetailResponse[];
 
 export const recordingAudioUploadUrlResponse = {
   uploadId: 300,
