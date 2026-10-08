@@ -2,10 +2,14 @@ package com.knot.backend.document.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doCallRealMethod;
 
 import com.knot.backend.document.DocumentFixtures;
 import com.knot.backend.document.application.dto.result.DocumentGenerationRegistrationResult;
+import com.knot.backend.document.application.dto.result.DocumentTopicClassificationResult;
 import com.knot.backend.document.domain.DocumentException;
 import com.knot.backend.document.domain.DocumentGenerationJob;
 import com.knot.backend.document.domain.DocumentGenerationJobRepository;
@@ -14,23 +18,30 @@ import com.knot.backend.document.domain.DocumentTopicRegistrationState;
 import com.knot.backend.testsupport.TestApplicationProperties;
 import com.knot.backend.testsupport.TestcontainersConfiguration;
 import com.knot.backend.workspace.domain.WorkspaceRepository;
+import com.knot.backend.workspace.domain.WorkspaceException;
 import com.knot.backend.recording.domain.RecordingException;
 import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.Instant;
+import java.util.List;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.dao.InvalidDataAccessApiUsageException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -49,6 +60,8 @@ class DocumentGenerationRegistrationIntegrationTest {
 
     @Autowired
     private DocumentGenerationIntakeService intake;
+    @Autowired
+    private DocumentClassificationResultService classifications;
     @Autowired
     private DocumentGenerationJobRetryService retries;
     @Autowired
@@ -229,6 +242,225 @@ class DocumentGenerationRegistrationIntegrationTest {
     }
 
     @Test
+    @DisplayName("분류 결과와 주제별 Job을 함께 커밋하고 재전송은 동결된 결과를 반환한다")
+    void completeClassification_success_registeredTopics() {
+        // given
+        long jobId = startClassification();
+        DocumentTopicClassificationResult topics = new DocumentTopicClassificationResult(
+                List.of(
+                        "검색",
+                        "알림"
+                )
+        );
+        // when
+        DocumentGenerationRegistrationResult result = classifications.completeClassification(
+                workspaceId,
+                jobId,
+                1,
+                topics
+        );
+        DocumentGenerationRegistrationResult repeated = classifications.completeClassification(
+                workspaceId,
+                jobId,
+                1,
+                topics
+        );
+        // then
+        assertThat(result).isEqualTo(repeated);
+        assertThat(result.registrationState()).isEqualTo(DocumentTopicRegistrationState.TOPICS_REGISTERED);
+        assertThat(result.generationJobIds()).hasSize(2);
+        assertThat(count("document_generation_jobs")).isEqualTo(3);
+        assertThat(
+                jdbc.sql("SELECT topic FROM document_generation_batch_topics ORDER BY position")
+                        .query(String.class)
+                        .list()
+        ).containsExactly(
+                "검색",
+                "알림"
+        );
+        assertThat(status(jobId)).isEqualTo("SUCCEEDED");
+    }
+
+    @Test
+    @DisplayName("분류와 등록 사이 또는 Job 저장 이후 장애는 모든 변경을 롤백한다")
+    void completeClassification_failure_registrationRollback() {
+        // given
+        long jobId = startClassification();
+        doAnswer(invocation -> {
+            invocation.callRealMethod();
+            throw new IllegalStateException("등록 후 장애");
+        }).when(jobs)
+                .flush();
+        // when & then
+        assertThatThrownBy(
+                () -> classifications.completeClassification(
+                        workspaceId,
+                        jobId,
+                        1,
+                        new DocumentTopicClassificationResult(
+                                List.of(
+                                        "검색",
+                                        "알림"
+                                )
+                        )
+                )
+        ).isInstanceOf(InvalidDataAccessApiUsageException.class);
+        assertThat(count("document_generation_jobs")).isEqualTo(1);
+        assertThat(count("document_generation_batch_topics")).isZero();
+        assertThat(status(jobId)).isEqualTo("RUNNING");
+        assertThat(accept().registrationState()).isEqualTo(DocumentTopicRegistrationState.WAITING_CLASSIFICATION);
+    }
+
+    @Test
+    @DisplayName("내용 없음은 원문 정리 후 지연 통지가 와도 새 작업을 만들지 않는다")
+    void completeClassification_success_retainedNoContent() {
+        // given
+        long jobId = startClassification();
+        classifications.completeClassification(
+                workspaceId,
+                jobId,
+                1,
+                new DocumentTopicClassificationResult(List.of())
+        );
+        when(clock.instant()).thenReturn(NOW.plusSeconds(1));
+        classifications.completeClassification(
+                workspaceId,
+                jobId,
+                1,
+                new DocumentTopicClassificationResult(List.of())
+        );
+        jdbc.sql("DELETE FROM document_generation_jobs")
+                .update();
+        jdbc.sql("UPDATE document_generation_batches SET transcript_id = NULL")
+                .update();
+        jdbc.sql("DELETE FROM transcripts")
+                .update();
+        when(clock.instant()).thenReturn(NOW.plusSeconds(3600));
+        // when
+        DocumentGenerationRegistrationResult delayed = accept();
+        // then
+        assertThat(delayed.registrationState()).isEqualTo(DocumentTopicRegistrationState.NO_CONTENT);
+        assertThat(cleanupTime()).isEqualTo(NOW);
+        assertThat(count("document_generation_jobs")).isZero();
+    }
+
+    @Test
+    @DisplayName("분류 결과의 동시 전송도 주제별 생성 Job을 한 번만 등록한다")
+    void completeClassification_success_concurrent() throws Exception {
+        // given
+        long classifier = startClassification();
+        DocumentTopicClassificationResult topics = new DocumentTopicClassificationResult(
+                List.of(
+                        "검색",
+                        "알림"
+                )
+        );
+        CyclicBarrier start = new CyclicBarrier(2);
+        try (ExecutorService executor = Executors.newFixedThreadPool(2)) {
+            // when
+            Future<DocumentGenerationRegistrationResult> first = executor.submit(() -> {
+                start.await();
+                return classifications.completeClassification(
+                        workspaceId,
+                        classifier,
+                        1,
+                        topics
+                );
+            });
+            Future<DocumentGenerationRegistrationResult> second = executor.submit(() -> {
+                start.await();
+                return classifications.completeClassification(
+                        workspaceId,
+                        classifier,
+                        1,
+                        topics
+                );
+            });
+            // then
+            assertThat(
+                    first.get(
+                            10,
+                            TimeUnit.SECONDS
+                    )
+            ).isEqualTo(
+                    second.get(
+                            10,
+                            TimeUnit.SECONDS
+                    )
+            );
+            assertThat(count("document_generation_jobs")).isEqualTo(3);
+        }
+    }
+
+    @Test
+    @DisplayName("첫 주제 저장 후 장애가 나도 다음 실행에서 누락 없이 모든 주제를 등록한다")
+    void completeClassification_success_replayAfterInterruptedRegistration() {
+        // given
+        long classifier = startClassification();
+        AtomicInteger saves = new AtomicInteger();
+        doAnswer(invocation -> {
+            invocation.callRealMethod();
+            if (saves.incrementAndGet() == 2) {
+                throw new IllegalStateException("두 번째 주제 저장 후 장애");
+            }
+            return invocation.getArgument(0);
+        }).when(jobs)
+                .save(any(DocumentGenerationJob.class));
+        DocumentTopicClassificationResult topics = new DocumentTopicClassificationResult(
+                List.of(
+                        "검색",
+                        "알림"
+                )
+        );
+        // when & then
+        assertThatThrownBy(
+                () -> classifications.completeClassification(
+                        workspaceId,
+                        classifier,
+                        1,
+                        topics
+                )
+        ).isInstanceOf(InvalidDataAccessApiUsageException.class);
+        assertThat(count("document_generation_jobs")).isEqualTo(1);
+        assertThat(count("document_generation_batch_topics")).isZero();
+        doCallRealMethod().when(jobs)
+                .save(any(DocumentGenerationJob.class));
+        assertThat(
+                classifications.completeClassification(
+                        workspaceId,
+                        classifier,
+                        1,
+                        topics
+                )
+                        .generationJobIds()
+        ).hasSize(2);
+    }
+
+    @Test
+    @DisplayName("주제 목록 flush 직후 장애도 등록 완료와 분류 성공을 남기지 않는다")
+    void completeClassification_failure_topicsFlushRollback() {
+        // given
+        long classifier = startClassification();
+        doAnswer(invocation -> {
+            invocation.callRealMethod();
+            throw new IllegalStateException("주제 목록 저장 직후 장애");
+        }).when(batches)
+                .saveAndFlush(any());
+        // when & then
+        assertThatThrownBy(
+                () -> classifications.completeClassification(
+                        workspaceId,
+                        classifier,
+                        1,
+                        new DocumentTopicClassificationResult(List.of("검색"))
+                )
+        ).isInstanceOf(InvalidDataAccessApiUsageException.class);
+        assertThat(count("document_generation_batch_topics")).isZero();
+        assertThat(count("document_generation_jobs")).isEqualTo(1);
+        assertThat(status(classifier)).isEqualTo("RUNNING");
+    }
+
+    @Test
     @DisplayName("녹음자가 탈퇴했어도 정상 종료한 녹음의 자동 접수는 유지한다")
     void acceptCompletedTranscript_success_recorderLeft() {
         // given
@@ -255,6 +487,161 @@ class DocumentGenerationRegistrationIntegrationTest {
         // when & then
         assertThatThrownBy(this::accept).isInstanceOf(RecordingException.class);
         assertThat(count("document_generation_batches")).isZero();
+    }
+
+    @Test
+    @DisplayName("삭제한 Workspace는 원문 접수와 분류 결과 모두 거절한다")
+    void completeClassification_failure_deletedWorkspace() {
+        // given
+        long classifier = startClassification();
+        jdbc.sql("UPDATE workspaces SET deleted_at = :time WHERE id = :id")
+                .param(
+                        "time",
+                        Timestamp.from(NOW)
+                )
+                .param(
+                        "id",
+                        workspaceId
+                )
+                .update();
+        // when & then
+        assertThatThrownBy(this::accept).isInstanceOf(WorkspaceException.class);
+        assertThatThrownBy(
+                () -> classifications.completeClassification(
+                        workspaceId,
+                        classifier,
+                        1,
+                        new DocumentTopicClassificationResult(List.of("검색"))
+                )
+        ).isInstanceOf(WorkspaceException.class);
+        assertThat(status(classifier)).isEqualTo("RUNNING");
+    }
+
+    @Test
+    @DisplayName("등록한 주제가 같아도 서로 다른 녹음은 별도 생성 대상으로 유지한다")
+    void completeClassification_success_sameTopicOtherRecording() {
+        // given
+        long firstClassifier = startClassification();
+        long otherRecording = fixtures.saveRecording(
+                workspaceId,
+                memberId,
+                10000
+        );
+        long otherTranscript = fixtures.saveTranscript(otherRecording);
+        long secondClassifier = transactions.execute(
+                status -> intake.acceptCompletedTranscript(
+                        workspaceId,
+                        otherRecording,
+                        otherTranscript
+                )
+        )
+                .classificationJobId();
+        startJob(secondClassifier);
+        DocumentTopicClassificationResult topics = new DocumentTopicClassificationResult(List.of("검색"));
+        // when
+        classifications.completeClassification(
+                workspaceId,
+                firstClassifier,
+                1,
+                topics
+        );
+        classifications.completeClassification(
+                workspaceId,
+                secondClassifier,
+                1,
+                topics
+        );
+        // then
+        assertThat(count("document_generation_batches")).isEqualTo(2);
+        assertThat(count("document_generation_jobs")).isEqualTo(4);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"topic = '미등록 주제'", "stage = 'UNKNOWN'", "stage = 'CLASSIFICATION'",
+            "transcript_id = 999999"})
+    @DisplayName("DB도 미등록 주제·잘못된 단계·다른 입력 연결을 거절한다")
+    void persist_failure_invalidJobTarget(String assignment) {
+        // given
+        long classifier = startClassification();
+        long generator = classifications.completeClassification(
+                workspaceId,
+                classifier,
+                1,
+                new DocumentTopicClassificationResult(List.of("검색"))
+        )
+                .generationJobIds()
+                .getFirst();
+        // when & then
+        assertThatThrownBy(
+                () -> jdbc.sql("UPDATE document_generation_jobs SET " + assignment + " WHERE id = :id")
+                        .param(
+                                "id",
+                                generator
+                        )
+                        .update()
+        ).isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    @DisplayName("DB도 분류 Job과 같은 주제 Job의 중복 생성을 거절한다")
+    void persist_failure_duplicateJobs() {
+        // given
+        long classifier = startClassification();
+        long generator = classifications.completeClassification(
+                workspaceId,
+                classifier,
+                1,
+                new DocumentTopicClassificationResult(List.of("검색"))
+        )
+                .generationJobIds()
+                .getFirst();
+        // when & then
+        for (long source : List.of(
+                classifier,
+                generator
+        )) {
+            assertThatThrownBy(
+                    () -> jdbc
+                            .sql(
+                                    """
+                                            INSERT INTO document_generation_jobs (batch_id, transcript_id, stage, topic, status, created_at, updated_at)
+                                            SELECT batch_id, transcript_id, stage, topic, 'QUEUED', created_at, updated_at
+                                            FROM document_generation_jobs WHERE id = :id
+                                            """
+                            )
+                            .param(
+                                    "id",
+                                    source
+                            )
+                            .update()
+            ).isInstanceOf(DataIntegrityViolationException.class);
+        }
+    }
+
+    @Test
+    @DisplayName("분류 대기 입력을 제거하거나 다른 녹음의 원문으로 바꾸지 못한다")
+    void persist_failure_invalidBatchInput() {
+        // given
+        accept();
+        long foreignRecording = fixtures.saveRecording(
+                workspaceId,
+                memberId,
+                10000
+        );
+        long foreignTranscript = fixtures.saveTranscript(foreignRecording);
+        // when & then
+        assertThatThrownBy(
+                () -> jdbc.sql("UPDATE document_generation_batches SET transcript_id = NULL")
+                        .update()
+        ).isInstanceOf(DataIntegrityViolationException.class);
+        assertThatThrownBy(
+                () -> jdbc.sql("UPDATE document_generation_batches SET transcript_id = :id")
+                        .param(
+                                "id",
+                                foreignTranscript
+                        )
+                        .update()
+        ).isInstanceOf(DataIntegrityViolationException.class);
     }
 
     @Test
