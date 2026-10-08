@@ -4,6 +4,7 @@ import com.knot.backend.document.application.dto.result.DocumentGenerationResult
 import com.knot.backend.document.domain.DocumentErrorCode;
 import com.knot.backend.document.domain.DocumentException;
 import com.knot.backend.global.infrastructure.llm.LlmClient;
+import com.knot.backend.global.infrastructure.llm.LlmCompletionRequest;
 import java.util.regex.Pattern;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
@@ -44,27 +45,28 @@ public class DocumentGenerator {
             String transcriptContent,
             String topic
     ) {
-        JsonNode root = readResponse(
-                client.complete(
-                        prompt.createRequest(
-                                transcriptContent,
-                                topic
-                        )
-                )
+        LlmCompletionRequest request = prompt.createRequest(
+                transcriptContent,
+                topic
         );
+        String response = client.complete(request);
+        JsonNode root = readResponse(response);
         validateResponseFields(root);
-        DocumentGenerationResult result = new DocumentGenerationResult(
-                stripOuterWhitespace(
-                        readRequiredText(
-                                root,
-                                "title"
-                        )
-                ),
-                readSummary(root),
+        String title = stripOuterWhitespace(
                 readRequiredText(
                         root,
-                        "content"
+                        "title"
                 )
+        );
+        String summary = readSummary(root);
+        String content = readRequiredText(
+                root,
+                "content"
+        );
+        DocumentGenerationResult result = new DocumentGenerationResult(
+                title,
+                summary,
+                content
         );
         validator.validate(result);
         return result;
