@@ -33,6 +33,16 @@ public enum DocumentErrorCode implements ErrorCode {
             "RETRY_NOT_ALLOWED",
             "문서 생성 작업을 재시도할 수 없습니다"
     ),
+    INVALID_TOPIC_CLASSIFICATION_INPUT(
+            ErrorCategory.INTERNAL_SERVER_ERROR,
+            "INVALID_TOPIC_CLASSIFICATION_INPUT",
+            "주제 분류에 사용할 저장 원문이 올바르지 않습니다"
+    ),
+    INVALID_TOPIC_CLASSIFICATION_RESPONSE(
+            ErrorCategory.INTERNAL_SERVER_ERROR,
+            "INVALID_TOPIC_CLASSIFICATION_RESPONSE",
+            "주제 분류 응답이 올바르지 않습니다"
+    ),
     INVALID_DOCUMENT_DATA(
             ErrorCategory.INVALID_INPUT,
             "INVALID_DOCUMENT_DATA",
