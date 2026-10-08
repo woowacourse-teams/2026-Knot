@@ -31,6 +31,7 @@ __pycache__/
 
 # Local Notion exports and LLM benchmark results
 /.benchmark-data/
+/backend/docs/notion/
 
 # Storybook
 storybook-static/
