@@ -5,6 +5,8 @@ import java.util.Optional;
 
 public interface DocumentRepository {
 
+    Document save(Document document);
+
     Optional<Document> findByWorkspaceIdAndIdForUpdate(
             long workspaceId,
             long documentId

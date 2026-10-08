@@ -11,7 +11,13 @@ import org.springframework.stereotype.Repository;
 @Repository
 @RequiredArgsConstructor
 public class DocumentRepositoryAdapter implements DocumentRepository {
+
     private final DocumentJpaRepository repository;
+
+    @Override
+    public Document save(Document document) {
+        return repository.save(document);
+    }
 
     @Override
     public Optional<Document> findByWorkspaceIdAndIdForUpdate(

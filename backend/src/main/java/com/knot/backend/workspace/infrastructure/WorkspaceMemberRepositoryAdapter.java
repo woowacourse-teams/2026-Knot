@@ -9,6 +9,7 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public class WorkspaceMemberRepositoryAdapter implements WorkspaceMemberRepository {
+
     private final WorkspaceMemberJpaRepository workspaceMemberJpaRepository;
 
     public WorkspaceMemberRepositoryAdapter(WorkspaceMemberJpaRepository workspaceMemberJpaRepository) {
@@ -60,6 +61,11 @@ public class WorkspaceMemberRepositoryAdapter implements WorkspaceMemberReposito
     @Override
     public long countActiveByWorkspaceId(Long workspaceId) {
         return workspaceMemberJpaRepository.countActiveByWorkspaceId(workspaceId);
+    }
+
+    @Override
+    public List<Long> findActiveMemberIdsByWorkspaceId(long workspaceId) {
+        return workspaceMemberJpaRepository.findActiveMemberIdsByWorkspaceId(workspaceId);
     }
 
     @Override
