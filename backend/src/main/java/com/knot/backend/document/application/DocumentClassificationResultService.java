@@ -77,6 +77,28 @@ public class DocumentClassificationResultService {
         return result(batch);
     }
 
+    @Transactional(isolation = Isolation.READ_COMMITTED)
+    public void failClassification(
+            long workspaceId,
+            long jobId,
+            int expectedAttemptCount
+    ) {
+        DocumentGenerationJob job = lockClassification(
+                workspaceId,
+                jobId,
+                expectedAttemptCount
+        );
+        if (job.getStatus() == DocumentGenerationJobStatus.FAILED) {
+            return;
+        }
+        job.validateRunningAttempt(expectedAttemptCount);
+        job.recordFailure(
+                clock.instant()
+                        .truncatedTo(ChronoUnit.MICROS)
+        );
+        jobs.flush();
+    }
+
     private DocumentGenerationJob lockClassification(
             long workspaceId,
             long jobId,

@@ -10,6 +10,7 @@ import static org.mockito.Mockito.doCallRealMethod;
 import com.knot.backend.document.DocumentFixtures;
 import com.knot.backend.document.application.dto.result.DocumentGenerationRegistrationResult;
 import com.knot.backend.document.application.dto.result.DocumentTopicClassificationResult;
+import com.knot.backend.document.application.dto.result.DocumentGenerationJobItemResult;
 import com.knot.backend.document.domain.DocumentException;
 import com.knot.backend.document.domain.DocumentGenerationJob;
 import com.knot.backend.document.domain.DocumentGenerationJobRepository;
@@ -31,6 +32,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
@@ -342,6 +344,123 @@ class DocumentGenerationRegistrationIntegrationTest {
         assertThat(delayed.registrationState()).isEqualTo(DocumentTopicRegistrationState.NO_CONTENT);
         assertThat(cleanupTime()).isEqualTo(NOW);
         assertThat(count("document_generation_jobs")).isZero();
+    }
+
+    @Test
+    @DisplayName("분류 실패는 기존 재시도 API로 같은 Job을 재접수하고 이전 결과는 거절한다")
+    void failClassification_success_retryAndRejectStaleResult() {
+        // given
+        long jobId = startClassification();
+        classifications.failClassification(
+                workspaceId,
+                jobId,
+                1
+        );
+        Instant firstExpiry = jobTime(
+                jobId,
+                "expires_at"
+        );
+        when(clock.instant()).thenReturn(NOW.plusSeconds(1));
+        classifications.failClassification(
+                workspaceId,
+                jobId,
+                1
+        );
+        // when
+        retries.retry(
+                workspaceId,
+                memberId,
+                jobId
+        );
+        startJob(jobId);
+        // then
+        assertThat(
+                jobTime(
+                        jobId,
+                        "expires_at"
+                )
+        ).isEqualTo(firstExpiry);
+        assertThatThrownBy(
+                () -> classifications.completeClassification(
+                        workspaceId,
+                        jobId,
+                        1,
+                        new DocumentTopicClassificationResult(List.of("검색"))
+                )
+        ).isInstanceOf(DocumentException.class);
+        assertThat(
+                classifications.completeClassification(
+                        workspaceId,
+                        jobId,
+                        2,
+                        new DocumentTopicClassificationResult(List.of("검색"))
+                )
+                        .generationJobIds()
+        ).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("다른 결과 재전송과 생성 Job의 분류 결과 반영은 거절한다")
+    void completeClassification_failure_conflictingResultAndStage() {
+        // given
+        long classifier = startClassification();
+        long generator = classifications.completeClassification(
+                workspaceId,
+                classifier,
+                1,
+                new DocumentTopicClassificationResult(List.of("검색"))
+        )
+                .generationJobIds()
+                .getFirst();
+        // when & then
+        assertThatThrownBy(
+                () -> classifications.completeClassification(
+                        workspaceId,
+                        classifier,
+                        1,
+                        new DocumentTopicClassificationResult(List.of("알림"))
+                )
+        ).isInstanceOf(DocumentException.class);
+        assertThatThrownBy(
+                () -> classifications.failClassification(
+                        workspaceId,
+                        generator,
+                        1
+                )
+        ).isInstanceOf(DocumentException.class);
+        assertThat(count("document_generation_jobs")).isEqualTo(2);
+        assertThatThrownBy(
+                () -> classifications.failClassification(
+                        workspaceId,
+                        classifier,
+                        1
+                )
+        ).isInstanceOf(DocumentException.class);
+        assertThat(status(classifier)).isEqualTo("SUCCEEDED");
+    }
+
+    @Test
+    @DisplayName("시작 전 분류 성공과 실패는 상태를 바꾸지 않는다")
+    void completeClassification_failure_notRunning() {
+        // given
+        long classifier = accept().classificationJobId();
+        // when & then
+        assertThatThrownBy(
+                () -> classifications.completeClassification(
+                        workspaceId,
+                        classifier,
+                        1,
+                        new DocumentTopicClassificationResult(List.of("검색"))
+                )
+        ).isInstanceOf(DocumentException.class);
+        assertThatThrownBy(
+                () -> classifications.failClassification(
+                        workspaceId,
+                        classifier,
+                        1
+                )
+        ).isInstanceOf(DocumentException.class);
+        assertThat(status(classifier)).isEqualTo("QUEUED");
     }
 
     @Test
@@ -667,6 +786,120 @@ class DocumentGenerationRegistrationIntegrationTest {
         assertThat(count("transcripts")).isEqualTo(1);
         assertThat(count("transcript_segments")).isEqualTo(1);
         assertThat(count("document_generation_jobs")).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("생산자가 먼저 Workspace를 잠그면 삭제는 접수 커밋까지 기다리고 이후 결과는 거절된다")
+    void acceptCompletedTranscript_success_workspaceDeletionWaits() throws Exception {
+        // given
+        jdbc.sql("DELETE FROM transcripts")
+                .update();
+        CountDownLatch locked = new CountDownLatch(1);
+        CountDownLatch finishProducer = new CountDownLatch(1);
+        AtomicLong producerPid = new AtomicLong();
+        try (ExecutorService executor = Executors.newFixedThreadPool(2)) {
+            Future<DocumentGenerationRegistrationResult> producer = executor
+                    .submit(() -> transactions.execute(status -> {
+                        workspaces.findByIdForUpdate(workspaceId)
+                                .orElseThrow();
+                        producerPid.set(
+                                jdbc.sql("SELECT pg_backend_pid()")
+                                        .query(Long.class)
+                                        .single()
+                        );
+                        locked.countDown();
+                        awaitSignal(finishProducer);
+                        long saved = fixtures.saveTranscript(recordingId);
+                        saveSegment(saved);
+                        return intake.acceptCompletedTranscript(
+                                workspaceId,
+                                recordingId,
+                                saved
+                        );
+                    }));
+            try {
+                assertThat(
+                        locked.await(
+                                10,
+                                TimeUnit.SECONDS
+                        )
+                ).isTrue();
+                Future<?> deletion = executor.submit(
+                        () -> transactions.executeWithoutResult(
+                                status -> workspaces.findByIdForUpdate(workspaceId)
+                                        .orElseThrow()
+                                        .delete(NOW)
+                        )
+                );
+                // when
+                awaitDatabaseWaiter(producerPid.get());
+                finishProducer.countDown();
+                DocumentGenerationRegistrationResult result = producer.get(
+                        10,
+                        TimeUnit.SECONDS
+                );
+                deletion.get(
+                        10,
+                        TimeUnit.SECONDS
+                );
+                // then
+                assertThat(count("transcript_segments")).isEqualTo(1);
+                assertThat(count("document_generation_jobs")).isEqualTo(1);
+                assertThatThrownBy(
+                        () -> classifications.failClassification(
+                                workspaceId,
+                                result.classificationJobId(),
+                                1
+                        )
+                ).isInstanceOf(WorkspaceException.class);
+            } finally {
+                finishProducer.countDown();
+            }
+        }
+    }
+
+    @Test
+    @DisplayName("분류 실패도 본인 진행 목록과 같은 ID 재시도에 연결되고 성공 후 제외된다")
+    void failClassification_success_existingJobList() {
+        // given
+        long classifier = startClassification();
+        classifications.failClassification(
+                workspaceId,
+                classifier,
+                1
+        );
+        // when
+        List<DocumentGenerationJobItemResult> failed = jobList.findPage(
+                workspaceId,
+                memberId,
+                20,
+                null,
+                NOW
+        );
+        retries.retry(
+                workspaceId,
+                memberId,
+                classifier
+        );
+        startJob(classifier);
+        classifications.completeClassification(
+                workspaceId,
+                classifier,
+                2,
+                new DocumentTopicClassificationResult(List.of())
+        );
+        // then
+        assertThat(failed).extracting(DocumentGenerationJobItemResult::jobId)
+                .containsExactly(classifier);
+        assertThat(
+                jobList.findPage(
+                        workspaceId,
+                        memberId,
+                        20,
+                        null,
+                        NOW
+                )
+        ).isEmpty();
     }
 
     private void saveSegment(long inputId) {
