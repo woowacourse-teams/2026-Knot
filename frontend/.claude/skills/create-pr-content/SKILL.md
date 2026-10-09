@@ -1,10 +1,10 @@
 ---
 name: create-pr-content
-description: 현재 브랜치 HEAD 커밋과 develop 브랜치 커밋의 변경사항을 비교하여 pr 내용을 작성. 최상단 안내 문구는 사용자에게 전달받고, 변경 단위마다 Storybook 캡처 사진과 Storybook·파일 링크를 달며, /explain-diff-html로 만든 변경 설명 페이지를 Artifact로 게시해 PR 본문에 링크
+description: 현재 브랜치 HEAD 커밋과 develop 브랜치 커밋의 변경사항을 비교하여 pr 내용을 작성. 최상단 안내 문구는 사용자에게 전달받고, 변경 단위마다 Storybook 캡처 사진과 Storybook·파일 링크를 달며, /explain-diff-html로 만든 변경 설명 페이지를 Artifact로 게시해 PR 본문에 링크. 작성이 끝나면 이 본문으로 PR을 열지(이미 있으면 본문을 바꿀지) 물어봄
 argument-hint: "[최상단 안내 문구]"
 user-invocable: true
 disable-model-invocation: true
-allowed-tools: Bash(git diff:*), Bash(git log:*), Bash(git branch:*), Bash(git status:*), Bash(gh issue view:*), Bash(gh api:*), Bash(node .claude/skills/create-pr-content/scripts/pr-assets.mjs:*), Bash(bash .claude/skills/create-pr-content/check-writing.sh:*), Bash(mkdir:*), Bash(code:*), Bash(open:*), Bash(date:*), Read, Write, Glob, Grep, Skill, Artifact
+allowed-tools: Bash(git diff:*), Bash(git log:*), Bash(git branch:*), Bash(git status:*), Bash(gh issue view:*), Bash(gh pr view:*), Bash(gh pr create:*), Bash(gh api:*), Bash(node .claude/skills/create-pr-content/scripts/pr-assets.mjs:*), Bash(bash .claude/skills/create-pr-content/check-writing.sh:*), Bash(mkdir:*), Bash(code:*), Bash(open:*), Bash(date:*), Read, Write, Glob, Grep, Skill, Artifact, AskUserQuestion
 ---
 
 # pr 작성 커맨드
@@ -29,6 +29,7 @@ PR 본문의 글은 **핵심만 간단하게** 씀. 자세한 배경과 코드 �
 5. **PR 문서 작성·검사** - 임시 파일에 작성하고 금지 표현 검사를 통과시킴
 6. **열기** - 검사를 통과한 PR 문서는 VS Code로, 사진 폴더는 Finder로 엶
 7. **마무리 안내** - 설명 페이지 공유, 올리지 못한 사진 안내, 빠진 사진·링크 안내
+8. **PR 열기 확인** - 이 본문으로 PR을 열지(이미 있으면 본문을 바꿀지) 사용자에게 묻고, 승인하면 실행함
 
 ---
 
@@ -278,7 +279,7 @@ manifest에서 쓰는 값:
     ```
 
   - `--upload-only`는 manifest에서 `url`이 없거나 올린 뒤 내용이 바뀐 사진과 `diagrams/*.svg`만 올리고, manifest의 `url`을 채움. 이미 올린 사진은 다시 올리지 않음.
-- PR이 없으면(develop 브랜치, 아직 PR을 열지 않은 브랜치) 사진을 올리지 않음.
+- PR이 없으면(develop 브랜치, 아직 PR을 열지 않은 브랜치) 사진을 올리지 않음. PR을 연 뒤에는 8-2의 절차로 올림.
 
 ## 4단계: 변경 설명 페이지 생성·검사·게시
 
@@ -376,6 +377,105 @@ open /tmp/knot-pr/<slug>-assets
 2. 변경 설명 페이지 URL과 공유 안내: "위 링크에 직접 들어가서 페이지의 공유(Share) 메뉴로 공유를 켜 주세요. 켜기 전에는 리뷰어가 열 수 없습니다." 게시가 실패했다면 실패 사실과 로컬 HTML 경로를 대신 알림.
 3. 사진 업로드 안내: 본문에 `{{...}}` 표시가 남았을 때만 알림. "열린 폴더의 사진과 `diagrams/`의 SVG 다이어그램 중 아래 표시에 해당하는 파일을 GitHub PR 편집창에 끌어다 놓아 주소를 받은 뒤, 본문의 `{{...}}` 표시를 받은 주소로 바꿔 주세요." 그리고 남은 표시 목록과 올리지 못한 이유(`upload.warnings`). 모두 올렸다면 "사진은 모두 GitHub에 올려 본문에 넣었습니다."라고만 알림.
 4. 사진이나 링크를 달지 못한 변경 단위와 그 이유, manifest의 `warnings`. (있을 때만)
+
+안내를 보낸 뒤 8단계로 넘어감.
+
+## 8단계: PR 열기 확인 (필수)
+
+7단계 안내를 보낸 뒤 `AskUserQuestion`으로 이 본문으로 PR을 열지 물음. 질문과 선택지 문구도 `writing-rules.md`를 따름.
+
+- 사용자가 승인하기 전에는 PR 생성, 본문 수정 같은 GitHub 쓰기를 하지 않음. 승인은 이번 실행의 PR 생성 또는 본문 수정에만 해당함.
+- push, 라벨, 담당자, 리뷰어, Project 지정은 하지 않음.
+- PR 본문에 `🤖 Generated with Claude Code` 같은 생성 표기를 붙이지 않음.
+- 사용자가 `열지 않기` 또는 `바꾸지 않기`를 고르면 아무것도 하지 않고 끝냄.
+
+### 8-1. PR 상태 확인
+
+```bash
+git branch --show-current
+git status -sb                      # 추적 브랜치 유무, ahead 여부
+gh pr view --json number,url,state  # 현재 브랜치의 PR
+```
+
+| 상태                                                   | 할 일                                                      |
+| ------------------------------------------------------ | ---------------------------------------------------------- |
+| develop 브랜치                                         | 열 PR이 없으므로 묻지 않고 끝냄                            |
+| 열린 PR 있음                                           | 8-3                                                        |
+| PR 없음 (`no pull requests found`), 원격에 HEAD까지 올라감 | 8-2                                                        |
+| PR 없음, 추적 브랜치가 없거나 `ahead`                   | 묻지 않고, push가 필요해 PR을 열 수 없다고 알린 뒤 끝냄    |
+| 닫히거나 병합된 PR만 있음                              | 묻지 않고 그 사실만 알린 뒤 끝냄                           |
+| `gh` 인증 실패, 네트워크 오류                          | 묻지 않고 조회 실패를 알린 뒤 끝냄 (PR 중복 생성 방지)     |
+
+### 8-2. PR이 없을 때: 새로 열기
+
+제목은 2단계에서 조회한 이슈 제목을 쓰고, `[FE]`로 시작하지 않으면 앞에 `[FE] `를 붙임. (서브 이슈 제목에는 접두사가 없음)
+
+- 질문 예: "`[FE] 녹음 페이지 제목 생성 기능 구현` 제목으로 develop 대상 PR을 이 본문으로 열까요?"
+- 선택지: `열기`, `열지 않기`. 사용자가 다른 제목을 답하면 그 제목을 씀.
+
+승인하면 아래를 순서대로 실행함.
+
+1. PR 생성
+
+   ```bash
+   gh pr create --base develop --head <브랜치> --title "<제목>" --body-file /tmp/knot-pr/<slug>-pr.md
+   ```
+
+2. 파일 링크 채우기. 3단계에서는 PR이 없어 파일 링크를 만들지 못했으므로 링크만 다시 받음. 사진 manifest를 덮어쓰지 않도록 다른 폴더에 받음.
+
+   ```bash
+   node .claude/skills/create-pr-content/scripts/pr-assets.mjs --out /tmp/knot-pr/<slug>-links --no-capture
+   ```
+
+   - `<slug>-pr.md`의 `파일` 항목에 백틱 경로로만 적은 파일을 `files[].link`로 바꿔 「링크」 형식(``[`경로`](<diff 링크>) (역할)``)으로 고침.
+   - 고친 뒤 5단계 금지 표현 검사를 다시 통과시키고, 8-4로 PR 본문을 바꿈.
+   - 링크를 받지 못하면 본문을 바꾸지 않고 그 사실만 8-5에서 알림.
+
+3. 사진 올리기. 3단계에서는 PR이 없어 사진을 올리지 못했으므로, PR을 연 뒤 사진과 다이어그램을 올림.
+
+   ```bash
+   node .claude/skills/create-pr-content/scripts/pr-assets.mjs --out /tmp/knot-pr/<slug>-assets --upload-only
+   ```
+
+   - `<slug>-pr.md`의 `{{...}}` 표시를 manifest의 `url`로 바꾸고, 8-4로 PR 본문을 바꿈. 2와 함께 바꿀 수 있으면 한 번에 바꿈.
+   - 올리지 못한 사진은 표시를 그대로 두고, 8-5에서 남은 표시 목록과 `upload.warnings`를 알림.
+
+### 8-3. PR이 있을 때: 본문 바꾸기
+
+- 질문 예: "PR #543 본문을 이 본문으로 바꿀까요? 봇이 붙인 블록은 그대로 두고, 나머지 기존 본문은 새 본문으로 바뀝니다."
+- 선택지: `바꾸기`, `바꾸지 않기`.
+
+승인하면 8-4로 본문을 바꿈.
+
+### 8-4. 본문 바꾸기 절차
+
+`gh pr edit`은 Projects (classic) 오류로 실패하므로 REST API로 바꿈.
+
+1. 현재 본문을 받아 백업함.
+
+   ```bash
+   gh pr view <번호> --json body --jq .body > /tmp/knot-pr/<slug>-pr-before.md
+   ```
+
+   - 명령이 실패했거나 파일이 비어 있으면 **PATCH하지 않고 멈춤.** 네트워크가 끊기면 조회가 빈 값을 돌려주므로, 그 값으로 덮어쓰면 기존 본문이 사라짐.
+
+2. 백업에서 봇이 붙인 블록을 표식째 찾음.
+   - `<!-- storybook-preview:start -->` ~ `<!-- storybook-preview:end -->`
+   - `<!-- This is an auto-generated comment: release notes by coderabbit.ai -->` ~ `<!-- end of auto-generated comment: release notes by coderabbit.ai -->`
+3. `<slug>-pr.md` 뒤에 2의 블록을 원래 순서대로 붙여 `/tmp/knot-pr/<slug>-pr-patch.md`에 씀. `<slug>-pr.md`는 고치지 않음.
+4. PATCH함.
+
+   ```bash
+   gh api -X PATCH repos/woowacourse-teams/2026-Knot/pulls/<번호> -F body=@/tmp/knot-pr/<slug>-pr-patch.md
+   ```
+
+5. `gh pr view <번호> --json body --jq .body`로 다시 받아 새 본문과 봇 블록이 모두 들어갔는지 확인함.
+
+### 8-5. 결과 알림
+
+- PR URL과 한 일(생성, 본문 변경)을 알림. 본문을 바꿨다면 백업 경로(`<slug>-pr-before.md`)도 알림.
+- 새로 연 PR이면 Storybook 봇 블록이 붙기 전이라 Storybook 링크가 비어 있다고 알림.
+- 본문에 `{{...}}` 표시가 남았으면 남은 표시 목록과 `upload.warnings`를 알림.
 
 ---
 
