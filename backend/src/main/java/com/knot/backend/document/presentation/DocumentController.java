@@ -5,6 +5,7 @@ import com.knot.backend.document.application.DocumentConfirmationService;
 import com.knot.backend.document.application.DocumentConfirmationCommandService;
 import com.knot.backend.document.application.DocumentDetailService;
 import com.knot.backend.document.application.DocumentListService;
+import com.knot.backend.document.application.DocumentTranscriptService;
 import com.knot.backend.document.application.dto.query.DocumentListParameters;
 import com.knot.backend.document.domain.MyConfirmationState;
 import com.knot.backend.document.application.dto.query.DocumentConfirmationParameters;
@@ -12,6 +13,7 @@ import com.knot.backend.document.presentation.dto.response.DocumentConfirmations
 import com.knot.backend.document.presentation.dto.response.DocumentConfirmationResponse;
 import com.knot.backend.document.presentation.dto.response.DocumentDetailResponse;
 import com.knot.backend.document.presentation.dto.response.DocumentListResponse;
+import com.knot.backend.document.presentation.dto.response.DocumentTranscriptResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -26,10 +28,27 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class DocumentController implements DocumentApi {
 
+    private final DocumentTranscriptService transcriptService;
     private final DocumentDetailService detailService;
     private final DocumentListService listService;
     private final DocumentConfirmationService confirmationService;
     private final DocumentConfirmationCommandService confirmationCommandService;
+
+    @Override
+    @GetMapping("/{documentId}/transcript")
+    public DocumentTranscriptResponse findTranscript(
+            @PathVariable Long workspaceId,
+            @PathVariable Long documentId,
+            @AuthenticationPrincipal AuthenticatedMember authenticatedMember
+    ) {
+        return DocumentTranscriptResponse.from(
+                transcriptService.find(
+                        workspaceId,
+                        authenticatedMember.getMemberId(),
+                        documentId
+                )
+        );
+    }
 
     @Override
     @PutMapping("/{documentId}/confirmations/me")
