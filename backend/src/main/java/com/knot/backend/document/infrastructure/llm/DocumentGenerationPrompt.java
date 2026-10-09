@@ -22,7 +22,6 @@ import tools.jackson.databind.ObjectMapper;
 @Component
 @ConditionalOnProperty(prefix = "knot.llm", name = "enabled", havingValue = "true")
 public class DocumentGenerationPrompt {
-
     private static final Pattern BLANK = Pattern.compile("[\\p{javaWhitespace}\\p{Z}]*");
 
     private final ObjectMapper mapper;
