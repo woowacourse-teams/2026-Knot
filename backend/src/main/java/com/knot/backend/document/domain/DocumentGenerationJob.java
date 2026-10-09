@@ -21,6 +21,7 @@ public class DocumentGenerationJob {
 
     private static final Duration FAILURE_RETENTION = Duration.ofDays(7);
     private static final int MAX_USER_RETRIES = 3;
+    private static final Duration DEFAULT_EXECUTION_LEASE = Duration.ofSeconds(150);
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -64,6 +65,16 @@ public class DocumentGenerationJob {
     @Column(name = "automatic_retry_count", nullable = false)
     private int automaticRetryCount;
 
+    @Column(name = "next_attempt_at")
+    private Instant nextAttemptAt;
+
+    @Column(name = "execution_deadline_at")
+    private Instant executionDeadlineAt;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "failure_cause", length = 30)
+    private DocumentGenerationFailureCause failureCause;
+
     protected DocumentGenerationJob() {}
 
     private DocumentGenerationJob(
@@ -84,6 +95,7 @@ public class DocumentGenerationJob {
         this.createdAt = createdAt;
         this.updatedAt = createdAt;
         this.attemptCount = 1;
+        this.nextAttemptAt = createdAt;
     }
 
     public static DocumentGenerationJob queueClassification(
@@ -124,12 +136,53 @@ public class DocumentGenerationJob {
     }
 
     public void startRunning(Instant startedAt) {
+        validateFailureTime(startedAt);
+        startRunning(
+                startedAt,
+                startedAt.plus(DEFAULT_EXECUTION_LEASE)
+        );
+    }
+
+    public boolean isReadyAt(Instant now) {
+        return status == DocumentGenerationJobStatus.QUEUED && nextAttemptAt != null && !now.isBefore(nextAttemptAt);
+    }
+
+    public boolean isExpiredAt(Instant now) {
+        return status == DocumentGenerationJobStatus.RUNNING && executionDeadlineAt != null
+                && !now.isBefore(executionDeadlineAt);
+    }
+
+    public boolean canRetryAutomatically() {
+        return automaticRetryCount < 1 && attemptCount < Integer.MAX_VALUE;
+    }
+
+    public void startRunning(
+            Instant startedAt,
+            Instant deadline
+    ) {
         if (status != DocumentGenerationJobStatus.QUEUED) {
             throw new DocumentException(DocumentErrorCode.GENERATION_REGISTRATION_CONFLICT);
         }
         validateFailureTime(startedAt);
+        if (!isReadyAt(startedAt) || deadline == null || !deadline.isAfter(startedAt)) {
+            throw new DocumentException(DocumentErrorCode.GENERATION_REGISTRATION_CONFLICT);
+        }
+        validateFailureYear(deadline);
         status = DocumentGenerationJobStatus.RUNNING;
         updatedAt = startedAt;
+        executionDeadlineAt = deadline;
+        nextAttemptAt = null;
+    }
+
+    public void validateRunningAttemptAt(
+            int expectedAttemptCount,
+            Instant now
+    ) {
+        validateRunningAttempt(expectedAttemptCount);
+        validateFailureTime(now);
+        if (executionDeadlineAt == null || isExpiredAt(now)) {
+            throw new DocumentException(DocumentErrorCode.GENERATION_REGISTRATION_CONFLICT);
+        }
     }
 
     public void validateRunningAttempt(int expectedAttemptCount) {
@@ -162,6 +215,9 @@ public class DocumentGenerationJob {
         validateFailureTime(completedAt);
         status = DocumentGenerationJobStatus.SUCCEEDED;
         updatedAt = completedAt;
+        executionDeadlineAt = null;
+        nextAttemptAt = null;
+        failureCause = null;
     }
 
     private void validateBatchId(long batchId) {
@@ -180,17 +236,58 @@ public class DocumentGenerationJob {
         updatedAt = acceptedAt;
         attemptCount++;
         userRetryCount++;
+        resetExecution(acceptedAt);
+    }
+
+    public void retryAutomatically(
+            Instant acceptedAt,
+            Instant nextAt
+    ) {
+        validateRetryState();
+        validateRetryTime(acceptedAt);
+        validateRetryDeadline(acceptedAt);
+        if (!canRetryAutomatically() || nextAt == null || nextAt.isBefore(acceptedAt)) {
+            throw new DocumentException(DocumentErrorCode.RETRY_NOT_ALLOWED);
+        }
+        validateFailureYear(nextAt);
+        status = DocumentGenerationJobStatus.QUEUED;
+        updatedAt = acceptedAt;
+        attemptCount++;
+        automaticRetryCount++;
+        resetExecution(nextAt);
+    }
+
+    private void resetExecution(Instant nextAt) {
+        nextAttemptAt = nextAt;
+        executionDeadlineAt = null;
+        failureCause = null;
     }
 
     public void recordFailure(Instant failedAt) {
+        recordFailure(
+                failedAt,
+                DocumentGenerationFailureCause.INTERNAL
+        );
+    }
+
+    public void recordFailure(
+            Instant failedAt,
+            DocumentGenerationFailureCause cause
+    ) {
         validateFailureState();
         validateFailureTime(failedAt);
+        if (cause == null) {
+            throw new DocumentException(DocumentErrorCode.INVALID_DOCUMENT_DATA);
+        }
         Instant deadline = failedAt.plus(FAILURE_RETENTION);
         validateFailureYear(deadline);
         status = DocumentGenerationJobStatus.FAILED;
         updatedAt = failedAt;
         lastFailedAt = failedAt;
         expiresAt = deadline;
+        nextAttemptAt = null;
+        executionDeadlineAt = null;
+        failureCause = cause;
     }
 
     private void validateFailureState() {
