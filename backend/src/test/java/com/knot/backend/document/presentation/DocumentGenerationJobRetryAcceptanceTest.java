@@ -43,7 +43,6 @@ import org.springframework.test.web.servlet.ResultActions;
 @Import(TestcontainersConfiguration.class)
 @TestApplicationProperties
 class DocumentGenerationJobRetryAcceptanceTest {
-
     private static final String JOBS_PATH = "/api/v1/workspaces/{workspaceId}/document-generation-jobs";
     private static final String RETRY_PATH = JOBS_PATH + "/{jobId}/retry";
     private static final Instant NOW = DocumentFixtures.CREATED_AT.plusSeconds(120);

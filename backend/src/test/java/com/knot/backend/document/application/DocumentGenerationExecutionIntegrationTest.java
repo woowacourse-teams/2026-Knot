@@ -54,7 +54,6 @@ import org.springframework.transaction.support.TransactionTemplate;
 @TestApplicationProperties
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 class DocumentGenerationExecutionIntegrationTest {
-
     private static final Instant NOW = DocumentFixtures.CREATED_AT.plusSeconds(120);
     private static final DocumentGenerationResult RESULT = new DocumentGenerationResult(
             "제목",
