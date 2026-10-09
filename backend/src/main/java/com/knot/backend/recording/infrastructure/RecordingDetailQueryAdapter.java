@@ -1,0 +1,40 @@
+package com.knot.backend.recording.infrastructure;
+
+import com.knot.backend.recording.application.RecordingDetailQuery;
+import com.knot.backend.recording.application.dto.result.RecordingDetailSnapshot;
+import java.util.Optional;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Repository;
+
+@Repository
+@RequiredArgsConstructor
+public class RecordingDetailQueryAdapter implements RecordingDetailQuery {
+    private final RecordingDetailReadJpaRepository recordingDetailReadJpaRepository;
+
+    @Override
+    public Optional<RecordingDetailSnapshot> find(
+            long workspaceId,
+            long recordingId
+    ) {
+        return recordingDetailReadJpaRepository.findDetail(
+                workspaceId,
+                recordingId
+        )
+                .map(
+                        row -> new RecordingDetailSnapshot(
+                                row.recordingId(),
+                                row.memberId(),
+                                row.status(),
+                                row.startedAt(),
+                                row.currentIntervalStartedAt(),
+                                row.accumulatedRecordingMillis(),
+                                row.lastSeenAt(),
+                                row.endedAt(),
+                                row.endReason(),
+                                row.uploadId(),
+                                row.audioUploadStatus(),
+                                row.completedAt()
+                        )
+                );
+    }
+}

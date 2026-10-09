@@ -24,6 +24,7 @@ public class RecordingSession {
     private static final Pattern SHA_256_HEX_PATTERN = Pattern.compile("^[0-9a-f]{64}$");
     // 최초 탭은 30초마다 신호를 보내므로 120초 동안 신호가 하나도 없으면 연결이 끊긴 것으로 본다
     private static final Duration CONNECTION_TIMEOUT = Duration.ofSeconds(120);
+    public static final Duration MAX_RECORDING_DURATION = Duration.ofHours(2);
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -100,6 +101,10 @@ public class RecordingSession {
         this.currentIntervalStartedAt = startedAt;
         this.lastSeenAt = startedAt;
         this.accumulatedRecordingMillis = 0L;
+    }
+
+    public static Instant connectionExpiresAt(Instant lastSeenAt) {
+        return lastSeenAt.plus(CONNECTION_TIMEOUT);
     }
 
     public static RecordingSession start(
@@ -248,7 +253,7 @@ public class RecordingSession {
         if (!isActive()) {
             return null;
         }
-        return lastSeenAt.plus(CONNECTION_TIMEOUT);
+        return connectionExpiresAt(lastSeenAt);
     }
 
     public void discard(Instant discardedAt) {
