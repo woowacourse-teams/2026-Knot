@@ -1,6 +1,8 @@
 package com.knot.backend.document.application;
 
 import com.knot.backend.document.domain.DocumentGenerationBatch;
+import com.knot.backend.document.domain.DocumentErrorCode;
+import com.knot.backend.document.domain.DocumentException;
 import com.knot.backend.document.domain.DocumentGenerationBatchRepository;
 import com.knot.backend.document.domain.DocumentGenerationFailureCause;
 import com.knot.backend.document.domain.DocumentGenerationJob;
@@ -79,7 +81,8 @@ public class DocumentGenerationFailureService {
         if (candidate.isEmpty()) {
             return;
         }
-        DocumentGenerationJob job = candidate.orElseThrow();
+        DocumentGenerationJob job = candidate
+                .orElseThrow(() -> new DocumentException(DocumentErrorCode.DOCUMENT_GENERATION_JOB_NOT_FOUND));
         if (!isCurrentExecution(
                 job,
                 expectedAttemptCount
@@ -91,15 +94,14 @@ public class DocumentGenerationFailureService {
         if (onlyExpired && !job.isExpiredAt(now)) {
             return;
         }
-        DocumentGenerationFailureCause actualCause = cause;
-        if (workspace.orElseThrow()
-                .isDeleted()) {
-            actualCause = DocumentGenerationFailureCause.WORKSPACE_DELETED;
-        } else if (job.isExpiredAt(now)) {
-            actualCause = DocumentGenerationFailureCause.EXECUTION_EXPIRED;
-        }
+        DocumentGenerationFailureCause actualCause = resolveFailureCause(
+                workspace.orElseThrow(() -> new DocumentException(DocumentErrorCode.GENERATION_REGISTRATION_CONFLICT)),
+                job,
+                cause,
+                now
+        );
         DocumentGenerationBatch batch = batches.findByIdForUpdate(job.getBatchId())
-                .orElseThrow();
+                .orElseThrow(() -> new DocumentException(DocumentErrorCode.GENERATION_REGISTRATION_CONFLICT));
         DocumentGenerationJobStatus previous = job.getStatus();
         job.recordFailure(
                 now,
@@ -121,6 +123,21 @@ public class DocumentGenerationFailureService {
                 now
         );
         jobs.flush();
+    }
+
+    private DocumentGenerationFailureCause resolveFailureCause(
+            Workspace workspace,
+            DocumentGenerationJob job,
+            DocumentGenerationFailureCause cause,
+            Instant now
+    ) {
+        if (workspace.isDeleted()) {
+            return DocumentGenerationFailureCause.WORKSPACE_DELETED;
+        }
+        if (job.isExpiredAt(now)) {
+            return DocumentGenerationFailureCause.EXECUTION_EXPIRED;
+        }
+        return cause;
     }
 
     private boolean isCurrentExecution(

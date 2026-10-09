@@ -39,10 +39,10 @@ public class DocumentGenerationWorker {
                 workspaceId,
                 jobId
         );
-        if (claimed.isEmpty()) {
-            return;
-        }
-        DocumentGenerationExecution execution = claimed.orElseThrow();
+        claimed.ifPresent(this::executeClaimed);
+    }
+
+    private void executeClaimed(DocumentGenerationExecution execution) {
         try {
             executeStage(execution);
         } catch (LlmException exception) {

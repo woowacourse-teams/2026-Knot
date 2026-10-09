@@ -104,7 +104,7 @@ public class DocumentClassificationResultService {
         Instant failedAt = clock.instant()
                 .truncatedTo(ChronoUnit.MICROS);
         DocumentGenerationBatch batch = batches.findByIdForUpdate(job.getBatchId())
-                .orElseThrow();
+                .orElseThrow(() -> new DocumentException(DocumentErrorCode.GENERATION_REGISTRATION_CONFLICT));
         job.recordFailure(failedAt);
         batch.recordJobTransition(
                 job.getStage(),
