@@ -11,7 +11,6 @@ import org.junit.jupiter.params.provider.EnumSource;
 import org.springframework.test.util.ReflectionTestUtils;
 
 class DocumentGenerationJobTest {
-
     private static final Instant CREATED_AT = Instant.parse("2026-10-06T00:00:00Z");
     private static final Instant FAILED_AT = CREATED_AT.plusSeconds(60);
 

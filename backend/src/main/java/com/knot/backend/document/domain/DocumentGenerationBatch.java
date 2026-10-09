@@ -192,10 +192,10 @@ public class DocumentGenerationBatch {
             return;
         }
         if (stage == DocumentGenerationJobStage.CLASSIFICATION) {
-            if (topicRegistrationState == DocumentTopicRegistrationState.WAITING_CLASSIFICATION) {
-                processingStatus = DocumentGenerationProcessingStatus.valueOf(next.name());
-                updateFinishedAt(changedAt);
-            }
+            recordClassificationTransition(
+                    next,
+                    changedAt
+            );
             return;
         }
         if (topicRegistrationState != DocumentTopicRegistrationState.TOPICS_REGISTERED) {
@@ -213,6 +213,17 @@ public class DocumentGenerationBatch {
                 1
         );
         refreshProcessingStatus();
+        updateFinishedAt(changedAt);
+    }
+
+    private void recordClassificationTransition(
+            DocumentGenerationJobStatus next,
+            Instant changedAt
+    ) {
+        if (topicRegistrationState != DocumentTopicRegistrationState.WAITING_CLASSIFICATION) {
+            return;
+        }
+        processingStatus = DocumentGenerationProcessingStatus.valueOf(next.name());
         updateFinishedAt(changedAt);
     }
 

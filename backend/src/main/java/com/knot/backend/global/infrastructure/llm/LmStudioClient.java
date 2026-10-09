@@ -21,7 +21,6 @@ import tools.jackson.databind.node.ArrayNode;
 import tools.jackson.databind.node.ObjectNode;
 
 public class LmStudioClient implements LlmClient {
-
     private static final String ENGINE_ERROR_PREFIX = "Engine protocol predict request returned 400: ";
 
     private final HttpClient httpClient;
@@ -272,17 +271,7 @@ public class LmStudioClient implements LlmClient {
                 return false;
             }
             JsonNode error = root.path("error");
-            if (error.isString() && error.asString()
-                    .startsWith(ENGINE_ERROR_PREFIX)) {
-                JsonNode embedded = mapper.readTree(
-                        error.asString()
-                                .substring(ENGINE_ERROR_PREFIX.length())
-                );
-                if (embedded == null) {
-                    return false;
-                }
-                error = embedded.path("error");
-            }
+            error = readEmbeddedError(error);
             return "exceed_context_size_error".equals(
                     error.path("type")
                             .asString()
@@ -290,6 +279,22 @@ public class LmStudioClient implements LlmClient {
         } catch (JacksonException exception) {
             return false;
         }
+    }
+
+    private JsonNode readEmbeddedError(JsonNode error) {
+        if (!error.isString()) {
+            return error;
+        }
+        String message = error.asString();
+        if (!message.startsWith(ENGINE_ERROR_PREFIX)) {
+            return error;
+        }
+        String embeddedBody = message.substring(ENGINE_ERROR_PREFIX.length());
+        JsonNode embedded = mapper.readTree(embeddedBody);
+        if (embedded == null) {
+            return mapper.nullNode();
+        }
+        return embedded.path("error");
     }
 
     private String readAssistantContent(String responseBody) {

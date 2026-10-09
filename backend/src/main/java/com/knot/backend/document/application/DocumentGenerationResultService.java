@@ -91,7 +91,7 @@ public class DocumentGenerationResultService {
         );
         job.recordSuccess(completedAt);
         DocumentGenerationBatch batch = batches.findByIdForUpdate(job.getBatchId())
-                .orElseThrow();
+                .orElseThrow(() -> new DocumentException(DocumentErrorCode.GENERATION_REGISTRATION_CONFLICT));
         batch.recordJobTransition(
                 job.getStage(),
                 DocumentGenerationJobStatus.RUNNING,

@@ -38,7 +38,6 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
 class DocumentGenerationJobRetryServiceTest {
-
     private static final Instant CREATED_AT = Instant.parse("2026-10-06T00:00:00Z");
     private static final Instant NOW = CREATED_AT.plusSeconds(120);
 

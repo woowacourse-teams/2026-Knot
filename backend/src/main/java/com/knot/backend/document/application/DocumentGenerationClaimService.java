@@ -3,6 +3,8 @@ package com.knot.backend.document.application;
 import com.knot.backend.document.application.dto.result.DocumentGenerationExecution;
 import com.knot.backend.document.application.dto.result.DocumentGenerationInputResult;
 import com.knot.backend.document.domain.DocumentGenerationBatch;
+import com.knot.backend.document.domain.DocumentErrorCode;
+import com.knot.backend.document.domain.DocumentException;
 import com.knot.backend.document.domain.DocumentGenerationBatchRepository;
 import com.knot.backend.document.domain.DocumentGenerationFailureCause;
 import com.knot.backend.document.domain.DocumentGenerationJob;
@@ -39,24 +41,44 @@ public class DocumentGenerationClaimService {
             long jobId
     ) {
         Optional<Workspace> workspace = workspaces.findIncludingDeletedByIdForUpdate(workspaceId);
-        if (workspace.isEmpty()) {
-            return Optional.empty();
-        }
+        return workspace.flatMap(
+                current -> claimInWorkspace(
+                        current,
+                        workspaceId,
+                        jobId
+                )
+        );
+    }
+
+    private Optional<DocumentGenerationExecution> claimInWorkspace(
+            Workspace workspace,
+            long workspaceId,
+            long jobId
+    ) {
         Optional<DocumentGenerationJob> candidate = jobs.findByWorkspaceIdAndIdForUpdate(
                 workspaceId,
                 jobId
         );
-        if (candidate.isEmpty()) {
-            return Optional.empty();
-        }
-        DocumentGenerationJob job = candidate.orElseThrow();
+        return candidate.flatMap(
+                job -> claimReadyJob(
+                        workspace,
+                        workspaceId,
+                        job
+                )
+        );
+    }
+
+    private Optional<DocumentGenerationExecution> claimReadyJob(
+            Workspace workspace,
+            long workspaceId,
+            DocumentGenerationJob job
+    ) {
         Instant now = clock.instant()
                 .truncatedTo(ChronoUnit.MICROS);
         if (!job.isReadyAt(now)) {
             return Optional.empty();
         }
-        if (workspace.orElseThrow()
-                .isDeleted()) {
+        if (workspace.isDeleted()) {
             finishInvalidInput(
                     job,
                     DocumentGenerationFailureCause.WORKSPACE_DELETED,
@@ -68,18 +90,48 @@ public class DocumentGenerationClaimService {
                 workspaceId,
                 job.getTranscriptId()
         );
-        DocumentGenerationBatch batch = batches.findByIdForUpdate(job.getBatchId())
-                .orElseThrow();
-        if (input.isEmpty() || !hasUsableInput(
+        DocumentGenerationBatch batch = findRequiredBatch(job);
+        return input.flatMap(
+                stored -> startWithUsableInput(
+                        workspaceId,
+                        job,
+                        batch,
+                        stored,
+                        now
+                )
+        )
+                .or(
+                        () -> finishMissingInput(
+                                job,
+                                now
+                        )
+                );
+    }
+
+    private Optional<DocumentGenerationExecution> finishMissingInput(
+            DocumentGenerationJob job,
+            Instant now
+    ) {
+        finishInvalidInput(
+                job,
+                DocumentGenerationFailureCause.INVALID_INPUT,
+                now
+        );
+        return Optional.empty();
+    }
+
+    private Optional<DocumentGenerationExecution> startWithUsableInput(
+            long workspaceId,
+            DocumentGenerationJob job,
+            DocumentGenerationBatch batch,
+            DocumentGenerationInputResult input,
+            Instant now
+    ) {
+        if (!hasUsableInput(
                 job,
                 batch,
-                input.orElseThrow()
+                input
         )) {
-            finishInvalidInput(
-                    job,
-                    DocumentGenerationFailureCause.INVALID_INPUT,
-                    now
-            );
             return Optional.empty();
         }
         job.startRunning(
@@ -96,14 +148,18 @@ public class DocumentGenerationClaimService {
         return Optional.of(
                 new DocumentGenerationExecution(
                         workspaceId,
-                        jobId,
+                        job.getId(),
                         job.getAttemptCount(),
                         job.getStage(),
-                        input.orElseThrow()
-                                .content(),
+                        input.content(),
                         job.getTopic()
                 )
         );
+    }
+
+    private DocumentGenerationBatch findRequiredBatch(DocumentGenerationJob job) {
+        return batches.findByIdForUpdate(job.getBatchId())
+                .orElseThrow(() -> new DocumentException(DocumentErrorCode.GENERATION_REGISTRATION_CONFLICT));
     }
 
     private boolean hasUsableInput(
@@ -111,21 +167,46 @@ public class DocumentGenerationClaimService {
             DocumentGenerationBatch batch,
             DocumentGenerationInputResult stored
     ) {
-        if (stored.content() == null || stored.content()
-                .codePoints()
-                .allMatch(c -> Character.isWhitespace(c) || Character.isSpaceChar(c))) {
+        if (!hasInputText(stored)) {
             return false;
         }
-        if (!Long.valueOf(stored.transcriptId())
-                .equals(batch.getTranscriptId()) || stored.recordingSessionId() != batch.getRecordingSessionId()) {
+        if (!matchesRegisteredInput(
+                batch,
+                stored
+        )) {
             return false;
         }
         if (job.getStage() == DocumentGenerationJobStage.CLASSIFICATION) {
             return batch.getTopicRegistrationState() == DocumentTopicRegistrationState.WAITING_CLASSIFICATION;
         }
-        return batch.getTopicRegistrationState() == DocumentTopicRegistrationState.TOPICS_REGISTERED
-                && batch.getTopics()
-                        .contains(job.getTopic());
+        if (batch.getTopicRegistrationState() != DocumentTopicRegistrationState.TOPICS_REGISTERED) {
+            return false;
+        }
+        String topic = job.getTopic();
+        return batch.getTopics()
+                .contains(topic);
+    }
+
+    private boolean hasInputText(DocumentGenerationInputResult stored) {
+        String content = stored.content();
+        if (content == null) {
+            return false;
+        }
+        return !content.codePoints()
+                .allMatch(c -> Character.isWhitespace(c) || Character.isSpaceChar(c));
+    }
+
+    private boolean matchesRegisteredInput(
+            DocumentGenerationBatch batch,
+            DocumentGenerationInputResult stored
+    ) {
+        Long transcriptId = stored.transcriptId();
+        Long batchTranscriptId = batch.getTranscriptId();
+        if (!transcriptId.equals(batchTranscriptId)) {
+            return false;
+        }
+        long recordingId = stored.recordingSessionId();
+        return recordingId == batch.getRecordingSessionId();
     }
 
     private void finishInvalidInput(
@@ -133,8 +214,7 @@ public class DocumentGenerationClaimService {
             DocumentGenerationFailureCause cause,
             Instant now
     ) {
-        DocumentGenerationBatch batch = batches.findByIdForUpdate(job.getBatchId())
-                .orElseThrow();
+        DocumentGenerationBatch batch = findRequiredBatch(job);
         DocumentGenerationJobStatus previous = job.getStatus();
         job.recordFailure(
                 now,
