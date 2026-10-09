@@ -76,11 +76,8 @@ class DocumentGeneratorTest {
         // then
         assertThat(result.title()).isEqualTo("검색 논의");
         assertThat(result.content()).isEqualTo(content);
-        if ("요약".equals(summary)) {
-            assertThat(result.summary()).isEqualTo(summary);
-        } else {
-            assertThat(result.summary()).isNull();
-        }
+        String expectedSummary = expectedSummary(summary);
+        assertThat(result.summary()).isEqualTo(expectedSummary);
         assertThat(result.toString()).doesNotContain(
                 "검색",
                 "문서가"
@@ -133,6 +130,13 @@ class DocumentGeneratorTest {
                         "검색"
                 )
         ).hasMessage(DocumentErrorCode.INVALID_DOCUMENT_GENERATION_RESPONSE.getMessage());
+    }
+
+    private String expectedSummary(String summary) {
+        if ("요약".equals(summary)) {
+            return summary;
+        }
+        return null;
     }
 
     @ParameterizedTest
