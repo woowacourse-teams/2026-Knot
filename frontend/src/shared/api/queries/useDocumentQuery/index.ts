@@ -2,8 +2,12 @@ import { getDocumentApi } from "@api/fetch/api/v1/workspaces/[workspaceId]/docum
 import { documentKeys } from "@api/queryKey/document";
 import { useQuery } from "@tanstack/react-query";
 
-/** 문서를 받은 뒤 이 시간 동안은 새로 그려지는 컴포넌트가 같은 문서를 다시 요청하지 않아요 */
-const DOCUMENT_STALE_TIME_MS = 30 * 1000;
+/**
+ * 문서를 받은 뒤 이 시간 동안은 새로 그려지는 컴포넌트가 같은 문서를 다시 요청하지 않아요.
+ * 막으려는 것은 문서를 받은 직후에 그려지는 컴포넌트의 요청이라 짧게 둬요.
+ * 길게 두면 다른 탭이나 화면에서 돌아왔을 때 그 시간만큼 문서를 다시 받지 않아, 확인 수가 늦게 바뀌어요
+ */
+const DOCUMENT_STALE_TIME_MS = 5 * 1000;
 
 interface UseDocumentQueryParams {
   workspaceId: number;

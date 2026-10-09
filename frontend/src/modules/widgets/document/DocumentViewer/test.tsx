@@ -62,6 +62,8 @@ const [pendingPerson, excludedPerson, confirmedPerson] =
 
 const LOAD_FAILED_NOTICE = "목록을 불러오지 못했어요";
 const COPIED_DURATION_MS = 3000;
+// 문서를 받은 뒤 같은 문서를 다시 요청하지 않는 시간. useDocumentQuery의 staleTime과 같아요
+const DOCUMENT_STALE_TIME_MS = 5000;
 const CONFIRM_BUTTON_NAME = "문서를 확인했어요";
 
 const writeText = vi.fn<(text: string) => Promise<void>>();
@@ -195,6 +197,31 @@ describe("DocumentViewer", () => {
     await findPeopleRows();
 
     expect(requestCount).toBe(1);
+  });
+
+  it("문서를 받고 5초가 지난 뒤 다른 탭에서 돌아오면 문서를 다시 받는다", async () => {
+    let requestCount = 0;
+    mockServer.use(
+      http.get(DOCUMENT_REQUEST, () => {
+        requestCount += 1;
+        return HttpResponse.json(documentDetailsResponse[0]);
+      }),
+    );
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    renderViewer(String(expected.id));
+
+    await screen.findByRole("heading", { level: 2, name: expected.title });
+    expect(requestCount).toBe(1);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(DOCUMENT_STALE_TIME_MS + 1);
+    });
+    // TanStack Query는 탭이 다시 보이게 된 것을 visibilitychange 이벤트로 알아요
+    act(() => {
+      window.dispatchEvent(new Event("visibilitychange"));
+    });
+
+    await waitFor(() => expect(requestCount).toBe(2));
   });
 
   it("문서 머리에 경로 · 만든 날짜 · 녹음 길이를 보여준다", async () => {
