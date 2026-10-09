@@ -7,7 +7,6 @@ import static org.mockito.Mockito.when;
 
 import com.knot.backend.document.application.dto.result.DocumentTopicClassificationResult;
 import com.knot.backend.document.domain.DocumentErrorCode;
-import com.knot.backend.document.infrastructure.llm.DocumentTopicClassifier;
 import com.knot.backend.global.exception.LlmErrorCode;
 import com.knot.backend.global.exception.LlmException;
 import java.util.ArrayList;
