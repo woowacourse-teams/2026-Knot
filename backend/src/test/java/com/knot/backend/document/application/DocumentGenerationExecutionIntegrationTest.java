@@ -841,11 +841,8 @@ class DocumentGenerationExecutionIntegrationTest {
                 );
             }
         }
-        if (operation.equals("claim")) {
-            assertThat(status(targetId)).isEqualTo("QUEUED");
-        } else {
-            assertThat(status(targetId)).isEqualTo("RUNNING");
-        }
+        String expectedStatus = expectedStatusAfterLockTimeout(operation);
+        assertThat(status(targetId)).isEqualTo(expectedStatus);
         assertThat(
                 jdbc.sql("SELECT count(*) FROM documents")
                         .query(Long.class)
@@ -857,6 +854,13 @@ class DocumentGenerationExecutionIntegrationTest {
                         targetId
                 )
         ).isEqualTo(1);
+    }
+
+    private String expectedStatusAfterLockTimeout(String operation) {
+        if (operation.equals("claim")) {
+            return "QUEUED";
+        }
+        return "RUNNING";
     }
 
     private Runnable blockedOperation(
