@@ -414,8 +414,6 @@ class KnotApplicationTests {
     @Test
     @DisplayName("허용된 프론트 Origin의 워크스페이스 탈퇴 DELETE preflight 요청을 허용한다")
     void leaveWorkspacePreflight_success_allowedOrigin() throws Exception {
-        // given
-
         // when
         ResultActions result = mockMvc.perform(
                 options("/api/v1/workspaces/1/members/me").header(
@@ -463,8 +461,6 @@ class KnotApplicationTests {
     @Test
     @DisplayName("허용하지 않은 Origin의 워크스페이스 탈퇴 DELETE preflight 요청에는 CORS 허용 헤더를 제공하지 않는다")
     void leaveWorkspacePreflight_failure_unallowedOrigin() throws Exception {
-        // given
-
         // when
         ResultActions result = mockMvc.perform(
                 options("/api/v1/workspaces/1/members/me").header(
@@ -485,8 +481,6 @@ class KnotApplicationTests {
     @Test
     @DisplayName("허용된 프론트 Origin이어도 CSRF 토큰이 없는 워크스페이스 탈퇴 DELETE 요청은 거부한다")
     void leaveWorkspace_failure_missingCsrfToken() throws Exception {
-        // given
-
         // when
         ResultActions result = mockMvc.perform(
                 delete("/api/v1/workspaces/1/members/me").header(
