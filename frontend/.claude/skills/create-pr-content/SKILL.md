@@ -3,7 +3,7 @@ name: create-pr-content
 description: 현재 브랜치 HEAD 커밋과 develop 브랜치 커밋의 변경사항을 비교하여 pr 내용을 작성하고, /explain-diff-html로 만든 변경 설명 페이지를 Artifact로 게시해 PR 본문에 링크
 user-invocable: true
 disable-model-invocation: true
-allowed-tools: Bash(git diff:*), Bash(git log:*), Bash(git branch:*), Bash(git status:*), Bash(gh issue view:*), Bash(gh api:*), Bash(mkdir:*), Bash(code:*), Bash(date:*), Read, Write, Glob, Grep, Skill, Artifact
+allowed-tools: Bash(git diff:*), Bash(git log:*), Bash(git branch:*), Bash(git status:*), Bash(gh issue view:*), Bash(gh api:*), Bash(node .claude/skills/create-pr-content/scripts/pr-assets.mjs:*), Bash(mkdir:*), Bash(code:*), Bash(open:*), Bash(date:*), Read, Write, Glob, Grep, Skill, Artifact
 ---
 
 # pr 작성 커맨드
@@ -18,10 +18,11 @@ PR 본문에는 `/explain-diff-html`로 만든 **변경 설명 페이지**를 Ar
 
 1. **변경사항 확인** - 코드의 변경사항을 명확히 확인
 2. **이슈 확인** - 관련 이슈 및 상위(부모) 이슈 내용까지 조회
-3. **변경 설명 페이지 생성·게시** - `/explain-diff-html`로 HTML을 만들고 Artifact로 게시
-4. **PR 문서 작성** - 임시 파일에 작성, 설명 페이지 링크 포함
-5. **VS Code로 열기** - 작성된 파일을 자동으로 오픈
-6. **공유 안내** - 사용자가 링크에 직접 들어가 공유를 켜도록 안내
+3. **PR 자산 수집** - 파일 diff 링크, Storybook 링크, 변경 전·후 스토리 캡처, 캡처한 사진을 GitHub에 올려 주소 받기
+4. **변경 설명 페이지 생성·게시** - `/explain-diff-html`로 HTML을 만들고 Artifact로 게시
+5. **PR 문서 작성** - 임시 파일에 작성, 설명 페이지 링크 포함
+6. **열기** - PR 문서는 VS Code로, 사진 폴더는 Finder로 엶
+7. **마무리 안내** - 설명 페이지 공유, 올리지 못한 사진 안내, 빠진 사진·링크 안내
 
 ---
 
@@ -112,18 +113,69 @@ query($owner:String!, $name:String!, $number:Int!, $after:String) {
 - Closes #51
 ```
 
-## 3단계: 변경 설명 페이지 생성·게시
+## 3단계: PR 자산 수집 (파일 링크 · Storybook 링크 · 사진)
 
-1·2단계에서 파악한 diff와 이슈 맥락을 그대로 이어받아 `/explain-diff-html` 스킬을 호출하고, 결과 HTML을 Artifact로 게시함. 게시된 URL은 4단계 PR 본문에 넣음.
+프론트 루트(`frontend/`)에서 실행함. `<slug>`는 브랜치명의 `/`, `#`, 공백을 `-`로 치환한 값임.
 
-### 3-1. `/explain-diff-html` 호출
+```bash
+node .claude/skills/create-pr-content/scripts/pr-assets.mjs --out /tmp/knot-pr/<slug>-assets
+```
+
+스크립트가 하는 일:
+
+- 현재 브랜치의 PR을 찾아 변경 파일마다 `Files changed` 탭의 diff 링크를 만듦. **develop 브랜치에서 작업했다면 PR이 없으므로 파일 링크를 만들지 않음.**
+- PR 본문 끝의 Storybook 봇 블록에서 미리보기 주소를 읽어 스토리 링크를 만듦.
+- 변경 파일이 속한 컴포넌트의 스토리를 모두 캡처함.
+  - 변경 후: PR 미리보기가 HEAD 기준이면 그 주소를, 아니면 로컬 Storybook을 빈 포트에 띄워서 찍음.
+  - 변경 전: develop 상시 Storybook(`https://knot-storybook-5f8.pages.dev`)에 같은 스토리가 있으면 찍음.
+  - 스토리가 실제로 그린 영역만 2배 해상도로 잘라 찍음.
+- PR이 있으면 찍은 사진을 Aside(`aside repl`)로 GitHub에 올려 사진 주소(`https://github.com/user-attachments/assets/...`)를 받음.
+  - PR 페이지를 새 탭으로 열어 새 댓글 입력창에 사진을 넣고, GitHub가 입력창에 적어 준 주소만 읽은 뒤 입력창을 비우고 탭을 닫음. **댓글은 등록하지 않음.**
+  - GitHub의 PR 본문용 사진 주소는 공개 API로 받을 수 없어서 로그인한 브라우저가 필요함. 사용자의 Aside에서 GitHub에 로그인돼 있어야 함.
+  - 댓글 입력창에 작성 중인 글이 있으면 건드리지 않고 올리지 않음.
+- 결과를 `/tmp/knot-pr/<slug>-assets/manifest.json`에 쓰고 같은 내용을 출력함.
+
+manifest에서 쓰는 값:
+
+| 필드                         | 의미                                                         |
+| ---------------------------- | ------------------------------------------------------------ |
+| `files[].link`               | 파일의 diff 링크. PR이 없으면 `null`                         |
+| `stories[].link`             | 스토리 링크. PR 미리보기가 없으면 `null`                     |
+| `stories[].after.file`       | 변경 후 사진 경로. 파일 이름은 스토리 ID의 `--`를 `__`로 바꾼 값 |
+| `stories[].after.url`        | GitHub에 올린 사진 주소. 올리지 못했으면 `null`               |
+| `stories[].after.placeholder` | `url`이 `null`일 때 본문 `src`에 넣을 임시 표시 (`{{after/<파일 이름>}}`) |
+| `stories[].before`           | 변경 전 사진. develop에 없는 새 스토리면 `null`              |
+| `stories[].after.size.width` | 사진의 CSS 폭. `<img width>`의 기준                          |
+| `stories[].identical`        | `true`면 변경 전과 후가 같아 이 스토리에서는 화면 변화가 없음 |
+| `upload.warnings`            | Aside 없음, GitHub 로그인 안 됨 등 업로드 실패 이유. 7단계에서 알림 |
+| `warnings`                   | PR을 못 찾음, 로컬 Storybook 실패 등. 7단계에서 알림         |
+
+실패 처리:
+
+- 로컬 Storybook은 Node 22 이상이 필요함. Node 버전 오류로 실패하면 `--no-capture`로 다시 실행해 링크만 받고, 사진을 찍지 못한 이유(`nvm use 22` 후 재실행 필요)를 7단계에서 알림.
+- 그 밖의 실패도 작업을 멈추지 않고 `--no-capture`로 링크만 받은 뒤 진행하고, 실패 내용을 7단계에서 알림.
+- 업로드가 실패해도 캡처와 링크는 그대로 쓰고, 그 사진의 `url`은 `null`로 둠. 본문에는 `placeholder`를 넣고 7단계에서 `upload.warnings`를 알림.
+  - Aside가 꺼져 있거나 로그인이 풀린 경우처럼 원인을 바로 해결할 수 있으면, 해결한 뒤 캡처 없이 남은 사진만 다시 올림.
+
+    ```bash
+    node .claude/skills/create-pr-content/scripts/pr-assets.mjs --out /tmp/knot-pr/<slug>-assets --upload-only
+    ```
+
+  - `--upload-only`는 manifest에서 `url`이 없거나 올린 뒤 내용이 바뀐 사진만 올리고, manifest의 `url`을 채움. 이미 올린 사진은 다시 올리지 않음.
+- PR이 없으면(develop 브랜치, 아직 PR을 열지 않은 브랜치) 사진을 올리지 않음.
+
+## 4단계: 변경 설명 페이지 생성·게시
+
+1·2단계에서 파악한 diff와 이슈 맥락을 그대로 이어받아 `/explain-diff-html` 스킬을 호출하고, 결과 HTML을 Artifact로 게시함. 게시된 URL은 5단계 PR 본문에 넣음.
+
+### 4-1. `/explain-diff-html` 호출
 
 `Skill` 도구로 `explain-diff-html`을 호출하되, Artifact로 게시할 수 있는 형태여야 하므로 아래 조건을 `args`로 함께 전달함.
 
 ```text
 대상: develop...HEAD diff (이슈 #<번호> <이슈 제목>)
 출력 조건:
-- 파일 경로: /tmp/<YYYY-MM-DD>-explanation-<브랜치명을 -로 치환>.html
+- 파일 경로: /tmp/<YYYY-MM-DD>-explanation-<slug>.html
 - Artifact로 게시하므로 <!DOCTYPE>, <html>, <head>, <body> 태그를 쓰지 않고, <title>과 <style>을 파일 맨 위에 둔 뒤 본문 요소를 바로 작성
 - body에 배경색을 명시하고, 라이트·다크 테마 모두에서 읽히도록 색은 CSS 변수로 정의 (:root에 라이트 기본값, prefers-color-scheme: dark와 [data-theme="dark"]에서 재정의)
 - 외부 스크립트·이미지 없이 자체 완결. 퀴즈 피드백은 alert 대신 인라인으로 표시
@@ -134,21 +186,21 @@ query($owner:String!, $name:String!, $number:Int!, $after:String) {
 - 스킬이 로드되면 그 지시(Background · Intuition · Code · Quiz 구성, 목차, 코드 블록은 `<pre>`)를 그대로 따름. Artifact 도구 규칙에 따라 HTML을 쓰기 전에 `artifact-design` 스킬도 로드함.
 - HTML은 `/tmp` 아래에만 쓰고 **레포 안에는 만들지 않음.**
 
-### 3-2. Artifact로 게시
+### 4-2. Artifact로 게시
 
 ```text
 Artifact(
-  file_path = <3-1에서 만든 HTML 경로>,
+  file_path = <4-1에서 만든 HTML 경로>,
   icon = "code",
   description = "<이슈 제목> 변경 설명 (배경·직관·코드·퀴즈)"
 )
 ```
 
 - `<title>`은 변경을 식별할 수 있는 짧은 이름으로 둠. (예: `초대 링크 입장 플로우 변경 설명`)
-- 게시 결과의 URL(`https://claude.ai/code/artifact/...`)을 기록해 4단계에서 사용.
-- 게시가 실패하면(도구 사용 불가, 크기 초과 등) 작업을 중단하지 않고 PR 문서에는 링크 대신 로컬 HTML 경로를 적은 뒤, 6단계 안내에서 게시 실패 사실을 알림.
+- 게시 결과의 URL(`https://claude.ai/code/artifact/...`)을 기록해 5단계에서 사용.
+- 게시가 실패하면(도구 사용 불가, 크기 초과 등) 작업을 중단하지 않고 PR 문서에는 링크 대신 로컬 HTML 경로를 적은 뒤, 7단계 안내에서 게시 실패 사실을 알림.
 
-## 4단계: PR 문서 작성
+## 5단계: PR 문서 작성
 
 ### 저장 위치
 
@@ -156,29 +208,29 @@ Artifact(
 mkdir -p /tmp/knot-pr
 ```
 
-파일 경로: `/tmp/knot-pr/<브랜치명을 -로 치환>-pr.md`
+파일 경로: `/tmp/knot-pr/<slug>-pr.md`
 
-- 예: 브랜치가 `feature/#182-routing` 이면 → `/tmp/knot-pr/feature-182-routing-pr.md`
+- 예: 브랜치가 `fe/feature/#369` 이면 → `/tmp/knot-pr/fe-feature-369-pr.md`
 - 파일이 이미 존재하면 덮어씀.
 - **`context/` 하위에는 절대 작성하지 않음.**
 
-## 5단계: VS Code로 열기
+## 6단계: 열기
 
 작성 완료 후 반드시 실행:
 
 ```bash
-code /tmp/knot-pr/<파일명>.md
+code /tmp/knot-pr/<slug>-pr.md
+open /tmp/knot-pr/<slug>-assets
 ```
 
-## 6단계: 공유 안내 (필수)
+## 7단계: 마무리 안내 (필수)
 
-Artifact는 게시 직후 **작성자 본인만 볼 수 있음**. 리뷰어가 PR의 링크를 열 수 있으려면 사용자가 직접 공유를 켜야 하며, 이는 도구로 대신할 수 없음. 마지막 메시지에 반드시 아래 세 가지를 포함:
+Artifact는 게시 직후 **작성자 본인만 볼 수 있음**. 리뷰어가 PR의 링크를 열 수 있으려면 사용자가 직접 공유를 켜야 하며, 이는 도구로 대신할 수 없음. 마지막 메시지에 반드시 아래를 포함:
 
 1. PR 문서 저장 경로 (한 줄)
-2. 변경 설명 페이지 URL
-3. 공유 안내: "위 링크에 직접 들어가서 페이지의 공유(Share) 메뉴로 공유를 켜 주세요. 켜기 전에는 리뷰어가 열 수 없습니다."
-
-게시가 실패했다면 2·3번 대신 실패 사실과 로컬 HTML 경로를 알림.
+2. 변경 설명 페이지 URL과 공유 안내: "위 링크에 직접 들어가서 페이지의 공유(Share) 메뉴로 공유를 켜 주세요. 켜기 전에는 리뷰어가 열 수 없습니다." 게시가 실패했다면 실패 사실과 로컬 HTML 경로를 대신 알림.
+3. 사진 업로드 안내: 본문에 `{{...}}` 표시가 남았을 때만 알림. "열린 폴더의 사진 중 아래 표시에 해당하는 파일을 GitHub PR 편집창에 끌어다 놓아 주소를 받은 뒤, 본문의 `{{...}}` 표시를 받은 주소로 바꿔 주세요." 그리고 남은 표시 목록과 올리지 못한 이유(`upload.warnings`). 모두 올렸다면 "사진은 모두 GitHub에 올려 본문에 넣었습니다."라고만 알림.
+4. 사진이나 링크를 달지 못한 변경 단위와 그 이유, manifest의 `warnings`. (있을 때만)
 
 ---
 
