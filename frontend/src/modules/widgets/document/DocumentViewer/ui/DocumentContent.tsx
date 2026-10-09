@@ -6,7 +6,6 @@ import { useId } from "react";
 import { useDocumentViewer } from "../model/useDocumentViewer";
 
 import DocumentLoadFailed from "./DocumentLoadFailed";
-import DocumentNotFound from "./DocumentNotFound";
 import DocumentSkeleton from "./DocumentSkeleton";
 
 interface DocumentContentProps {
@@ -14,8 +13,6 @@ interface DocumentContentProps {
   workspaceId: number;
   /** 주소에서 읽어 정수임을 확인한 문서 id */
   documentId: number;
-  /** 문서를 찾을 수 없다는 안내에서 `홈으로`를 눌렀을 때 실행할 동작 */
-  onGoHome: () => void;
 }
 
 /**
@@ -27,7 +24,6 @@ interface DocumentContentProps {
 export default function DocumentContent({
   workspaceId,
   documentId,
-  onGoHome,
 }: DocumentContentProps) {
   const titleId = useId();
   const viewer = useDocumentViewer({ workspaceId, documentId });
@@ -38,10 +34,6 @@ export default function DocumentContent({
         <DocumentSkeleton />
       </Container>
     );
-  }
-
-  if (viewer.status === "notFound") {
-    return <DocumentNotFound onGoHome={onGoHome} />;
   }
 
   if (viewer.status === "error") {

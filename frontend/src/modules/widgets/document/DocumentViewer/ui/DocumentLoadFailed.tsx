@@ -1,40 +1,63 @@
 import styled from "@emotion/styled";
+import IllustratedMessageLayout from "@primitives/layout/IllustratedMessageLayout";
 import Button from "@primitives/ui/Button";
 
 import DocumentFailedIllustration from "@/assets/illustrations/documentFailed.svg";
 
-import DocumentStateMessage from "./DocumentStateMessage";
-
 interface DocumentLoadFailedProps {
-  /** `다시 시도`를 눌렀을 때 실행할 동작 */
-  onRetry: () => void;
+  /** `다시 시도`를 눌렀을 때 실행할 동작. 주소가 잘못돼 다시 조회할 것이 없으면 넘기지 않아요 */
+  onRetry?: () => void;
 }
 
 /**
- * 문서를 불러오지 못했을 때(네트워크 · 서버 문제) 보여주는 임시 안내.
+ * 문서를 보여 주지 못할 때의 안내. 피그마 「문서/불러오기 실패」 화면이에요.
  *
- * 이 상황의 시안이 아직 없어, 같은 문서 흐름에서 다시 시도하는 상태 화면(피그마 「문서/정리 실패」)의 배치를 빌렸어요.
- * 기획(ERR-R3 · R4)의 공통 오류 화면이나 이 상황의 시안이 생기면 그것으로 바꿔요.
+ * 네트워크 · 서버 문제뿐 아니라 없는 문서 · 볼 수 없는 문서 · 잘못된 주소에도 이 화면 하나를 써요.
+ * 그림 · 제목 · 설명 · 버튼의 배치는 `IllustratedMessageLayout`이 맡고, 여기서는 글꼴과 색, 놓이는 자리만 정해요.
+ * 문서 화면에서는 문서 영역의 높이만큼 늘어나므로, 시안처럼 안내를 그 세로 가운데에 놓아요.
+ * 낭독기가 바로 읽도록 `role="alert"`를 붙였어요.
  */
 export default function DocumentLoadFailed({
   onRetry,
 }: DocumentLoadFailedProps) {
   return (
-    <DocumentStateMessage
-      illustration={<Illustration aria-hidden="true" />}
-      title="문서를 불러오지 못했어요"
-      description="잠시 후 다시 시도해 주세요."
-      button={
-        <Button size="sm" onClick={onRetry}>
-          다시 시도
-        </Button>
-      }
-    />
+    <Root role="alert">
+      <IllustratedMessageLayout
+        illustration={<Illustration aria-hidden="true" />}
+        title={<Title>문서를 불러오지 못했어요</Title>}
+        description={<Description>잠시 후 다시 시도해 주세요.</Description>}
+        button={
+          <Button size="sm" onClick={onRetry}>
+            다시 시도
+          </Button>
+        }
+      />
+    </Root>
   );
 }
+
+/** 피그마 State/DocNotCreated: 묶음 폭 518px, 화면 세로 가운데 */
+const Root = styled.div`
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  width: 100%;
+  max-width: 32.375rem; /* 518px */
+  margin: 0 auto;
+`;
 
 const Illustration = styled(DocumentFailedIllustration)`
   width: 3rem; /* 48px */
   height: 3rem;
   color: ${({ theme }) => theme.primary};
+`;
+
+const Title = styled.h2`
+  ${({ theme }) => theme.text.heading02};
+  color: ${({ theme }) => theme.primary};
+`;
+
+const Description = styled.p`
+  ${({ theme }) => theme.text.body02};
+  color: ${({ theme }) => theme.neutral[700]};
 `;
