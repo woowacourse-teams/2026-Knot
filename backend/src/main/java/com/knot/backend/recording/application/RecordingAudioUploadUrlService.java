@@ -20,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 public class RecordingAudioUploadUrlService {
+
     private static final String STORAGE_KEY_PREFIX = "recordings/";
 
     private final RecordingWorkspaceAccessValidator workspaceAccessValidator;
@@ -70,6 +71,7 @@ public class RecordingAudioUploadUrlService {
                 upload.getContentType(),
                 upload.getContentLength()
         );
+        upload.recordUploadUrlExpiry(presigned.expiresAt());
         return new RecordingAudioUploadUrlResult(
                 upload.getId(),
                 presigned.uploadUrl(),
