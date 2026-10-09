@@ -67,12 +67,20 @@ class DocumentGenerationExecutionIntegrationTest {
     @Autowired
     private DocumentGenerationClaimService claims;
     @Autowired
+    private DocumentGenerationWorker worker;
+    @Autowired
     private DocumentGenerationFailureService failures;
     @Autowired
     private DocumentGenerationRecoveryService recovery;
     @Autowired
     private DocumentGenerationProgressService progress;
+    @Autowired
+    private DocumentGenerationJobRetryService retries;
+    @Autowired
+    private DocumentGenerationResultService results;
 
+    @Autowired
+    private DocumentClassificationResultService classificationResults;
     @Autowired
     private TransactionTemplate transactions;
     @Autowired
@@ -188,6 +196,111 @@ class DocumentGenerationExecutionIntegrationTest {
     }
 
     @Test
+    @DisplayName("외부 호출은 트랜잭션 밖에서 실행하며 2개 성공 문서를 유지하고 실패 하나만 재시도한다")
+    void execute_success_partialFailureAndUserRetry() {
+        // given
+        when(classifier.classify(anyString())).thenAnswer(invocation -> {
+            assertThat(TransactionSynchronizationManager.isActualTransactionActive()).isFalse();
+            try (ExecutorService executor = Executors.newSingleThreadExecutor()) {
+                executor.submit(
+                        () -> transactions.execute(
+                                status -> jdbc.sql("SELECT id FROM workspaces WHERE id = :id FOR UPDATE")
+                                        .param(
+                                                "id",
+                                                workspaceId
+                                        )
+                                        .query(Long.class)
+                                        .single()
+                        )
+                )
+                        .get(
+                                5,
+                                TimeUnit.SECONDS
+                        );
+            }
+            return new DocumentTopicClassificationResult(
+                    List.of(
+                            "A",
+                            "B",
+                            "C"
+                    )
+            );
+        });
+        when(
+                generator.generate(
+                        anyString(),
+                        eq("C")
+                )
+        ).thenThrow(new LlmException(LlmErrorCode.LLM_INVALID_RESPONSE));
+        // when
+        worker.execute(
+                workspaceId,
+                classifierId
+        );
+        List<Long> jobs = generationIds();
+        for (long job : jobs)
+            worker.execute(
+                    workspaceId,
+                    job
+            );
+        // then
+        assertThat(documentCount()).isEqualTo(2);
+        assertThat(
+                progress.findProgress(
+                        workspaceId,
+                        recordingId
+                )
+                        .orElseThrow()
+                        .failedCount()
+        ).isEqualTo(1);
+        assertThat(
+                progress.findProgress(
+                        workspaceId,
+                        recordingId
+                )
+                        .orElseThrow()
+                        .status()
+        ).isEqualTo(DocumentGenerationProcessingStatus.FAILED);
+        long failed = jobs.getLast();
+        retries.retry(
+                workspaceId,
+                memberId,
+                failed
+        );
+        when(
+                generator.generate(
+                        anyString(),
+                        eq("C")
+                )
+        ).thenReturn(RESULT);
+        worker.execute(
+                workspaceId,
+                failed
+        );
+        assertThat(documentCount()).isEqualTo(3);
+        assertThat(
+                number(
+                        "user_retry_count",
+                        failed
+                )
+        ).isEqualTo(1);
+        assertThat(
+                number(
+                        "attempt_count",
+                        failed
+                )
+        ).isEqualTo(2);
+        assertThat(
+                progress.findProgress(
+                        workspaceId,
+                        recordingId
+                )
+                        .orElseThrow()
+                        .status()
+        ).isEqualTo(DocumentGenerationProcessingStatus.SUCCEEDED);
+    }
+
+    @Test
     @DisplayName("429는 5초 뒤 한 번만 자동 재시도하며 중복 실패 통지는 횟수를 늘리지 않는다")
     void failAttempt_success_boundedScheduledRetry() {
         // given
@@ -253,6 +366,170 @@ class DocumentGenerationExecutionIntegrationTest {
                         classifierId
                 )
         ).isEqualTo(2);
+    }
+
+    @Test
+    @DisplayName("중단된 실행을 새 시도로 회수하며 늦은 결과와 늦은 실패를 차단한다")
+    void recoverExpired_success_fencedLateResponse() {
+        // given
+        worker.execute(
+                workspaceId,
+                classifierId
+        );
+        long job = generationIds().getFirst();
+        claims.claim(
+                workspaceId,
+                job
+        )
+                .orElseThrow();
+        // when
+        when(clock.instant()).thenReturn(NOW.plusSeconds(150));
+        assertThatThrownBy(
+                () -> results.completeGeneration(
+                        workspaceId,
+                        job,
+                        1,
+                        RESULT
+                )
+        ).isInstanceOf(DocumentException.class);
+        recovery.recoverExpired(
+                workspaceId,
+                job,
+                1
+        );
+        recovery.recoverExpired(
+                workspaceId,
+                job,
+                1
+        );
+        failures.failAttempt(
+                workspaceId,
+                job,
+                1,
+                DocumentGenerationFailureCause.INVALID_RESPONSE
+        );
+        // then
+        assertThat(
+                number(
+                        "attempt_count",
+                        job
+                )
+        ).isEqualTo(2);
+        assertThat(status(job)).isEqualTo("QUEUED");
+        when(clock.instant()).thenReturn(NOW.plusSeconds(155));
+        worker.execute(
+                workspaceId,
+                job
+        );
+        assertThat(documentCount()).isEqualTo(1);
+        assertThat(
+                results.completeGeneration(
+                        workspaceId,
+                        job,
+                        2,
+                        RESULT
+                )
+        ).isPositive();
+        assertThat(documentCount()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("실패 Job을 정리한 뒤에도 녹음 종료 결과는 실패로 유지한다")
+    void findProgress_success_preservesDeletedFailure() {
+        // given
+        when(classifier.classify(anyString())).thenThrow(new LlmException(LlmErrorCode.LLM_AUTHENTICATION_FAILED));
+        worker.execute(
+                workspaceId,
+                classifierId
+        );
+        // when
+        jdbc.sql("DELETE FROM document_generation_jobs WHERE id = :id")
+                .param(
+                        "id",
+                        classifierId
+                )
+                .update();
+        // then
+        assertThat(
+                progress.findProgress(
+                        workspaceId,
+                        recordingId
+                )
+                        .orElseThrow()
+                        .status()
+        ).isEqualTo(DocumentGenerationProcessingStatus.FAILED);
+        assertThat(
+                progress.findProgress(
+                        workspaceId + 1,
+                        recordingId
+                )
+        ).isEmpty();
+    }
+
+    @Test
+    @DisplayName("내용 없음은 생성 성공과 구분하며 재시도 대상이 아니다")
+    void execute_success_noContent() {
+        // given
+        when(classifier.classify(anyString())).thenReturn(new DocumentTopicClassificationResult(List.of()));
+        // when
+        worker.execute(
+                workspaceId,
+                classifierId
+        );
+        // then
+        assertThat(
+                progress.findProgress(
+                        workspaceId,
+                        recordingId
+                )
+                        .orElseThrow()
+                        .status()
+        ).isEqualTo(DocumentGenerationProcessingStatus.NO_CONTENT);
+        assertThat(generationIds()).isEmpty();
+        verifyNoInteractions(generator);
+        assertThatThrownBy(
+                () -> retries.retry(
+                        workspaceId,
+                        memberId,
+                        classifierId
+                )
+        ).isInstanceOf(DocumentException.class);
+    }
+
+    @Test
+    @DisplayName("삭제된 Workspace의 대기 작업은 종료하고 LLM을 호출하지 않는다")
+    void claim_failure_deletedWorkspace() {
+        // given
+        jdbc.sql("UPDATE workspaces SET deleted_at = :now WHERE id = :id")
+                .param(
+                        "now",
+                        Timestamp.from(NOW)
+                )
+                .param(
+                        "id",
+                        workspaceId
+                )
+                .update();
+        // when
+        worker.execute(
+                workspaceId,
+                classifierId
+        );
+        // then
+        assertThat(status(classifierId)).isEqualTo("FAILED");
+        assertThat(
+                jdbc.sql("SELECT failure_cause FROM document_generation_jobs WHERE id = :id")
+                        .param(
+                                "id",
+                                classifierId
+                        )
+                        .query(String.class)
+                        .single()
+        ).isEqualTo("WORKSPACE_DELETED");
+        verifyNoInteractions(
+                classifier,
+                generator
+        );
     }
 
     private List<Long> generationIds() {
@@ -397,6 +674,219 @@ class DocumentGenerationExecutionIntegrationTest {
                         1
                 )
         ).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("사용할 수 없는 원문은 작업 확보 중 최종 실패로 기록하고 호출하지 않는다")
+    void claim_failure_invalidStoredInput() {
+        // given
+        jdbc.sql("UPDATE transcripts SET content = ' '")
+                .update();
+        // when
+        worker.execute(
+                workspaceId,
+                classifierId
+        );
+        // then
+        assertThat(status(classifierId)).isEqualTo("FAILED");
+        assertThat(
+                number(
+                        "automatic_retry_count",
+                        classifierId
+                )
+        ).isZero();
+        verifyNoInteractions(
+                classifier,
+                generator
+        );
+    }
+
+    @Test
+    @DisplayName("실패 작업 하나를 삭제한 뒤 다른 작업을 재시도해도 삭제된 실패 집계를 보존한다")
+    void findProgress_success_preservesDeletedGenerationFailure() {
+        // given
+        when(
+                generator.generate(
+                        anyString(),
+                        eq("B")
+                )
+        ).thenThrow(new LlmException(LlmErrorCode.LLM_INVALID_RESPONSE));
+        when(
+                generator.generate(
+                        anyString(),
+                        eq("C")
+                )
+        ).thenThrow(new LlmException(LlmErrorCode.LLM_INVALID_RESPONSE));
+        worker.execute(
+                workspaceId,
+                classifierId
+        );
+        List<Long> jobs = generationIds();
+        for (long job : jobs)
+            worker.execute(
+                    workspaceId,
+                    job
+            );
+        jdbc.sql("DELETE FROM document_generation_jobs WHERE id = :id")
+                .param(
+                        "id",
+                        jobs.get(1)
+                )
+                .update();
+        // when
+        retries.retry(
+                workspaceId,
+                memberId,
+                jobs.getLast()
+        );
+        when(
+                generator.generate(
+                        anyString(),
+                        eq("C")
+                )
+        ).thenReturn(RESULT);
+        worker.execute(
+                workspaceId,
+                jobs.getLast()
+        );
+        // then
+        assertThat(
+                progress.findProgress(
+                        workspaceId,
+                        recordingId
+                )
+                        .orElseThrow()
+                        .succeededCount()
+        ).isEqualTo(2);
+        assertThat(
+                progress.findProgress(
+                        workspaceId,
+                        recordingId
+                )
+                        .orElseThrow()
+                        .failedCount()
+        ).isEqualTo(1);
+        assertThat(
+                progress.findProgress(
+                        workspaceId,
+                        recordingId
+                )
+                        .orElseThrow()
+                        .status()
+        ).isEqualTo(DocumentGenerationProcessingStatus.FAILED);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"claim", "classification", "generation"})
+    @DisplayName("확보·분류 저장·문서 저장의 Workspace 잠금 대기를 3초로 제한한다")
+    void execution_failure_boundedDatabaseLockWait(String operation) throws Exception {
+        // given
+        long targetId = classifierId;
+        if (operation.equals("generation")) {
+            worker.execute(
+                    workspaceId,
+                    classifierId
+            );
+            targetId = generationIds().getFirst();
+        }
+        if (!operation.equals("claim")) {
+            claims.claim(
+                    workspaceId,
+                    targetId
+            )
+                    .orElseThrow();
+        }
+        Runnable blocked = blockedOperation(
+                operation,
+                targetId
+        );
+        CountDownLatch held = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+        try (ExecutorService executor = Executors.newSingleThreadExecutor()) {
+            Future<?> holder = executor.submit(() -> transactions.executeWithoutResult(status -> {
+                jdbc.sql("SELECT id FROM workspaces WHERE id = :id FOR UPDATE")
+                        .param(
+                                "id",
+                                workspaceId
+                        )
+                        .query(Long.class)
+                        .single();
+                held.countDown();
+                try {
+                    release.await(
+                            10,
+                            TimeUnit.SECONDS
+                    );
+                } catch (InterruptedException exception) {
+                    Thread.currentThread()
+                            .interrupt();
+                    throw new AssertionError(exception);
+                }
+            }));
+            assertThat(
+                    held.await(
+                            5,
+                            TimeUnit.SECONDS
+                    )
+            ).isTrue();
+            try {
+                // when & then
+                assertThatThrownBy(blocked::run).isInstanceOf(DataAccessException.class)
+                        .rootCause()
+                        .hasMessageContaining("ERROR: canceling statement due to lock timeout");
+            } finally {
+                release.countDown();
+                holder.get(
+                        10,
+                        TimeUnit.SECONDS
+                );
+            }
+        }
+        if (operation.equals("claim")) {
+            assertThat(status(targetId)).isEqualTo("QUEUED");
+        } else {
+            assertThat(status(targetId)).isEqualTo("RUNNING");
+        }
+        assertThat(
+                jdbc.sql("SELECT count(*) FROM documents")
+                        .query(Long.class)
+                        .single()
+        ).isZero();
+        assertThat(
+                number(
+                        "attempt_count",
+                        targetId
+                )
+        ).isEqualTo(1);
+    }
+
+    private Runnable blockedOperation(
+            String operation,
+            long targetId
+    ) {
+        switch (operation) {
+            case "claim" :
+                return () -> claims.claim(
+                        workspaceId,
+                        targetId
+                );
+            case "classification" :
+                return () -> classificationResults.completeClassification(
+                        workspaceId,
+                        targetId,
+                        1,
+                        new DocumentTopicClassificationResult(List.of("A"))
+                );
+            case "generation" :
+                return () -> results.completeGeneration(
+                        workspaceId,
+                        targetId,
+                        1,
+                        RESULT
+                );
+            default :
+                throw new AssertionError("알 수 없는 작업");
+        }
     }
 
     @Test
