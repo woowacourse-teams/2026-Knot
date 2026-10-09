@@ -1,81 +1,45 @@
-import { NO_DECISION_SENTENCE } from "@constants/document";
-import styled from "@emotion/styled";
+import useNavigateToWorkspace from "@hooks/domain/workspace/useNavigateToWorkspace";
 import useNavigateToWorkspaceHome from "@hooks/domain/workspace/useNavigateToWorkspaceHome";
-import DocumentBody from "@primitives/ui/DocumentBody";
-import RetryNotice from "@primitives/ui/RetryNotice";
-import { useId } from "react";
 import { useParams } from "react-router";
 
-import { useDocumentViewer } from "./model/useDocumentViewer";
+import DocumentContent from "./ui/DocumentContent";
 import DocumentNotFound from "./ui/DocumentNotFound";
-import DocumentSkeleton from "./ui/DocumentSkeleton";
 
 /**
  * 문서 보기 섹션. 주소의 문서를 불러와 제목과 본문을 보여줘요.
  *
- * 결정이 없는 회의 문서는 본문의 결정 없음 문장을 흐리게 그려요(STT-R23).
- * 문서 머리(경로 · 날짜 · 확인 수 · 복사)와 확인 버튼은 다음 PR에서 더해요.
+ * 주소의 두 id는 읽은 이 자리에서 확인해요. 정수가 아니면 조회를 시작하지 않고 문서를 찾을 수 없다고 알려요.
+ * 그래서 조회하는 쪽(`ui/DocumentContent`와 그 아래)은 정수만 받고 다시 검사하지 않아요.
  */
 export default function DocumentViewer() {
-  const titleId = useId();
-  const { workspaceId = "", documentId = "" } = useParams();
-  const viewer = useDocumentViewer({
-    workspaceId: Number(workspaceId),
-    documentId: Number(documentId),
-  });
+  const params = useParams();
   const { navigateToWorkspaceHome } = useNavigateToWorkspaceHome();
+  const { navigateToWorkspace } = useNavigateToWorkspace();
 
-  if (viewer.status === "loading") {
-    return (
-      <Container aria-busy="true" aria-label="문서를 불러오고 있어요">
-        <DocumentSkeleton />
-      </Container>
-    );
-  }
+  const workspaceId = Number(params.workspaceId);
+  const documentId = Number(params.documentId);
+  const isValidAddress =
+    Number.isInteger(workspaceId) && Number.isInteger(documentId);
 
-  if (viewer.status === "notFound") {
-    return (
-      <Container>
-        <DocumentNotFound
-          onGoHome={() => navigateToWorkspaceHome({ workspaceId })}
-        />
-      </Container>
-    );
-  }
+  const handleGoHome = () => {
+    // 주소에 워크스페이스 id가 없으면 홈 주소를 만들 수 없어 워크스페이스 선택 화면으로 보내요
+    if (params.workspaceId === undefined) {
+      navigateToWorkspace();
+      return;
+    }
 
-  if (viewer.status === "error") {
-    return (
-      <Container>
-        <RetryNotice
-          message="문서를 불러오지 못했어요"
-          onRetry={viewer.retry}
-        />
-      </Container>
-    );
+    navigateToWorkspaceHome({ workspaceId: params.workspaceId });
+  };
+
+  if (!isValidAddress) {
+    return <DocumentNotFound onGoHome={handleGoHome} />;
   }
 
   return (
-    <Container aria-labelledby={titleId}>
-      <Title id={titleId}>{viewer.document.title}</Title>
-      <DocumentBody
-        content={viewer.document.content}
-        mutedLines={[NO_DECISION_SENTENCE]}
-      />
-    </Container>
+    <DocumentContent
+      workspaceId={workspaceId}
+      documentId={documentId}
+      onGoHome={handleGoHome}
+    />
   );
 }
-
-/** 피그마 문서 열(Standard): 폭 720px, 제목과 본문 사이 24px */
-const Container = styled.section`
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem; /* 24px */
-  width: 100%;
-  max-width: 45rem; /* 720px */
-`;
-
-const Title = styled.h2`
-  ${({ theme }) => theme.text.heading02};
-  color: ${({ theme }) => theme.neutral[900]};
-  overflow-wrap: break-word;
-`;

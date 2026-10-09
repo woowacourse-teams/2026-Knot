@@ -20,7 +20,7 @@ const DOCUMENT_REQUEST = `*${DOCUMENT_API_PATH(WORKSPACE_ID, documentResponse.id
 
 // 문서 페이지는 스토리를 한 화면에 함께 그리는데 msw는 화면에 하나뿐이라, 마지막 스토리의 응답이 모든 스토리에 적용돼요.
 // 응답을 바꾸는 스토리만 따로 그려 각자의 응답을 받게 해요
-const ISOLATED_DOCS = { story: { inline: false, iframeHeight: 240 } };
+const ISOLATED_DOCS = { story: { inline: false, iframeHeight: 260 } };
 
 /**
  * 문서 하나를 열었을 때 제목과 본문을 보여 주는 문서 보기 영역이에요.

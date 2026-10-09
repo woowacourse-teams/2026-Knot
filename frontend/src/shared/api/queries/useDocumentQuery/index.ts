@@ -12,8 +12,7 @@ interface UseDocumentQueryParams {
  *
  * 문서 보기 위젯이 쓰고, 문서 머리·확인 버튼도 같은 키를 써서 요청은 한 번만 나가고 캐시를 나눠 써요.
  *
- * 라우트 파라미터를 `Number`로 바꾼 값이 정수가 아니면(`/documents/abc` 같은 잘못된 주소) 요청하지 않아요.
- * `NaN`이 그대로 가면 `/documents/NaN`으로 요청이 나가고 캐시 키도 `null`로 뭉개져요.
+ * 두 id는 정수여야 해요. 주소에서 읽은 값이 정수인지는 주소를 읽는 쪽(문서 보기 위젯)이 확인하고, 여기서는 다시 검사하지 않아요.
  */
 const useDocumentQuery = ({
   workspaceId,
@@ -22,7 +21,6 @@ const useDocumentQuery = ({
   return useQuery({
     queryKey: documentKeys.detail({ workspaceId, documentId }),
     queryFn: () => getDocumentApi({ workspaceId, documentId }),
-    enabled: Number.isInteger(workspaceId) && Number.isInteger(documentId),
   });
 };
 
