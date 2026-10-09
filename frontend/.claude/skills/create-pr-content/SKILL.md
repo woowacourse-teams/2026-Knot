@@ -262,6 +262,7 @@ manifest에서 쓰는 값:
 | `stories[].before`           | 변경 전 사진. develop에 없는 새 스토리면 `null`              |
 | `stories[].after.size.width` | 사진의 CSS 폭. `<img width>`의 기준                          |
 | `stories[].identical`        | `true`면 변경 전과 후가 같아 이 스토리에서는 화면 변화가 없음 |
+| `diagrams[]`                 | `--upload-only`로 올린 SVG 다이어그램. 필드는 `file`, `placeholder`, `url` |
 | `upload.warnings`            | Aside 없음, GitHub 로그인 안 됨 등 업로드 실패 이유. 7단계에서 알림 |
 | `warnings`                   | PR을 못 찾음, 로컬 Storybook 실패 등. 7단계에서 알림         |
 
@@ -276,7 +277,7 @@ manifest에서 쓰는 값:
     node .claude/skills/create-pr-content/scripts/pr-assets.mjs --out /tmp/knot-pr/<slug>-assets --upload-only
     ```
 
-  - `--upload-only`는 manifest에서 `url`이 없거나 올린 뒤 내용이 바뀐 사진만 올리고, manifest의 `url`을 채움. 이미 올린 사진은 다시 올리지 않음.
+  - `--upload-only`는 manifest에서 `url`이 없거나 올린 뒤 내용이 바뀐 사진과 `diagrams/*.svg`만 올리고, manifest의 `url`을 채움. 이미 올린 사진은 다시 올리지 않음.
 - PR이 없으면(develop 브랜치, 아직 PR을 열지 않은 브랜치) 사진을 올리지 않음.
 
 ## 4단계: 변경 설명 페이지 생성·검사·게시
@@ -356,6 +357,7 @@ bash .claude/skills/create-pr-content/check-writing.sh /tmp/knot-pr/<slug>-pr.md
 
 - `OK`가 나올 때까지 「글쓰기 규칙」 방식으로 고치고 다시 검사함.
 - `OK`가 나오면 「검사기가 잡지 못하는 규칙」으로 문장마다 대조하고, 고친 부분이 있으면 검사기를 다시 실행함.
+- 예시 코드는 코드 블록이라 검사기가 제외하고 SVG 다이어그램은 검사기가 열지 않지만, 코드 주석과 다이어그램 글자의 한국어도 직접 대조함.
 
 ## 6단계: 열기
 
@@ -372,7 +374,7 @@ open /tmp/knot-pr/<slug>-assets
 
 1. PR 문서 저장 경로 (한 줄)
 2. 변경 설명 페이지 URL과 공유 안내: "위 링크에 직접 들어가서 페이지의 공유(Share) 메뉴로 공유를 켜 주세요. 켜기 전에는 리뷰어가 열 수 없습니다." 게시가 실패했다면 실패 사실과 로컬 HTML 경로를 대신 알림.
-3. 사진 업로드 안내: 본문에 `{{...}}` 표시가 남았을 때만 알림. "열린 폴더의 사진 중 아래 표시에 해당하는 파일을 GitHub PR 편집창에 끌어다 놓아 주소를 받은 뒤, 본문의 `{{...}}` 표시를 받은 주소로 바꿔 주세요." 그리고 남은 표시 목록과 올리지 못한 이유(`upload.warnings`). 모두 올렸다면 "사진은 모두 GitHub에 올려 본문에 넣었습니다."라고만 알림.
+3. 사진 업로드 안내: 본문에 `{{...}}` 표시가 남았을 때만 알림. "열린 폴더의 사진과 `diagrams/`의 SVG 다이어그램 중 아래 표시에 해당하는 파일을 GitHub PR 편집창에 끌어다 놓아 주소를 받은 뒤, 본문의 `{{...}}` 표시를 받은 주소로 바꿔 주세요." 그리고 남은 표시 목록과 올리지 못한 이유(`upload.warnings`). 모두 올렸다면 "사진은 모두 GitHub에 올려 본문에 넣었습니다."라고만 알림.
 4. 사진이나 링크를 달지 못한 변경 단위와 그 이유, manifest의 `warnings`. (있을 때만)
 
 ---
@@ -430,7 +432,7 @@ open /tmp/knot-pr/<slug>-assets
 - **모든 변경 단위에 사진과 링크를 함께 담음.** 링크는 파일 링크를 기본으로 하고, 해당 스토리가 있으면 Storybook 링크도 넣음.
 - 줄글은 위 「분량」을 따름. 컴포넌트·훅·함수 이름은 백틱으로 감쌈.
 - 남은 TODO가 이 단위와 관련 있으면 단위 안에 한 줄로 적음. (`대화 데이터 연결은 후속 작업입니다.`)
-- 코드 발췌나 Before/After는 아래 「다이어그램 · 예시 코드」 기준에 해당할 때만 덧붙임.
+- 코드 발췌나 Before/After는 아래 「코드 · 다이어그램」 기준에 해당할 때만 덧붙임.
 
 ### 링크
 
@@ -510,114 +512,52 @@ open /tmp/knot-pr/<slug>-assets
 - 본문은 `~했습니다`, `~입니다`로 씀. `~하였습니다`는 쓰지 않음. 단, "X는 Y입니다." 규정문은 `writing-rules.md`가 금지하므로 "X는 Y하도록 바꿨습니다."처럼 동작으로 씀.
 - 문장 규칙은 「글쓰기 규칙」과 `writing-rules.md`를 따름. 같은 맥락의 두 문장은 한 문장으로 잇고, 나열에는 가운뎃점(`·`) 대신 쉼표를 씀.
 
----
+### 코드 · 다이어그램
 
-## 다이어그램 · 예시 코드 (중요)
+글과 사진만으로 전달되지 않을 때만 넣음. 장식용으로 넣지 않음.
 
-설명만으로 전달이 어려운 변경사항은 **반드시** 다이어그램이나 예시 코드를 함께 넣음.
-단, 장식용으로 남발하지 말고 **아래 판단 기준에 해당할 때만** 추가.
+| 변경 유형                         | 추가할 것                          |
+| --------------------------------- | ---------------------------------- |
+| 새 컴포넌트·훅의 사용법           | 사용 예시 코드 블록                |
+| 인터페이스·컨벤션·흐름 변경       | `**Before**` / `**After**` 코드 블록 |
+| 비동기 호출 순서, 인증 플로우     | 시퀀스 다이어그램 (SVG 파일)       |
+| 상태 전이                         | 상태 다이어그램 (SVG 파일)         |
+| 구조·의존 관계, 데이터 흐름       | 구조 다이어그램 (SVG 파일)         |
+| 단순 리네이밍, 오타, 설정값 변경  | 아무것도 추가하지 않음             |
 
-### 판단 기준
+- 코드는 실제 diff에서 동작 이해에 필요한 최소한만 발췌함. (10~20줄 이내)
+- 코드 블록에는 반드시 언어 태그(`tsx`, `ts`)를 붙임.
+- 다이어그램 글자와 예시 코드 주석은 검사기가 검사하지 않지만, 한국어 문구에 `writing-rules.md` 금지 표현을 쓰지 않음. 라벨은 완결된 문장이 아니어도 됨.
 
-| 변경 유형                                 | 추가할 것                     |
-| ----------------------------------------- | ----------------------------- |
-| API 호출 순서 / 비동기 흐름 / 인증 플로우 | `mermaid sequenceDiagram`     |
-| 폴더·레이어 구조 변경, 의존 방향 변경     | `mermaid flowchart` 또는 트리 |
-| 상태 전이(로딩·에러·성공, 폼 단계)        | `mermaid stateDiagram-v2`     |
-| 새 컴포넌트/훅의 사용법                   | 사용 예시 코드 블록           |
-| 인터페이스·컨벤션 변경                    | Before / After 코드 블록      |
-| 단순 리네이밍, 오타 수정, 설정값 변경     | 아무것도 추가하지 않음        |
+#### 다이어그램은 반드시 벡터 이미지(SVG)로 그림
 
-### 작성 규칙
+PR 본문에 들어가는 다이어그램은 예외 없이 **SVG 파일로 직접 그려서** 넣음. 확대해도 깨지지 않고, 레이아웃과 색을 의도대로 고정할 수 있기 때문임.
 
-- GitHub는 mermaid를 렌더링하므로 ```mermaid 코드 펜스를 사용.
-- 다이어그램 노드 라벨은 **한글 가능**, 단 `()` `[]` 등 특수문자는 `"..."`로 감쌈.
-- 예시 코드는 실제 diff에서 가져오되, **동작 이해에 필요한 최소한만** 발췌 (10~20줄 이내).
-- 예시 코드에는 반드시 언어 태그(`tsx`, `ts`)를 붙임.
-- Before/After는 각각 별도 코드 블록으로 나누고 `**Before**` / `**After**` 로 라벨링.
+- 금지: `mermaid` 코드 블록, ASCII·박스 문자 도식(`┌─┐`, `-->`), PNG·JPG 같은 래스터 이미지, Storybook 캡처를 다이어그램 대신 쓰는 것.
+- 저장 위치: `/tmp/knot-pr/<slug>-assets/diagrams/<이름>.svg`. 이름은 내용을 나타내는 kebab-case로 씀. (`recording-start-sequence.svg`)
+- `Write`로 SVG 마크업을 직접 작성함. 레포 안에는 만들지 않음.
 
-### 예시 1 — 비동기 흐름 (sequenceDiagram)
+SVG 작성 규칙 (GitHub는 SVG를 `<img>`로 그리므로 아래를 지켜야 깨지지 않음):
 
-````md
-### 프로필 사진 업로드
+- 루트에 `xmlns="http://www.w3.org/2000/svg"`, `viewBox`, `width`, `height`를 모두 명시함. 폭은 600~900 사이로 둠.
+- 첫 요소로 전체를 덮는 배경 `<rect fill="#ffffff">`를 둠. 투명 배경이면 GitHub 다크 테마에서 글자가 보이지 않음.
+- 글자는 `<text>`로 쓰고 `font-family="-apple-system, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif"`를 지정함. 웹 폰트, `<foreignObject>`, `<script>`, 외부 `href`(이미지·폰트·CSS)는 쓰지 않음. `<img>`로 그려질 때 무시되거나 막힘.
+- 글자가 상자를 넘치지 않도록 상자 폭을 글자 수에 맞춰 잡음. 한글 한 글자는 글자 크기와 같은 폭으로 계산함.
+- 화살표는 `<marker>`로 머리를 정의해 `marker-end`로 붙임. 선은 상자 테두리에서 끝나게 좌표를 맞춤.
+- 색은 3~4개 이내로 쓰고, 강조는 이번 PR에서 바뀐 부분에만 씀. 바뀐 부분이 무엇인지 범례나 라벨로 밝힘.
+- 다이어그램 안의 이름은 실제 코드의 컴포넌트·훅·함수 이름과 같게 씀.
+- 작성 후 Read로 다시 열어 태그가 닫혔는지, 좌표가 `viewBox` 안에 있는지 확인함.
 
-프로필 사진은 S3를 통하여 관리하도록 하였습니다.
-presignedUrl을 발급받은 뒤 프론트에서 직접 파일을 업로드하고, 업로드 완료 사실을 서버에 알리는 3단계 흐름입니다.
+SVG를 다 그린 뒤 3단계의 `--upload-only`를 실행해 다이어그램을 GitHub에 올리고, manifest의 `diagrams[].url`을 받음.
 
-```mermaid
-sequenceDiagram
-    participant C as Client
-    participant S as Server
-    participant S3 as S3
+본문에는 사진과 같은 방식으로 `<img>` 태그를 넣음. `src`는 `diagrams[].url`을 쓰고, `null`이면 `placeholder`를 씀.
 
-    C->>S: 1. presignedUrl 요청
-    S-->>C: presignedUrl 응답
-    C->>S3: 2. 파일 직접 업로드
-    S3-->>C: 200 OK
-    C->>S: 3. 업로드 완료 통보
-    S-->>C: 프로필 갱신 완료
+```html
+<img width="<SVG의 width>" alt="<무엇을 나타낸 다이어그램>" src="<diagrams[].url 또는 {{diagrams/<이름>.svg}}>" />
 ```
 
-업로드라는 동작 하나에 3개의 API 호출이 필요하여, 현재는 하나의 비동기 함수로 묶어 핸들러에서 관리하도록 구현하였습니다.
-````
-
-### 예시 2 — 구조 변경 (flowchart)
-
-````md
-### 컴포넌트 추상화 레벨 정리
-
-임포트 방향이 상위 레벨로 역류하지 않도록 레이어를 정리하였습니다.
-
-```mermaid
-flowchart TD
-    W[modules/widgets] --> F[modules/features]
-    F --> C[shared/components/composites]
-    C --> P[shared/components/primitives]
-```
-
-상위 레벨은 하위 레벨만 임포트할 수 있으며, 동일 레벨 간 참조는 금지하였습니다.
-````
-
-### 예시 3 — 컨벤션 변경 (Before / After)
-
-````md
-### getRouterPath 파라미터명 변경
-
-의미가 모호했던 `path` 파라미터를 `routeKey`로 변경하였습니다.
-
-**Before**
-
-```ts
-const getRouterPath = (path: RouteKey) => ROUTES[path];
-```
-
-**After**
-
-```ts
-const getRouterPath = (routeKey: RouteKey) => ROUTES[routeKey];
-```
-
-인자로 넘기는 값이 경로 문자열이 아니라 라우트 키라는 점을 이름에서 드러내도록 하였습니다.
-````
-
-### 예시 4 — 신규 컴포넌트 사용법
-
-````md
-### TextField 프리미티브 구현
-
-값과 에러 메시지를 함께 다루는 `TextField`를 추가하였습니다.
-
-```tsx
-<TextField
-  value={name}
-  onChange={handleChange}
-  placeholder="팀 이름을 입력해 주세요."
-  errorMessage={isDuplicated ? "이미 존재하는 팀 이름입니다." : undefined}
-/>
-```
-
-`errorMessage` 유무와 값의 길이로 `Input`의 `status`를 계산해 넘기므로, 사용처에서는 값과 에러 메시지만 전달하면 됩니다.
-````
+- `width`는 SVG의 `width` 값을 그대로 쓰고, 800을 넘으면 800으로 둠.
+- 올리지 못한 다이어그램은 7단계 사진 업로드 안내의 표시 목록에 함께 넣음.
 
 ---
 
