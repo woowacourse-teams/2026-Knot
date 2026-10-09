@@ -13,7 +13,8 @@ interface UseRedirectToLoginOnUnauthorizedParams {
  * 쓰는 쪽은 에러를 넘기기만 해요. 이동하는 동안 오류 안내를 그리지 않도록 `isUnauthorized`를 돌려줘요.
  * 워크스페이스 조회처럼 403·404까지 판정해 이동해야 하면 `useWorkspaceAccessGuard`를 써요.
  *
- * effect deps의 `navigateToLogin`은 `useCallback`으로 고정한 참조라, 판정 결과가 바뀔 때만 한 번 이동해요.
+ * 이동하면 사라지는 화면 안에서 쓰는 것을 전제로 해요. `BrowserRouter`에서는 주소가 바뀔 때마다 `navigateToLogin` 참조가
+ * 새로 만들어져 effect가 다시 돌기 때문에, 이동한 뒤에도 남는 곳(레이아웃)에 붙이면 401인 동안 주소가 바뀔 때마다 다시 로그인으로 보내요.
  */
 const useRedirectToLoginOnUnauthorized = ({
   error,
