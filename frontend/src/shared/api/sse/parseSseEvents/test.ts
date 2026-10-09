@@ -60,4 +60,65 @@ describe("parseSseEvents", () => {
       buffer: "event: compl",
     });
   });
+
+  it("event 줄이 없으면 이벤트 이름을 message로 채운다", () => {
+    expect(parseSseEvents({ buffer: "", chunk: "data: hi\n\n" })).toEqual({
+      events: [{ event: "message", data: "hi" }],
+      buffer: "",
+    });
+  });
+
+  it("콜론 뒤에 공백이 없어도 같은 값으로 읽는다", () => {
+    expect(
+      parseSseEvents({ buffer: "", chunk: `event:delta\ndata:${HELLO}\n\n` }),
+    ).toEqual({
+      events: [{ event: "delta", data: HELLO }],
+      buffer: "",
+    });
+  });
+
+  it("data 줄이 여러 개면 줄바꿈으로 이어 붙인다", () => {
+    expect(
+      parseSseEvents({ buffer: "", chunk: "data: 첫 줄\ndata: 둘째 줄\n\n" }),
+    ).toEqual({
+      events: [{ event: "message", data: "첫 줄\n둘째 줄" }],
+      buffer: "",
+    });
+  });
+
+  it("data 줄이 없는 이벤트는 돌려주지 않는다", () => {
+    expect(
+      parseSseEvents({
+        buffer: "",
+        chunk: `: keep-alive\n\nevent: delta\n\nevent: delta\ndata: ${HELLO}\n\n`,
+      }),
+    ).toEqual({
+      events: [{ event: "delta", data: HELLO }],
+      buffer: "",
+    });
+  });
+
+  it("줄 끝이 CRLF여도 같은 이벤트로 읽는다", () => {
+    expect(
+      parseSseEvents({
+        buffer: "",
+        chunk: `event: delta\r\ndata: ${HELLO}\r\n\r\n`,
+      }),
+    ).toEqual({
+      events: [{ event: "delta", data: HELLO }],
+      buffer: "",
+    });
+  });
+
+  it("CRLF가 두 조각에 걸쳐 잘려도 이어 붙여 읽는다", () => {
+    expect(
+      parseSseEvents({
+        buffer: `event: delta\r\ndata: ${HELLO}\r\n\r`,
+        chunk: "\n",
+      }),
+    ).toEqual({
+      events: [{ event: "delta", data: HELLO }],
+      buffer: "",
+    });
+  });
 });
