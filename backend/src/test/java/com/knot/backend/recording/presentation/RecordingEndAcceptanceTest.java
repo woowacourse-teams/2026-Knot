@@ -44,6 +44,8 @@ class RecordingEndAcceptanceTest {
     private static final String JWT_COOKIE_NAME = "KNOT_ACCESS_TOKEN";
     private static final String CSRF_COOKIE_NAME = "XSRF-TOKEN";
     private static final String CONTROL_TOKEN = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefA";
+    private static final String OTHER_CONTROL_TOKEN = "ZYXWVUTSRQPONMLKJIHGFEDCBA9876543210zyxwvuA";
+    private static final UUID TAB_ID = UUID.fromString("22222222-2222-2222-2222-222222222222");
     private static final Instant CREATED_AT = Instant.parse("2026-10-05T00:00:00Z");
     private static final Instant JOINED_AT = Instant.parse("2026-10-05T00:01:00Z");
 
@@ -75,7 +77,7 @@ class RecordingEndAcceptanceTest {
     }
 
     @Test
-    @DisplayName("시작자가 종료하면 200과 ENDED, 서버 종료 시각을 반환하고 제어 비밀값은 반환하지 않는다")
+    @DisplayName("최초 탭이 종료하면 200과 ENDED, 서버 종료 시각을 반환하고 제어 비밀값은 반환하지 않는다")
     void end_success_starter() throws Exception {
         // given
         long memberId = saveMember("member");
@@ -109,7 +111,7 @@ class RecordingEndAcceptanceTest {
     }
 
     @Test
-    @DisplayName("이미 종료된 녹음을 다시 종료하면 처음 종료 시각을 그대로 반환한다")
+    @DisplayName("최초 탭이 이미 종료된 녹음을 다시 종료하면 처음 종료 시각을 그대로 반환한다")
     void end_success_repeatedEndKeepsEndedAt() throws Exception {
         // given
         long memberId = saveMember("member");
@@ -143,6 +145,146 @@ class RecordingEndAcceptanceTest {
         result.andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("ENDED"))
                 .andExpect(jsonPath("$.endedAt").value(firstEndedAt));
+    }
+
+    @Test
+    @DisplayName("같은 회원의 다른 탭이 종료하면 403이고 녹음을 유지한다")
+    void end_failure_otherTab() throws Exception {
+        // given
+        long memberId = saveMember("member");
+        long workspaceId = saveWorkspace("팀");
+        saveWorkspaceMember(
+                workspaceId,
+                memberId
+        );
+        long recordingId = startRecording(
+                workspaceId,
+                memberId
+        );
+
+        // when
+        ResultActions result = end(
+                workspaceId,
+                Long.toString(recordingId),
+                memberId,
+                controlBody(
+                        UUID.randomUUID(),
+                        CONTROL_TOKEN
+                )
+        );
+
+        // then
+        result.andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("RECORDING_CONTROL_DENIED"));
+        assertThat(recordingStatus(recordingId)).isEqualTo("RECORDING");
+    }
+
+    @Test
+    @DisplayName("최초 탭 ID라도 제어 증명이 다르면 403이고 녹음을 유지한다")
+    void end_failure_wrongControlToken() throws Exception {
+        // given
+        long memberId = saveMember("member");
+        long workspaceId = saveWorkspace("팀");
+        saveWorkspaceMember(
+                workspaceId,
+                memberId
+        );
+        long recordingId = startRecording(
+                workspaceId,
+                memberId
+        );
+
+        // when
+        ResultActions result = end(
+                workspaceId,
+                Long.toString(recordingId),
+                memberId,
+                controlBody(
+                        TAB_ID,
+                        OTHER_CONTROL_TOKEN
+                )
+        );
+
+        // then
+        result.andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("RECORDING_CONTROL_DENIED"));
+        assertThat(recordingStatus(recordingId)).isEqualTo("RECORDING");
+    }
+
+    @Test
+    @DisplayName("이미 종료된 녹음도 다른 탭의 재요청이면 종료 결과를 돌려주지 않고 403이다")
+    void end_failure_repeatedEndFromOtherTab() throws Exception {
+        // given
+        long memberId = saveMember("member");
+        long workspaceId = saveWorkspace("팀");
+        saveWorkspaceMember(
+                workspaceId,
+                memberId
+        );
+        long recordingId = startRecording(
+                workspaceId,
+                memberId
+        );
+        end(
+                workspaceId,
+                Long.toString(recordingId),
+                memberId
+        ).andExpect(status().isOk());
+
+        // when
+        ResultActions result = end(
+                workspaceId,
+                Long.toString(recordingId),
+                memberId,
+                controlBody(
+                        UUID.randomUUID(),
+                        CONTROL_TOKEN
+                )
+        );
+
+        // then
+        result.andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("RECORDING_CONTROL_DENIED"))
+                .andExpect(jsonPath("$.endedAt").doesNotExist());
+        assertThat(recordingStatus(recordingId)).isEqualTo("ENDED");
+    }
+
+    @Test
+    @DisplayName("요청 본문 없이 종료하면 400이고 녹음을 유지한다")
+    void end_failure_missingBody() throws Exception {
+        // given
+        long memberId = saveMember("member");
+        long workspaceId = saveWorkspace("팀");
+        saveWorkspaceMember(
+                workspaceId,
+                memberId
+        );
+        long recordingId = startRecording(
+                workspaceId,
+                memberId
+        );
+        CsrfCredentials csrf = csrfCredentials();
+
+        // when
+        ResultActions result = mockMvc.perform(
+                post(
+                        "/api/v1/workspaces/{workspaceId}/recordings/{recordingId}/end",
+                        workspaceId,
+                        recordingId
+                ).cookie(
+                        accessTokenCookie(memberId),
+                        csrf.cookie()
+                )
+                        .header(
+                                "X-XSRF-TOKEN",
+                                csrf.token()
+                        )
+        );
+
+        // then
+        result.andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_REQUEST_BODY"));
+        assertThat(recordingStatus(recordingId)).isEqualTo("RECORDING");
     }
 
     @Test
@@ -362,6 +504,13 @@ class RecordingEndAcceptanceTest {
                                 "X-XSRF-TOKEN",
                                 csrf.token()
                         )
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(
+                                controlBody(
+                                        TAB_ID,
+                                        CONTROL_TOKEN
+                                )
+                        )
         );
 
         // then
@@ -391,6 +540,13 @@ class RecordingEndAcceptanceTest {
                         workspaceId,
                         recordingId
                 ).cookie(accessTokenCookie(memberId))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(
+                                controlBody(
+                                        TAB_ID,
+                                        CONTROL_TOKEN
+                                )
+                        )
         );
 
         // then
@@ -428,7 +584,11 @@ class RecordingEndAcceptanceTest {
                         jsonPath(endPath + ".responses['409'].content['application/json'].schema['$ref']")
                                 .value(errorResponseRef)
                 )
-                .andExpect(jsonPath(endPath + ".requestBody").doesNotExist())
+                .andExpect(jsonPath(endPath + ".requestBody.required").value(true))
+                .andExpect(
+                        jsonPath(endPath + ".requestBody.content['application/json'].schema['$ref']")
+                                .value("#/components/schemas/RecordingControlRequest")
+                )
                 .andExpect(jsonPath(endPath + ".security[*].accessTokenCookie").exists())
                 .andExpect(
                         jsonPath(endPath + ".parameters[?(@.name == 'X-XSRF-TOKEN')].required").value(hasItems(true))
@@ -439,6 +599,23 @@ class RecordingEndAcceptanceTest {
             long workspaceId,
             String recordingId,
             long memberId
+    ) throws Exception {
+        return end(
+                workspaceId,
+                recordingId,
+                memberId,
+                controlBody(
+                        TAB_ID,
+                        CONTROL_TOKEN
+                )
+        );
+    }
+
+    private ResultActions end(
+            long workspaceId,
+            String recordingId,
+            long memberId,
+            String body
     ) throws Exception {
         CsrfCredentials csrf = csrfCredentials();
         return mockMvc.perform(
@@ -451,6 +628,20 @@ class RecordingEndAcceptanceTest {
                                 "X-XSRF-TOKEN",
                                 csrf.token()
                         )
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body)
+        );
+    }
+
+    private String controlBody(
+            UUID tabId,
+            String controlToken
+    ) {
+        return """
+                {"tabId":"%s","controlToken":"%s"}
+                """.formatted(
+                tabId,
+                controlToken
         );
     }
 
@@ -497,7 +688,7 @@ class RecordingEndAcceptanceTest {
                                         {"requestId":"%s","tabId":"%s","controlToken":"%s"}
                                         """.formatted(
                                         UUID.randomUUID(),
-                                        UUID.randomUUID(),
+                                        TAB_ID,
                                         CONTROL_TOKEN
                                 )
                         )
