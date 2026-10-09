@@ -17,7 +17,6 @@ import tools.jackson.databind.ObjectMapper;
 @Component
 @ConditionalOnProperty(prefix = "knot.llm", name = "enabled", havingValue = "true")
 public class DocumentGenerator {
-
     private static final Pattern BLANK = Pattern.compile("[\\p{javaWhitespace}\\p{Z}]*");
     private static final Pattern OUTER_WHITESPACE = Pattern
             .compile("^[\\p{javaWhitespace}\\p{Z}]+|[\\p{javaWhitespace}\\p{Z}]+$");

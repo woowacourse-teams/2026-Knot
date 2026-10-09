@@ -22,20 +22,34 @@ public record DocumentGenerationRegistrationResult(
             DocumentGenerationBatch batch,
             List<DocumentGenerationJob> jobs
     ) {
-        Long classificationJobId = null;
-        List<Long> generationJobIds = new ArrayList<>();
-        for (DocumentGenerationJob job : jobs) {
-            if (job.getStage() == DocumentGenerationJobStage.CLASSIFICATION) {
-                classificationJobId = job.getId();
-            } else {
-                generationJobIds.add(job.getId());
-            }
-        }
         return new DocumentGenerationRegistrationResult(
                 batch.getId(),
                 batch.getTopicRegistrationState(),
-                classificationJobId,
-                generationJobIds
+                findClassificationJobId(jobs),
+                findGenerationJobIds(jobs)
         );
+    }
+
+    private static Long findClassificationJobId(List<DocumentGenerationJob> jobs) {
+        Long classificationJobId = null;
+        for (DocumentGenerationJob job : jobs) {
+            if (job.getStage() != DocumentGenerationJobStage.CLASSIFICATION) {
+                continue;
+            }
+            classificationJobId = job.getId();
+        }
+        return classificationJobId;
+    }
+
+    private static List<Long> findGenerationJobIds(List<DocumentGenerationJob> jobs) {
+        List<Long> generationJobIds = new ArrayList<>();
+        for (DocumentGenerationJob job : jobs) {
+            if (job.getStage() == DocumentGenerationJobStage.CLASSIFICATION) {
+                continue;
+            }
+            Long jobId = job.getId();
+            generationJobIds.add(jobId);
+        }
+        return generationJobIds;
     }
 }
