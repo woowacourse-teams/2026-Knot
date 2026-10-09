@@ -1,6 +1,6 @@
 ---
 name: create-pr-content
-description: 현재 브랜치 HEAD 커밋과 develop 브랜치 커밋의 변경사항을 비교하여 pr 내용을 작성. 최상단 안내 문구는 사용자에게 전달받고, /explain-diff-html로 만든 변경 설명 페이지를 Artifact로 게시해 PR 본문에 링크
+description: 현재 브랜치 HEAD 커밋과 develop 브랜치 커밋의 변경사항을 비교하여 pr 내용을 작성. 최상단 안내 문구는 사용자에게 전달받고, 변경 단위마다 Storybook 캡처 사진과 Storybook·파일 링크를 달며, /explain-diff-html로 만든 변경 설명 페이지를 Artifact로 게시해 PR 본문에 링크
 argument-hint: "[최상단 안내 문구]"
 user-invocable: true
 disable-model-invocation: true
@@ -13,9 +13,7 @@ allowed-tools: Bash(git diff:*), Bash(git log:*), Bash(git branch:*), Bash(git s
 
 작성 결과물은 레포 내부(`context/`)가 아니라 **OS 임시 디렉토리**에 저장하고, 작성이 끝나면 **VS Code로 자동으로 열어줌**.
 
-PR 본문에는 `/explain-diff-html`로 만든 **변경 설명 페이지**를 Artifact로 게시한 링크를 포함함. 게시된 페이지는 작성자 본인만 볼 수 있으므로, 완료 시 사용자가 직접 링크에 들어가 공유를 켜도록 안내함.
-
-최상단 안내 문구는 사용자에게 전달받음.
+PR 본문은 리뷰어가 **변경 단위마다 사진으로 바로 이해하고, 링크로 바로 코드와 화면을 열 수 있게** 작성함. 사진은 Storybook 스토리를 캡처해 만들고, 최상단 안내 문구는 사용자에게 전달받음.
 
 ## 이 커맨드가 하는 일
 
@@ -197,12 +195,12 @@ query($owner:String!, $name:String!, $number:Int!, $after:String) {
 
 ### 2-3. 조회 결과를 PR에 반영하는 방법
 
-| 확인한 것                                   | PR에 반영할 위치                                       |
-| ------------------------------------------- | ------------------------------------------------------ |
-| 부모 이슈의 `## 구현 기능 설명`             | 초록에서 "무엇을 위한 작업인지" 한 문장으로            |
-| 부모 이슈의 `## TODO` 중 이번에 처리한 항목 | `### 변경사항` 제목·범위 결정에 사용                   |
-| 부모 이슈의 `## TODO` 중 남은 항목          | 후속 작업임을 명시 (`~는 후속 PR에서 진행하겠습니다.`) |
-| 이슈의 `## 메모`, 라벨                      | 참고 사항 / 논의점                                     |
+| 확인한 것                                   | PR에 반영할 위치                                  |
+| ------------------------------------------- | ------------------------------------------------- |
+| 부모 이슈의 `## 구현 기능 설명`             | 초록에서 "무엇을 위한 작업인지" 한 문장으로       |
+| 부모 이슈의 `## TODO` 중 이번에 처리한 항목 | 변경 단위의 제목·범위 결정에 사용                 |
+| 부모 이슈의 `## TODO` 중 남은 항목          | 해당 단위 안에 후속 작업임을 한 줄로 명시         |
+| 이슈의 `## 메모`, 라벨                      | 변경 단위의 "왜"를 설명할 때 근거로 사용          |
 
 - 이슈 번호를 자동으로 찾지 못한 경우는 1단계와 동일하게 처리. 임의로 추측하거나 `- #`로 비워두지 말고, 작업을 멈추고 사용자에게 물어본 뒤 진행.
 - `gh` 인증 실패·네트워크 오류 시 이슈 조회를 생략하고, **"이슈 내용을 반영하지 못했음"을 사용자에게 명시적으로 알림.**
@@ -392,27 +390,94 @@ open /tmp/knot-pr/<slug>-assets
 
 ## 작업 내용
 
-_주요 변경사항 요약(초록). 한 문장에서 두 문장._
+<주요 변경사항 요약(초록). 한 문장에서 두 문장.>
 
-> 변경 배경·핵심 아이디어·코드 워크스루·퀴즈를 정리한 [변경 설명 페이지](<아티팩트 URL>)를 함께 참고해 주세요.
+> 변경 배경, 핵심 아이디어, 코드 워크스루, 퀴즈는 [변경 설명 페이지](<아티팩트 URL>)에 정리해 두었습니다.
 
----
+**[<변경 단위 1>]**
 
-### [변경사항 1]
+- 파일
+  - [`<컴포넌트 폴더부터의 경로>`](<diff 링크>) (<역할>)
+- Storybook
+  - [<상태 이름>](<스토리 링크>)
 
-줄글로 설명. 변경사항이 많다면 개괄식이 아닌 `h3`로 하나씩 나누어 작성.
+<사진 표>
 
----
+<무엇을 왜 바꿨는지 줄글>
 
-### [변경사항 2]
+**[<변경 단위 2>]**
 
 ...
 ```
 
-### 구분선 규칙
+- 맨 끝의 `<!-- storybook-preview:start -->` 블록은 봇이 붙이므로 작성하지 않음.
 
-- `## 작업 내용`의 설명 페이지 안내 인용문 뒤와, 모든 `###` 단위 앞에 `---` 구분선을 넣어 단위를 눈으로 나눔.
-- 구분선 앞뒤에는 빈 줄을 둠. 빈 줄 없이 텍스트 바로 아래에 `---`를 쓰면 GitHub가 그 텍스트를 제목(setext heading)으로 바꿈.
+### 변경 단위
+
+- 파일이 아니라 **사용자가 보는 동작·기능** 기준으로 나눔. (예: `독에 마이크 버튼 추가`, `녹음 화면 진입 가드`)
+- 제목은 `**[...]**`로 씀. 변경 단위에 `###` 제목과 `---` 구분선을 쓰지 않음.
+- 성격이 다른 영역이 섞여 단위가 많을 때(대략 4개 이상)만 `### 컴포넌트 & 훅`, `### 전역 상태`처럼 영역 묶음 제목을 `###`로 둠.
+- **모든 변경 단위에 사진과 링크를 함께 담음.** 링크는 파일 링크를 기본으로 하고, 해당 스토리가 있으면 Storybook 링크도 넣음.
+- 컴포넌트·훅·함수 이름은 백틱으로 감쌈.
+- 남은 TODO가 이 단위와 관련 있으면 단위 안에 한 줄로 적음. (`대화 데이터 연결은 후속 작업입니다.`)
+- 코드 발췌나 Before/After는 아래 「다이어그램 · 예시 코드」 기준에 해당할 때만 덧붙임.
+
+### 링크
+
+- **파일**: `files[].link`를 씀.
+  - 링크 이름은 컴포넌트 폴더부터의 경로로 줄임. (`WorkspaceDock/model/useDockRecording.ts`)
+  - 괄호 안에 그 파일의 역할을 적음. (`(UI)`, `(버튼 표시, 라벨)`, `(상수)`)
+  - 단위를 이해하는 데 필요한 파일만 고름. 테스트·스토리 파일은 그것이 단위의 핵심이 아니면 넣지 않음.
+  - develop 브랜치라 `link`가 `null`이면 `파일` 항목을 통째로 생략함.
+  - PR을 찾지 못해 `null`이면 경로만 백틱으로 적고 7단계에서 알림.
+- **Storybook**: `stories[].link`를 씀.
+  - 링크 이름은 스토리 이름이 아니라 상태를 말로 풀어 씀. (`접힌 독`, `독에서 권한을 받지 못했을 때`)
+  - `link`가 `null`이면 `Storybook` 항목을 생략함.
+
+### 사진
+
+- 3단계에서 찍은 사진만 씀. **각 PNG를 Read로 열어** 그 단위의 변경이 실제로 보이는지 확인한 뒤 고름.
+- `identical: true`인 스토리는 변경 전·후 비교에 쓰지 않음.
+- 로직만 바뀐 단위도 결과가 화면에 드러나는 스토리가 있으면 그 사진을 씀. (예: 마이크가 끊겼을 때 뜨는 모달)
+- 맞는 스토리가 없어 사진을 찍지 못한 단위는 빈 자리를 남기지 않고 사진 없이 쓰되, 7단계에서 단위 이름과 이유를 알림. 화면 변화가 없는 로직이면 코드 발췌로 이해를 도움.
+
+이미지 태그:
+
+```html
+<img width="<표시 폭>" alt="<무엇의 어떤 상태>" src="<after.url 또는 after.placeholder>" />
+```
+
+- 마크다운 `![]()` 문법을 쓰지 않고 `<img>` 태그를 씀.
+- `src`는 manifest의 `before.url` 또는 `after.url`을 넣고, `url`이 `null`이면 `placeholder` 값(`{{after/<파일 이름>}}`)을 그대로 넣음. `placeholder`는 사용자가 GitHub에 올린 주소로 바꿈. 스토리 ID를 직접 적으면 `--`가 들어가 검사기에 걸리므로 직접 만들지 않음.
+- `width`는 manifest의 `size.width`를 그대로 쓰고, 600을 넘으면 600으로 둠. 2배 해상도로 찍었으므로 이 폭에서 선명하게 보임.
+- `alt`에는 무엇의 어떤 상태인지 적음. (`접힌 독 변경 후`, `녹음 중 파형`)
+
+배치:
+
+- **좁은 사진(표시 폭 300 이하)의 변경 전·후**: 가로 표. 상태가 더 있으면 열을 늘림.
+
+  ```md
+  |         | 변경 전                                                   | 변경 후                                                  | 녹음 중                                                  |
+  | ------- | --------------------------------------------------------- | -------------------------------------------------------- | -------------------------------------------------------- |
+  | 접힌 독 | <img width="120" alt="접힌 독 변경 전" src="{{before/workspace-workspacedock__collapsed.png}}" /> | <img width="140" alt="접힌 독 변경 후" src="{{after/workspace-workspacedock__collapsed.png}}" /> | <img width="140" alt="접힌 독 녹음 중" src="{{after/workspace-workspacedock__recording-on-other-screen.png}}" /> |
+  ```
+
+- **넓은 사진의 변경 전·후**: 세로 표. 행마다 사진 하나.
+
+  ```md
+  | 펼친 독 |                                                         |
+  | ------- | ------------------------------------------------------- |
+  | 변경 전 | <img width="600" alt="펼친 독 변경 전" src="{{before/workspace-workspacedock__on-chat-screen.png}}" /> |
+  | 변경 후 | <img width="600" alt="펼친 독 변경 후" src="{{after/workspace-workspacedock__on-chat-screen.png}}" /> |
+  ```
+
+- **새 컴포넌트·상태(변경 전 없음)**: 상태별 표. 상태가 하나면 표 없이 태그만 둠.
+
+  ```md
+  | 독에서 권한을 받지 못했을 때 | 녹음 화면에서 이어서 녹음하지 못했을 때 |
+  | --- | --- |
+  | <img width="360" alt="독에서 권한을 받지 못했을 때 모달" src="{{after/workspace-workspacedock__microphone-unavailable.png}}" /> | <img width="600" alt="녹음 화면에서 이어서 녹음하지 못했을 때 모달" src="{{after/recording-recorderbar__microphone-unavailable.png}}" /> |
+  ```
 
 ### 콜아웃
 
@@ -548,53 +613,60 @@ const getRouterPath = (routeKey: RouteKey) => ROUTES[routeKey];
 
 ## 전체 출력 예시
 
-(서브 이슈 `#51`, 상위 이슈 `#40 [FE] 프로필 관리 기능` 인 경우)
+(서브 이슈 `#369`, 상위 이슈 `#358`, 안내 문구 "web api는 넘기고 리액트 위주로"를 받아 0단계에서 다시 쓴 경우)
+
+아래 예시의 문장은 모두 검사기를 통과한 문장임. 문체를 참고할 때 이 예시보다 `writing-rules.md`를 우선함.
 
 ````md
+> [!IMPORTANT]
+> **Web API의 동작 원리는 넘어가고 리액트 로직 위주로 봐 주세요.**
+
 ## 관련 이슈
 
-- Closes #51
-- 상위 이슈: #40
+- Closes #369
+- 상위 이슈: #358
 
 ## 작업 내용
 
-프로필 관리 기능 중 프로필 사진 업로드 및 제거 기능을 구현하였습니다.
-상위 이슈의 TODO 중 프로필 정보 수정은 후속 PR에서 진행하겠습니다.
+UI만 만들어 둔 녹음 화면에 실제 마이크 녹음 기능을 추가했습니다.
+독의 마이크 버튼에서 권한을 받아 녹음을 시작하고, 마이크가 끊겼을 때 다시 시도할 수 있게 했습니다.
 
-> 변경 배경·핵심 아이디어·코드 워크스루·퀴즈를 정리한 [변경 설명 페이지](https://claude.ai/code/artifact/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)를 함께 참고해 주세요.
+> 변경 배경, 핵심 아이디어, 코드 워크스루, 퀴즈는 [변경 설명 페이지](https://claude.ai/code/artifact/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)에 정리해 두었습니다.
 
----
+**[독에 마이크 버튼 추가]**
 
-### 프로필 사진 업로드
+- 파일
+  - [`WorkspaceDock/index.tsx`](https://github.com/woowacourse-teams/2026-Knot/pull/452/files#diff-653d553f539b908dd8929d5cc69ef5259d22dd6394d4869887786b29ed7b78f2) (UI)
+  - [`WorkspaceDock/model/useDockRecording.ts`](https://github.com/woowacourse-teams/2026-Knot/pull/452/files#diff-2045755e5e8c123dd23c3e7e71f88e9960ec1af569323150e14e2bcdc9aa3963) (버튼 표시, 라벨)
+- Storybook
+  - [접힌 독](https://fe-feature--369.knot-storybook-5f8.pages.dev/?path=/story/workspace-workspacedock--collapsed)
 
-프로필 사진은 S3를 통하여 관리하도록 하였습니다.
-presignedUrl을 발급받은 이후 프론트에서 파일을 업로드하고, 업로드가 완료되었다는 사실을 서버에 전달하는 방식입니다.
+|         | 변경 전 | 변경 후 |
+| ------- | ------- | ------- |
+| 접힌 독 | <img width="120" alt="접힌 독 변경 전" src="{{before/workspace-workspacedock__collapsed.png}}" /> | <img width="140" alt="접힌 독 변경 후" src="{{after/workspace-workspacedock__collapsed.png}}" /> |
 
-```mermaid
-sequenceDiagram
-    participant C as Client
-    participant S as Server
-    participant S3 as S3
+독에 회의 녹음 버튼을 넣었고, 녹음 중에는 라벨이 "녹음 화면으로 이동"으로 바뀝니다.
 
-    C->>S: presignedUrl 요청
-    S-->>C: presignedUrl 응답
-    C->>S3: 파일 업로드
-    C->>S: 업로드 완료 통보
-```
+**[권한은 녹음 화면에 들어가기 전에 독에서 받기]**
 
-업로드 동작 하나에 3개의 API 호출이 필요하여 현재는 하나의 비동기 함수로 묶고, 이를 핸들러에서 관리하도록 구현하였습니다.
-다만 이는 기존의 api → query hook → component 계층 컨벤션에 위배되는 코드이므로, 추후 개선하도록 하겠습니다.
+- 파일
+  - [`WorkspaceDock/model/useDockRecording.ts`](https://github.com/woowacourse-teams/2026-Knot/pull/452/files#diff-2045755e5e8c123dd23c3e7e71f88e9960ec1af569323150e14e2bcdc9aa3963)
+- Storybook
+  - [독에서 권한을 받지 못했을 때](https://fe-feature--369.knot-storybook-5f8.pages.dev/?path=/story/workspace-workspacedock--microphone-unavailable)
 
----
+<img width="600" alt="독에서 권한을 받지 못했을 때 모달" src="{{after/workspace-workspacedock__microphone-unavailable.png}}" />
 
-### 업로드할 프로필 사진 수정
-
-요구사항에 따라 업로드할 프로필의 크기 및 위치를 수정할 수 있어야 했습니다.
-`GestureDetector`와 `Animated.Image`를 통해 이미지를 이동할 수 있도록 하고, 이동한 위치와 확대한 배율을 계산하여 `image-manipulator`로 crop하도록 구현하였습니다.
+마이크 권한을 녹음 화면에 들어간 뒤가 아니라 독의 마이크 버튼을 누를 때 받도록 바꿨습니다.
 
 ```tsx
-const cropped = await manipulateAsync(uri, [
-  { crop: { originX, originY, width: cropSize, height: cropSize } },
-]);
+const handleMicClick = async () => {
+  const isStarted = await startRecording();
+  if (!isStarted) {
+    openMicrophoneUnavailableDialog({ onRetry: handleMicClick });
+    return;
+  }
+
+  navigateToRecording(workspaceId);
+};
 ```
 ````
