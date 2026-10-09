@@ -29,7 +29,6 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 @DataJpaTest
 @Import({TestcontainersConfiguration.class, DocumentGenerationJobListQueryAdapter.class})
 class DocumentGenerationJobListQueryIntegrationTest {
-
     private static final Instant NOW = DocumentFixtures.CREATED_AT.plusSeconds(8 * 24 * 60 * 60);
 
     @Autowired
