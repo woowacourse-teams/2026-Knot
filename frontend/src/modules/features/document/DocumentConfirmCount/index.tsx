@@ -5,7 +5,7 @@ import { useParams } from "react-router";
 
 import ChevronDownIcon from "@/assets/icons/chevronDown.svg";
 
-import { useConfirmationPeople } from "./model/useConfirmationPeople";
+import { useDocumentConfirmationMembers } from "./model/useDocumentConfirmationMembers";
 import ConfirmedPeopleCard from "./ui/ConfirmedPeopleCard";
 
 interface DocumentConfirmCountProps {
@@ -32,8 +32,8 @@ export default function DocumentConfirmCount({
     workspaceId,
     documentId,
   });
-  const { status, confirmedPeople, pendingPeople, retryIfFailed } =
-    useConfirmationPeople({ workspaceId, documentId });
+  const { status, confirmedMembers, pendingMembers, retryIfFailed } =
+    useDocumentConfirmationMembers({ workspaceId, documentId });
 
   if (documentDetail === undefined) return null;
 
@@ -43,8 +43,8 @@ export default function DocumentConfirmCount({
       content={
         <ConfirmedPeopleCard
           status={status}
-          confirmedPeople={confirmedPeople}
-          pendingPeople={pendingPeople}
+          confirmedMembers={confirmedMembers}
+          pendingMembers={pendingMembers}
         />
       }
     >

@@ -2,7 +2,7 @@ import styled from "@emotion/styled";
 import Avatar from "@primitives/ui/Avatar";
 
 /** 팝오버 한 줄에 필요한 값 */
-interface ConfirmationPerson {
+interface ConfirmationMember {
   memberId: number;
   nickname: string;
   profileImageUrl: string | null;
@@ -12,9 +12,9 @@ interface ConfirmedPeopleCardProps {
   /** 확인 대상 조회 상태. 목록은 `ready`일 때만 그려요 */
   status: "loading" | "failed" | "ready";
   /** 확인한 사람. 위에 진하게 그려요 */
-  confirmedPeople: ConfirmationPerson[];
+  confirmedMembers: ConfirmationMember[];
   /** 아직 확인하지 않은 사람. 아래에 흐리게 그려요 */
-  pendingPeople: ConfirmationPerson[];
+  pendingMembers: ConfirmationMember[];
 }
 
 /**
@@ -25,13 +25,13 @@ interface ConfirmedPeopleCardProps {
  */
 export default function ConfirmedPeopleCard({
   status,
-  confirmedPeople,
-  pendingPeople,
+  confirmedMembers,
+  pendingMembers,
 }: ConfirmedPeopleCardProps) {
   const getNotice = () => {
     if (status === "loading") return "목록을 불러오고 있어요";
     if (status === "failed") return "목록을 불러오지 못했어요";
-    if (confirmedPeople.length + pendingPeople.length === 0) {
+    if (confirmedMembers.length + pendingMembers.length === 0) {
       return "확인 대상이 없어요";
     }
 
@@ -51,11 +51,11 @@ export default function ConfirmedPeopleCard({
   return (
     <Root>
       <PeopleList aria-label="문서 확인 현황">
-        {confirmedPeople.map((person) => (
-          <PersonRow key={person.memberId} person={person} />
+        {confirmedMembers.map((member) => (
+          <PersonRow key={member.memberId} member={member} />
         ))}
-        {pendingPeople.map((person) => (
-          <PersonRow key={person.memberId} person={person} isMuted />
+        {pendingMembers.map((member) => (
+          <PersonRow key={member.memberId} member={member} isMuted />
         ))}
       </PeopleList>
     </Root>
@@ -63,21 +63,21 @@ export default function ConfirmedPeopleCard({
 }
 
 interface PersonRowProps {
-  person: ConfirmationPerson;
+  member: ConfirmationMember;
   /** 아직 확인하지 않은 사람이면 흐리게 그려요 */
   isMuted?: boolean;
 }
 
-function PersonRow({ person, isMuted = false }: PersonRowProps) {
+function PersonRow({ member, isMuted = false }: PersonRowProps) {
   return (
     <Person $isMuted={isMuted}>
       <Avatar
-        label={`${person.nickname} 프로필`}
-        src={person.profileImageUrl ?? undefined}
-        name={person.nickname}
+        label={`${member.nickname} 프로필`}
+        src={member.profileImageUrl ?? undefined}
+        name={member.nickname}
         size={24}
       />
-      <Name>{person.nickname}</Name>
+      <Name>{member.nickname}</Name>
     </Person>
   );
 }

@@ -1,6 +1,6 @@
 import useDocumentConfirmationsQuery from "@api/queries/useDocumentConfirmationsQuery";
 
-interface UseConfirmationPeopleParams {
+interface UseDocumentConfirmationMembersParams {
   workspaceId: number;
   documentId: number;
 }
@@ -15,10 +15,10 @@ interface UseConfirmationPeopleParams {
  * 확인하지 않은 채 워크스페이스를 나간 사람(EXCLUDED)은 목록에 넣지 않아요.
  * 서버 정렬에 기대지 않고, 확인한 사람과 아직 확인하지 않은 사람을 여기서 나눠요(CONF-R5).
  */
-export const useConfirmationPeople = ({
+export const useDocumentConfirmationMembers = ({
   workspaceId,
   documentId,
-}: UseConfirmationPeopleParams) => {
+}: UseDocumentConfirmationMembersParams) => {
   const {
     data: confirmations,
     isError,
@@ -45,8 +45,8 @@ export const useConfirmationPeople = ({
 
   return {
     status,
-    confirmedPeople: items.filter(({ state }) => state === "CONFIRMED"),
-    pendingPeople: items.filter(({ state }) => state === "PENDING"),
+    confirmedMembers: items.filter(({ state }) => state === "CONFIRMED"),
+    pendingMembers: items.filter(({ state }) => state === "PENDING"),
     retryIfFailed,
   };
 };
