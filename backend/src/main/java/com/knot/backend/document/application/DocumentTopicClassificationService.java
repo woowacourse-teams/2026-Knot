@@ -14,7 +14,6 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 @ConditionalOnProperty(prefix = "knot.llm", name = "enabled", havingValue = "true")
 public class DocumentTopicClassificationService {
-
     private static final Pattern BLANK_CONTENT = Pattern.compile("[\\p{javaWhitespace}\\p{Z}]*");
 
     private final DocumentTopicClassifier classifier;
