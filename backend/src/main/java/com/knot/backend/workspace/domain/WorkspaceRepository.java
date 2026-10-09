@@ -11,5 +11,7 @@ public interface WorkspaceRepository {
 
     Optional<Workspace> findByIdForUpdate(Long workspaceId);
 
+    Optional<Workspace> findIncludingDeletedByIdForUpdate(Long workspaceId);
+
     List<Workspace> findAllByMemberId(Long memberId);
 }
