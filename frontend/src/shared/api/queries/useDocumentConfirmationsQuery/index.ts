@@ -11,7 +11,8 @@ interface UseDocumentConfirmationsQueryParams {
  * 문서의 확인 대상과 대상별 확인 상태를 조회하는 쿼리 훅.
  *
  * 확인한 사람 팝오버가 써요. 확인 수는 문서 상세 응답에 있으므로 이 훅으로 세지 않아요.
- * 라우트 파라미터를 `Number`로 바꾼 값이 정수가 아니면 요청하지 않아요(문서 상세와 같은 기준).
+ *
+ * 두 id는 정수여야 해요. 주소에서 읽은 값이 정수인지는 주소를 읽는 쪽(문서 보기 위젯)이 확인하고, 여기서는 다시 검사하지 않아요.
  */
 const useDocumentConfirmationsQuery = ({
   workspaceId,
@@ -20,7 +21,6 @@ const useDocumentConfirmationsQuery = ({
   return useQuery({
     queryKey: documentKeys.confirmations({ workspaceId, documentId }),
     queryFn: () => getDocumentConfirmationsApi({ workspaceId, documentId }),
-    enabled: Number.isInteger(workspaceId) && Number.isInteger(documentId),
   });
 };
 

@@ -498,6 +498,11 @@ describe("DocumentViewer", () => {
           requestCount += 1;
           return HttpResponse.json(documentDetailsResponse[0]);
         }),
+        // 확인 대상 조회는 스스로 주소를 검사하지 않으므로, 함께 나가지 않는지 봐요
+        http.get(CONFIRMATIONS_REQUEST, () => {
+          requestCount += 1;
+          return HttpResponse.json(documentConfirmationsResponse[0]);
+        }),
       );
       renderViewerAt(entry);
 
