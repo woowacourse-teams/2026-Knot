@@ -17,8 +17,7 @@ interface UseDocumentQueryParams {
  * 이 컴포넌트들은 위젯이 문서를 받은 뒤에 그려져요. 받은 응답을 곧바로 오래된 것으로 보면 그때 같은 문서를 한 번 더 요청하므로,
  * `staleTime`을 둬서 요청이 한 번만 나가게 해요. 확인 요청 뒤의 캐시 무효화는 이 시간과 관계없이 다시 받아요.
  *
- * 라우트 파라미터를 `Number`로 바꾼 값이 정수가 아니면(`/documents/abc` 같은 잘못된 주소) 요청하지 않아요.
- * `NaN`이 그대로 가면 `/documents/NaN`으로 요청이 나가고 캐시 키도 `null`로 뭉개져요.
+ * 두 id는 정수여야 해요. 주소에서 읽은 값이 정수인지는 주소를 읽는 쪽(문서 보기 위젯)이 확인하고, 여기서는 다시 검사하지 않아요.
  */
 const useDocumentQuery = ({
   workspaceId,
@@ -27,7 +26,6 @@ const useDocumentQuery = ({
   return useQuery({
     queryKey: documentKeys.detail({ workspaceId, documentId }),
     queryFn: () => getDocumentApi({ workspaceId, documentId }),
-    enabled: Number.isInteger(workspaceId) && Number.isInteger(documentId),
     staleTime: DOCUMENT_STALE_TIME_MS,
   });
 };

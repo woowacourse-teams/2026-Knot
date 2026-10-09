@@ -3,6 +3,7 @@ package com.knot.backend.workspace.application;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -10,6 +11,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import com.knot.backend.document.application.DocumentArchivalService;
 import com.knot.backend.recording.domain.RecordingSession;
 import com.knot.backend.recording.domain.RecordingSessionRepository;
 import com.knot.backend.recording.domain.RecordingStatus;
@@ -32,8 +34,11 @@ import org.junit.jupiter.api.Test;
 import org.mockito.InOrder;
 
 class WorkspaceLeaveServiceTest {
+
     private static final Instant CREATED_AT = Instant.parse("2026-09-30T00:00:00Z");
     private static final Instant LEFT_AT = Instant.parse("2026-09-30T00:01:00.123456Z");
+
+    private final DocumentArchivalService documentArchivalService = mock(DocumentArchivalService.class);
 
     @DisplayName("MEMBER가 탈퇴하면 멤버십에 탈퇴 시각을 기록하고 마지막 조회 상태를 해제한다")
     @Test
@@ -72,6 +77,18 @@ class WorkspaceLeaveServiceTest {
                 never()
         ).save(any(Workspace.class));
         verify(workspaceMemberRepository).save(actor);
+        InOrder order = inOrder(
+                workspaceMemberRepository,
+                documentArchivalService
+        );
+        order.verify(workspaceMemberRepository)
+                .flush();
+        order.verify(documentArchivalService)
+                .archiveAfterMemberDeparture(
+                        1L,
+                        2L,
+                        LEFT_AT
+                );
     }
 
     @DisplayName("마지막 멤버가 탈퇴하면 워크스페이스도 삭제된다")
@@ -161,6 +178,7 @@ class WorkspaceLeaveServiceTest {
                 workspaceMemberRepository,
                 never()
         ).save(any(WorkspaceMember.class));
+        verifyNoInteractions(documentArchivalService);
     }
 
     @DisplayName("이미 탈퇴한 이력이 있으면 다시 탈퇴해도 상태를 바꾸지 않는다")
@@ -201,6 +219,56 @@ class WorkspaceLeaveServiceTest {
                 workspaceMemberRepository,
                 never()
         ).save(any(WorkspaceMember.class));
+        verifyNoInteractions(documentArchivalService);
+    }
+
+    @DisplayName("문서 보관 오류를 호출자에게 전달해 탈퇴 트랜잭션이 롤백되도록 한다")
+    @Test
+    void leave_failure_documentArchivalFailed() {
+        // given
+        WorkspaceRepository workspaceRepository = mock(WorkspaceRepository.class);
+        WorkspaceMemberRepository workspaceMemberRepository = mock(WorkspaceMemberRepository.class);
+        WorkspaceLeaveService service = service(
+                workspaceRepository,
+                workspaceMemberRepository
+        );
+        WorkspaceMember actor = workspaceMember(WorkspaceMemberRole.MEMBER);
+        when(workspaceRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(workspace()));
+        when(
+                workspaceMemberRepository.findLatestByWorkspaceIdAndMemberIdForUpdate(
+                        1L,
+                        2L
+                )
+        ).thenReturn(Optional.of(actor));
+        when(workspaceMemberRepository.countActiveByWorkspaceId(1L)).thenReturn(2L);
+        IllegalStateException failure = new IllegalStateException("문서 보관 실패");
+        doThrow(failure).when(documentArchivalService)
+                .archiveAfterMemberDeparture(
+                        1L,
+                        2L,
+                        LEFT_AT
+                );
+
+        // when
+        ThrowingCallable action = () -> service.leave(
+                2L,
+                1L
+        );
+
+        // then
+        assertThatThrownBy(action).isSameAs(failure);
+        InOrder order = inOrder(
+                workspaceMemberRepository,
+                documentArchivalService
+        );
+        order.verify(workspaceMemberRepository)
+                .flush();
+        order.verify(documentArchivalService)
+                .archiveAfterMemberDeparture(
+                        1L,
+                        2L,
+                        LEFT_AT
+                );
     }
 
     @DisplayName("워크스페이스가 없거나 삭제되었으면 404 오류를 반환한다")
@@ -369,7 +437,8 @@ class WorkspaceLeaveServiceTest {
                 Clock.fixed(
                         LEFT_AT,
                         ZoneOffset.UTC
-                )
+                ),
+                documentArchivalService
         );
     }
 

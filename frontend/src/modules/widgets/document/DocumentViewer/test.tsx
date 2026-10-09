@@ -66,11 +66,23 @@ const CONFIRM_BUTTON_NAME = "문서를 확인했어요";
 
 const writeText = vi.fn<(text: string) => Promise<void>>();
 
-const renderViewer = (documentId: string) => {
+// 주소에 id가 빠진 경우를 보려고 위젯을 놓는 경로예요
+const NO_DOCUMENT_ID_PATH = "/workspace/:workspaceId/no-document-id";
+const NO_WORKSPACE_ID_PATH = "/no-workspace-id/:documentId";
+
+const renderViewer = (documentId: string) =>
+  renderViewerAt(
+    getRouterPath({
+      routeKey: "DOCUMENT",
+      params: { workspaceId: WORKSPACE_ID, documentId },
+    }),
+  );
+
+const renderViewerAt = (entry: string) => {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
-  const router = createMemoryRouterFor(documentId);
+  const router = createMemoryRouterFor(entry);
 
   render(
     <ThemeProvider theme={theme}>
@@ -81,22 +93,16 @@ const renderViewer = (documentId: string) => {
   );
 };
 
-// 이동을 확인할 수 있게 홈·로그인 경로에 표시만 하는 화면을 둬요
-const createMemoryRouterFor = (documentId: string) =>
+// 이동을 확인할 수 있게 로그인 경로에 표시만 하는 화면을 둬요
+const createMemoryRouterFor = (entry: string) =>
   createMemoryRouter(
     [
       { path: PATH_ROUTE.DOCUMENT, element: <DocumentViewer /> },
-      { path: PATH_ROUTE.WORKSPACE_HOME, element: <p>워크스페이스 홈</p> },
+      { path: NO_DOCUMENT_ID_PATH, element: <DocumentViewer /> },
+      { path: NO_WORKSPACE_ID_PATH, element: <DocumentViewer /> },
       { path: PATH_ROUTE.LOGIN, element: <p>로그인 화면</p> },
     ],
-    {
-      initialEntries: [
-        getRouterPath({
-          routeKey: "DOCUMENT",
-          params: { workspaceId: WORKSPACE_ID, documentId },
-        }),
-      ],
-    },
+    { initialEntries: [entry] },
   );
 
 /** 확인 수 문구에 포인터를 올려 확인한 사람 팝오버를 열어요 */
@@ -407,21 +413,31 @@ describe("DocumentViewer", () => {
     expect(await screen.findByText("로그인 화면")).toBeInTheDocument();
   });
 
-  it("없는 문서면 문서를 찾을 수 없다고 알리고, 홈으로를 누르면 워크스페이스 홈으로 간다", async () => {
-    // 기본 mock 핸들러는 응답에 없는 id에 404를 돌려줘요
-    renderViewer("999");
+  it("없는 문서면 문서를 불러오지 못했다고 알리고, 다시 시도를 누르면 다시 조회한다", async () => {
+    let requestCount = 0;
+    mockServer.use(
+      http.get(DOCUMENT_REQUEST, () => {
+        requestCount += 1;
+        return new HttpResponse(null, { status: 404 });
+      }),
+    );
+    renderViewer(String(expected.id));
 
     expect(
-      await screen.findByText("문서를 찾을 수 없어요"),
+      await screen.findByRole("heading", { name: "문서를 불러오지 못했어요" }),
     ).toBeInTheDocument();
+    expect(requestCount).toBe(1);
 
-    fireEvent.click(screen.getByRole("button", { name: "홈으로" }));
+    fireEvent.click(screen.getByRole("button", { name: "다시 시도" }));
 
-    expect(await screen.findByText("워크스페이스 홈")).toBeInTheDocument();
+    await waitFor(() => expect(requestCount).toBe(2));
+    expect(
+      screen.getByRole("heading", { name: "문서를 불러오지 못했어요" }),
+    ).toBeInTheDocument();
   });
 
   it.each([400, 403])(
-    "%i 응답도 잘못된 요청이라 문서를 찾을 수 없다고 알린다",
+    "%i 응답도 문서를 불러오지 못했다고 알린다",
     async (status) => {
       mockServer.use(
         http.get(DOCUMENT_REQUEST, () => new HttpResponse(null, { status })),
@@ -429,28 +445,45 @@ describe("DocumentViewer", () => {
       renderViewer(String(expected.id));
 
       expect(
-        await screen.findByText("문서를 찾을 수 없어요"),
+        await screen.findByRole("heading", {
+          name: "문서를 불러오지 못했어요",
+        }),
       ).toBeInTheDocument();
     },
   );
 
-  it("문서 id가 숫자가 아니면 요청하지 않고 문서를 찾을 수 없다고 알린다", async () => {
-    let requestCount = 0;
-    mockServer.use(
-      http.get(DOCUMENT_REQUEST, () => {
-        requestCount += 1;
-        return HttpResponse.json(documentDetailsResponse[0]);
+  it.each([
+    [
+      "문서 id가 숫자가 아니면",
+      getRouterPath({
+        routeKey: "DOCUMENT",
+        params: { workspaceId: WORKSPACE_ID, documentId: "abc" },
       }),
-    );
-    renderViewer("abc");
+    ],
+    ["주소에 문서 id가 없으면", `/workspace/${WORKSPACE_ID}/no-document-id`],
+    ["주소에 워크스페이스 id가 없으면", `/no-workspace-id/${expected.id}`],
+  ])(
+    "%s 요청하지 않고 문서를 불러오지 못했다고 알린다",
+    async (_condition, entry) => {
+      let requestCount = 0;
+      mockServer.use(
+        http.get(DOCUMENT_REQUEST, () => {
+          requestCount += 1;
+          return HttpResponse.json(documentDetailsResponse[0]);
+        }),
+      );
+      renderViewerAt(entry);
 
-    expect(
-      await screen.findByText("문서를 찾을 수 없어요"),
-    ).toBeInTheDocument();
-    expect(requestCount).toBe(0);
-  });
+      expect(
+        await screen.findByRole("heading", {
+          name: "문서를 불러오지 못했어요",
+        }),
+      ).toBeInTheDocument();
+      expect(requestCount).toBe(0);
+    },
+  );
 
-  it("서버 오류면 다시 시도를 보여주고, 누르면 다시 불러와 본문을 보여준다", async () => {
+  it("서버 오류면 문서를 불러오지 못했다고 알리고, 다시 시도를 누르면 다시 불러와 본문을 보여준다", async () => {
     mockServer.use(
       http.get(
         DOCUMENT_REQUEST,
@@ -461,7 +494,24 @@ describe("DocumentViewer", () => {
     renderViewer(String(expected.id));
 
     expect(
-      await screen.findByText("문서를 불러오지 못했어요"),
+      await screen.findByRole("heading", { name: "문서를 불러오지 못했어요" }),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "다시 시도" }));
+
+    expect(
+      await screen.findByRole("heading", { level: 2, name: expected.title }),
+    ).toBeInTheDocument();
+  });
+
+  it("네트워크가 끊겨도 문서를 불러오지 못했다고 알리고, 다시 시도를 누르면 다시 불러와 본문을 보여준다", async () => {
+    mockServer.use(
+      http.get(DOCUMENT_REQUEST, () => HttpResponse.error(), { once: true }),
+    );
+    renderViewer(String(expected.id));
+
+    expect(
+      await screen.findByRole("heading", { name: "문서를 불러오지 못했어요" }),
     ).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "다시 시도" }));

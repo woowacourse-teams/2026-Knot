@@ -19,7 +19,7 @@ const ORDERED_ITEM_PATTERN = /^\s*(\d+)\. (.+)$/;
 
 // 패턴은 `#`을 1~3개만 받지만 `length`의 타입은 number라, 단계 값인지 확인해 타입을 좁혀요
 const isHeadingLevel = (level: number): level is MarkdownHeadingLevel =>
-  level >= 1 && level <= 3;
+  level === 1 || level === 2 || level === 3;
 
 // `+?`는 가장 가까운 닫는 `**`에서 멈추게 해요. 없으면 `**a** b **c**`가 굵게 하나로 묶여요
 const BOLD_PATTERN = /\*\*(.+?)\*\*/g;

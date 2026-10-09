@@ -3,6 +3,7 @@ package com.knot.backend.workspace.application;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -10,6 +11,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import com.knot.backend.document.application.DocumentArchivalService;
 import com.knot.backend.recording.domain.RecordingSessionRepository;
 import com.knot.backend.workspace.domain.Workspace;
 import com.knot.backend.workspace.domain.WorkspaceErrorCode;
@@ -32,12 +34,15 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.InOrder;
 
 class WorkspaceOwnershipTransferServiceTest {
+
     private static final Instant JOINED_AT = Instant.parse("2026-09-30T00:00:00Z");
     private static final Instant NOW = Instant.parse("2026-09-30T00:01:00.123456789Z");
+    private static final Instant LEFT_AT = Instant.parse("2026-09-30T00:01:00.123456Z");
 
     private final WorkspaceRepository workspaceRepository = mock(WorkspaceRepository.class);
     private final WorkspaceMemberRepository workspaceMemberRepository = mock(WorkspaceMemberRepository.class);
     private final RecordingSessionRepository recordingSessionRepository = mock(RecordingSessionRepository.class);
+    private final DocumentArchivalService documentArchivalService = mock(DocumentArchivalService.class);
     private final WorkspaceOwnershipTransferService service = new WorkspaceOwnershipTransferService(
             workspaceRepository,
             workspaceMemberRepository,
@@ -45,7 +50,8 @@ class WorkspaceOwnershipTransferServiceTest {
             Clock.fixed(
                     NOW,
                     ZoneOffset.UTC
-            )
+            ),
+            documentArchivalService
     );
 
     @DisplayName("Workspace를 먼저 잠그고 승계와 탈퇴를 조정한다")
@@ -86,7 +92,8 @@ class WorkspaceOwnershipTransferServiceTest {
         InOrder order = inOrder(
                 workspaceRepository,
                 workspaceMemberRepository,
-                recordingSessionRepository
+                recordingSessionRepository,
+                documentArchivalService
         );
         order.verify(workspaceRepository)
                 .findByIdForUpdate(1L);
@@ -110,6 +117,63 @@ class WorkspaceOwnershipTransferServiceTest {
                         1L,
                         2L
                 );
+        order.verify(workspaceMemberRepository)
+                .flush();
+        order.verify(documentArchivalService)
+                .archiveAfterMemberDeparture(
+                        1L,
+                        2L,
+                        LEFT_AT
+                );
+    }
+
+    @DisplayName("보관 실패를 전파해 소유권 승계와 OWNER 탈퇴가 함께 롤백되도록 한다")
+    @Test
+    void transferOwnership_failure_documentArchivalFailed() {
+        // given
+        WorkspaceMember owner = participant(
+                2L,
+                WorkspaceMemberRole.OWNER
+        );
+        WorkspaceMember successor = participant(
+                3L,
+                WorkspaceMemberRole.MEMBER
+        );
+        stubParticipants(
+                List.of(
+                        owner,
+                        successor
+                )
+        );
+        IllegalStateException failure = new IllegalStateException("문서 보관 실패");
+        doThrow(failure).when(documentArchivalService)
+                .archiveAfterMemberDeparture(
+                        1L,
+                        2L,
+                        LEFT_AT
+                );
+
+        // when
+        ThrowingCallable action = () -> service.transferOwnership(
+                2L,
+                1L,
+                3L
+        );
+
+        // then
+        assertThatThrownBy(action).isSameAs(failure);
+        InOrder order = inOrder(
+                workspaceMemberRepository,
+                documentArchivalService
+        );
+        order.verify(workspaceMemberRepository)
+                .flush();
+        order.verify(documentArchivalService)
+                .archiveAfterMemberDeparture(
+                        1L,
+                        2L,
+                        LEFT_AT
+                );
     }
 
     @DisplayName("본인 지정은 저장소 호출 없이 400으로 거절한다")
@@ -132,7 +196,8 @@ class WorkspaceOwnershipTransferServiceTest {
         );
         verifyNoInteractions(
                 workspaceRepository,
-                workspaceMemberRepository
+                workspaceMemberRepository,
+                documentArchivalService
         );
     }
 
@@ -192,15 +257,10 @@ class WorkspaceOwnershipTransferServiceTest {
                 3L,
                 WorkspaceMemberRole.MEMBER
         );
-        List<WorkspaceMember> participants = actorState.equals("missing")
-                ? List.of(successor)
-                : List.of(
-                        participant(
-                                2L,
-                                WorkspaceMemberRole.MEMBER
-                        ),
-                        successor
-                );
+        List<WorkspaceMember> participants = participantsWithoutActiveOwner(
+                actorState,
+                successor
+        );
         stubParticipants(participants);
 
         // when
@@ -232,15 +292,10 @@ class WorkspaceOwnershipTransferServiceTest {
                 WorkspaceMemberRole.OWNER
         );
         owner.markLastViewed();
-        List<WorkspaceMember> participants = targetState.equals("missing")
-                ? List.of(owner)
-                : List.of(
-                        owner,
-                        participant(
-                                3L,
-                                WorkspaceMemberRole.OWNER
-                        )
-                );
+        List<WorkspaceMember> participants = participantsWithoutEligibleSuccessor(
+                targetState,
+                owner
+        );
         stubParticipants(participants);
 
         // when
@@ -261,6 +316,38 @@ class WorkspaceOwnershipTransferServiceTest {
                 workspaceMemberRepository,
                 never()
         ).saveAll(any());
+    }
+
+    private List<WorkspaceMember> participantsWithoutActiveOwner(
+            String actorState,
+            WorkspaceMember successor
+    ) {
+        if (actorState.equals("missing")) {
+            return List.of(successor);
+        }
+        return List.of(
+                participant(
+                        2L,
+                        WorkspaceMemberRole.MEMBER
+                ),
+                successor
+        );
+    }
+
+    private List<WorkspaceMember> participantsWithoutEligibleSuccessor(
+            String targetState,
+            WorkspaceMember owner
+    ) {
+        if (targetState.equals("missing")) {
+            return List.of(owner);
+        }
+        return List.of(
+                owner,
+                participant(
+                        3L,
+                        WorkspaceMemberRole.OWNER
+                )
+        );
     }
 
     private WorkspaceMember participant(

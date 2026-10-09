@@ -24,17 +24,16 @@ const getDocumentPath = (documentId: number) =>
 
 // 문서 페이지는 스토리를 한 화면에 함께 그리는데 msw는 화면에 하나뿐이라, 마지막 스토리의 응답이 모든 스토리에 적용돼요.
 // 응답을 바꾸는 스토리만 따로 그려 각자의 응답을 받게 해요
-const ISOLATED_DOCS = { story: { inline: false, iframeHeight: 240 } };
+const ISOLATED_DOCS = { story: { inline: false, iframeHeight: 260 } };
 
 /**
  * 문서 하나를 열었을 때 경로 · 복사 버튼 · 제목 · 날짜 · 녹음 길이 · 확인 수 · 본문 · 확인 버튼을 보여 주는 문서 보기 영역이에요.
  * 탐색의 찾은 기록 카드, 문서 목록, 사이드바, 홈 카드에서 문서를 누르면 이 화면이 열려요.
  *
  * **동작 규칙**
- * - 주소의 문서 번호로 문서를 불러와요. 번호가 숫자가 아니면 요청하지 않고 「문서를 찾을 수 없어요」를 보여 줘요.
- * - 없는 문서이거나 볼 수 없는 문서면 「문서를 찾을 수 없어요」와 `홈으로`를 보여 줘요.
- *   기획은 공통 「잘못된 요청」 화면으로 보내는 것이라, 그 화면이 생기면 바꿔요.
- * - 서버 오류나 네트워크 문제로 못 불러오면 `다시 시도`를 보여 줘요. 이것도 공통 오류 화면이 생기기 전까지의 임시 모습이에요.
+ * - 주소의 문서 번호로 문서를 불러와요. 번호가 없거나 숫자가 아니면 요청하지 않고 「문서를 불러오지 못했어요」를 보여 줘요.
+ * - 없는 문서이거나 볼 수 없는 문서일 때, 서버 오류나 네트워크 문제로 못 불러올 때도 「문서를 불러오지 못했어요」와 `다시 시도`를 보여 줘요.
+ *   `다시 시도`를 누르면 화면을 새로고침하지 않고 문서만 다시 불러와요.
  * - 로그인이 풀렸으면 로그인 화면으로 보내요.
  * - 결정이 없는 회의 문서는 「이번 회의에서 정해진 내용은 없어요.」 문장을 흐리게 보여 줘요.
  * - 확인 수에 포인터를 올리면 확인한 사람이 위에, 아직 확인하지 않은 사람이 아래에 흐리게 보여요. 확인하지 않고 나간 사람은 빼요.
@@ -62,10 +61,6 @@ const meta = {
       <MemoryRouter initialEntries={[getDocumentPath(parameters.documentId)]}>
         <Routes>
           <Route path={PATH_ROUTE.DOCUMENT} element={<Story />} />
-          <Route
-            path={PATH_ROUTE.WORKSPACE_HOME}
-            element={<p>워크스페이스 홈으로 이동했어요.</p>}
-          />
         </Routes>
       </MemoryRouter>
     ),
@@ -106,24 +101,13 @@ export const Loading: Story = {
   },
 };
 
-/** 없는 문서이거나 볼 수 없는 문서일 때예요. `홈으로`를 누르면 워크스페이스 홈으로 가요. */
-export const NotFound: Story = {
-  parameters: {
-    docs: ISOLATED_DOCS,
-    msw: {
-      handlers: {
-        document: http.get(
-          DOCUMENT_REQUEST,
-          () => new HttpResponse(null, { status: 404 }),
-        ),
-      },
-    },
-  },
-};
-
-/** 서버 오류나 네트워크 문제로 문서를 불러오지 못했을 때예요. `다시 시도`를 누르면 다시 불러와요. */
+/** 문서를 불러오지 못했을 때예요. 없는 문서 · 볼 수 없는 문서 · 서버 오류 · 네트워크 문제가 모두 이 모습이에요. 이 스토리에서는 `다시 시도`를 눌러도 계속 실패해요. */
 export const LoadFailed: Story = {
   parameters: {
+    design: {
+      type: "figma",
+      url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=3669-13842",
+    },
     docs: ISOLATED_DOCS,
     msw: {
       handlers: {

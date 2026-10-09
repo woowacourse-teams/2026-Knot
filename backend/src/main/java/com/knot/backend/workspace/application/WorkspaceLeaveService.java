@@ -1,5 +1,6 @@
 package com.knot.backend.workspace.application;
 
+import com.knot.backend.document.application.DocumentArchivalService;
 import com.knot.backend.recording.domain.RecordingSession;
 import com.knot.backend.recording.domain.RecordingSessionRepository;
 import com.knot.backend.workspace.domain.Workspace;
@@ -20,10 +21,12 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 @Transactional
 public class WorkspaceLeaveService {
+
     private final WorkspaceRepository workspaceRepository;
     private final WorkspaceMemberRepository workspaceMemberRepository;
     private final RecordingSessionRepository recordingSessionRepository;
     private final Clock clock;
+    private final DocumentArchivalService documentArchivalService;
 
     public void leave(
             long memberId,
@@ -58,6 +61,12 @@ public class WorkspaceLeaveService {
                         memberId,
                         activeMemberCount
                 ),
+                leftAt
+        );
+        workspaceMemberRepository.flush();
+        documentArchivalService.archiveAfterMemberDeparture(
+                workspaceId,
+                memberId,
                 leftAt
         );
     }
