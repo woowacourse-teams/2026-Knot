@@ -460,14 +460,11 @@ class DocumentGenerationResultIntegrationTest {
                         TimeUnit.SECONDS
                 );
                 // then
-                if (change.equals("join")) {
-                    assertThat(targets(documentId)).containsExactly(
-                            memberId,
-                            teammate
-                    );
-                } else {
-                    assertThat(targets(documentId)).containsExactly(memberId);
-                }
+                assertTargetsAfterMembershipFirst(
+                        change,
+                        documentId,
+                        teammate
+                );
             } finally {
                 release.countDown();
             }
@@ -510,39 +507,11 @@ class DocumentGenerationResultIntegrationTest {
                         TimeUnit.SECONDS
                 );
                 // then
-                if (change.equals("join")) {
-                    assertThat(targets(documentId)).containsExactly(memberId);
-                    assertThat(
-                            details.find(
-                                    workspaceId,
-                                    teammate,
-                                    documentId
-                            )
-                                    .myConfirmationState()
-                    ).isEqualTo(MyConfirmationState.NOT_REQUIRED);
-                } else {
-                    assertThat(targets(documentId)).containsExactly(
-                            memberId,
-                            teammate
-                    );
-                    assertThat(
-                            details.find(
-                                    workspaceId,
-                                    memberId,
-                                    documentId
-                            )
-                                    .confirmationSummary()
-                                    .excludedCount()
-                    ).isEqualTo(1);
-                    assertThat(
-                            confirmationCommands.confirm(
-                                    workspaceId,
-                                    memberId,
-                                    documentId
-                            )
-                                    .documentStatus()
-                    ).isEqualTo(DocumentStatus.ARCHIVED);
-                }
+                assertConfirmationAfterGenerationFirst(
+                        change,
+                        documentId,
+                        teammate
+                );
             } finally {
                 release.countDown();
             }
@@ -861,6 +830,61 @@ class DocumentGenerationResultIntegrationTest {
                         .single()
         ).isEqualTo(1);
         assertThat(jobStatus()).isEqualTo("SUCCEEDED");
+    }
+
+    private void assertTargetsAfterMembershipFirst(
+            String change,
+            long documentId,
+            long teammate
+    ) {
+        if (change.equals("join")) {
+            assertThat(targets(documentId)).containsExactly(
+                    memberId,
+                    teammate
+            );
+            return;
+        }
+        assertThat(targets(documentId)).containsExactly(memberId);
+    }
+
+    private void assertConfirmationAfterGenerationFirst(
+            String change,
+            long documentId,
+            long teammate
+    ) {
+        if (change.equals("join")) {
+            assertThat(targets(documentId)).containsExactly(memberId);
+            assertThat(
+                    details.find(
+                            workspaceId,
+                            teammate,
+                            documentId
+                    )
+                            .myConfirmationState()
+            ).isEqualTo(MyConfirmationState.NOT_REQUIRED);
+            return;
+        }
+        assertThat(targets(documentId)).containsExactly(
+                memberId,
+                teammate
+        );
+        assertThat(
+                details.find(
+                        workspaceId,
+                        memberId,
+                        documentId
+                )
+                        .confirmationSummary()
+                        .excludedCount()
+        ).isEqualTo(1);
+        assertThat(
+                confirmationCommands.confirm(
+                        workspaceId,
+                        memberId,
+                        documentId
+                )
+                        .documentStatus()
+        ).isEqualTo(DocumentStatus.ARCHIVED);
     }
 
     private Runnable membershipChange(
