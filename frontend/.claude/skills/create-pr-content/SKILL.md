@@ -138,7 +138,7 @@ query($owner:String!, $name:String!, $number:Int!, $after:String) {
 ```text
 Artifact(
   file_path = <3-1에서 만든 HTML 경로>,
-  favicon = "🔍",
+  icon = "code",
   description = "<이슈 제목> 변경 설명 (배경·직관·코드·퀴즈)"
 )
 ```
