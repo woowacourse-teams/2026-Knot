@@ -38,10 +38,6 @@ const clickSync = async (canvasElement: HTMLElement) => {
   );
 };
 
-// 문서 페이지는 스토리를 한 화면에 함께 그리는데 msw는 화면에 하나뿐이라, 마지막 스토리의 응답이 모든 스토리에 적용돼요.
-// 응답을 바꾸는 스토리만 따로 그려 각자의 응답을 받게 해요
-const ISOLATED_DOCS = { story: { inline: false, iframeHeight: 240 } };
-
 /**
  * 워크스페이스 홈의 Notion 동기화 카드예요. 노션 연결 상태를 알려 주고, 노션 문서를 knot로 다시 가져오게 해요.
  *
@@ -94,7 +90,6 @@ export const Default: Story = {};
 /** 노션을 연결한 적이 없거나 연결이 끊긴 워크스페이스예요. 예: 워크스페이스를 만들 때 연결을 건너뛴 경우 */
 export const NotConnected: Story = {
   parameters: {
-    docs: ISOLATED_DOCS,
     msw: {
       handlers: { connection: respondConnectionStatus("NOT_CONNECTED") },
     },
@@ -104,7 +99,6 @@ export const NotConnected: Story = {
 /** 노션을 연결한 멤버가 소유자에서 내려와 소유자가 다시 연결해야 하는 워크스페이스예요. */
 export const ReauthRequired: Story = {
   parameters: {
-    docs: ISOLATED_DOCS,
     msw: {
       handlers: { connection: respondConnectionStatus("REAUTH_REQUIRED") },
     },
@@ -114,7 +108,6 @@ export const ReauthRequired: Story = {
 /** 연결 상태를 받아 오지 못했을 때예요. */
 export const ConnectionError: Story = {
   parameters: {
-    docs: ISOLATED_DOCS,
     msw: {
       handlers: {
         connection: http.get(
@@ -129,7 +122,6 @@ export const ConnectionError: Story = {
 /** 「지금 동기화」를 눌러 노션 문서를 가져오는 중이에요. 버튼이 로딩으로 잠겨요. */
 export const Syncing: Story = {
   parameters: {
-    docs: ISOLATED_DOCS,
     msw: {
       handlers: {
         startImport: http.post(START_URL, async () => {
@@ -154,7 +146,6 @@ export const Synced: Story = {
 /** 가져오는 도중 실패했을 때예요. 서버가 준 실패 이유를 보여 주고 2초 뒤 돌아와요. */
 export const SyncFailed: Story = {
   parameters: {
-    docs: ISOLATED_DOCS,
     msw: {
       handlers: {
         importStatus: http.get(STATUS_URL, () =>
@@ -175,7 +166,6 @@ export const SyncFailed: Story = {
 /** 가져오기를 시작조차 못 했을 때예요. 예: 서버 오류. 다시 시도하도록 안내하고 2초 뒤 돌아와요. */
 export const SyncStartFailed: Story = {
   parameters: {
-    docs: ISOLATED_DOCS,
     msw: {
       handlers: {
         startImport: http.post(
