@@ -17,6 +17,7 @@ import com.knot.backend.workspace.application.WorkspaceLeaveService;
 import com.knot.backend.workspace.domain.WorkspaceErrorCode;
 import java.time.Instant;
 import java.time.OffsetDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CyclicBarrier;
@@ -111,6 +112,7 @@ class RecordingEndServiceIntegrationTest {
         assertThat(state.status()).isEqualTo("ENDED");
         assertThat(state.endedAt()).isEqualTo(result.endedAt());
         assertThat(state.accumulatedMillis()).isEqualTo(30_000L);
+        assertThat(endReason(recordingId)).isEqualTo("USER_ENDED");
     }
 
     @Test
@@ -526,6 +528,7 @@ class RecordingEndServiceIntegrationTest {
             RecordingControlCommand control,
             long accumulatedMillis
     ) {
+        Instant pausedAt = recentPausedAt();
         return jdbcClient.sql("""
                 INSERT INTO recording_sessions (
                     workspace_id, member_id, request_id, tab_id, control_token_hash, status,
@@ -555,18 +558,35 @@ class RecordingEndServiceIntegrationTest {
                 )
                 .param(
                         "startedAt",
-                        JOINED_AT.toString()
+                        pausedAt.minusMillis(accumulatedMillis)
+                                .toString()
                 )
                 .param(
                         "pausedAt",
-                        JOINED_AT.plusMillis(accumulatedMillis)
-                                .toString()
+                        pausedAt.toString()
                 )
                 .param(
                         "accumulatedMillis",
                         accumulatedMillis
                 )
                 .query(Long.class)
+                .single();
+    }
+
+    // 연결 만료가 아닌 사용자 종료를 검증하도록 마지막 신호를 방금 전으로 둔다
+    private Instant recentPausedAt() {
+        return Instant.now()
+                .truncatedTo(ChronoUnit.SECONDS)
+                .minusSeconds(10);
+    }
+
+    private String endReason(long recordingId) {
+        return jdbcClient.sql("SELECT end_reason FROM recording_sessions WHERE id = :recordingId")
+                .param(
+                        "recordingId",
+                        recordingId
+                )
+                .query(String.class)
                 .single();
     }
 

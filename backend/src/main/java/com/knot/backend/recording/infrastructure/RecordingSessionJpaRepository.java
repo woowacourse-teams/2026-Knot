@@ -15,12 +15,14 @@ interface RecordingSessionJpaRepository extends JpaRepository<RecordingSession, 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     Optional<RecordingSession> findWithLockById(long id);
 
-    Optional<RecordingSession> findByMemberIdAndRequestId(
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    Optional<RecordingSession> findWithLockByMemberIdAndRequestId(
             long memberId,
             UUID requestId
     );
 
-    boolean existsByMemberIdAndStatusIn(
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    List<RecordingSession> findAllByMemberIdAndStatusInOrderByIdAsc(
             long memberId,
             Collection<RecordingStatus> statuses
     );

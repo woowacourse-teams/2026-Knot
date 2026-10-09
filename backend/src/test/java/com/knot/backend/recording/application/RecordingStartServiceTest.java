@@ -3,7 +3,9 @@ package com.knot.backend.recording.application;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -12,6 +14,7 @@ import com.knot.backend.member.domain.Member;
 import com.knot.backend.member.domain.MemberRepository;
 import com.knot.backend.recording.application.dto.command.RecordingStartCommand;
 import com.knot.backend.recording.application.dto.result.RecordingStartResult;
+import com.knot.backend.recording.domain.RecordingEndReason;
 import com.knot.backend.recording.domain.RecordingException;
 import com.knot.backend.recording.domain.RecordingSession;
 import com.knot.backend.recording.domain.RecordingSessionRepository;
@@ -24,6 +27,7 @@ import com.knot.backend.workspace.domain.WorkspaceRepository;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -127,12 +131,12 @@ class RecordingStartServiceTest {
         order.verify(memberRepository)
                 .findByIdForUpdate(MEMBER_ID);
         order.verify(recordingSessionRepository)
-                .findByMemberIdAndRequestId(
+                .findByMemberIdAndRequestIdForUpdate(
                         MEMBER_ID,
                         command.requestId()
                 );
         order.verify(recordingSessionRepository)
-                .existsActiveByMemberId(MEMBER_ID);
+                .findAllActiveByMemberIdForUpdate(MEMBER_ID);
         order.verify(recordingSessionRepository)
                 .save(any(RecordingSession.class));
     }
@@ -231,7 +235,7 @@ class RecordingStartServiceTest {
         when(existing.getStatus()).thenReturn(RecordingStatus.ENDED);
         when(existing.getStartedAt()).thenReturn(NOW);
         when(
-                recordingSessionRepository.findByMemberIdAndRequestId(
+                recordingSessionRepository.findByMemberIdAndRequestIdForUpdate(
                         MEMBER_ID,
                         command.requestId()
                 )
@@ -260,7 +264,18 @@ class RecordingStartServiceTest {
     void start_failure_activeSession() {
         // given
         prepareAccess();
-        when(recordingSessionRepository.existsActiveByMemberId(MEMBER_ID)).thenReturn(true);
+        when(recordingSessionRepository.findAllActiveByMemberIdForUpdate(MEMBER_ID)).thenReturn(
+                List.of(
+                        RecordingSession.start(
+                                WORKSPACE_ID + 1,
+                                MEMBER_ID,
+                                UUID.randomUUID(),
+                                UUID.randomUUID(),
+                                HASH,
+                                NOW.minusSeconds(119)
+                        )
+                )
+        );
 
         // when
         Throwable failure = catchThrowable(
@@ -278,6 +293,91 @@ class RecordingStartServiceTest {
                 org.mockito.Mockito.never()
         )
                 .save(any(RecordingSession.class));
+    }
+
+    @Test
+    @DisplayName("다른 Workspace에 남은 본인 녹음의 연결이 끊겼으면 만료로 회수한 뒤 새 녹음을 시작한다")
+    void start_success_reclaimsDisconnectedSession() {
+        // given
+        prepareAccess();
+        RecordingSession disconnected = RecordingSession.start(
+                WORKSPACE_ID + 1,
+                MEMBER_ID,
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                HASH,
+                NOW.minusSeconds(120)
+        );
+        when(recordingSessionRepository.findAllActiveByMemberIdForUpdate(MEMBER_ID)).thenReturn(List.of(disconnected));
+        when(recordingSessionRepository.save(any(RecordingSession.class))).thenAnswer(
+                invocation -> withId(
+                        invocation.getArgument(0),
+                        8L
+                )
+        );
+
+        // when
+        RecordingStartResult result = service.start(
+                WORKSPACE_ID,
+                MEMBER_ID,
+                command
+        );
+
+        // then
+        assertThat(result.created()).isTrue();
+        assertThat(result.status()).isEqualTo(RecordingStatus.RECORDING);
+        assertThat(disconnected.getStatus()).isEqualTo(RecordingStatus.ENDED);
+        assertThat(disconnected.getEndReason()).isEqualTo(RecordingEndReason.CONNECTION_EXPIRED);
+        assertThat(disconnected.getEndedAt()).isEqualTo(NOW);
+        verify(recordingSessionRepository).save(disconnected);
+    }
+
+    @Test
+    @DisplayName("같은 시작 요청을 다시 보냈을 때 연결이 끊긴 녹음이면 만료를 저장하고 종료 상태를 돌려준다")
+    void start_success_replayExpiresDisconnectedSession() {
+        // given
+        prepareAccess();
+        RecordingSession existing = withId(
+                RecordingSession.start(
+                        WORKSPACE_ID,
+                        MEMBER_ID,
+                        command.requestId(),
+                        command.tabId(),
+                        HASH,
+                        NOW.minusSeconds(300)
+                ),
+                7L
+        );
+        when(
+                recordingSessionRepository.findByMemberIdAndRequestIdForUpdate(
+                        MEMBER_ID,
+                        command.requestId()
+                )
+        ).thenReturn(Optional.of(existing));
+
+        // when
+        RecordingStartResult result = service.start(
+                WORKSPACE_ID,
+                MEMBER_ID,
+                command
+        );
+
+        // then
+        assertThat(result.created()).isFalse();
+        assertThat(result.status()).isEqualTo(RecordingStatus.ENDED);
+        assertThat(existing.getEndedAt()).isEqualTo(NOW.minusSeconds(180));
+        assertThat(existing.getLastSeenAt()).isEqualTo(NOW.minusSeconds(300));
+        verify(recordingSessionRepository).save(existing);
+    }
+
+    private RecordingSession withId(
+            RecordingSession session,
+            long id
+    ) {
+        RecordingSession identified = spy(session);
+        doReturn(id).when(identified)
+                .getId();
+        return identified;
     }
 
     private void prepareAccess() {

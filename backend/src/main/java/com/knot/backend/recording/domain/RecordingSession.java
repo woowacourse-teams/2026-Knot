@@ -21,8 +21,9 @@ import lombok.Getter;
 @Entity
 @Table(name = "recording_sessions")
 public class RecordingSession {
-
     private static final Pattern SHA_256_HEX_PATTERN = Pattern.compile("^[0-9a-f]{64}$");
+    // 최초 탭은 30초마다 신호를 보내므로 120초 동안 신호가 하나도 없으면 연결이 끊긴 것으로 본다
+    private static final Duration CONNECTION_TIMEOUT = Duration.ofSeconds(120);
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -60,6 +61,10 @@ public class RecordingSession {
 
     @Column(name = "ended_at")
     private Instant endedAt;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "end_reason", length = 30)
+    private RecordingEndReason endReason;
 
     @Column(name = "last_seen_at", nullable = false)
     private Instant lastSeenAt;
@@ -154,6 +159,7 @@ public class RecordingSession {
 
     public void pause(Instant pausedAt) {
         ensureActive();
+        ensureConnected(pausedAt);
         if (status == RecordingStatus.PAUSED) {
             return;
         }
@@ -172,6 +178,7 @@ public class RecordingSession {
 
     public void resume(Instant resumedAt) {
         ensureActive();
+        ensureConnected(resumedAt);
         if (status == RecordingStatus.RECORDING) {
             return;
         }
@@ -194,10 +201,54 @@ public class RecordingSession {
             return;
         }
         ensureNotDiscarded();
+        if (expireIfDisconnected(endedAt)) {
+            return;
+        }
         stop(
                 RecordingStatus.ENDED,
                 endedAt
         );
+        endReason = RecordingEndReason.USER_ENDED;
+    }
+
+    public boolean expireIfDisconnected(Instant now) {
+        if (!isActive() || !isDisconnected(now)) {
+            return false;
+        }
+        Instant expiredAt = getExpiresAt();
+        if (status == RecordingStatus.RECORDING) {
+            accumulatedRecordingMillis += Duration.between(
+                    currentIntervalStartedAt,
+                    expiredAt
+            )
+                    .toMillis();
+        }
+        status = RecordingStatus.ENDED;
+        currentIntervalStartedAt = null;
+        endedAt = expiredAt;
+        endReason = RecordingEndReason.CONNECTION_EXPIRED;
+        return true;
+    }
+
+    public void recordHeartbeat(Instant receivedAt) {
+        if (!isActive()) {
+            return;
+        }
+        ensureConnected(receivedAt);
+        if (receivedAt.isAfter(lastSeenAt)) {
+            lastSeenAt = receivedAt;
+        }
+    }
+
+    public boolean isActive() {
+        return RecordingStatus.ACTIVE_STATUSES.contains(status);
+    }
+
+    public Instant getExpiresAt() {
+        if (!isActive()) {
+            return null;
+        }
+        return lastSeenAt.plus(CONNECTION_TIMEOUT);
     }
 
     public void discard(Instant discardedAt) {
@@ -258,6 +309,20 @@ public class RecordingSession {
             return lastSeenAt;
         }
         return pointInTime;
+    }
+
+    private boolean isDisconnected(Instant now) {
+        if (now == null) {
+            throw new RecordingException(RecordingErrorCode.INVALID_RECORDING_TIME);
+        }
+        return !now.isBefore(lastSeenAt.plus(CONNECTION_TIMEOUT));
+    }
+
+    // 만료를 먼저 확정하지 않은 늦은 요청이 끊긴 녹음을 되살리지 못하게 막는다
+    private void ensureConnected(Instant now) {
+        if (isDisconnected(now)) {
+            throw new RecordingException(RecordingErrorCode.RECORDING_ALREADY_ENDED);
+        }
     }
 
     private void ensureActive() {

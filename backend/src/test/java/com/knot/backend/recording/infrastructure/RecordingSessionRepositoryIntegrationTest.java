@@ -61,10 +61,11 @@ class RecordingSessionRepositoryIntegrationTest {
         entityManager.clear();
 
         // when
-        RecordingSession foundRecordingSession = recordingSessionRepository.findByMemberIdAndRequestId(
-                memberId,
-                requestId
-        )
+        RecordingSession foundRecordingSession = recordingSessionRepository
+                .findByMemberIdAndRequestIdForUpdate(
+                        memberId,
+                        requestId
+                )
                 .orElseThrow();
 
         // then
@@ -132,7 +133,9 @@ class RecordingSessionRepositoryIntegrationTest {
 
         // then
         assertThat(savedRecordingSession.getId()).isPositive();
-        assertThat(recordingSessionRepository.existsActiveByMemberId(memberId)).isTrue();
+        assertThat(recordingSessionRepository.findAllActiveByMemberIdForUpdate(memberId))
+                .extracting(RecordingSession::getId)
+                .containsExactly(savedRecordingSession.getId());
     }
 
     @DisplayName("존재하지 않는 워크스페이스나 멤버의 녹음 세션은 저장할 수 없다")

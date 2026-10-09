@@ -4,50 +4,31 @@ import com.knot.backend.recording.application.dto.command.RecordingControlComman
 import com.knot.backend.recording.application.dto.result.RecordingResumeResult;
 import com.knot.backend.recording.domain.RecordingErrorCode;
 import com.knot.backend.recording.domain.RecordingException;
-import com.knot.backend.recording.domain.RecordingSession;
-import com.knot.backend.recording.domain.RecordingSessionRepository;
-import java.time.Clock;
-import java.time.temporal.ChronoUnit;
+import com.knot.backend.recording.domain.RecordingStatus;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
 public class RecordingResumeService {
-    private final RecordingWorkspaceAccessValidator workspaceAccessValidator;
-    private final RecordingSessionRepository recordingSessionRepository;
-    private final RecordingControlTokenHasher controlTokenHasher;
-    private final Clock clock;
+    private final RecordingResumeTransaction resumeTransaction;
 
-    @Transactional
+    // 연결 만료로 종료한 결과는 커밋한 뒤 거절해야 종료 기록이 롤백되지 않는다
     public RecordingResumeResult resume(
             long workspaceId,
             long memberId,
             long recordingId,
             RecordingControlCommand command
     ) {
-        workspaceAccessValidator.validateAndLock(
+        RecordingResumeResult result = resumeTransaction.resume(
                 workspaceId,
-                memberId
+                memberId,
+                recordingId,
+                command
         );
-        if (recordingId <= 0) {
-            throw new RecordingException(RecordingErrorCode.INVALID_RECORDING_DATA);
+        if (result.status() != RecordingStatus.RECORDING) {
+            throw new RecordingException(RecordingErrorCode.RECORDING_ALREADY_ENDED);
         }
-        RecordingSession session = recordingSessionRepository.findByIdForUpdate(recordingId)
-                .orElseThrow(() -> new RecordingException(RecordingErrorCode.RECORDING_NOT_FOUND));
-        session.validateControlledBy(
-                workspaceId,
-                memberId
-        );
-        session.validateControlProof(
-                command.tabId(),
-                controlTokenHasher.hash(command.controlToken())
-        );
-        session.resume(
-                clock.instant()
-                        .truncatedTo(ChronoUnit.MICROS)
-        );
-        return RecordingResumeResult.from(recordingSessionRepository.save(session));
+        return result;
     }
 }

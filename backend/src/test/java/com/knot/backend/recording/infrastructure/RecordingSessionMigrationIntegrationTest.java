@@ -137,6 +137,92 @@ class RecordingSessionMigrationIntegrationTest {
                 .satisfies(error -> assertThat(((SQLException) error).getSQLState()).isEqualTo("23514"));
     }
 
+    @Test
+    @DisplayName("종료 사유 migration은 기존 종료 행의 사유를 비워 두고 마지막 신호가 종료 시각보다 앞선 연결 만료 종료를 허용한다")
+    void migrate_keepsUnknownEndReasonAndAllowsExpiredEnd() throws SQLException {
+        // given
+        flyway("24").migrate();
+        execute("""
+                INSERT INTO recording_sessions (
+                    workspace_id, member_id, request_id, tab_id, control_token_hash, status,
+                    started_at, current_interval_started_at, ended_at, last_seen_at
+                )
+                VALUES
+                    (1, 1, gen_random_uuid(), gen_random_uuid(), repeat('a', 64), 'ENDED',
+                        '2026-10-01T00:00:00Z', NULL, '2026-10-01T00:00:20Z', '2026-10-01T00:00:20Z'),
+                    (1, 2, gen_random_uuid(), gen_random_uuid(), repeat('b', 64), 'RECORDING',
+                        '2026-10-01T00:00:00Z', '2026-10-01T00:00:00Z', NULL, '2026-10-01T00:00:30Z');
+                """);
+
+        // when
+        MigrateResult result = flyway("37").migrate();
+
+        // then
+        assertThat(result.success).isTrue();
+        assertThat(query("""
+                SELECT coalesce(end_reason, 'NULL') FROM recording_sessions WHERE member_id = 1
+                """)).containsExactly("NULL");
+        execute("""
+                UPDATE recording_sessions
+                SET status = 'ENDED', current_interval_started_at = NULL,
+                    ended_at = '2026-10-01T00:02:30Z', end_reason = 'CONNECTION_EXPIRED'
+                WHERE member_id = 2;
+                """);
+        assertThat(query("""
+                SELECT end_reason FROM recording_sessions WHERE member_id = 2 AND last_seen_at < ended_at
+                """)).containsExactly("CONNECTION_EXPIRED");
+    }
+
+    @Test
+    @DisplayName("종료 사유 migration 뒤에도 종료가 아닌 녹음에는 종료 사유를 저장할 수 없다")
+    void update_rejectsEndReasonOutsideEnded() throws SQLException {
+        // given
+        flyway("37").migrate();
+        execute("""
+                INSERT INTO recording_sessions (
+                    workspace_id, member_id, request_id, tab_id, control_token_hash, status,
+                    started_at, current_interval_started_at, last_seen_at
+                )
+                VALUES (1, 1, gen_random_uuid(), gen_random_uuid(), repeat('a', 64), 'RECORDING',
+                    '2026-10-01T00:00:00Z', '2026-10-01T00:00:00Z', '2026-10-01T00:00:10Z');
+                """);
+
+        // when
+        ThrowingCallable action = () -> execute("""
+                UPDATE recording_sessions SET end_reason = 'USER_ENDED' WHERE member_id = 1
+                """);
+
+        // then
+        assertThatThrownBy(action).isInstanceOf(SQLException.class)
+                .satisfies(error -> assertThat(((SQLException) error).getSQLState()).isEqualTo("23514"));
+    }
+
+    @Test
+    @DisplayName("종료 사유 migration 뒤에도 폐기는 마지막 신호 시각과 중단 시각이 같아야 한다")
+    void update_rejectsDiscardedWithEarlierLastSeen() throws SQLException {
+        // given
+        flyway("37").migrate();
+        execute("""
+                INSERT INTO recording_sessions (
+                    workspace_id, member_id, request_id, tab_id, control_token_hash, status,
+                    started_at, current_interval_started_at, last_seen_at
+                )
+                VALUES (1, 1, gen_random_uuid(), gen_random_uuid(), repeat('a', 64), 'RECORDING',
+                    '2026-10-01T00:00:00Z', '2026-10-01T00:00:00Z', '2026-10-01T00:00:10Z');
+                """);
+
+        // when
+        ThrowingCallable action = () -> execute("""
+                UPDATE recording_sessions
+                SET status = 'DISCARDED', current_interval_started_at = NULL, ended_at = '2026-10-01T00:02:10Z'
+                WHERE member_id = 1
+                """);
+
+        // then
+        assertThatThrownBy(action).isInstanceOf(SQLException.class)
+                .satisfies(error -> assertThat(((SQLException) error).getSQLState()).isEqualTo("23514"));
+    }
+
     private List<String> recordingRows() throws SQLException {
         return query("""
                 SELECT row_to_json(recording)::text FROM (
