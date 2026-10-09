@@ -9,6 +9,7 @@ import {
   GetChatSessionsResponseDto,
   PostChatSessionResponseDto,
 } from "@api/dto/chatSession";
+import { GetDocumentResponseDto } from "@api/dto/document";
 import {
   GetRecordingResponseDto,
   PostRecordingAudioUploadCompleteResponseDto,
@@ -46,6 +47,7 @@ import {
   createChatSessionApi,
   getChatSessionsApi,
 } from "@api/fetch/api/v1/workspaces/[workspaceId]/conversations";
+import { getDocumentApi } from "@api/fetch/api/v1/workspaces/[workspaceId]/documents/[documentId]";
 import { getWorkspaceInvitationApi } from "@api/fetch/api/v1/workspaces/[workspaceId]/invitation";
 import { getNotionConnectionApi } from "@api/fetch/api/v1/workspaces/[workspaceId]/notionConnection";
 import { startNotionOAuthApi } from "@api/fetch/api/v1/workspaces/[workspaceId]/notionOauthAuthorizations";
@@ -74,6 +76,7 @@ import {
   chatSessionResponse,
   chatSessionsResponse,
 } from "@api/mock/responses/chatSession";
+import { documentDetailsResponse } from "@api/mock/responses/document";
 import {
   recordingAudioUploadCompleteResponse,
   recordingAudioUploadUrlResponse,
@@ -190,6 +193,25 @@ describe("mock 기본 핸들러와 fetch 요청 함수의 대응", () => {
       ).resolves.toEqual(
         new PostInvitationAcceptResponseDto(invitationAcceptanceResponse),
       );
+    });
+  });
+
+  describe("문서", () => {
+    it("GET /api/v1/workspaces/:workspaceId/documents/:documentId는 documentDetailsResponse에서 그 id의 문서를 돌려준다", async () => {
+      const [document] = documentDetailsResponse;
+
+      await expect(
+        getDocumentApi({ workspaceId: WORKSPACE_ID, documentId: document.id }),
+      ).resolves.toEqual(new GetDocumentResponseDto(document));
+    });
+
+    it("documentDetailsResponse에 없는 id면 404 DOCUMENT_NOT_FOUND로 답한다", async () => {
+      await expect(
+        getDocumentApi({ workspaceId: WORKSPACE_ID, documentId: 999 }),
+      ).rejects.toMatchObject({
+        type: HTTP_ERROR_TYPE.notFound,
+        code: "DOCUMENT_NOT_FOUND",
+      });
     });
   });
 

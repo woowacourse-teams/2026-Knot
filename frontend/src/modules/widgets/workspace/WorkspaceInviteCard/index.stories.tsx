@@ -104,6 +104,8 @@ export const Default: Story = {};
 /** 초대를 받아 오는 중이에요. 코드 상자와 복사 버튼에 스피너가 돌고 복사할 수 없어요. */
 export const Loading: Story = {
   parameters: {
+    // 문서 페이지에서는 스토리를 한 화면에 함께 그려 응답이 섞이므로, 이 스토리는 따로 그려요
+    docs: { story: { inline: false, iframeHeight: 520 } },
     msw: {
       handlers: {
         workspaceInvitations: http.post(WORKSPACE_INVITATIONS_URL, async () => {

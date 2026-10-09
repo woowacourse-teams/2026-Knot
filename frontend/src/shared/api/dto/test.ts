@@ -7,6 +7,7 @@ import {
   PostChatSessionRequestDto,
   PostChatSessionResponseDto,
 } from "./chatSession";
+import { ConfirmationSummaryDto, GetDocumentResponseDto } from "./document";
 import {
   GetNotionConnectionResponseDto,
   PostNotionOAuthAuthorizationResponseDto,
@@ -121,6 +122,35 @@ describe("DTO 생성자 변환", () => {
       expect(new GetChatMessagesResponseDto([message]).messages).toEqual([
         message,
       ]);
+    });
+  });
+
+  describe("문서", () => {
+    it("상세 응답의 확인 집계를 ConfirmationSummaryDto로 감싸고 나머지 필드는 그대로 옮긴다", () => {
+      const raw = {
+        id: 101,
+        recordingSessionId: 42,
+        topic: "회원",
+        title: "회원 탈퇴 정책",
+        summary: null,
+        content: "## 결정\n탈퇴한 사용자의 게시글은 유지해요.",
+        status: "DRAFT" as const,
+        createdAt: "2026-09-15T03:00:00.000Z",
+        archivedAt: null,
+        recordingDurationSeconds: 1920,
+        sourceTranscriptId: 81,
+        myConfirmationState: "PENDING" as const,
+        confirmationSummary: {
+          confirmedCount: 2,
+          pendingCount: 2,
+          excludedCount: 0,
+        },
+      };
+
+      const dto = new GetDocumentResponseDto(raw);
+
+      expect(dto.confirmationSummary).toBeInstanceOf(ConfirmationSummaryDto);
+      expect(dto).toEqual(raw);
     });
   });
 

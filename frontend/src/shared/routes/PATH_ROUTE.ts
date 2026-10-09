@@ -23,7 +23,6 @@ export const PATH_ROUTE = {
   // 녹음을 끝낸 뒤 문서가 만들어질 때까지 보여 주는 정리 화면
   RECORDING_DOCUMENTS: "/workspace/:workspaceId/recordings/:recordingId",
 
-  // 문서 보기 화면은 아직 라우트에 연결되지 않음 — 문서 화면 작업에서 페이지를 붙임
   DOCUMENT: "/workspace/:workspaceId/documents/:documentId",
 
   INVITE: "/invite/:token",
