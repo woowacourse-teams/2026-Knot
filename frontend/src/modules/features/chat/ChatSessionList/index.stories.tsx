@@ -90,6 +90,8 @@ export const Default: Story = {};
 /** 대화가 여러 기간에 걸쳐 쌓인 워크스페이스예요. 묶음이 최근 기간부터 나오고, 긴 제목은 말줄임표로 잘려요. */
 export const AllPeriods: Story = {
   parameters: {
+    // 문서 페이지에서는 스토리를 한 화면에 함께 그려 응답이 섞이므로, 이 스토리는 따로 그려요
+    docs: { story: { inline: false, iframeHeight: 520 } },
     msw: {
       handlers: {
         conversations: http.get(CONVERSATIONS_URL, () =>

@@ -64,6 +64,8 @@ type Story = StoryObj<typeof meta>;
 /** 링크를 확인하는 동안 보이는 모습이에요. 실제로는 대개 눈 깜짝할 새에 지나가요. */
 export const Checking: Story = {
   parameters: {
+    // 문서 페이지에서는 스토리를 한 화면에 함께 그려 응답이 섞이므로, 이 스토리는 따로 그려요
+    docs: { story: { inline: false, iframeHeight: 80 } },
     msw: {
       handlers: {
         invitationPreview: http.get(

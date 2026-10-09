@@ -9,6 +9,7 @@ import { lastViewedWorkspaceHandlers } from "./api/v1/members/me/lastViewedWorks
 import { workspacesHandlers } from "./api/v1/workspaces";
 import { workspaceHandlers } from "./api/v1/workspaces/[workspaceId]";
 import { workspaceConversationsHandlers } from "./api/v1/workspaces/[workspaceId]/conversations";
+import { documentHandlers } from "./api/v1/workspaces/[workspaceId]/documents/[documentId]";
 import { workspaceNotionImportsHandlers } from "./api/v1/workspaces/[workspaceId]/imports";
 import { workspaceInvitationHandlers } from "./api/v1/workspaces/[workspaceId]/invitation";
 import { workspaceInvitationsHandlers } from "./api/v1/workspaces/[workspaceId]/invitations";
@@ -46,6 +47,7 @@ export const handlers = [
   ...recordingEndHandlers,
   ...recordingAudioUploadUrlHandlers,
   ...recordingAudioUploadCompleteHandlers,
+  ...documentHandlers,
   ...invitationAcceptHandlers,
   ...invitationPreviewHandlers,
   ...chatMessagesHandlers,
