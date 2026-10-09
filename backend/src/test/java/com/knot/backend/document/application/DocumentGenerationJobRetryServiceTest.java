@@ -14,6 +14,8 @@ import com.knot.backend.document.application.dto.result.DocumentGenerationJobRet
 import com.knot.backend.document.domain.DocumentErrorCode;
 import com.knot.backend.document.domain.DocumentException;
 import com.knot.backend.document.domain.DocumentGenerationJob;
+import com.knot.backend.document.domain.DocumentGenerationBatchRepository;
+import com.knot.backend.document.domain.DocumentGenerationBatch;
 import com.knot.backend.document.domain.DocumentGenerationJobRepository;
 import com.knot.backend.document.domain.DocumentGenerationJobStatus;
 import com.knot.backend.recording.domain.RecordingErrorCode;
@@ -55,12 +57,23 @@ class DocumentGenerationJobRetryServiceTest {
         jobs = mock(DocumentGenerationJobRepository.class);
         inputs = mock(DocumentGenerationInputQuery.class);
         recordings = mock(RecordingSessionRepository.class);
+        DocumentGenerationBatchRepository batches = mock(DocumentGenerationBatchRepository.class);
+        when(batches.findByIdForUpdate(1L)).thenReturn(
+                Optional.of(
+                        DocumentGenerationBatch.accept(
+                                4,
+                                3,
+                                CREATED_AT
+                        )
+                )
+        );
         service = new DocumentGenerationJobRetryService(
                 workspaces,
                 members,
                 jobs,
                 inputs,
                 recordings,
+                batches,
                 Clock.fixed(
                         NOW,
                         ZoneOffset.UTC

@@ -480,6 +480,7 @@ class DocumentGenerationJobRetryTransactionIntegrationTest {
                         .orElseThrow();
                 job.recordFailure(acceptedAt.plusSeconds(1));
                 jobs.flush();
+                fixtures.synchronizeBatch(job.getBatchId());
             });
         }
         when(clock.instant()).thenReturn(NOW.plusSeconds(8));
