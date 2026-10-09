@@ -57,7 +57,7 @@ const shuffledConfirmationsResponse = {
     confirmedItem,
   ],
 } satisfies DocumentConfirmationsResponse;
-const [pendingPerson, excludedPerson, confirmedPerson] =
+const [pendingMember, excludedMember, confirmedMember] =
   new GetDocumentConfirmationsResponseDto(shuffledConfirmationsResponse).items;
 
 const LOAD_FAILED_NOTICE = "목록을 불러오지 못했어요";
@@ -118,12 +118,12 @@ const hoverConfirmCount = async () => {
   return confirmCount;
 };
 
-const findPeopleRows = async () => {
-  const peopleList = await screen.findByRole("list", {
+const findMemberRows = async () => {
+  const memberList = await screen.findByRole("list", {
     name: "문서 확인 현황",
   });
 
-  return within(peopleList).getAllByRole("listitem");
+  return within(memberList).getAllByRole("listitem");
 };
 
 const queryConfirmButton = () =>
@@ -194,7 +194,7 @@ describe("DocumentViewer", () => {
     // 문서를 받은 뒤에 그려지는 컴포넌트들이 같은 문서를 다시 요청하지 않는지 보려고,
     // 그 뒤에 나가는 확인 대상 조회가 끝날 때까지 기다린 다음 세요
     await hoverConfirmCount();
-    await findPeopleRows();
+    await findMemberRows();
 
     expect(requestCount).toBe(1);
   });
@@ -247,7 +247,7 @@ describe("DocumentViewer", () => {
 
     await hoverConfirmCount();
 
-    const rows = await findPeopleRows();
+    const rows = await findMemberRows();
 
     expect(rows).toHaveLength(expectedConfirmations.items.length);
     expectedConfirmations.items.forEach(({ nickname }, index) => {
@@ -265,16 +265,16 @@ describe("DocumentViewer", () => {
 
     await hoverConfirmCount();
 
-    const rows = await findPeopleRows();
+    const rows = await findMemberRows();
 
     expect(rows).toHaveLength(2);
     expect(
-      within(rows[0]).getByText(confirmedPerson.nickname),
+      within(rows[0]).getByText(confirmedMember.nickname),
     ).toBeInTheDocument();
     expect(
-      within(rows[1]).getByText(pendingPerson.nickname),
+      within(rows[1]).getByText(pendingMember.nickname),
     ).toBeInTheDocument();
-    expect(screen.queryByText(excludedPerson.nickname)).not.toBeInTheDocument();
+    expect(screen.queryByText(excludedMember.nickname)).not.toBeInTheDocument();
   });
 
   it("확인 대상을 불러오지 못하면 팝오버에 알리고, 포인터를 다시 올리면 다시 불러와 보여준다", async () => {
@@ -298,7 +298,7 @@ describe("DocumentViewer", () => {
     );
     fireEvent.pointerEnter(confirmCount);
 
-    expect(await findPeopleRows()).toHaveLength(
+    expect(await findMemberRows()).toHaveLength(
       expectedConfirmations.items.length,
     );
   });

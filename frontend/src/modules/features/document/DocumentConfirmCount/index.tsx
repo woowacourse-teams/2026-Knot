@@ -6,7 +6,7 @@ import { useParams } from "react-router";
 import ChevronDownIcon from "@/assets/icons/chevronDown.svg";
 
 import { useDocumentConfirmationMembers } from "./model/useDocumentConfirmationMembers";
-import ConfirmedPeopleCard from "./ui/ConfirmedPeopleCard";
+import ConfirmedMembersCard from "./ui/ConfirmedMembersCard";
 
 interface DocumentConfirmCountProps {
   /**
@@ -41,7 +41,7 @@ export default function DocumentConfirmCount({
     <Popover
       placement="bottom-end"
       content={
-        <ConfirmedPeopleCard
+        <ConfirmedMembersCard
           status={status}
           confirmedMembers={confirmedMembers}
           pendingMembers={pendingMembers}

@@ -79,7 +79,7 @@ export const Default: Story = {};
  * 확인 대상 목록을 불러오지 못했을 때예요. 확인 수는 그대로 보이고, 확인 수에 포인터를 올리면 「목록을 불러오지 못했어요」가 떠요.
  * 포인터를 다시 올리면 다시 불러와요. 이 스토리는 서버가 계속 실패하게 해 두어 다시 올려도 같은 알림이 떠요.
  */
-export const PeopleLoadFailed: Story = {
+export const MembersLoadFailed: Story = {
   parameters: {
     // 문서 페이지에서는 스토리를 한 화면에 함께 그려 응답이 섞이므로, 이 스토리는 따로 그려요
     docs: { story: { inline: false, iframeHeight: 160 } },

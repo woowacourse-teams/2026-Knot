@@ -10,7 +10,7 @@ interface ConfirmationMember {
   profileImageUrl: string | null;
 }
 
-interface ConfirmedPeopleCardProps {
+interface ConfirmedMembersCardProps {
   /** 확인 대상 조회 상태. 목록은 `ready`일 때만 그려요 */
   status: ConfirmationListStatus;
   /** 확인한 사람. 위에 진하게 그려요 */
@@ -25,11 +25,11 @@ interface ConfirmedPeopleCardProps {
  * "n명 중 m명" 같은 머리글과 확인한 시각은 두지 않아요(CONF-R5).
  * 목록을 아직 받지 못했거나 받지 못했으면 그 사실을 한 줄로 알려요.
  */
-export default function ConfirmedPeopleCard({
+export default function ConfirmedMembersCard({
   status,
   confirmedMembers,
   pendingMembers,
-}: ConfirmedPeopleCardProps) {
+}: ConfirmedMembersCardProps) {
   const getNotice = () => {
     if (status === "loading") return "목록을 불러오고 있어요";
     if (status === "failed") return "목록을 불러오지 못했어요";
@@ -52,27 +52,27 @@ export default function ConfirmedPeopleCard({
 
   return (
     <Root>
-      <PeopleList aria-label="문서 확인 현황">
+      <MemberList aria-label="문서 확인 현황">
         {confirmedMembers.map((member) => (
-          <PersonRow key={member.memberId} member={member} />
+          <MemberRow key={member.memberId} member={member} />
         ))}
         {pendingMembers.map((member) => (
-          <PersonRow key={member.memberId} member={member} isMuted />
+          <MemberRow key={member.memberId} member={member} isMuted />
         ))}
-      </PeopleList>
+      </MemberList>
     </Root>
   );
 }
 
-interface PersonRowProps {
+interface MemberRowProps {
   member: ConfirmationMember;
   /** 아직 확인하지 않은 사람이면 흐리게 그려요 */
   isMuted?: boolean;
 }
 
-function PersonRow({ member, isMuted = false }: PersonRowProps) {
+function MemberRow({ member, isMuted = false }: MemberRowProps) {
   return (
-    <Person $isMuted={isMuted}>
+    <Member $isMuted={isMuted}>
       <Avatar
         label={`${member.nickname} 프로필`}
         src={member.profileImageUrl ?? undefined}
@@ -80,7 +80,7 @@ function PersonRow({ member, isMuted = false }: PersonRowProps) {
         size={24}
       />
       <Name>{member.nickname}</Name>
-    </Person>
+    </Member>
   );
 }
 
@@ -94,13 +94,13 @@ const Root = styled.div`
   box-shadow: ${({ theme }) => theme.shadow03};
 `;
 
-const PeopleList = styled.ul`
+const MemberList = styled.ul`
   display: flex;
   flex-direction: column;
   gap: 0.5rem; /* 8px */
 `;
 
-const Person = styled.li<{ $isMuted: boolean }>`
+const Member = styled.li<{ $isMuted: boolean }>`
   display: flex;
   align-items: center;
   gap: 0.5rem; /* 8px */
