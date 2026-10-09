@@ -17,7 +17,8 @@ class DocumentMarkdownValidatorTest {
     @ValueSource(strings = {"## 핵심 요약\n검색을 논의했다.", "## 핵심 요약\n요약\n## 보류\n조건부 개발\n## 할 일\n수정안 작성\n## 배경\n근거",
             "## 핵심 요약\n요약\n## 결정\n합의\n## 보류\n조건\n## 미결정\n쟁점\n## 할 일\n작업\n## 우려\n비용",
             "## 핵심 요약\n요약\n## 배경\n```text\n## 결정\n코드 안의 문장\n```", "## 핵심 요약\n요약\n## 제안\n결정된 담당자는 없음",
-            "## 핵심 요약\n요약\n## 배경\n~~~text\n## 결정\n문장\n~~~", "## 핵심 요약\n요약\n## 배경\n~~~text\n### 코드 제목\n~~~\n## 제안\n의견",
+            "## 핵심 요약\n요약\n## 배경\n~~~text\n## 결정\n문장\n~~~",
+            "## 핵심 요약\n요약\n## 배경\n~~~text\n### 코드 제목\n실제 문장\n~~~\n## 제안\n의견",
             "## 핵심 요약\n요약\n## 배경\n~~~text\n~~\n문장\n~~~~", "## 핵심 요약\n요약\n## 배경\n~~~text\n```\n## 결정\n코드 문장\n~~~"})
     @DisplayName("없는 섹션은 생략하고 코드 안 heading과 자연어의 없음은 허용한다")
     void validate_success_sections(String content) {
@@ -37,7 +38,8 @@ class DocumentMarkdownValidatorTest {
             "## 핵심 요약\n요약\n## 핵심 요약\n중복", "## 핵심 요약\n요약\n## 결정\n합의\n## 결정\n중복", "## 핵심 요약\n요약\n## 할 일\n작업\n## 보류\n조건",
             "## 핵심 요약\n요약\n## 배경\n근거\n## 결정\n합의", "## 핵심 요약\n요약\n## 할 일\n", "## 핵심 요약\n요약\n## 할 일\n- (없음)",
             "## 핵심 요약\n요약\n## 결정\n해당 없음", "## 핵심 요약\n요약\n## 보류\n- 없음", "## 핵심 요약\n요약\n# 다른 주제\n본문",
-            "## 핵심 요약\n요약\n```text\n미완료", "## 핵심 요약\n요약\n~~~text\n본문\n~~~닫힘 아님", "## 핵심 요약\n요약\n~~~text\n본문\n```"})
+            "## 핵심 요약\n요약\n```text\n미완료", "## 핵심 요약\n요약\n~~~text\n본문\n~~~닫힘 아님", "## 핵심 요약\n요약\n~~~text\n본문\n```",
+            "## 핵심 요약\n요약\n## 배경\n~~~text\n### 코드 제목\n~~~\n## 제안\n의견"})
     @DisplayName("핵심 요약과 섹션 순서·중복·본문·placeholder 계약을 위반하면 거절한다")
     void validate_failure_sections(String content) {
         assertThatThrownBy(
