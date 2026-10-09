@@ -111,6 +111,84 @@ class DocumentGenerationExecutionTest {
         assertThat(job.getUserRetryCount()).isEqualTo(1);
     }
 
+    @Test
+    @DisplayName("일부 실패만 재접수하며 나머지 성공 집계를 보존한다")
+    void recordJobTransition_success_partialRetry() {
+        // given
+        DocumentGenerationBatch batch = DocumentGenerationBatch.accept(
+                1,
+                1,
+                NOW
+        );
+        batch.registerTopics(
+                List.of(
+                        "A",
+                        "B",
+                        "C"
+                ),
+                NOW
+        );
+        for (int index = 0; index < 2; index++) {
+            batch.recordJobTransition(
+                    DocumentGenerationJobStage.GENERATION,
+                    DocumentGenerationJobStatus.QUEUED,
+                    DocumentGenerationJobStatus.RUNNING,
+                    NOW
+            );
+            batch.recordJobTransition(
+                    DocumentGenerationJobStage.GENERATION,
+                    DocumentGenerationJobStatus.RUNNING,
+                    DocumentGenerationJobStatus.SUCCEEDED,
+                    NOW
+            );
+        }
+        batch.recordJobTransition(
+                DocumentGenerationJobStage.GENERATION,
+                DocumentGenerationJobStatus.QUEUED,
+                DocumentGenerationJobStatus.FAILED,
+                NOW
+        );
+        assertThat(batch.getProcessingStatus()).isEqualTo(DocumentGenerationProcessingStatus.FAILED);
+        // when
+        batch.recordJobTransition(
+                DocumentGenerationJobStage.GENERATION,
+                DocumentGenerationJobStatus.FAILED,
+                DocumentGenerationJobStatus.QUEUED,
+                NOW
+        );
+        // then
+        assertThat(batch.getSucceededCount()).isEqualTo(2);
+        assertThat(batch.getFailedCount()).isZero();
+        assertThat(batch.getQueuedCount()).isEqualTo(1);
+        assertThat(batch.getFinishedAt()).isNull();
+    }
+
+    @Test
+    @DisplayName("집계에 없는 상태를 차감하면 거절한다")
+    void recordJobTransition_failure_negativeCounter() {
+        // given
+        DocumentGenerationBatch batch = DocumentGenerationBatch.accept(
+                1,
+                1,
+                NOW
+        );
+        batch.registerTopics(
+                List.of("A"),
+                NOW
+        );
+        // when & then
+        assertThatThrownBy(
+                () -> batch.recordJobTransition(
+                        DocumentGenerationJobStage.GENERATION,
+                        DocumentGenerationJobStatus.RUNNING,
+                        DocumentGenerationJobStatus.SUCCEEDED,
+                        NOW
+                )
+        ).isInstanceOf(DocumentException.class);
+        assertThat(batch.getQueuedCount()).isEqualTo(1);
+        assertThat(batch.getSucceededCount()).isZero();
+    }
+
     private DocumentGenerationJob job() {
         return DocumentGenerationJob.queueClassification(
                 1,
