@@ -25,7 +25,7 @@ PR 본문에는 `/explain-diff-html`로 만든 **변경 설명 페이지**를 Ar
 1. **변경사항 확인** - 코드의 변경사항을 명확히 확인
 2. **이슈 확인** - 관련 이슈 및 상위(부모) 이슈 내용까지 조회
 3. **PR 자산 수집** - 파일 diff 링크, Storybook 링크, 변경 전·후 스토리 캡처, 캡처한 사진을 GitHub에 올려 주소 받기
-4. **변경 설명 페이지 생성·게시** - `/explain-diff-html`로 HTML을 만들고 Artifact로 게시
+4. **변경 설명 페이지 생성·검사·게시** - `/explain-diff-html`로 HTML을 만들고, 금지 표현 검사를 통과시킨 뒤 Artifact로 게시
 5. **PR 문서 작성·검사** - 임시 파일에 작성하고 금지 표현 검사를 통과시킴
 6. **열기** - 검사를 통과한 PR 문서는 VS Code로, 사진 폴더는 Finder로 엶
 7. **마무리 안내** - 설명 페이지 공유, 올리지 못한 사진 안내, 빠진 사진·링크 안내
@@ -39,6 +39,8 @@ PR 본문에는 `/explain-diff-html`로 만든 **변경 설명 페이지**를 Ar
 | 적용 대상                                  | 검사 방법          |
 | ------------------------------------------ | ------------------ |
 | PR 문서, 최상단 안내 문구 포함 (5단계)     | 검사기 + 직접 대조 |
+| 변경 설명 페이지의 본문 텍스트 (4단계)     | 검사기 + 직접 대조 |
+| Artifact `description`, `<title>` (4단계)  | 직접 대조          |
 | 사용자에게 보내는 메시지·질문 (모든 단계)  | 직접 대조          |
 
 - 0단계를 시작하기 전에 `writing-rules.md`를 **처음부터 끝까지 Read로 읽음.** 기억에 의존해 일부만 적용하지 말 것.
@@ -277,9 +279,9 @@ manifest에서 쓰는 값:
   - `--upload-only`는 manifest에서 `url`이 없거나 올린 뒤 내용이 바뀐 사진만 올리고, manifest의 `url`을 채움. 이미 올린 사진은 다시 올리지 않음.
 - PR이 없으면(develop 브랜치, 아직 PR을 열지 않은 브랜치) 사진을 올리지 않음.
 
-## 4단계: 변경 설명 페이지 생성·게시
+## 4단계: 변경 설명 페이지 생성·검사·게시
 
-1·2단계에서 파악한 diff와 이슈 맥락을 그대로 이어받아 `/explain-diff-html` 스킬을 호출하고, 결과 HTML을 Artifact로 게시함. 게시된 URL은 5단계 PR 본문에 넣음.
+1·2단계에서 파악한 diff와 이슈 맥락을 그대로 이어받아 `/explain-diff-html` 스킬을 호출하고, 결과 HTML을 검사한 뒤 Artifact로 게시함. 게시된 URL은 5단계 PR 본문에 넣음.
 
 ### 4-1. `/explain-diff-html` 호출
 
@@ -293,22 +295,40 @@ manifest에서 쓰는 값:
 - body에 배경색을 명시하고, 라이트·다크 테마 모두에서 읽히도록 색은 CSS 변수로 정의 (:root에 라이트 기본값, prefers-color-scheme: dark와 [data-theme="dark"]에서 재정의)
 - 외부 스크립트·이미지 없이 자체 완결. 퀴즈 피드백은 alert 대신 인라인으로 표시
 - 본문은 한국어 높임말
+- 본문 텍스트는 .claude/skills/create-pr-content/writing-rules.md 규칙을 따름. 작성 전에 이 파일을 처음부터 끝까지 읽고, explain-diff-html의 문체 지시와 충돌하면 writing-rules.md를 우선
+- 제목·목차·본문에 가운뎃점(·), 엠 대시(—), 하이픈 두 개(--)를 구분자로 쓰지 않음. 나열은 쉼표로 씀
+- 코드는 블록이면 <pre>, 인라인이면 <code>에만 씀. 코드가 아닌 문장이나 금지 표현을 <code>로 감싸지 않음
+- 퀴즈 문항, 선택지, 정답 피드백 문구는 모두 HTML 마크업에 직접 씀. 피드백은 숨긴 요소로 두었다가 클릭하면 보이게 하고, <script>에는 동작 코드만 둠
 ```
 
 - 파일명의 날짜는 `date +%F`로 확인.
-- 스킬이 로드되면 그 지시(Background · Intuition · Code · Quiz 구성, 목차, 코드 블록은 `<pre>`)를 그대로 따름. Artifact 도구 규칙에 따라 HTML을 쓰기 전에 `artifact-design` 스킬도 로드함.
+- 스킬이 로드되면 그 지시(Background, Intuition, Code, Quiz 구성, 목차, 코드 블록은 `<pre>`)를 따르되, 문체는 `writing-rules.md`를 우선함. Artifact 도구 규칙에 따라 HTML을 쓰기 전에 `artifact-design` 스킬도 로드함.
+- 퀴즈 문구를 HTML 마크업에 쓰게 하는 이유는 검사기가 `<script>` 안 문자열을 검사하지 않기 때문임.
 - HTML은 `/tmp` 아래에만 쓰고 **레포 안에는 만들지 않음.**
 
-### 4-2. Artifact로 게시
+### 4-2. 금지 표현 검사 (필수)
+
+게시 전에 HTML 본문을 검사함.
+
+```bash
+bash .claude/skills/create-pr-content/check-writing.sh /tmp/<YYYY-MM-DD>-explanation-<slug>.html
+```
+
+- `OK`가 나올 때까지 「글쓰기 규칙」 방식으로 고치고 다시 검사함.
+- `OK`가 나오면 「검사기가 잡지 못하는 규칙」으로 본문을 대조함. 퀴즈 피드백과 다이어그램 라벨도 대상임.
+- 고칠 때 `<style>`, `<pre>`, 퀴즈 동작 코드는 건드리지 않음.
+
+### 4-3. Artifact로 게시
 
 ```text
 Artifact(
   file_path = <4-1에서 만든 HTML 경로>,
   icon = "code",
-  description = "<이슈 제목> 변경 설명 (배경·직관·코드·퀴즈)"
+  description = "<이슈 제목> 변경 설명 (배경, 직관, 코드, 퀴즈)"
 )
 ```
 
+- `description`과 `<title>`도 `writing-rules.md`를 따름. 가운뎃점(`·`) 대신 쉼표를 씀.
 - `<title>`은 변경을 식별할 수 있는 짧은 이름으로 둠. (예: `초대 링크 입장 플로우 변경 설명`)
 - 게시 결과의 URL(`https://claude.ai/code/artifact/...`)을 기록해 5단계에서 사용.
 - 게시가 실패하면(도구 사용 불가, 크기 초과 등) 작업을 중단하지 않고 PR 문서에는 링크 대신 로컬 HTML 경로를 적은 뒤, 7단계 안내에서 게시 실패 사실을 알림.
