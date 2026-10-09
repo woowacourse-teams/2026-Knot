@@ -68,6 +68,10 @@ public class DocumentGenerationResultService {
         List<Long> targets = findConfirmationTargets(workspaceId);
         Instant completedAt = clock.instant()
                 .truncatedTo(ChronoUnit.MICROS);
+        job.validateRunningAttemptAt(
+                expectedAttemptCount,
+                completedAt
+        );
         Document document = documents.save(
                 Document.createDraft(
                         workspaceId,
@@ -86,13 +90,22 @@ public class DocumentGenerationResultService {
                 targets
         );
         job.recordSuccess(completedAt);
+        DocumentGenerationBatch batch = batches.findByIdForUpdate(job.getBatchId())
+                .orElseThrow();
+        batch.recordJobTransition(
+                job.getStage(),
+                DocumentGenerationJobStatus.RUNNING,
+                job.getStatus(),
+                completedAt
+        );
         jobs.flush();
         return document.getId();
     }
 
     private void lockWorkspace(long workspaceId) {
         validateIdentifier(workspaceId);
-        workspaces.findByIdForUpdate(workspaceId)
+        workspaces.findIncludingDeletedByIdForUpdate(workspaceId)
+                .filter(workspace -> !workspace.isDeleted())
                 .orElseThrow(() -> new WorkspaceException(WorkspaceErrorCode.WORKSPACE_ACCESS_DENIED));
     }
 
