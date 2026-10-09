@@ -67,6 +67,8 @@ class DocumentGenerationExecutionIntegrationTest {
     @Autowired
     private DocumentGenerationClaimService claims;
     @Autowired
+    private DocumentGenerationFailureService failures;
+    @Autowired
     private DocumentGenerationProgressService progress;
 
     @Autowired
@@ -179,6 +181,74 @@ class DocumentGenerationExecutionIntegrationTest {
                         .orElseThrow()
                         .status()
         ).isEqualTo(DocumentGenerationProcessingStatus.RUNNING);
+    }
+
+    @Test
+    @DisplayName("429는 5초 뒤 한 번만 자동 재시도하며 중복 실패 통지는 횟수를 늘리지 않는다")
+    void failAttempt_success_boundedScheduledRetry() {
+        // given
+        claims.claim(
+                workspaceId,
+                classifierId
+        )
+                .orElseThrow();
+        // when
+        failures.failAttempt(
+                workspaceId,
+                classifierId,
+                1,
+                DocumentGenerationFailureCause.RATE_LIMITED
+        );
+        failures.failAttempt(
+                workspaceId,
+                classifierId,
+                1,
+                DocumentGenerationFailureCause.RATE_LIMITED
+        );
+        // then
+        assertThat(
+                number(
+                        "attempt_count",
+                        classifierId
+                )
+        ).isEqualTo(2);
+        assertThat(
+                number(
+                        "automatic_retry_count",
+                        classifierId
+                )
+        ).isEqualTo(1);
+        assertThat(
+                number(
+                        "user_retry_count",
+                        classifierId
+                )
+        ).isZero();
+        assertThat(
+                claims.claim(
+                        workspaceId,
+                        classifierId
+                )
+        ).isEmpty();
+        when(clock.instant()).thenReturn(NOW.plusSeconds(5));
+        claims.claim(
+                workspaceId,
+                classifierId
+        )
+                .orElseThrow();
+        failures.failAttempt(
+                workspaceId,
+                classifierId,
+                2,
+                DocumentGenerationFailureCause.TIMEOUT
+        );
+        assertThat(status(classifierId)).isEqualTo("FAILED");
+        assertThat(
+                number(
+                        "attempt_count",
+                        classifierId
+                )
+        ).isEqualTo(2);
     }
 
     private List<Long> generationIds() {
