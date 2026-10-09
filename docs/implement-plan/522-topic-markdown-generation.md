@@ -70,7 +70,7 @@ base 변경 전에는 `git diff origin/develop...HEAD`에서 #521 변경이 별�
 sequenceDiagram
     participant Worker as 후속 #525 실행기
     participant Service as DocumentGenerationService
-    participant Generator as DocumentGenerator
+    participant Generator as LlmDocumentGenerator (application 계약 구현)
     participant Prompt as DocumentGenerationPrompt
     participant Client as LlmClient 전략
     participant Model as 현재 LLM 공급자
@@ -138,7 +138,8 @@ sequenceDiagram
 | 동일 Service | 입력을 나눠 검증하고 유효한 호출만 위임 | private `validateTranscriptContent`, `validateTopic` |
 | `document/infrastructure/llm/DocumentGenerationPrompt` | 작성 규칙·템플릿·스키마·설정으로 요청 구성 | public `createRequest(String transcriptContent, String topic)` → `LlmCompletionRequest` |
 | 동일 Prompt | 원문·주제를 JSON 데이터로 보존하고 리소스 로드 | private `createMessages`, `serializeInput`, `createOptions`, `readResource` |
-| `document/infrastructure/llm/DocumentGenerator` | client 호출, 응답 해석·검증·결과 구성 | public `generate(String transcriptContent, String topic)` → `DocumentGenerationResult` |
+| `document/application/DocumentGenerator` | 서비스가 사용하는 작성 계약 | `generate(String, String)` → `DocumentGenerationResult` |
+| `document/infrastructure/llm/LlmDocumentGenerator` | client 호출, 응답 해석·검증·결과 구성 | public `generate(String transcriptContent, String topic)` → `DocumentGenerationResult` |
 | 동일 Generator | 타입 강제 변환 없이 JSON 계약 검사 | private `readResponse`, `validateResponseFields`, `readRequiredText`, `readSummary` |
 | `document/infrastructure/llm/DocumentMarkdownValidator` | 코드로 확인 가능한 본문 형식과 출력 링크 검사 | public `validate(DocumentGenerationResult result)`; 위반이면 예외 |
 | 동일 Validator | heading/fence 구조, 순서와 placeholder 검사 | private `validateSummarySection`, `validateSectionOrder`, `validateSectionBody`, `validateLinks` |
@@ -179,7 +180,7 @@ sequenceDiagram
 | 스트리밍 | false | #521 공통 client의 현재 구현. 과거 stream=true 시간 수치를 그대로 약속하지 않음 |
 | 로드 컨텍스트 | 현재 서버 32768 후보 | 요청의 출력 한도와 별개인 서버 설정. 이번 코드에서 서버 로드를 변경하지 않음 |
 
-현재 client는 `reasoning`, `chat_template_kwargs.enable_thinking`, `reasoning_budget`을 전송한다. 과거 문서의 `reasoning_effort`·`thinking_budget_tokens`와 이름이 다르다. 설정 문서를 그대로 복사하는 대신 실제 공급자가 이 요청에서 512를 어떻게 적용하는지, 정상 최종 JSON이 오는지 관찰한다. low/medium/high가 공급자 간 동일 강도라는 가정은 하지 않는다.
+2026-10-09 #534 리뷰에서 공통 client의 예산 필드를 실제 HTTP 실험의 `thinking_budget_tokens`로 맞췄다. 현재 client는 `reasoning`, `chat_template_kwargs.enable_thinking`, 선택 `thinking_budget_tokens`를 전송한다. 작성 기본값 off에서는 예산 필드를 보내지 않는다. 과거 #522의 켬/512 요청은 `reasoning_budget`를 사용했고 추론 토큰이 0이었으므로 예산 적용 증거가 아니다. 필드 변경의 로컬 요청 계약 검증과 실제 서버의 예산 강제 동작을 구분한다. low/medium/high가 공급자 간 동일 강도라는 가정은 하지 않는다.
 
 구현값은 최적 설정 확정이 아니다. 실제 관찰·예비 실패·프롬프트 보강과 최종 7개 응답은 [#522 합성 품질 기록](../llm-test/522-document-generation-2026-10-08.md)에 남겼다. 예비 켬/끔은 모두 추론 토큰 0이었다. 최종 형식은 7개 통과, 의미 대조는 짧은 6개 충족·장문 1개 부분 충족이다. 장문의 구체적 주간 점검 이유가 일반화되는 한계는 남았다. `finish_reason=length`, 입력 초과, 기한 초과는 기존 LlmErrorCode로 실패한다. 잘린 본문을 살리거나 숨겨진 재호출로 출력 한도를 늘리지 않는다.
 
@@ -205,7 +206,7 @@ DB 변경과 Flyway migration은 필요 없다. 기존 Document의 title/content
 | 동일 Validator 테스트 | 핵심 요약 누락/중복, 고정 섹션 순서 역전/중복/빈 본문, placeholder, 링크 | `INVALID_DOCUMENT_GENERATION_RESPONSE`, 결과 반환 안 함 |
 | `DocumentGenerationPromptTest`, JUnit | 복수 주제 원문과 단일 topic, 따옴표·개행·원문 내 명령, 긴 원문 | system과 user 분리, 직렬화 후에도 topic·전체 원문의 문자 내용 동일, 규칙·템플릿 요청 포함 |
 | 동일 Prompt 테스트 | 누락 입력·깨진 리소스/스키마, nullable summary schema, 생성 옵션 | 입력/설정 실패 구분. 실제 모델 동작을 mock으로 증명하지 않음 |
-| `DocumentGeneratorTest`, Mockito LlmClient | 정상 title/content, summary=null 또는 문자열, 추가 필드·타입·누락·중복 key·뒤붙은 JSON | 엄격한 결과 반환 또는 도메인 오류 |
+| `LlmDocumentGeneratorTest`, Mockito LlmClient | 정상 title/content, summary=null 또는 문자열, 추가 필드·타입·누락·중복 key·뒤붙은 JSON | 엄격한 결과 반환 또는 도메인 오류 |
 | 동일 Generator 테스트 | 형식 위반, 429·timeout·출력 한도 등 LlmException | 실패 전파, 추가 호출·부분 성공 없음 |
 | `DocumentGenerationServiceTest`, Mockito | 정상 입력과 null/Unicode 공백 원문·주제 | 정상 결과 반환, 잘못된 입력에서는 generator 호출 0회 |
 | `LlmConfigTest` 보강, Spring context | enabled=false/true, 공통 전략 주입, 기존 classifier 공존 | 비활성 시 가짜 문서 Bean 없음. 활성 시 동일 LlmClient 재사용 |
@@ -228,7 +229,7 @@ DB 변경과 Flyway migration은 필요 없다. 기존 Document의 title/content
 저장소 Gradle task로 집중 검증과 `spotlessCheck check bootJar`를 실행했다. 최종 단위 794개·통합 294개·인수 389개, 합계 1477개이며 실패·오류·skip은 0이다. 실제 공급자 JSON 7개도 Java 25에서 제품 Generator/Validator에 재입력해 통과했다. 수동 호출 코드는 저장소에 넣지 않았다.
 
 ```sh
-./gradlew test --tests '*DocumentGeneration*' --tests '*DocumentGeneratorTest' --tests '*DocumentMarkdownValidatorTest' --tests '*LlmConfigTest'
+./gradlew test --tests '*DocumentGeneration*' --tests '*LlmDocumentGeneratorTest' --tests '*DocumentMarkdownValidatorTest' --tests '*LlmConfigTest'
 ./gradlew integrationTest --tests '*DocumentGenerationIntegrationTest'
 ./gradlew spotlessCheck
 ```
@@ -247,3 +248,7 @@ DB 변경과 Flyway migration은 필요 없다. 기존 Document의 title/content
 - 선행 #534 변경을 따라가며 #522 diff만 유지한다. 선행 PR 머지 후 develop merge와 PR base 변경을 수행한다.
 
 이후 #523에서 저장 원문 자동 접수와 주제별 Job 등록, #524에서 생성 결과·확인 대상·성공 기록의 원자적 저장, #525에서 작성 호출을 실제 실행과 재시도에 연결한다. #522가 끝나도 STT 종료부터 사용자 문서 표시까지의 전체 흐름이 완성된 것은 아니다.
+
+## 2026-10-09 리뷰 반영
+
+application의 `DocumentGenerator` 인터페이스를 infrastructure의 `LlmDocumentGenerator`가 구현한다. 서비스와 서비스 단위 테스트는 application 계약만 의존한다. #534에서 제외한 작성·발언 선별 실험 문서 10개를 이 브랜치에서 보관하며 실제 출력과 과거 관측은 유지한다.

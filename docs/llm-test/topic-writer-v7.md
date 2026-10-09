@@ -51,4 +51,3 @@ title, summary, content 세 문자열만 가진 JSON 객체 하나를 반환한�
 {transcript}
 지정 주제 하나의 title, summary, content JSON 문서를 작성하세요.
 ```
-
