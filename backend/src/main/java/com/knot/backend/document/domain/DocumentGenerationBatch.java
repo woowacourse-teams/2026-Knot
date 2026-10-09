@@ -35,6 +35,12 @@ public class DocumentGenerationBatch {
     @Column(name = "transcript_id")
     private Long transcriptId;
 
+    @Column(name = "released_transcript_id")
+    private Long releasedTranscriptId;
+
+    @Column(name = "input_released_at")
+    private Instant inputReleasedAt;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "topic_registration_state", nullable = false, length = 30)
     private DocumentTopicRegistrationState topicRegistrationState;
@@ -107,11 +113,46 @@ public class DocumentGenerationBatch {
     }
 
     public void validateInput(long inputTranscriptId) {
+        if (releasedTranscriptId != null) {
+            if (releasedTranscriptId != inputTranscriptId) {
+                throw new DocumentException(DocumentErrorCode.GENERATION_REGISTRATION_CONFLICT);
+            }
+            return;
+        }
         if (transcriptId == null && topicRegistrationState != DocumentTopicRegistrationState.WAITING_CLASSIFICATION) {
             return;
         }
         if (transcriptId == null || transcriptId != inputTranscriptId) {
             throw new DocumentException(DocumentErrorCode.GENERATION_REGISTRATION_CONFLICT);
+        }
+    }
+
+    public void releaseInput(
+            long expectedTranscriptId,
+            Instant releasedAt
+    ) {
+        validateIdentifier(expectedTranscriptId);
+        validateTime(releasedAt);
+        validateInput(expectedTranscriptId);
+        if (inputReleasedAt != null) {
+            return;
+        }
+        validateReleasableInput(releasedAt);
+        releasedTranscriptId = transcriptId;
+        transcriptId = null;
+        inputReleasedAt = releasedAt;
+    }
+
+    private void validateReleasableInput(Instant releasedAt) {
+        if (processingStatus != DocumentGenerationProcessingStatus.FAILED
+                && processingStatus != DocumentGenerationProcessingStatus.NO_CONTENT) {
+            throw new DocumentException(DocumentErrorCode.GENERATION_REGISTRATION_CONFLICT);
+        }
+        if (queuedCount != 0 || runningCount != 0 || succeededCount != 0) {
+            throw new DocumentException(DocumentErrorCode.GENERATION_REGISTRATION_CONFLICT);
+        }
+        if (finishedAt == null || releasedAt.isBefore(finishedAt)) {
+            throw new DocumentException(DocumentErrorCode.INVALID_DOCUMENT_DATA);
         }
     }
 
