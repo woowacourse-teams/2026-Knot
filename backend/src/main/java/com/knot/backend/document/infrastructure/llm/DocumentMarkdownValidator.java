@@ -5,6 +5,7 @@ import com.knot.backend.document.domain.DocumentErrorCode;
 import com.knot.backend.document.domain.DocumentException;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Pattern;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
@@ -31,15 +32,23 @@ public class DocumentMarkdownValidator {
         validateLinks(result.summary());
         validateLinks(result.content());
         DocumentMarkdownSectionReader reader = new DocumentMarkdownSectionReader();
-        Map<String, StringBuilder> sections = reader.read(result.content());
+        String content = result.content();
+        Map<String, StringBuilder> sections = reader.read(content);
         validateSummarySection(sections);
         validateSectionOrder(sections);
-        sections.values()
-                .forEach(body -> validateSectionBody(body.toString()));
+        validateSectionBodies(sections);
+    }
+
+    private void validateSectionBodies(Map<String, StringBuilder> sections) {
+        for (StringBuilder body : sections.values()) {
+            String text = body.toString();
+            validateSectionBody(text);
+        }
     }
 
     private void validateSummarySection(Map<String, StringBuilder> sections) {
-        List<String> names = List.copyOf(sections.keySet());
+        Set<String> sectionNames = sections.keySet();
+        List<String> names = List.copyOf(sectionNames);
         if (names.isEmpty()) {
             throw invalidResponse();
         }
@@ -99,16 +108,21 @@ public class DocumentMarkdownValidator {
 
     private boolean isBodyLine(String line) {
         if (BLANK.matcher(line)
-                .matches()
-                || FENCE.matcher(line)
-                        .matches()) {
+                .matches()) {
+            return false;
+        }
+        if (FENCE.matcher(line)
+                .matches()) {
             return false;
         }
         return !line.matches("^ {0,3}#{1,6}[ \\t]+.*|^\\s*[-*+]\\s*$");
     }
 
     private void validateLinks(String value) {
-        if (value != null && LINKS.matcher(value)
+        if (value == null) {
+            return;
+        }
+        if (LINKS.matcher(value)
                 .find()) {
             throw invalidResponse();
         }
