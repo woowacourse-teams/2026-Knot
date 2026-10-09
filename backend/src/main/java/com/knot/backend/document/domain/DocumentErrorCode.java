@@ -8,6 +8,11 @@ import lombok.RequiredArgsConstructor;
 @Getter
 @RequiredArgsConstructor
 public enum DocumentErrorCode implements ErrorCode {
+    INVALID_GENERATION_WORKER_CONFIGURATION(
+            ErrorCategory.INTERNAL_SERVER_ERROR,
+            "INVALID_GENERATION_WORKER_CONFIGURATION",
+            "문서 생성 실행기 설정이 올바르지 않습니다"
+    ),
     INVALID_PARAMETER(
             ErrorCategory.INVALID_INPUT,
             "INVALID_PARAMETER",
