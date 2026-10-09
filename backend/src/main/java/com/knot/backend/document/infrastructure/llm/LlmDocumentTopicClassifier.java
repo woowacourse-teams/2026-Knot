@@ -1,5 +1,6 @@
 package com.knot.backend.document.infrastructure.llm;
 
+import com.knot.backend.document.application.DocumentTopicClassifier;
 import com.knot.backend.document.domain.DocumentErrorCode;
 import com.knot.backend.document.domain.DocumentException;
 import com.knot.backend.global.infrastructure.llm.LlmClient;
@@ -19,14 +20,14 @@ import tools.jackson.databind.ObjectMapper;
 
 @Component
 @ConditionalOnProperty(prefix = "knot.llm", name = "enabled", havingValue = "true")
-public class DocumentTopicClassifier {
+public class LlmDocumentTopicClassifier implements DocumentTopicClassifier {
     private static final Pattern WHITESPACE = Pattern.compile("[\\p{javaWhitespace}\\p{Z}]+");
 
     private final DocumentTopicPrompt prompt;
     private final LlmClient client;
     private final ObjectMapper mapper;
 
-    public DocumentTopicClassifier(
+    public LlmDocumentTopicClassifier(
             DocumentTopicPrompt prompt,
             LlmClient client,
             ObjectMapper mapper
@@ -38,6 +39,7 @@ public class DocumentTopicClassifier {
                 .build();
     }
 
+    @Override
     public List<String> classify(String transcriptContent) {
         LlmCompletionRequest request = prompt.createRequest(transcriptContent);
         String response = client.complete(request);

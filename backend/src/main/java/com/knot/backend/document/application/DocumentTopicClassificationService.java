@@ -3,7 +3,6 @@ package com.knot.backend.document.application;
 import com.knot.backend.document.application.dto.result.DocumentTopicClassificationResult;
 import com.knot.backend.document.domain.DocumentErrorCode;
 import com.knot.backend.document.domain.DocumentException;
-import com.knot.backend.document.infrastructure.llm.DocumentTopicClassifier;
 import java.util.List;
 import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;

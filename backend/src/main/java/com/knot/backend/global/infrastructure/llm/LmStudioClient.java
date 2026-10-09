@@ -137,7 +137,7 @@ public class LmStudioClient implements LlmClient {
         );
         if (options.thinkingBudgetTokens() != null) {
             body.put(
-                    "reasoning_budget",
+                    "thinking_budget_tokens",
                     options.thinkingBudgetTokens()
             );
         }
