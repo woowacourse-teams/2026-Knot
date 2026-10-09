@@ -6,7 +6,6 @@ import lombok.Getter;
 
 @Getter
 public enum RecordingErrorCode implements ErrorCode {
-
     AUDIO_DELETION_CONFLICT(
             ErrorCategory.CONFLICT,
             "AUDIO_DELETION_CONFLICT",

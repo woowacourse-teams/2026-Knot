@@ -25,7 +25,6 @@ import software.amazon.awssdk.services.s3.presigner.model.PresignedPutObjectRequ
 import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
 
 public class S3RecordingAudioStorage implements RecordingAudioStorage {
-
     private static final int NOT_FOUND_STATUS = 404;
     private static final int MAX_VERSION_PAGES = 100;
     private static final Duration DELETION_TIMEOUT = Duration.ofSeconds(60);

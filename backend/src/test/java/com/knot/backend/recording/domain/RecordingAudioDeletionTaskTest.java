@@ -7,7 +7,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 class RecordingAudioDeletionTaskTest {
-
     private static final Instant NOW = Instant.parse("2026-10-09T00:00:00Z");
 
     @Test

@@ -16,7 +16,6 @@ import lombok.Getter;
 @Entity
 @Table(name = "recording_audio_uploads")
 public class RecordingAudioUpload {
-
     private static final Duration AUDIO_RETENTION = Duration.ofDays(30);
     private static final String ALLOWED_CONTENT_TYPE = "audio/webm";
     private static final long MAX_CONTENT_LENGTH = 500L * 1024 * 1024;

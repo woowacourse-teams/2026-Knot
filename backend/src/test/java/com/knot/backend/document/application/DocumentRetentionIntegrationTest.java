@@ -59,7 +59,6 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 @TestApplicationProperties
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 class DocumentRetentionIntegrationTest {
-
     private static final Instant CREATED = DocumentFixtures.CREATED_AT;
     private static final Instant EXPIRES = CREATED.plus(Duration.ofDays(7));
 

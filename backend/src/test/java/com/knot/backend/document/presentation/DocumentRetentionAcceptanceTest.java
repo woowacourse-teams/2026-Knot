@@ -43,7 +43,6 @@ import org.springframework.test.web.servlet.MockMvc;
 @TestApplicationProperties
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 class DocumentRetentionAcceptanceTest {
-
     private static final String TRANSCRIPT_PATH = "/api/v1/workspaces/{workspaceId}/documents/{documentId}/transcript";
     private static final String RETRY_PATH = "/api/v1/workspaces/{workspaceId}/document-generation-jobs/{jobId}/retry";
 

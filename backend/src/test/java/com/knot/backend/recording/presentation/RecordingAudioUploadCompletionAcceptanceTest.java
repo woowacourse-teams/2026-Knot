@@ -51,7 +51,6 @@ import tools.jackson.databind.ObjectMapper;
 @AutoConfigureMockMvc
 @TestConstructor(autowireMode = AutowireMode.ALL)
 class RecordingAudioUploadCompletionAcceptanceTest {
-
     private static final String JWT_COOKIE_NAME = "KNOT_ACCESS_TOKEN";
     private static final String CSRF_COOKIE_NAME = "XSRF-TOKEN";
     private static final String CONTROL_TOKEN = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefA";

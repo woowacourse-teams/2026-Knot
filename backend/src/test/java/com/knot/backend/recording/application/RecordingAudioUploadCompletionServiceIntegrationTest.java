@@ -49,7 +49,6 @@ import org.springframework.transaction.support.TransactionTemplate;
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 @TestConstructor(autowireMode = AutowireMode.ALL)
 class RecordingAudioUploadCompletionServiceIntegrationTest {
-
     private static final Instant CREATED_AT = Instant.parse("2026-10-05T00:00:00Z");
     private static final Instant JOINED_AT = Instant.parse("2026-10-05T00:01:00Z");
     private static final String CONTROL_TOKEN = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefA";
