@@ -96,6 +96,62 @@ class LmStudioClientTest {
     }
 
     @Test
+    @DisplayName("추론 예산은 실제 HTTP 실험에서 사용한 필드로 전달한다")
+    void complete_success_thinkingBudget() throws Exception {
+        // given
+        try (LlmHttpServer server = new LlmHttpServer()) {
+            server.respond(
+                    200,
+                    """
+                            {"choices":[{"finish_reason":"stop","message":{"content":"{}"}}]}
+                            """
+            );
+            LmStudioClient client = client(
+                    server,
+                    Duration.ofSeconds(2),
+                    4096
+            );
+            LlmCompletionRequest baseline = request();
+            LlmCompletionRequest request = new LlmCompletionRequest(
+                    baseline.messages(),
+                    baseline.schemaName(),
+                    baseline.outputSchema(),
+                    new LlmGenerationOptions(
+                            0.2,
+                            0.9,
+                            20,
+                            1.0,
+                            true,
+                            512,
+                            8192
+                    )
+            );
+
+            // when
+            client.complete(request);
+
+            // then
+            JsonNode body = mapper.readTree(server.requestBody());
+            assertThat(body.has("thinking_budget_tokens")).isTrue();
+            assertThat(
+                    body.path("thinking_budget_tokens")
+                            .asInt()
+            ).isEqualTo(512);
+            assertThat(body.has("reasoning_budget")).isFalse();
+            assertThat(
+                    body.path("reasoning")
+                            .asString()
+            ).isEqualTo("on");
+            JsonNode templateOptions = body.path("chat_template_kwargs");
+            assertThat(
+                    templateOptions.path("enable_thinking")
+                            .asBoolean()
+            ).isTrue();
+            assertThat(server.requestCount()).isEqualTo(1);
+        }
+    }
+
+    @Test
     @DisplayName("잘못된 호출 입력은 외부 요청 전에 거절한다")
     void complete_failure_invalidRequest() throws Exception {
         // given

@@ -11,6 +11,8 @@
 - [#522 실제 작성 응답·실패 개선·품질 한계](522-document-generation-2026-10-08.md): 최종 형식 7개 통과, 짧은 의미 대조 6개 충족·장문 1개 부분 충족. 운영 최적값 확정을 뜻하지 않는다.
 - [#522 구현 계획과 상위 실행기 연결 계약](../implement-plan/522-topic-markdown-generation.md)
 
+작성 서비스는 application의 `DocumentGenerator` 계약을 통해 `LlmDocumentGenerator`를 호출한다. 아래 작성·선별 실험 10개는 #534에서 분리해 #535 범위에 보관한다. 예산 필드 정정은 과거 모델 관측을 새 검증으로 바꾸지 않는다.
+
 ## 이전 실험의 추천 후보
 
 일반 작성은 **작성 프롬프트 v7 + 추론 512**, temperature=0.2, top_p=0.9, top_k=20, repeat_penalty=1.0, max_tokens=4096을 추천 후보로 선택했다. 서버 컨텍스트는 32768을 유지한다.

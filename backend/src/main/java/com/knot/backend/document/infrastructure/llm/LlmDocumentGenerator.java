@@ -1,5 +1,6 @@
 package com.knot.backend.document.infrastructure.llm;
 
+import com.knot.backend.document.application.DocumentGenerator;
 import com.knot.backend.document.application.dto.result.DocumentGenerationResult;
 import com.knot.backend.document.domain.DocumentErrorCode;
 import com.knot.backend.document.domain.DocumentException;
@@ -16,7 +17,7 @@ import tools.jackson.databind.ObjectMapper;
 
 @Component
 @ConditionalOnProperty(prefix = "knot.llm", name = "enabled", havingValue = "true")
-public class DocumentGenerator {
+public class LlmDocumentGenerator implements DocumentGenerator {
     private static final Pattern BLANK = Pattern.compile("[\\p{javaWhitespace}\\p{Z}]*");
     private static final Pattern OUTER_WHITESPACE = Pattern
             .compile("^[\\p{javaWhitespace}\\p{Z}]+|[\\p{javaWhitespace}\\p{Z}]+$");
@@ -26,7 +27,7 @@ public class DocumentGenerator {
     private final ObjectMapper mapper;
     private final DocumentMarkdownValidator validator;
 
-    public DocumentGenerator(
+    public LlmDocumentGenerator(
             DocumentGenerationPrompt prompt,
             LlmClient client,
             ObjectMapper mapper,
@@ -40,6 +41,7 @@ public class DocumentGenerator {
         this.validator = validator;
     }
 
+    @Override
     public DocumentGenerationResult generate(
             String transcriptContent,
             String topic
