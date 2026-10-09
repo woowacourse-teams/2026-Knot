@@ -158,7 +158,12 @@ class DocumentGenerationJobRetryAcceptanceTest {
     @DisplayName("FAILED가 아닌 상태는 재시도를 접수하지 않는다")
     void retryDocumentGenerationJob_failure_notFailed(String jobStatus) throws Exception {
         // given
-        jdbc.sql("UPDATE document_generation_jobs SET status = :status WHERE id = :id")
+        jdbc.sql("""
+                UPDATE document_generation_jobs SET status = :status, failure_cause = NULL,
+                    next_attempt_at = CASE WHEN :status = 'QUEUED' THEN updated_at END,
+                    execution_deadline_at = CASE WHEN :status = 'RUNNING' THEN updated_at + INTERVAL '150 seconds' END
+                WHERE id = :id
+                """)
                 .param(
                         "status",
                         jobStatus

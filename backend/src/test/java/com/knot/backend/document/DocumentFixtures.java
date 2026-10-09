@@ -180,11 +180,15 @@ public class DocumentFixtures {
             updatedAt = failedAt;
             expiresAt = failedAt.plusSeconds(7 * 24 * 60 * 60);
         }
-        return jdbc
+        long jobId = jdbc
                 .sql(
                         """
-                                INSERT INTO document_generation_jobs (batch_id, stage, topic, transcript_id, status, created_at, updated_at, last_failed_at, expires_at)
-                                VALUES (:batchId, 'GENERATION', :topic, :transcriptId, :status, :createdAt, :updatedAt, :failedAt, :expiresAt) RETURNING id
+                                INSERT INTO document_generation_jobs (batch_id, stage, topic, transcript_id, status, created_at, updated_at, last_failed_at, expires_at,
+                                    next_attempt_at, execution_deadline_at, failure_cause)
+                                VALUES (:batchId, 'GENERATION', :topic, :transcriptId, :status, :createdAt, :updatedAt, :failedAt, :expiresAt,
+                                    CASE WHEN :status = 'QUEUED' THEN CAST(:updatedAt AS timestamptz) END,
+                                    CASE WHEN :status = 'RUNNING' THEN CAST(:updatedAt AS timestamptz) + INTERVAL '150 seconds' END,
+                                    CASE WHEN :status = 'FAILED' THEN 'LEGACY_FAILURE' END) RETURNING id
                                 """
                 )
                 .param(
@@ -223,6 +227,30 @@ public class DocumentFixtures {
                 )
                 .query(Long.class)
                 .single();
+        synchronizeBatch(batchId);
+        return jobId;
+    }
+
+    public void synchronizeBatch(long batchId) {
+        jdbc.sql("""
+                UPDATE document_generation_batches b SET
+                    queued_count = c.queued, running_count = c.running,
+                    succeeded_count = c.succeeded, failed_count = c.failed,
+                    processing_status = CASE WHEN c.running > 0 THEN 'RUNNING' WHEN c.queued > 0 THEN 'QUEUED'
+                        WHEN c.failed > 0 THEN 'FAILED' ELSE 'SUCCEEDED' END,
+                    finished_at = CASE WHEN c.running + c.queued = 0 THEN c.changed_at END
+                FROM (SELECT count(*) FILTER (WHERE status = 'QUEUED') AS queued,
+                    count(*) FILTER (WHERE status = 'RUNNING') AS running,
+                    count(*) FILTER (WHERE status = 'SUCCEEDED') AS succeeded,
+                    count(*) FILTER (WHERE status = 'FAILED') AS failed, max(updated_at) AS changed_at
+                    FROM document_generation_jobs WHERE batch_id = :id AND stage = 'GENERATION') c
+                WHERE b.id = :id
+                """)
+                .param(
+                        "id",
+                        batchId
+                )
+                .update();
     }
 
     public long saveGenerationBatch(long transcriptId) {
