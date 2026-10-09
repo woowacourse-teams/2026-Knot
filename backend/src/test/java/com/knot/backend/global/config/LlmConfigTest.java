@@ -3,7 +3,8 @@ package com.knot.backend.global.config;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.knot.backend.document.application.DocumentTopicClassificationService;
-import com.knot.backend.document.infrastructure.llm.DocumentTopicClassifier;
+import com.knot.backend.document.application.DocumentTopicClassifier;
+import com.knot.backend.document.infrastructure.llm.LlmDocumentTopicClassifier;
 import com.knot.backend.document.infrastructure.llm.DocumentTopicPrompt;
 import com.knot.backend.global.infrastructure.llm.LmStudioClient;
 import com.knot.backend.global.infrastructure.llm.LlmClient;
@@ -22,7 +23,7 @@ class LlmConfigTest {
             .withUserConfiguration(
                     LlmConfig.class,
                     DocumentTopicPrompt.class,
-                    DocumentTopicClassifier.class,
+                    LlmDocumentTopicClassifier.class,
                     DocumentTopicClassificationService.class
             );
 
@@ -50,6 +51,8 @@ class LlmConfigTest {
                 .run(context -> {
                     assertThat(context).hasNotFailed();
                     assertThat(context).hasSingleBean(DocumentTopicClassificationService.class);
+                    assertThat(context.getBean(DocumentTopicClassifier.class))
+                            .isInstanceOf(LlmDocumentTopicClassifier.class);
                     assertThat(context).hasSingleBean(LmStudioClient.class);
                     assertThat(context.getBean(LlmClient.class)).isInstanceOf(LmStudioClient.class);
                     assertThat(
