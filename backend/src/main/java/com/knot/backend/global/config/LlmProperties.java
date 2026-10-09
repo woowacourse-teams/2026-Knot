@@ -46,15 +46,38 @@ public class LlmProperties {
     }
 
     private void validateBaseUrl() {
-        if (baseUrl == null || baseUrl.getHost() == null) {
+        if (baseUrl == null) {
+            throw invalidConfiguration();
+        }
+        if (baseUrl.getHost() == null) {
             throw invalidConfiguration();
         }
         validateScheme();
-        if (baseUrl.getUserInfo() != null || baseUrl.getQuery() != null || baseUrl.getFragment() != null) {
+        validateBaseUrlComponents();
+        validateBaseUrlPath();
+    }
+
+    private void validateBaseUrlComponents() {
+        if (baseUrl.getUserInfo() != null) {
             throw invalidConfiguration();
         }
+        if (baseUrl.getQuery() != null) {
+            throw invalidConfiguration();
+        }
+        if (baseUrl.getFragment() != null) {
+            throw invalidConfiguration();
+        }
+    }
+
+    private void validateBaseUrlPath() {
         String path = baseUrl.getPath();
-        if (path != null && !path.isEmpty() && !path.equals("/")) {
+        if (path == null) {
+            return;
+        }
+        if (path.isEmpty()) {
+            return;
+        }
+        if (!path.equals("/")) {
             throw invalidConfiguration();
         }
     }
@@ -70,14 +93,30 @@ public class LlmProperties {
     }
 
     private boolean isLoopbackHost() {
-        return LOOPBACK_HOSTS.contains(baseUrl.getHost());
+        String host = baseUrl.getHost();
+        return LOOPBACK_HOSTS.contains(host);
     }
 
     private void validateCredentials() {
-        if (apiToken == null || apiToken.isBlank() || apiToken.contains("\r") || apiToken.contains("\n")) {
+        validateCredentialText(apiToken);
+        validateTokenLineBreaks();
+        validateCredentialText(model);
+    }
+
+    private void validateCredentialText(String value) {
+        if (value == null) {
             throw invalidConfiguration();
         }
-        if (model == null || model.isBlank()) {
+        if (value.isBlank()) {
+            throw invalidConfiguration();
+        }
+    }
+
+    private void validateTokenLineBreaks() {
+        if (apiToken.contains("\r")) {
+            throw invalidConfiguration();
+        }
+        if (apiToken.contains("\n")) {
             throw invalidConfiguration();
         }
     }
@@ -91,7 +130,13 @@ public class LlmProperties {
     }
 
     private void validatePositiveDuration(Duration duration) {
-        if (duration == null || duration.isNegative() || duration.isZero()) {
+        if (duration == null) {
+            throw invalidConfiguration();
+        }
+        if (duration.isNegative()) {
+            throw invalidConfiguration();
+        }
+        if (duration.isZero()) {
             throw invalidConfiguration();
         }
         try {
