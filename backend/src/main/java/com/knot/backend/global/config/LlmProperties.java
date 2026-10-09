@@ -13,7 +13,6 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @Setter
 @ConfigurationProperties(prefix = "knot.llm")
 public class LlmProperties {
-
     private static final Set<String> LOOPBACK_HOSTS = Set.of(
             "localhost",
             "127.0.0.1",
