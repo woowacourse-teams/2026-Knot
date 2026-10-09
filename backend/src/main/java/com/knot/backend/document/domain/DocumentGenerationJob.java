@@ -18,7 +18,6 @@ import lombok.Getter;
 @Entity
 @Table(name = "document_generation_jobs")
 public class DocumentGenerationJob {
-
     private static final Duration FAILURE_RETENTION = Duration.ofDays(7);
     private static final int MAX_USER_RETRIES = 3;
     private static final Duration DEFAULT_EXECUTION_LEASE = Duration.ofSeconds(150);

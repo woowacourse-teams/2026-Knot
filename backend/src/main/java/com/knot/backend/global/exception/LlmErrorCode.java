@@ -6,7 +6,6 @@ import lombok.RequiredArgsConstructor;
 @Getter
 @RequiredArgsConstructor
 public enum LlmErrorCode implements ErrorCode {
-
     LLM_INVALID_CONFIGURATION(
             ErrorCategory.INTERNAL_SERVER_ERROR,
             "LLM_INVALID_CONFIGURATION",

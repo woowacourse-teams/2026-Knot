@@ -57,7 +57,6 @@ import org.springframework.transaction.support.TransactionTemplate;
 @Import(TestcontainersConfiguration.class)
 @TestApplicationProperties
 class DocumentGenerationRegistrationIntegrationTest {
-
     private static final Instant NOW = DocumentFixtures.CREATED_AT.plusSeconds(120);
 
     @Autowired
