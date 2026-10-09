@@ -752,7 +752,7 @@ title, summary, content 세 문자열 필드만 가진 JSON 객체 하나를 반
 ### API 요청 설정
 
 - 모델: `qwen3.8-27b`
-- 엔드포인트: `POST https://llm-api.knoted.kr/v1/chat/completions`
+- 엔드포인트: `POST ${LLM_BASE_URL}/v1/chat/completions`
 - `temperature=0.2`, `top_p=0.9`, `top_k=20`, `repeat_penalty=1`
 - `max_tokens=8192`
 - 추론 켜짐은 `reasoning_effort="low"`와 `chat_template_kwargs.enable_thinking=true`, 추론 꺼짐은 `"none"`과 `false`를 함께 전송했다.

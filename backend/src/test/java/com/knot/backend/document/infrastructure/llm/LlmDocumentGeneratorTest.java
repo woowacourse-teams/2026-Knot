@@ -25,16 +25,16 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import tools.jackson.databind.ObjectMapper;
 
 @ExtendWith(MockitoExtension.class)
-class DocumentGeneratorTest {
+class LlmDocumentGeneratorTest {
 
     @Mock
     private LlmClient client;
     private final ObjectMapper mapper = new ObjectMapper();
-    private DocumentGenerator generator;
+    private LlmDocumentGenerator generator;
 
     @BeforeEach
     void setUp() {
-        generator = new DocumentGenerator(
+        generator = new LlmDocumentGenerator(
                 new DocumentGenerationPrompt(mapper),
                 client,
                 mapper,

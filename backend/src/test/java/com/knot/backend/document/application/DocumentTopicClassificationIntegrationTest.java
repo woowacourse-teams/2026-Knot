@@ -4,7 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.knot.backend.document.application.dto.result.DocumentTopicClassificationResult;
-import com.knot.backend.document.infrastructure.llm.DocumentTopicClassifier;
+import com.knot.backend.document.infrastructure.llm.LlmDocumentTopicClassifier;
 import com.knot.backend.document.infrastructure.llm.DocumentTopicPrompt;
 import com.knot.backend.global.config.LlmProperties;
 import com.knot.backend.global.exception.LlmErrorCode;
@@ -98,7 +98,7 @@ class DocumentTopicClassificationIntegrationTest {
                 mapper,
                 properties
         );
-        DocumentTopicClassifier classifier = new DocumentTopicClassifier(
+        LlmDocumentTopicClassifier classifier = new LlmDocumentTopicClassifier(
                 new DocumentTopicPrompt(mapper),
                 client,
                 mapper

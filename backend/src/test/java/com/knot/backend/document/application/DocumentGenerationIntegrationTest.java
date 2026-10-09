@@ -6,7 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.knot.backend.document.application.dto.result.DocumentGenerationResult;
 import com.knot.backend.document.domain.DocumentErrorCode;
 import com.knot.backend.document.infrastructure.llm.DocumentGenerationPrompt;
-import com.knot.backend.document.infrastructure.llm.DocumentGenerator;
+import com.knot.backend.document.infrastructure.llm.LlmDocumentGenerator;
 import com.knot.backend.document.infrastructure.llm.DocumentMarkdownValidator;
 import com.knot.backend.global.config.LlmProperties;
 import com.knot.backend.global.exception.LlmErrorCode;
@@ -93,6 +93,7 @@ class DocumentGenerationIntegrationTest {
                             .asString()
             ).isEqualTo("off");
             assertThat(request.has("reasoning_budget")).isFalse();
+            assertThat(request.has("thinking_budget_tokens")).isFalse();
             assertThat(
                     request.path("max_tokens")
                             .asInt()
@@ -199,7 +200,7 @@ class DocumentGenerationIntegrationTest {
                 mapper,
                 properties
         );
-        DocumentGenerator generator = new DocumentGenerator(
+        LlmDocumentGenerator generator = new LlmDocumentGenerator(
                 new DocumentGenerationPrompt(mapper),
                 client,
                 mapper,

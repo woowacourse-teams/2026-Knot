@@ -23,16 +23,16 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import tools.jackson.databind.ObjectMapper;
 
 @ExtendWith(MockitoExtension.class)
-class DocumentTopicClassifierTest {
+class LlmDocumentTopicClassifierTest {
 
     @Mock
     private LlmClient client;
-    private DocumentTopicClassifier classifier;
+    private LlmDocumentTopicClassifier classifier;
 
     @BeforeEach
     void setUp() {
         ObjectMapper mapper = new ObjectMapper();
-        classifier = new DocumentTopicClassifier(
+        classifier = new LlmDocumentTopicClassifier(
                 new DocumentTopicPrompt(mapper),
                 client,
                 mapper
