@@ -24,6 +24,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.JwtTimestampValidator;
+import org.springframework.security.oauth2.jwt.JwtValidationException;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 
 class JwtProviderTest {
@@ -425,19 +427,23 @@ class JwtProviderTest {
         // given
         Instant issuedAt = Instant.parse("2026-10-01T00:00:00Z");
         Instant expiresAt = issuedAt.plus(Duration.ofDays(7));
+        Clock clock = Clock.fixed(
+                issuedAt,
+                ZoneOffset.UTC
+        );
         JwtProperties properties = properties(Duration.ofHours(1));
         JwtProvider provider = new JwtProvider(
                 properties,
-                Clock.fixed(
-                        issuedAt,
-                        ZoneOffset.UTC
-                )
+                clock
         );
 
         // when
         RefreshToken refreshToken = provider.issue(expiresAt);
         String token = refreshToken.getValue();
-        Jwt jwt = decoder(properties).decode(token);
+        Jwt jwt = decoder(
+                properties,
+                clock
+        ).decode(token);
         provider.authenticateRefreshToken(token);
 
         // then
@@ -573,6 +579,37 @@ class JwtProviderTest {
     }
 
     @Test
+    @DisplayName("테스트 디코더도 지정한 시계에서 만료된 refresh JWT를 거절한다")
+    void decode_failure_refreshTokenExpiredAtProvidedClock() {
+        // given
+        Instant issuedAt = Instant.parse("2026-10-01T00:00:00Z");
+        Instant expiresAt = issuedAt.plus(Duration.ofDays(7));
+        JwtProperties properties = properties(Duration.ofHours(1));
+        JwtProvider provider = new JwtProvider(
+                properties,
+                Clock.fixed(
+                        issuedAt,
+                        ZoneOffset.UTC
+                )
+        );
+        String token = provider.issue(expiresAt)
+                .getValue();
+        JwtDecoder decoder = decoder(
+                properties,
+                Clock.fixed(
+                        expiresAt.plusSeconds(1),
+                        ZoneOffset.UTC
+                )
+        );
+
+        // when
+        Throwable thrown = catchThrowable(() -> decoder.decode(token));
+
+        // then
+        assertThat(thrown).isInstanceOf(JwtValidationException.class);
+    }
+
+    @Test
     @DisplayName("refresh 토큰 원문으로 저장용 해시를 식별한다")
     void identifyRefreshToken_success_hashesRawValue() {
         // given
@@ -603,13 +640,28 @@ class JwtProviderTest {
     }
 
     private JwtDecoder decoder(JwtProperties properties) {
+        return decoder(
+                properties,
+                Clock.systemUTC()
+        );
+    }
+
+    private JwtDecoder decoder(
+            JwtProperties properties,
+            Clock clock
+    ) {
         SecretKey secretKey = new SecretKeySpec(
                 properties.getSecret()
                         .getBytes(StandardCharsets.UTF_8),
                 "HmacSHA256"
         );
-        return NimbusJwtDecoder.withSecretKey(secretKey)
+        NimbusJwtDecoder decoder = NimbusJwtDecoder.withSecretKey(secretKey)
                 .macAlgorithm(MacAlgorithm.HS256)
                 .build();
+        JwtTimestampValidator timestampValidator = new JwtTimestampValidator(Duration.ZERO);
+        timestampValidator.setClock(clock);
+        timestampValidator.setAllowEmptyExpiryClaim(false);
+        decoder.setJwtValidator(timestampValidator);
+        return decoder;
     }
 }
