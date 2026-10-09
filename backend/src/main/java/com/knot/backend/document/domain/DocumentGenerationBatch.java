@@ -114,9 +114,7 @@ public class DocumentGenerationBatch {
 
     public void validateInput(long inputTranscriptId) {
         if (releasedTranscriptId != null) {
-            if (releasedTranscriptId != inputTranscriptId) {
-                throw new DocumentException(DocumentErrorCode.GENERATION_REGISTRATION_CONFLICT);
-            }
+            validateReleasedTranscript(inputTranscriptId);
             return;
         }
         if (transcriptId == null && topicRegistrationState != DocumentTopicRegistrationState.WAITING_CLASSIFICATION) {
@@ -271,6 +269,12 @@ public class DocumentGenerationBatch {
             return;
         }
         finishedAt = changedAt;
+    }
+
+    private void validateReleasedTranscript(long inputTranscriptId) {
+        if (releasedTranscriptId != inputTranscriptId) {
+            throw new DocumentException(DocumentErrorCode.GENERATION_REGISTRATION_CONFLICT);
+        }
     }
 
     private void validateWaiting() {
