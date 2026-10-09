@@ -75,6 +75,8 @@ class DocumentGenerationResultIntegrationTest {
     @Autowired
     private DocumentGenerationIntakeService intake;
     @Autowired
+    private DocumentGenerationClaimService claims;
+    @Autowired
     private DocumentClassificationResultService classifications;
     @Autowired
     private DocumentDetailService details;
@@ -576,6 +578,8 @@ class DocumentGenerationResultIntegrationTest {
             );
             other.startRunning(NOW);
             other.recordFailure(NOW);
+            jobs.flush();
+            fixtures.synchronizeBatch(current.getBatchId());
             return other.getId();
         });
         // when
@@ -799,7 +803,7 @@ class DocumentGenerationResultIntegrationTest {
     void completeGeneration_failure_unregisteredBatch() {
         // given
         jdbc.sql(
-                "UPDATE document_generation_batches SET topic_registration_state = 'WAITING_CLASSIFICATION', registered_at = NULL"
+                "UPDATE document_generation_batches SET topic_registration_state = 'WAITING_CLASSIFICATION', registered_at = NULL, queued_count = 0, running_count = 0, succeeded_count = 0, failed_count = 0"
         )
                 .update();
         // when & then
@@ -938,14 +942,11 @@ class DocumentGenerationResultIntegrationTest {
     }
 
     private void startJob(long id) {
-        transactions.executeWithoutResult(
-                status -> jobs.findByWorkspaceIdAndIdForUpdate(
-                        workspaceId,
-                        id
-                )
-                        .orElseThrow()
-                        .startRunning(NOW)
-        );
+        claims.claim(
+                workspaceId,
+                id
+        )
+                .orElseThrow();
     }
 
     private List<Long> targets(long documentId) {
@@ -980,5 +981,14 @@ class DocumentGenerationResultIntegrationTest {
                         .single()
         ).isZero();
         assertThat(jobStatus()).isEqualTo("RUNNING");
+        assertThat(
+                jdbc.sql("SELECT succeeded_count FROM document_generation_batches WHERE recording_session_id = :id")
+                        .param(
+                                "id",
+                                recordingId
+                        )
+                        .query(Integer.class)
+                        .single()
+        ).isZero();
     }
 }
