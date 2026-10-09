@@ -33,6 +33,8 @@ const isRetryRejectedError = (error: unknown) =>
  * 다시 시도는 문서 만들기 단계의 실패이고 다시 시도할 작업이 있을 때만 할 수 있어요.
  * 전사 · 업로드 실패는 문서 만들기를 다시 해도 결과가 같아 대상이 아니에요.
  * 다시 시도가 거절되면(409 · 404) 더 시도할 수 없어 `retry`를 없애요.
+ * 409는 화면이 아는 녹음 상태와 서버의 녹음 상태가 다를 수 있다는 응답이라, 녹음 상태를 다시 조회해요.
+ * 서버에서 이미 정리 중이거나 정리가 끝났으면 그 상태의 화면으로 바뀌어요.
  */
 export const useRecordingDocuments = ({
   workspaceId,
@@ -48,6 +50,7 @@ export const useRecordingDocuments = ({
     mutate: retryDocumentGeneration,
     isPending: isRetrying,
     error: retryError,
+    reset: clearRetryError,
   } = useRetryDocumentGenerationJobMutation();
   const { isUnauthorized } = useRedirectToLoginOnUnauthorized({ error });
   // 다시 시도에서 로그인이 풀려도 같은 방식으로 로그인 화면에 보내요
@@ -95,7 +98,25 @@ export const useRecordingDocuments = ({
     return {
       status: "failed",
       isRetrying,
-      retry: () => retryDocumentGeneration({ workspaceId, jobId: retryJobId }),
+      retry: () =>
+        retryDocumentGeneration(
+          { workspaceId, jobId: retryJobId },
+          {
+            onError: async (retryFailure) => {
+              if (!isHttpError(retryFailure, HTTP_ERROR_TYPE.conflict)) return;
+
+              const { data: latestRecording } = await refetch();
+
+              // 서버에서는 실패 상태가 아니면 거절 기록을 지워요. 남겨 두면 그 작업이 또 실패했을 때 「다시 시도」가 숨겨져요
+              if (
+                latestRecording !== undefined &&
+                latestRecording.status !== "FAILED"
+              ) {
+                clearRetryError();
+              }
+            },
+          },
+        ),
     } as const;
   }
 

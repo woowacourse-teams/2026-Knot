@@ -480,6 +480,77 @@ describe("RecordingDocuments", () => {
     },
   );
 
+  it.each([
+    {
+      condition: "이미 정리 중이면 정리 중 화면으로 바꾼다",
+      latestRecording: organizingRecording,
+      expectedScreen: () =>
+        screen.findByRole("heading", { level: 2, name: ORGANIZING_TITLE }),
+    },
+    {
+      condition: "이미 정리가 끝났으면 워크스페이스 홈으로 보낸다",
+      latestRecording: completedRecording,
+      expectedScreen: () => screen.findByText("워크스페이스 홈"),
+    },
+  ])(
+    "다시 시도가 409로 거절되면 녹음 상태를 다시 조회하고, 서버에서 $condition",
+    async ({ latestRecording, expectedScreen }) => {
+      let isRetryRejected = false;
+      mockServer.use(
+        http.post(RETRY_REQUEST, () => {
+          isRetryRejected = true;
+          return new HttpResponse(null, { status: 409 });
+        }),
+        // 다른 곳에서 먼저 다시 시도해, 서버의 녹음은 화면이 아는 실패 상태가 아니에요
+        http.get(RECORDING_REQUEST, () =>
+          HttpResponse.json(
+            isRetryRejected
+              ? { ...latestRecording, recordingId: failedRecording.recordingId }
+              : failedRecording,
+          ),
+        ),
+      );
+      renderRecordingDocuments(failedRecording.recordingId);
+
+      fireEvent.click(await screen.findByRole("button", { name: "다시 시도" }));
+
+      expect(await expectedScreen()).toBeInTheDocument();
+    },
+  );
+
+  it("다시 시도가 409로 거절된 뒤 정리 중이 됐다가 또 실패하면 다시 시도 버튼을 다시 보여준다", async () => {
+    let latestRecording: typeof failedRecording | typeof organizingRecording =
+      failedRecording;
+    mockServer.use(
+      http.post(RETRY_REQUEST, () => {
+        latestRecording = organizingRecording;
+        return new HttpResponse(null, { status: 409 });
+      }),
+      http.get(RECORDING_REQUEST, () =>
+        HttpResponse.json({
+          ...latestRecording,
+          recordingId: failedRecording.recordingId,
+        }),
+      ),
+    );
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    renderRecordingDocuments(failedRecording.recordingId);
+
+    fireEvent.click(await screen.findByRole("button", { name: "다시 시도" }));
+    await screen.findByRole("heading", { level: 2, name: ORGANIZING_TITLE });
+
+    // 서버에서 그 작업이 또 실패해, 다음 조회부터 다시 실패 상태를 받아요
+    latestRecording = failedRecording;
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS);
+    });
+
+    expect(
+      await screen.findByRole("button", { name: "다시 시도" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(RECORDING_KEPT_NOTICE)).toBeInTheDocument();
+  });
+
   it("다시 시도가 서버 오류로 실패하면 버튼을 남겨 다시 누를 수 있게 한다", async () => {
     let retryCount = 0;
     mockServer.use(
