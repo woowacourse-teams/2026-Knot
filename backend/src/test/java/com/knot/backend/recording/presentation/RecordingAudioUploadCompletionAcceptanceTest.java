@@ -20,6 +20,7 @@ import com.knot.backend.recording.domain.RecordingException;
 import com.knot.backend.testsupport.TestApplicationProperties;
 import com.knot.backend.testsupport.TestcontainersConfiguration;
 import jakarta.servlet.http.Cookie;
+import java.time.Clock;
 import java.time.Instant;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -50,6 +51,7 @@ import tools.jackson.databind.ObjectMapper;
 @AutoConfigureMockMvc
 @TestConstructor(autowireMode = AutowireMode.ALL)
 class RecordingAudioUploadCompletionAcceptanceTest {
+
     private static final String JWT_COOKIE_NAME = "KNOT_ACCESS_TOKEN";
     private static final String CSRF_COOKIE_NAME = "XSRF-TOKEN";
     private static final String CONTROL_TOKEN = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefA";
@@ -62,6 +64,8 @@ class RecordingAudioUploadCompletionAcceptanceTest {
     private final AuthTokenProvider authTokenProvider;
     private final ObjectMapper objectMapper;
     private final JdbcClient jdbcClient;
+    private final Clock clock;
+
     @MockitoBean
     private RecordingAudioStorage audioStorage;
 
@@ -69,12 +73,14 @@ class RecordingAudioUploadCompletionAcceptanceTest {
             MockMvc mockMvc,
             AuthTokenProvider authTokenProvider,
             ObjectMapper objectMapper,
-            JdbcClient jdbcClient
+            JdbcClient jdbcClient,
+            Clock clock
     ) {
         this.mockMvc = mockMvc;
         this.authTokenProvider = authTokenProvider;
         this.objectMapper = objectMapper;
         this.jdbcClient = jdbcClient;
+        this.clock = clock;
     }
 
     @BeforeEach
@@ -98,7 +104,8 @@ class RecordingAudioUploadCompletionAcceptanceTest {
         ).thenReturn(
                 new PresignedAudioUpload(
                         "https://storage.example/upload",
-                        Instant.parse("2026-10-05T01:00:00Z")
+                        clock.instant()
+                                .plusSeconds(3600)
                 )
         );
     }
