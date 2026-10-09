@@ -9,4 +9,9 @@ public interface DocumentGenerationBatchRepository {
     Optional<DocumentGenerationBatch> findByIdForUpdate(long batchId);
 
     DocumentGenerationBatch saveAndFlush(DocumentGenerationBatch batch);
+
+    Optional<DocumentGenerationBatch> findByWorkspaceIdAndRecordingSessionId(
+            long workspaceId,
+            long recordingSessionId
+    );
 }

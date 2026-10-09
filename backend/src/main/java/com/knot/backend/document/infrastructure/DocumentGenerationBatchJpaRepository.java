@@ -15,4 +15,15 @@ interface DocumentGenerationBatchJpaRepository extends JpaRepository<DocumentGen
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT b FROM DocumentGenerationBatch b WHERE b.id = :batchId")
     Optional<DocumentGenerationBatch> findLockedById(long batchId);
+
+    @Query("""
+            SELECT b FROM DocumentGenerationBatch b
+            WHERE b.recordingSessionId = :recordingSessionId AND EXISTS (
+                SELECT r.id FROM RecordingSession r WHERE r.id = b.recordingSessionId AND r.workspaceId = :workspaceId
+            )
+            """)
+    Optional<DocumentGenerationBatch> findByWorkspaceIdAndRecordingSessionId(
+            long workspaceId,
+            long recordingSessionId
+    );
 }
