@@ -92,30 +92,45 @@ class RetentionCleanupSchedulerIntegrationTest {
                 storage,
                 timeout(10000)
         ).deleteStoredObject("recordings/automatic");
-        Instant deadline = Instant.now()
-                .plusSeconds(10);
-        while (Instant.now()
-                .isBefore(deadline) && countDeletedUploads() == 0) {
-            Thread.sleep(20);
-        }
+        awaitRetentionCleanup();
 
         // then
         assertThat(countDeletedUploads()).isEqualTo(1);
-        assertThat(
-                jdbc.sql("SELECT count(*) FROM transcripts")
-                        .query(Integer.class)
-                        .single()
-        ).isZero();
-        assertThat(
-                jdbc.sql("SELECT count(*) FROM document_generation_jobs")
-                        .query(Integer.class)
-                        .single()
-        ).isZero();
+        assertThat(countTranscripts()).isZero();
+        assertThat(countGenerationJobs()).isZero();
         assertThat(
                 jdbc.sql("SELECT processing_status FROM document_generation_batches")
                         .query(String.class)
                         .single()
         ).isEqualTo("FAILED");
+    }
+
+    private void awaitRetentionCleanup() throws InterruptedException {
+        // 원문 정리와 오디오 삭제는 서로 다른 실행 주기에 완료될 수 있다.
+        long deadline = System.nanoTime() + Duration.ofSeconds(10)
+                .toNanos();
+        while (System.nanoTime() < deadline) {
+            if (isRetentionCleanupComplete()) {
+                return;
+            }
+            Thread.sleep(20);
+        }
+    }
+
+    private boolean isRetentionCleanupComplete() {
+        return countDeletedUploads() == 1 && countTranscripts() == 0 && countGenerationJobs() == 0;
+    }
+
+    private int countTranscripts() {
+        return jdbc.sql("SELECT count(*) FROM transcripts")
+                .query(Integer.class)
+                .single();
+    }
+
+    private int countGenerationJobs() {
+        return jdbc.sql("SELECT count(*) FROM document_generation_jobs")
+                .query(Integer.class)
+                .single();
     }
 
     private int countDeletedUploads() {
