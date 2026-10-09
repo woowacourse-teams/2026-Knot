@@ -69,12 +69,16 @@ class DocumentGenerationExecutionIntegrationTest {
     @Autowired
     private DocumentGenerationFailureService failures;
     @Autowired
+    private DocumentGenerationRecoveryService recovery;
+    @Autowired
     private DocumentGenerationProgressService progress;
 
     @Autowired
     private TransactionTemplate transactions;
     @Autowired
     private JdbcClient jdbc;
+    @Autowired
+    private DocumentGenerationJobRepository jobRepository;
     @MockitoBean
     private Clock clock;
     @MockitoBean
@@ -255,6 +259,180 @@ class DocumentGenerationExecutionIntegrationTest {
         return jdbc.sql("SELECT id FROM document_generation_jobs WHERE stage = 'GENERATION' ORDER BY id")
                 .query(Long.class)
                 .list();
+    }
+
+    @Test
+    @DisplayName("만료 전 회수와 성공 이후 실패 통지는 현재 결과를 바꾸지 않는다")
+    void recoverExpired_failure_notExpiredOrAlreadySucceeded() {
+        // given
+        claims.claim(
+                workspaceId,
+                classifierId
+        )
+                .orElseThrow();
+        // when
+        recovery.recoverExpired(
+                workspaceId,
+                classifierId,
+                1
+        );
+        // then
+        assertThat(status(classifierId)).isEqualTo("RUNNING");
+        assertThat(
+                number(
+                        "attempt_count",
+                        classifierId
+                )
+        ).isEqualTo(1);
+        failures.failAttempt(
+                workspaceId,
+                classifierId,
+                0,
+                DocumentGenerationFailureCause.TIMEOUT
+        );
+        assertThat(status(classifierId)).isEqualTo("RUNNING");
+    }
+
+    @Test
+    @DisplayName("두 번째 중단은 최종 실패로 남기고 무한 회수하지 않는다")
+    void recoverExpired_failure_exhaustedAutomaticLimit() {
+        // given
+        claims.claim(
+                workspaceId,
+                classifierId
+        )
+                .orElseThrow();
+        when(clock.instant()).thenReturn(NOW.plusSeconds(150));
+        recovery.recoverExpired(
+                workspaceId,
+                classifierId,
+                1
+        );
+        when(clock.instant()).thenReturn(NOW.plusSeconds(155));
+        claims.claim(
+                workspaceId,
+                classifierId
+        )
+                .orElseThrow();
+        // when
+        when(clock.instant()).thenReturn(NOW.plusSeconds(305));
+        recovery.recoverExpired(
+                workspaceId,
+                classifierId,
+                2
+        );
+        // then
+        assertThat(status(classifierId)).isEqualTo("FAILED");
+        assertThat(
+                number(
+                        "automatic_retry_count",
+                        classifierId
+                )
+        ).isEqualTo(1);
+        assertThat(
+                progress.findProgress(
+                        workspaceId,
+                        recordingId
+                )
+                        .orElseThrow()
+                        .status()
+        ).isEqualTo(DocumentGenerationProcessingStatus.FAILED);
+        assertThat(
+                jobRepository.findExpiredCandidates(
+                        NOW.plusSeconds(305),
+                        20
+                )
+        ).isEmpty();
+    }
+
+    @Test
+    @DisplayName("미래에 예약된 작업을 제외하고 실행 기한이 만료된 작업만 회수 후보로 조회한다")
+    void findCandidates_success_dueTimesOnly() {
+        // given
+        assertThat(
+                jobRepository.findReadyCandidates(
+                        NOW,
+                        1
+                )
+        ).hasSize(1);
+        claims.claim(
+                workspaceId,
+                classifierId
+        )
+                .orElseThrow();
+        // when & then
+        assertThat(
+                jobRepository.findReadyCandidates(
+                        NOW,
+                        1
+                )
+        ).isEmpty();
+        assertThat(
+                jobRepository.findExpiredCandidates(
+                        NOW.plusSeconds(149),
+                        1
+                )
+        ).isEmpty();
+        assertThat(
+                jobRepository.findExpiredCandidates(
+                        NOW.plusSeconds(150),
+                        1
+                )
+        ).hasSize(1);
+        failures.failAttempt(
+                workspaceId,
+                classifierId,
+                1,
+                DocumentGenerationFailureCause.UNAVAILABLE
+        );
+        assertThat(
+                jobRepository.findReadyCandidates(
+                        NOW.plusSeconds(4),
+                        1
+                )
+        ).isEmpty();
+        assertThat(
+                jobRepository.findReadyCandidates(
+                        NOW.plusSeconds(5),
+                        1
+                )
+        ).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("실행 도중 Workspace가 삭제되면 만료 회수 시 재접수하지 않는다")
+    void recoverExpired_failure_deletedWorkspace() {
+        // given
+        claims.claim(
+                workspaceId,
+                classifierId
+        )
+                .orElseThrow();
+        jdbc.sql("UPDATE workspaces SET deleted_at = :now")
+                .param(
+                        "now",
+                        Timestamp.from(NOW)
+                )
+                .update();
+        when(clock.instant()).thenReturn(NOW.plusSeconds(150));
+        // when
+        recovery.recoverExpired(
+                workspaceId,
+                classifierId,
+                1
+        );
+        // then
+        assertThat(status(classifierId)).isEqualTo("FAILED");
+        assertThat(
+                number(
+                        "attempt_count",
+                        classifierId
+                )
+        ).isEqualTo(1);
+        verifyNoInteractions(
+                classifier,
+                generator
+        );
     }
 
     private int number(
