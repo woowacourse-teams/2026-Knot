@@ -8,7 +8,11 @@ import { useParams } from "react-router";
 const COPIED_DURATION_MS = 3000;
 
 interface DocumentCopyButtonProps {
-  /** 복사할 문서의 ID */
+  /**
+   * 복사할 문서의 ID.
+   * 같은 녹음의 문서를 넘겨 보는 녹음 직후 확인 화면에서는 지금 보는 문서의 ID가 주소에 없을 수 있어요.
+   * 그 화면에도 놓을 수 있게 주소에서 읽지 않고 받아요. 워크스페이스 ID는 워크스페이스 아래 모든 화면의 주소에 있어 주소에서 읽어요
+   */
   documentId: number;
 }
 
