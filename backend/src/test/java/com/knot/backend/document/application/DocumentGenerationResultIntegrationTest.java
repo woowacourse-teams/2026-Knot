@@ -62,7 +62,6 @@ import org.springframework.transaction.support.TransactionTemplate;
 @Import(TestcontainersConfiguration.class)
 @TestApplicationProperties
 class DocumentGenerationResultIntegrationTest {
-
     private static final Instant NOW = DocumentFixtures.CREATED_AT.plusSeconds(120);
     private static final DocumentGenerationResult RESULT = new DocumentGenerationResult(
             "검색 도입 조건",
