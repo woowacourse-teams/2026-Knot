@@ -19,14 +19,19 @@ export const useConfirmationPeople = ({
   workspaceId,
   documentId,
 }: UseConfirmationPeopleParams) => {
-  const query = useDocumentConfirmationsQuery({ workspaceId, documentId });
-  const items = query.data?.items ?? [];
+  const {
+    data: confirmations,
+    isError,
+    isFetching,
+    refetch,
+  } = useDocumentConfirmationsQuery({ workspaceId, documentId });
+  const items = confirmations?.items ?? [];
 
   const getStatus = () => {
     // 다시 불러오기만 실패한 경우에도 이미 받은 목록은 계속 보여줘요
-    if (query.data !== undefined) return "ready" as const;
+    if (confirmations !== undefined) return "ready" as const;
     // 실패한 뒤 다시 불러오는 동안에도 isError는 true라, 불러오는 중이 아닌지 함께 봐요
-    if (query.isError && !query.isFetching) return "failed" as const;
+    if (isError && !isFetching) return "failed" as const;
 
     return "loading" as const;
   };
@@ -35,7 +40,7 @@ export const useConfirmationPeople = ({
 
   /** 앞선 조회가 실패한 채로 남아 있으면 다시 조회해요 */
   const retryIfFailed = () => {
-    if (status === "failed") query.refetch();
+    if (status === "failed") refetch();
   };
 
   return {
