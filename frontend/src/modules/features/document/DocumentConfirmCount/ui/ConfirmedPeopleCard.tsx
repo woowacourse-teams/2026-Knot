@@ -1,6 +1,8 @@
 import styled from "@emotion/styled";
 import Avatar from "@primitives/ui/Avatar";
 
+import type { ConfirmationListStatus } from "../types/confirmationList";
+
 /** 팝오버 한 줄에 필요한 값 */
 interface ConfirmationMember {
   memberId: number;
@@ -10,7 +12,7 @@ interface ConfirmationMember {
 
 interface ConfirmedPeopleCardProps {
   /** 확인 대상 조회 상태. 목록은 `ready`일 때만 그려요 */
-  status: "loading" | "failed" | "ready";
+  status: ConfirmationListStatus;
   /** 확인한 사람. 위에 진하게 그려요 */
   confirmedMembers: ConfirmationMember[];
   /** 아직 확인하지 않은 사람. 아래에 흐리게 그려요 */
