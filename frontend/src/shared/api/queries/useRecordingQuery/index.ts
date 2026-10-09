@@ -21,7 +21,7 @@ interface UseRecordingQueryParams {
  * 로그인 만료 · 권한 없음 · 없는 녹음처럼 다시 물어도 결과가 같은 오류(4xx)는 멈추고,
  * 네트워크 끊김이나 서버 오류는 잠깐의 문제일 수 있어 같은 간격으로 계속 물어봐요.
  *
- * 라우트 파라미터를 `Number`로 바꾼 값이 정수가 아니면(`/recordings/abc` 같은 잘못된 주소) 요청하지 않아요.
+ * 두 id는 정수여야 해요. 주소에서 읽은 값이 정수인지는 주소를 읽는 쪽(정리 화면 위젯)이 확인하고, 여기서는 다시 검사하지 않아요.
  */
 const useRecordingQuery = ({
   workspaceId,
@@ -30,7 +30,6 @@ const useRecordingQuery = ({
   return useQuery({
     queryKey: recordingKeys.detail({ workspaceId, recordingId }),
     queryFn: () => getRecordingApi({ workspaceId, recordingId }),
-    enabled: Number.isInteger(workspaceId) && Number.isInteger(recordingId),
     refetchInterval: (query) => {
       const { data, error } = query.state;
 

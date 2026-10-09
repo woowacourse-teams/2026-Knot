@@ -6,8 +6,6 @@ import DocumentFailedIllustration from "@/assets/illustrations/documentFailed.sv
 import StateMessage from "./StateMessage";
 
 interface DocumentFailedStateProps {
-  /** 제목 요소에 붙일 id */
-  titleId: string;
   /** 「다시 시도」를 눌렀을 때. 다시 시도할 수 없는 실패면 넘기지 않아요 */
   onRetry?: () => void;
   /** 다시 시도 요청의 응답을 기다리는 중인지. 그동안 버튼을 누를 수 없어요 */
@@ -24,7 +22,6 @@ interface DocumentFailedStateProps {
  * 이 경우의 문구는 기획에 아직 없고, 녹음이 보관되어 있는지도 경우마다 달라서예요.
  */
 export default function DocumentFailedState({
-  titleId,
   onRetry,
   isRetrying = false,
   onGoHome,
@@ -35,7 +32,6 @@ export default function DocumentFailedState({
   if (onRetry === undefined) {
     return (
       <StateMessage
-        titleId={titleId}
         illustration={illustration}
         title={title}
         button={
@@ -49,7 +45,6 @@ export default function DocumentFailedState({
 
   return (
     <StateMessage
-      titleId={titleId}
       illustration={illustration}
       title={title}
       descriptionLines={[

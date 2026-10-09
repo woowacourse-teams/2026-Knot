@@ -6,8 +6,6 @@ import DocumentEmptyIllustration from "@/assets/illustrations/documentEmpty.svg"
 import StateMessage from "./StateMessage";
 
 interface NothingToOrganizeStateProps {
-  /** 제목 요소에 붙일 id */
-  titleId: string;
   /** 「홈으로」를 눌렀을 때 */
   onGoHome: () => void;
 }
@@ -18,12 +16,10 @@ interface NothingToOrganizeStateProps {
  * 오류가 아니라 결과라서 경고색과 「다시 시도」를 두지 않아요. 같은 녹음으로는 결과가 같기 때문이에요.
  */
 export default function NothingToOrganizeState({
-  titleId,
   onGoHome,
 }: NothingToOrganizeStateProps) {
   return (
     <StateMessage
-      titleId={titleId}
       illustration={<Illustration size={48} />}
       title="문서로 만들 내용이 없었어요"
       descriptionLines={[
