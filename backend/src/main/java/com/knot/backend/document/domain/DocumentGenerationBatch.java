@@ -54,6 +54,25 @@ public class DocumentGenerationBatch {
     @Column(name = "cleanup_requested_at")
     private Instant cleanupRequestedAt;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "processing_status", nullable = false, length = 20)
+    private DocumentGenerationProcessingStatus processingStatus;
+
+    @Column(name = "queued_count", nullable = false)
+    private int queuedCount;
+
+    @Column(name = "running_count", nullable = false)
+    private int runningCount;
+
+    @Column(name = "succeeded_count", nullable = false)
+    private int succeededCount;
+
+    @Column(name = "failed_count", nullable = false)
+    private int failedCount;
+
+    @Column(name = "finished_at")
+    private Instant finishedAt;
+
     protected DocumentGenerationBatch() {}
 
     private DocumentGenerationBatch(
@@ -68,6 +87,7 @@ public class DocumentGenerationBatch {
         this.transcriptId = transcriptId;
         this.acceptedAt = acceptedAt;
         this.topicRegistrationState = DocumentTopicRegistrationState.WAITING_CLASSIFICATION;
+        this.processingStatus = DocumentGenerationProcessingStatus.QUEUED;
     }
 
     public static DocumentGenerationBatch accept(
@@ -110,9 +130,95 @@ public class DocumentGenerationBatch {
         if (classifiedTopics.isEmpty()) {
             topicRegistrationState = DocumentTopicRegistrationState.NO_CONTENT;
             cleanupRequestedAt = completedAt;
+            processingStatus = DocumentGenerationProcessingStatus.NO_CONTENT;
+            finishedAt = completedAt;
             return;
         }
         topicRegistrationState = DocumentTopicRegistrationState.TOPICS_REGISTERED;
+        queuedCount = classifiedTopics.size();
+        processingStatus = DocumentGenerationProcessingStatus.QUEUED;
+        finishedAt = null;
+    }
+
+    public void recordJobTransition(
+            DocumentGenerationJobStage stage,
+            DocumentGenerationJobStatus previous,
+            DocumentGenerationJobStatus next,
+            Instant changedAt
+    ) {
+        validateTime(changedAt);
+        if (previous == next) {
+            return;
+        }
+        if (stage == DocumentGenerationJobStage.CLASSIFICATION) {
+            if (topicRegistrationState == DocumentTopicRegistrationState.WAITING_CLASSIFICATION) {
+                processingStatus = DocumentGenerationProcessingStatus.valueOf(next.name());
+                updateFinishedAt(changedAt);
+            }
+            return;
+        }
+        if (topicRegistrationState != DocumentTopicRegistrationState.TOPICS_REGISTERED) {
+            throw new DocumentException(DocumentErrorCode.GENERATION_REGISTRATION_CONFLICT);
+        }
+        if (count(previous) <= 0) {
+            throw new DocumentException(DocumentErrorCode.GENERATION_REGISTRATION_CONFLICT);
+        }
+        changeCount(
+                previous,
+                -1
+        );
+        changeCount(
+                next,
+                1
+        );
+        refreshProcessingStatus();
+        updateFinishedAt(changedAt);
+    }
+
+    private int count(DocumentGenerationJobStatus status) {
+        return switch (status) {
+            case QUEUED -> queuedCount;
+            case RUNNING -> runningCount;
+            case SUCCEEDED -> succeededCount;
+            case FAILED -> failedCount;
+        };
+    }
+
+    private void changeCount(
+            DocumentGenerationJobStatus status,
+            int delta
+    ) {
+        switch (status) {
+            case QUEUED -> queuedCount += delta;
+            case RUNNING -> runningCount += delta;
+            case SUCCEEDED -> succeededCount += delta;
+            case FAILED -> failedCount += delta;
+        }
+    }
+
+    private void refreshProcessingStatus() {
+        if (runningCount > 0) {
+            processingStatus = DocumentGenerationProcessingStatus.RUNNING;
+            return;
+        }
+        if (queuedCount > 0) {
+            processingStatus = DocumentGenerationProcessingStatus.QUEUED;
+            return;
+        }
+        if (failedCount > 0) {
+            processingStatus = DocumentGenerationProcessingStatus.FAILED;
+            return;
+        }
+        processingStatus = DocumentGenerationProcessingStatus.SUCCEEDED;
+    }
+
+    private void updateFinishedAt(Instant changedAt) {
+        if (processingStatus == DocumentGenerationProcessingStatus.QUEUED
+                || processingStatus == DocumentGenerationProcessingStatus.RUNNING) {
+            finishedAt = null;
+            return;
+        }
+        finishedAt = changedAt;
     }
 
     private void validateWaiting() {
