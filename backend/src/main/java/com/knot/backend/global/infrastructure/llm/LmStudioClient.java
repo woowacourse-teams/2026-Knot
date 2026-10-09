@@ -42,59 +42,11 @@ public class LmStudioClient implements LlmClient {
 
     @Override
     public String complete(LlmCompletionRequest request) {
-        validateRequest(request);
+        new LlmRequestValidator().validate(request);
         ObjectNode body = createRequestBody(request);
         HttpResponse<String> response = awaitResponse(buildHttpRequest(body));
         validateCompletionStatus(response);
         return readAssistantContent(response.body());
-    }
-
-    private void validateRequest(LlmCompletionRequest request) {
-        if (request == null || request.messages() == null || request.messages()
-                .isEmpty()) {
-            throw new LlmException(LlmErrorCode.LLM_INVALID_REQUEST);
-        }
-        if (request.schemaName() == null || request.schemaName()
-                .isBlank()) {
-            throw new LlmException(LlmErrorCode.LLM_INVALID_REQUEST);
-        }
-        if (request.outputSchema() == null || !request.outputSchema()
-                .isObject()) {
-            throw new LlmException(LlmErrorCode.LLM_INVALID_REQUEST);
-        }
-        validateMessages(request);
-        validateOptions(request.options());
-    }
-
-    private void validateMessages(LlmCompletionRequest request) {
-        for (LlmMessage message : request.messages()) {
-            if (message.role() == null || message.role()
-                    .isBlank() || message.content() == null) {
-                throw new LlmException(LlmErrorCode.LLM_INVALID_REQUEST);
-            }
-        }
-    }
-
-    private void validateOptions(LlmGenerationOptions options) {
-        if (options == null || options.maxTokens() <= 0 || options.topK() < 0) {
-            throw new LlmException(LlmErrorCode.LLM_INVALID_REQUEST);
-        }
-        validateSampling(options);
-        if (options.thinkingBudgetTokens() != null && options.thinkingBudgetTokens() < 0) {
-            throw new LlmException(LlmErrorCode.LLM_INVALID_REQUEST);
-        }
-    }
-
-    private void validateSampling(LlmGenerationOptions options) {
-        if (!Double.isFinite(options.temperature()) || options.temperature() < 0 || options.temperature() > 2) {
-            throw new LlmException(LlmErrorCode.LLM_INVALID_REQUEST);
-        }
-        if (!Double.isFinite(options.topP()) || options.topP() <= 0 || options.topP() > 1) {
-            throw new LlmException(LlmErrorCode.LLM_INVALID_REQUEST);
-        }
-        if (!Double.isFinite(options.repeatPenalty()) || options.repeatPenalty() <= 0) {
-            throw new LlmException(LlmErrorCode.LLM_INVALID_REQUEST);
-        }
     }
 
     private ObjectNode createRequestBody(LlmCompletionRequest request) {

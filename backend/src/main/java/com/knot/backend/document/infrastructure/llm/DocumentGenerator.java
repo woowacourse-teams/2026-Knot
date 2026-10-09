@@ -87,10 +87,38 @@ public class DocumentGenerator {
     }
 
     private void validateResponseFields(JsonNode root) {
-        if (root == null || !root.isObject() || root.size() != 3) {
+        validateResponseObject(root);
+        if (root.size() != 3) {
             throw invalidResponse();
         }
-        if (!root.has("title") || !root.has("summary") || !root.has("content")) {
+        validateRequiredField(
+                root,
+                "title"
+        );
+        validateRequiredField(
+                root,
+                "summary"
+        );
+        validateRequiredField(
+                root,
+                "content"
+        );
+    }
+
+    private void validateResponseObject(JsonNode root) {
+        if (root == null) {
+            throw invalidResponse();
+        }
+        if (!root.isObject()) {
+            throw invalidResponse();
+        }
+    }
+
+    private void validateRequiredField(
+            JsonNode root,
+            String field
+    ) {
+        if (!root.has(field)) {
             throw invalidResponse();
         }
     }
