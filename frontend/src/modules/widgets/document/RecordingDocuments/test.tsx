@@ -231,6 +231,74 @@ describe("RecordingDocuments", () => {
     expect(requestCount).toBe(2);
   });
 
+  it.each([403, 404])(
+    "정리 중에 녹음이 없어지거나 볼 수 없게 되면(%i) 문서를 불러오지 못했다고 알리고 더 조회하지 않는다",
+    async (status) => {
+      let requestCount = 0;
+      mockServer.use(
+        http.get(RECORDING_REQUEST, () => {
+          requestCount += 1;
+          // 두 번째 조회부터는 녹음이 없어졌거나 볼 수 없게 된 응답을 돌려줘요
+          return requestCount === 1
+            ? HttpResponse.json(organizingRecording)
+            : new HttpResponse(null, { status });
+        }),
+      );
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      renderRecordingDocuments(organizingRecording.recordingId);
+
+      await screen.findByRole("heading", { level: 2, name: ORGANIZING_TITLE });
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS);
+      });
+
+      expect(
+        await screen.findByRole("heading", {
+          level: 2,
+          name: LOAD_FAILED_TITLE,
+        }),
+      ).toBeInTheDocument();
+      expect(requestCount).toBe(2);
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS * 2);
+      });
+
+      expect(requestCount).toBe(2);
+    },
+  );
+
+  it("정리 중에 다시 조회가 서버 오류로 실패하면 정리 중 화면을 유지하고 계속 조회한다", async () => {
+    let requestCount = 0;
+    mockServer.use(
+      http.get(RECORDING_REQUEST, () => {
+        requestCount += 1;
+        return requestCount === 1
+          ? HttpResponse.json(organizingRecording)
+          : new HttpResponse(null, { status: 500 });
+      }),
+    );
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    renderRecordingDocuments(organizingRecording.recordingId);
+
+    await screen.findByRole("heading", { level: 2, name: ORGANIZING_TITLE });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS);
+    });
+    await waitFor(() => expect(requestCount).toBe(2));
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS);
+    });
+    await waitFor(() => expect(requestCount).toBe(3));
+
+    expect(
+      screen.getByRole("heading", { level: 2, name: ORGANIZING_TITLE }),
+    ).toBeInTheDocument();
+  });
+
   it("문서 정리가 끝났으면 워크스페이스 홈으로 보낸다", async () => {
     renderRecordingDocuments(completedRecording.recordingId);
 
@@ -350,6 +418,30 @@ describe("RecordingDocuments", () => {
 
     expect(
       await screen.findByRole("heading", { level: 2, name: ORGANIZING_TITLE }),
+    ).toBeInTheDocument();
+  });
+
+  it("서버 오류로 처음 조회에 실패한 뒤에는 저절로 다시 조회하지 않고 실패 화면을 유지한다", async () => {
+    let requestCount = 0;
+    mockServer.use(
+      http.get(RECORDING_REQUEST, () => {
+        requestCount += 1;
+        return new HttpResponse(null, { status: 500 });
+      }),
+    );
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    renderRecordingDocuments(organizingRecording.recordingId);
+
+    await screen.findByRole("heading", { level: 2, name: LOAD_FAILED_TITLE });
+    expect(requestCount).toBe(1);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS * 2);
+    });
+
+    expect(requestCount).toBe(1);
+    expect(
+      screen.getByRole("heading", { level: 2, name: LOAD_FAILED_TITLE }),
     ).toBeInTheDocument();
   });
 

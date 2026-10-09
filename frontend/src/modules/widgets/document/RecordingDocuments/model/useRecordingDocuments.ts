@@ -1,14 +1,16 @@
 import { HTTP_ERROR_TYPE, isHttpError } from "@api/httpClient/error";
 import useRetryDocumentGenerationJobMutation from "@api/mutations/useRetryDocumentGenerationJobMutation";
 import useRecordingQuery from "@api/queries/useRecordingQuery";
-import useNavigateToLogin from "@hooks/domain/auth/useNavigateToLogin";
 import useRedirectToLoginOnUnauthorized from "@hooks/domain/auth/useRedirectToLoginOnUnauthorized";
-import { isUnauthorizedError } from "@utils/isUnauthorizedError";
 
 interface UseRecordingDocumentsParams {
   workspaceId: number;
   recordingId: number;
 }
+
+/** 다시 물어도 결과가 같은 조회 실패(4xx). 이 실패를 받으면 3초마다 하던 조회도 멈춰요 */
+const isUnrecoverableLoadError = (error: unknown) =>
+  isHttpError(error) && error.isClientError;
 
 /** 다시 시도할 수 없다는 응답. 실패 상태가 아닌 작업(409) · 없는 작업(404) */
 const isRetryRejectedError = (error: unknown) =>
@@ -19,8 +21,9 @@ const isRetryRejectedError = (error: unknown) =>
  * 정리 화면이 그릴 상태를 정해요. 주소의 id는 위젯이 읽은 자리에서 확인하므로 여기서는 정수만 받아요.
  *
  * - `loading`: 녹음 상태를 아직 받지 못했어요. 401이면 로그인 화면으로 보내는 동안에도 이 상태로 둬요.
- * - `loadFailed`: 녹음 상태를 한 번도 받지 못했어요. 「다시 시도」로 다시 조회해요.
- *   네트워크 · 서버 문제면 3초마다 저절로 다시 조회하므로, 연결이 돌아오면 다른 상태로 바뀌어요.
+ * - `loadFailed`: 녹음 상태를 보여 주지 못해요. 「다시 시도」로 다시 조회해요.
+ *   400 · 403 · 404처럼 다시 물어도 결과가 같은 실패는 조회가 멈추므로, 앞서 받은 상태가 있어도 이 상태예요.
+ *   네트워크 · 서버 문제는 받은 상태가 없을 때만 이 상태예요.
  * - `organizing`: 문서를 정리하는 중(`ENDED` · `PROCESSING`). 업로드 확인 전인 `ENDED`도 사용자에게는 같은 정리 중이에요.
  * - `noContent`: 문서로 만들 내용이 없었어요.
  * - `failed`: 문서를 만들지 못했어요. 다시 시도할 수 있으면 `retry`가 있어요.
@@ -47,18 +50,23 @@ export const useRecordingDocuments = ({
     error: retryError,
   } = useRetryDocumentGenerationJobMutation();
   const { isUnauthorized } = useRedirectToLoginOnUnauthorized({ error });
-  const { navigateToLogin } = useNavigateToLogin();
+  // 다시 시도에서 로그인이 풀려도 같은 방식으로 로그인 화면에 보내요
+  useRedirectToLoginOnUnauthorized({ error: retryError });
+
+  const isLoadFailed =
+    !isUnauthorized &&
+    (isUnrecoverableLoadError(error) || (recording === undefined && isError));
+
+  if (isLoadFailed) {
+    return {
+      status: "loadFailed",
+      retry: () => {
+        refetch();
+      },
+    } as const;
+  }
 
   if (recording === undefined) {
-    if (isError && !isUnauthorized) {
-      return {
-        status: "loadFailed",
-        retry: () => {
-          refetch();
-        },
-      } as const;
-    }
-
     return { status: "loading" } as const;
   }
 
@@ -87,17 +95,7 @@ export const useRecordingDocuments = ({
     return {
       status: "failed",
       isRetrying,
-      retry: () =>
-        retryDocumentGeneration(
-          { workspaceId, jobId: retryJobId },
-          {
-            onError: (retryFailure) => {
-              if (isUnauthorizedError(retryFailure)) {
-                navigateToLogin({ replace: true });
-              }
-            },
-          },
-        ),
+      retry: () => retryDocumentGeneration({ workspaceId, jobId: retryJobId }),
     } as const;
   }
 
