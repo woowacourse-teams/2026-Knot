@@ -3,6 +3,7 @@ package com.knot.backend.document.infrastructure.llm;
 import com.knot.backend.document.domain.DocumentErrorCode;
 import com.knot.backend.document.domain.DocumentException;
 import com.knot.backend.global.infrastructure.llm.LlmClient;
+import com.knot.backend.global.infrastructure.llm.LlmCompletionRequest;
 import java.text.Normalizer;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -38,7 +39,8 @@ public class DocumentTopicClassifier {
     }
 
     public List<String> classify(String transcriptContent) {
-        String response = client.complete(prompt.createRequest(transcriptContent));
+        LlmCompletionRequest request = prompt.createRequest(transcriptContent);
+        String response = client.complete(request);
         return parseTopics(response);
     }
 
@@ -48,7 +50,9 @@ public class DocumentTopicClassifier {
         List<String> topics = new ArrayList<>();
         for (JsonNode topic : root.path("topics")) {
             validateTopicName(topic);
-            topics.add(normalizeTopicName(topic.asString()));
+            String topicName = topic.asString();
+            String normalizedTopicName = normalizeTopicName(topicName);
+            topics.add(normalizedTopicName);
         }
         return removeDuplicateTopics(topics);
     }
@@ -66,8 +70,21 @@ public class DocumentTopicClassifier {
     }
 
     private void validateTopicsArray(JsonNode root) {
-        if (root == null || !root.isObject() || root.size() != 1 || !root.path("topics")
-                .isArray()) {
+        validateResponseObject(root);
+        if (root.size() != 1) {
+            throw invalidResponse();
+        }
+        JsonNode topics = root.path("topics");
+        if (!topics.isArray()) {
+            throw invalidResponse();
+        }
+    }
+
+    private void validateResponseObject(JsonNode root) {
+        if (root == null) {
+            throw invalidResponse();
+        }
+        if (!root.isObject()) {
             throw invalidResponse();
         }
     }
