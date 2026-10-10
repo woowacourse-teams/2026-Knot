@@ -71,6 +71,10 @@ spotless {
 	}
 }
 
+tasks.withType(Test).configureEach {
+	systemProperty 'spring.test.context.cache.maxSize', '8'
+}
+
 tasks.named('test') {
 	useJUnitPlatform {
 		excludeTags 'integration', 'acceptance'
