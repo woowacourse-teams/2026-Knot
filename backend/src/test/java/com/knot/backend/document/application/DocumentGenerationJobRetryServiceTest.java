@@ -36,7 +36,6 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
 class DocumentGenerationJobRetryServiceTest {
-
     private static final Instant CREATED_AT = Instant.parse("2026-10-06T00:00:00Z");
     private static final Instant NOW = CREATED_AT.plusSeconds(120);
 
@@ -67,7 +66,8 @@ class DocumentGenerationJobRetryServiceTest {
                 )
         );
         when(recordings.findById(4L)).thenReturn(Optional.of(recording(2L)));
-        job = DocumentGenerationJob.queue(
+        job = DocumentGenerationJob.queueClassification(
+                1,
                 3,
                 CREATED_AT
         );

@@ -7,7 +7,6 @@ import java.util.UUID;
 import org.springframework.jdbc.core.simple.JdbcClient;
 
 public class DocumentFixtures {
-
     public static final Instant CREATED_AT = Instant.parse("2026-10-06T00:00:00Z");
 
     private final JdbcClient jdbc;
@@ -168,6 +167,12 @@ public class DocumentFixtures {
             Instant createdAt,
             Instant failedAt
     ) {
+        long batchId = saveGenerationBatch(transcriptId);
+        String topic = "테스트 주제 " + UUID.randomUUID();
+        saveRegisteredTopic(
+                batchId,
+                topic
+        );
         Instant updatedAt = createdAt;
         Instant expiresAt = null;
         if (failedAt != null) {
@@ -177,9 +182,17 @@ public class DocumentFixtures {
         return jdbc
                 .sql(
                         """
-                                INSERT INTO document_generation_jobs (transcript_id, status, created_at, updated_at, last_failed_at, expires_at)
-                                VALUES (:transcriptId, :status, :createdAt, :updatedAt, :failedAt, :expiresAt) RETURNING id
+                                INSERT INTO document_generation_jobs (batch_id, stage, topic, transcript_id, status, created_at, updated_at, last_failed_at, expires_at)
+                                VALUES (:batchId, 'GENERATION', :topic, :transcriptId, :status, :createdAt, :updatedAt, :failedAt, :expiresAt) RETURNING id
                                 """
+                )
+                .param(
+                        "batchId",
+                        batchId
+                )
+                .param(
+                        "topic",
+                        topic
                 )
                 .param(
                         "transcriptId",
@@ -209,6 +222,44 @@ public class DocumentFixtures {
                 )
                 .query(Long.class)
                 .single();
+    }
+
+    public long saveGenerationBatch(long transcriptId) {
+        return jdbc
+                .sql(
+                        """
+                                INSERT INTO document_generation_batches
+                                    (recording_session_id, transcript_id, topic_registration_state, accepted_at, registered_at)
+                                SELECT recording_session_id, id, 'TOPICS_REGISTERED', created_at, created_at FROM transcripts WHERE id = :id
+                                ON CONFLICT (recording_session_id) DO UPDATE SET recording_session_id = EXCLUDED.recording_session_id
+                                RETURNING id
+                                """
+                )
+                .param(
+                        "id",
+                        transcriptId
+                )
+                .query(Long.class)
+                .single();
+    }
+
+    public void saveRegisteredTopic(
+            long batchId,
+            String topic
+    ) {
+        jdbc.sql("""
+                INSERT INTO document_generation_batch_topics (batch_id, position, topic)
+                SELECT :batchId, count(*), :topic FROM document_generation_batch_topics WHERE batch_id = :batchId
+                """)
+                .param(
+                        "batchId",
+                        batchId
+                )
+                .param(
+                        "topic",
+                        topic
+                )
+                .update();
     }
 
     public long saveDocument(

@@ -3,11 +3,14 @@ package com.knot.backend.document.infrastructure;
 import com.knot.backend.document.domain.DocumentGenerationJob;
 import jakarta.persistence.LockModeType;
 import java.util.Optional;
+import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 
 interface DocumentGenerationJobJpaRepository extends JpaRepository<DocumentGenerationJob, Long> {
+
+    List<DocumentGenerationJob> findAllByBatchIdOrderById(long batchId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""

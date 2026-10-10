@@ -18,13 +18,22 @@ import lombok.Getter;
 @Entity
 @Table(name = "document_generation_jobs")
 public class DocumentGenerationJob {
-
     private static final Duration FAILURE_RETENTION = Duration.ofDays(7);
     private static final int MAX_USER_RETRIES = 3;
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Column(name = "batch_id", nullable = false, updatable = false)
+    private long batchId;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, updatable = false, length = 20)
+    private DocumentGenerationJobStage stage;
+
+    @Column(updatable = false, columnDefinition = "TEXT")
+    private String topic;
 
     @Column(name = "transcript_id", nullable = false, updatable = false)
     private long transcriptId;
@@ -57,11 +66,18 @@ public class DocumentGenerationJob {
     protected DocumentGenerationJob() {}
 
     private DocumentGenerationJob(
+            long batchId,
             long transcriptId,
+            DocumentGenerationJobStage stage,
+            String topic,
             Instant createdAt
     ) {
+        validateBatchId(batchId);
         validateTranscriptId(transcriptId);
         validateCreatedAt(createdAt);
+        this.batchId = batchId;
+        this.stage = stage;
+        this.topic = topic;
         this.transcriptId = transcriptId;
         this.status = DocumentGenerationJobStatus.QUEUED;
         this.createdAt = createdAt;
@@ -69,14 +85,89 @@ public class DocumentGenerationJob {
         this.attemptCount = 1;
     }
 
-    public static DocumentGenerationJob queue(
+    public static DocumentGenerationJob queueClassification(
+            long batchId,
             long transcriptId,
             Instant createdAt
     ) {
         return new DocumentGenerationJob(
+                batchId,
                 transcriptId,
+                DocumentGenerationJobStage.CLASSIFICATION,
+                null,
                 createdAt
         );
+    }
+
+    public static DocumentGenerationJob queueGeneration(
+            long batchId,
+            long transcriptId,
+            DocumentTopic topic,
+            Instant createdAt
+    ) {
+        validateTopic(topic);
+        return new DocumentGenerationJob(
+                batchId,
+                transcriptId,
+                DocumentGenerationJobStage.GENERATION,
+                topic.value(),
+                createdAt
+        );
+    }
+
+    private static void validateTopic(DocumentTopic topic) {
+        if (topic == null) {
+            throw new DocumentException(DocumentErrorCode.INVALID_DOCUMENT_DATA);
+        }
+    }
+
+    public boolean isSucceeded() {
+        return status == DocumentGenerationJobStatus.SUCCEEDED;
+    }
+
+    public boolean isFailed() {
+        return status == DocumentGenerationJobStatus.FAILED;
+    }
+
+    public void startRunning(Instant startedAt) {
+        if (status != DocumentGenerationJobStatus.QUEUED) {
+            throw new DocumentException(DocumentErrorCode.GENERATION_REGISTRATION_CONFLICT);
+        }
+        validateFailureTime(startedAt);
+        status = DocumentGenerationJobStatus.RUNNING;
+        updatedAt = startedAt;
+    }
+
+    public void validateRunningAttempt(int expectedAttemptCount) {
+        validateAttempt(expectedAttemptCount);
+        if (status != DocumentGenerationJobStatus.RUNNING) {
+            throw new DocumentException(DocumentErrorCode.GENERATION_REGISTRATION_CONFLICT);
+        }
+    }
+
+    public void validateAttempt(int expectedAttemptCount) {
+        if (attemptCount != expectedAttemptCount) {
+            throw new DocumentException(DocumentErrorCode.GENERATION_REGISTRATION_CONFLICT);
+        }
+    }
+
+    public void validateClassificationStage() {
+        if (stage != DocumentGenerationJobStage.CLASSIFICATION) {
+            throw new DocumentException(DocumentErrorCode.GENERATION_REGISTRATION_CONFLICT);
+        }
+    }
+
+    public void recordSuccess(Instant completedAt) {
+        validateRunningAttempt(attemptCount);
+        validateFailureTime(completedAt);
+        status = DocumentGenerationJobStatus.SUCCEEDED;
+        updatedAt = completedAt;
+    }
+
+    private void validateBatchId(long batchId) {
+        if (batchId <= 0) {
+            throw new DocumentException(DocumentErrorCode.INVALID_DOCUMENT_DATA);
+        }
     }
 
     public void retryByUser(Instant acceptedAt) {

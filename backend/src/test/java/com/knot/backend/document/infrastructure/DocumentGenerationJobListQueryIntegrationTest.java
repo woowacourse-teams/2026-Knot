@@ -29,7 +29,6 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 @DataJpaTest
 @Import({TestcontainersConfiguration.class, DocumentGenerationJobListQueryAdapter.class})
 class DocumentGenerationJobListQueryIntegrationTest {
-
     private static final Instant NOW = DocumentFixtures.CREATED_AT.plusSeconds(8 * 24 * 60 * 60);
 
     @Autowired
@@ -207,7 +206,8 @@ class DocumentGenerationJobListQueryIntegrationTest {
     @DisplayName("JPA로 추가한 작업은 조회에 자동 반영한다")
     void findPage_success_jpaFlush() {
         // given
-        DocumentGenerationJob job = DocumentGenerationJob.queue(
+        DocumentGenerationJob job = DocumentGenerationJob.queueClassification(
+                fixtures.saveGenerationBatch(transcriptId),
                 transcriptId,
                 NOW
         );

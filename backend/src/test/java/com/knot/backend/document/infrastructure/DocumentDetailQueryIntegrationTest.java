@@ -2,6 +2,7 @@ package com.knot.backend.document.infrastructure;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.knot.backend.document.domain.DocumentTopic;
 import com.knot.backend.document.DocumentFixtures;
 import com.knot.backend.document.application.DocumentDetailQuery;
 import com.knot.backend.document.application.dto.result.DocumentDetailResult;
@@ -287,20 +288,32 @@ class DocumentDetailQueryIntegrationTest {
     @DisplayName("JPA로 저장한 원문·Job·Document·확인 대상을 다시 읽는다")
     void find_success_jpaMapping() {
         // given
+        long jpaRecordingId = fixtures.saveRecording(
+                workspaceId,
+                memberId,
+                120000
+        );
         Transcript transcript = Transcript.create(
-                recordingId,
+                jpaRecordingId,
                 "JPA 저장 원문",
                 DocumentFixtures.CREATED_AT
         );
         entityManager.persist(transcript);
-        DocumentGenerationJob job = DocumentGenerationJob.queue(
+        long batchId = fixtures.saveGenerationBatch(transcript.getId());
+        fixtures.saveRegisteredTopic(
+                batchId,
+                "개발 정책"
+        );
+        DocumentGenerationJob job = DocumentGenerationJob.queueGeneration(
+                batchId,
                 transcript.getId(),
+                DocumentTopic.of("개발 정책"),
                 DocumentFixtures.CREATED_AT
         );
         entityManager.persist(job);
         Document document = Document.createDraft(
                 workspaceId,
-                recordingId,
+                jpaRecordingId,
                 transcript.getId(),
                 job.getId(),
                 "개발 정책",
