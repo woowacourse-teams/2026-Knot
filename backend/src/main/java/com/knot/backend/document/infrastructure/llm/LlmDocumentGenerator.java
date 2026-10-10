@@ -1,5 +1,7 @@
 package com.knot.backend.document.infrastructure.llm;
 
+import com.knot.backend.document.domain.DocumentGenerationInput;
+import com.knot.backend.document.domain.DocumentText;
 import com.knot.backend.document.application.DocumentGenerator;
 import com.knot.backend.document.application.dto.result.DocumentGenerationResult;
 import com.knot.backend.document.domain.DocumentErrorCode;
@@ -18,7 +20,6 @@ import tools.jackson.databind.ObjectMapper;
 @Component
 @ConditionalOnProperty(prefix = "knot.llm", name = "enabled", havingValue = "true")
 public class LlmDocumentGenerator implements DocumentGenerator {
-    private static final Pattern BLANK = Pattern.compile("[\\p{javaWhitespace}\\p{Z}]*");
     private static final Pattern OUTER_WHITESPACE = Pattern
             .compile("^[\\p{javaWhitespace}\\p{Z}]+|[\\p{javaWhitespace}\\p{Z}]+$");
 
@@ -42,14 +43,8 @@ public class LlmDocumentGenerator implements DocumentGenerator {
     }
 
     @Override
-    public DocumentGenerationResult generate(
-            String transcriptContent,
-            String topic
-    ) {
-        LlmCompletionRequest request = prompt.createRequest(
-                transcriptContent,
-                topic
-        );
+    public DocumentGenerationResult generate(DocumentGenerationInput input) {
+        LlmCompletionRequest request = prompt.createRequest(input);
         String response = client.complete(request);
         JsonNode root = readResponse(response);
         validateResponseFields(root);
@@ -134,8 +129,7 @@ public class LlmDocumentGenerator implements DocumentGenerator {
             throw invalidResponse();
         }
         String text = value.asString();
-        if (BLANK.matcher(text)
-                .matches()) {
+        if (DocumentText.isBlank(text)) {
             throw invalidResponse();
         }
         return text;
@@ -150,8 +144,7 @@ public class LlmDocumentGenerator implements DocumentGenerator {
             throw invalidResponse();
         }
         String text = summary.asString();
-        if (BLANK.matcher(text)
-                .matches()) {
+        if (DocumentText.isBlank(text)) {
             return null;
         }
         return text;

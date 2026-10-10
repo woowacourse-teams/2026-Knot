@@ -115,8 +115,43 @@ public class DocumentGenerationBatch {
         }
     }
 
+    public void validateGenerationTarget(
+            DocumentGenerationJob job,
+            long inputRecordingSessionId,
+            long inputTranscriptId
+    ) {
+        if (topicRegistrationState != DocumentTopicRegistrationState.TOPICS_REGISTERED) {
+            throw new DocumentException(DocumentErrorCode.GENERATION_REGISTRATION_CONFLICT);
+        }
+        if (transcriptId == null || transcriptId != inputTranscriptId) {
+            throw new DocumentException(DocumentErrorCode.GENERATION_REGISTRATION_CONFLICT);
+        }
+        if (recordingSessionId != inputRecordingSessionId) {
+            throw new DocumentException(DocumentErrorCode.GENERATION_REGISTRATION_CONFLICT);
+        }
+        if (!topics.contains(job.getTopic())) {
+            throw new DocumentException(DocumentErrorCode.GENERATION_REGISTRATION_CONFLICT);
+        }
+    }
+
+    public boolean isRegisteredWith(List<DocumentTopic> classifiedTopics) {
+        if (topicRegistrationState == DocumentTopicRegistrationState.WAITING_CLASSIFICATION) {
+            return false;
+        }
+        List<String> names = classifiedTopics.stream()
+                .map(DocumentTopic::value)
+                .toList();
+        return topics.equals(names);
+    }
+
+    public void validateRegisteredWith(List<DocumentTopic> classifiedTopics) {
+        if (!isRegisteredWith(classifiedTopics)) {
+            throw new DocumentException(DocumentErrorCode.GENERATION_REGISTRATION_CONFLICT);
+        }
+    }
+
     public void registerTopics(
-            List<String> classifiedTopics,
+            List<DocumentTopic> classifiedTopics,
             Instant completedAt
     ) {
         validateWaiting();
@@ -125,7 +160,11 @@ public class DocumentGenerationBatch {
             throw new DocumentException(DocumentErrorCode.INVALID_DOCUMENT_DATA);
         }
         validateTopics(classifiedTopics);
-        topics.addAll(classifiedTopics);
+        topics.addAll(
+                classifiedTopics.stream()
+                        .map(DocumentTopic::value)
+                        .toList()
+        );
         registeredAt = completedAt;
         if (classifiedTopics.isEmpty()) {
             topicRegistrationState = DocumentTopicRegistrationState.NO_CONTENT;
@@ -238,13 +277,12 @@ public class DocumentGenerationBatch {
         }
     }
 
-    private void validateTopics(List<String> classifiedTopics) {
+    private void validateTopics(List<DocumentTopic> classifiedTopics) {
         if (classifiedTopics == null) {
             throw new DocumentException(DocumentErrorCode.INVALID_TOPIC_CLASSIFICATION_RESPONSE);
         }
-        for (String topic : classifiedTopics) {
-            if (topic == null || topic.codePoints()
-                    .allMatch(c -> Character.isWhitespace(c) || Character.isSpaceChar(c))) {
+        for (DocumentTopic topic : classifiedTopics) {
+            if (topic == null) {
                 throw new DocumentException(DocumentErrorCode.INVALID_TOPIC_CLASSIFICATION_RESPONSE);
             }
         }

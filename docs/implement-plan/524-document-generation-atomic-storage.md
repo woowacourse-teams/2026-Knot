@@ -116,3 +116,10 @@ LLM 호출은 이 트랜잭션에 포함하지 않는다. 같은 녹음의 다�
 최종 호출 계약은 [생성 문서 결과 저장 연결 계약](../development/document-generation-result-storage.md)에 정리했다. Persona 종료 검사도 실행했으나 보고서 coverage·Java role 읽기 coverage·convention toolchain·기존 loop/pending 상태로 exit 1이다. 제품 검사 통과와 별개이며 기존 전역 기록을 초기화하지 않았다.
 
 다음은 [#525](https://github.com/woowacourse-teams/2026-Knot/issues/525)다. QUEUED Job을 가져와 짧게 RUNNING으로 바꾸고, 트랜잭션 밖에서 분류/생성을 호출한 뒤 #523/#524 결과 저장 메서드에 현재 시도 번호를 전달한다. 내부 재시도와 중단 복구도 #525에서 연결한다. 이후 #526에서 만료 자료와 오디오 정리를 구현한다.
+
+## 2026-10-10 생성 결과 도메인 검증 리뷰 반영
+
+- 정상 생성 대상의 등록 상태·녹음·원문·주제 검사는 `Batch.validateGenerationTarget(job, recordingSessionId, transcriptId)`가 수행한다. application DTO를 domain에 의존시키지 않고 식별자만 전달한다.
+- 완료 문서의 Workspace·원문·주제 일치는 `Document.validateGeneratedBy(job, workspaceId)`가 판단하고 성공 여부는 `Job.isSucceeded`로 묻는다.
+- 저장 직전 제목·본문 검증은 `Document.createDraft`로 모은다. 서비스는 결과 객체의 누락만 검사하고 도메인 생성 실패를 기존 생성 응답 오류로 변환한다. LLM adapter는 외부 응답 형식·Markdown 검증을 계속 담당한다.
+- 문서·확인 대상·Job 성공의 기존 트랜잭션 경계는 유지한다. 원문 텍스트 검사에는 `DocumentText` 공용 기준을 적용한다.

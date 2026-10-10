@@ -2,6 +2,7 @@ package com.knot.backend.document.application;
 
 import com.knot.backend.document.application.dto.result.DocumentGenerationInputResult;
 import com.knot.backend.document.application.dto.result.DocumentGenerationResult;
+import com.knot.backend.document.domain.DocumentText;
 import com.knot.backend.document.domain.Document;
 import com.knot.backend.document.domain.DocumentConfirmation;
 import com.knot.backend.document.domain.DocumentConfirmationRepository;
@@ -10,10 +11,9 @@ import com.knot.backend.document.domain.DocumentException;
 import com.knot.backend.document.domain.DocumentGenerationBatch;
 import com.knot.backend.document.domain.DocumentGenerationBatchRepository;
 import com.knot.backend.document.domain.DocumentGenerationJob;
-import com.knot.backend.document.domain.DocumentGenerationJobRepository;
 import com.knot.backend.document.domain.DocumentGenerationJobStatus;
+import com.knot.backend.document.domain.DocumentGenerationJobRepository;
 import com.knot.backend.document.domain.DocumentRepository;
-import com.knot.backend.document.domain.DocumentTopicRegistrationState;
 import com.knot.backend.workspace.domain.WorkspaceErrorCode;
 import com.knot.backend.workspace.domain.WorkspaceException;
 import com.knot.backend.workspace.domain.WorkspaceMemberRepository;
@@ -53,7 +53,7 @@ public class DocumentGenerationResultService {
                 jobId,
                 expectedAttemptCount
         );
-        if (job.getStatus() == DocumentGenerationJobStatus.SUCCEEDED) {
+        if (job.isSucceeded()) {
             return findCompletedDocument(
                     workspaceId,
                     job
@@ -65,26 +65,21 @@ public class DocumentGenerationResultService {
                 job
         );
         validateResult(result);
-        List<Long> targets = findConfirmationTargets(workspaceId);
         Instant completedAt = clock.instant()
                 .truncatedTo(ChronoUnit.MICROS);
         job.validateRunningAttemptAt(
                 expectedAttemptCount,
                 completedAt
         );
-        Document document = documents.save(
-                Document.createDraft(
-                        workspaceId,
-                        input.recordingSessionId(),
-                        input.transcriptId(),
-                        job.getId(),
-                        job.getTopic(),
-                        result.title(),
-                        result.summary(),
-                        result.content(),
-                        completedAt
-                )
+        Document draft = createDocument(
+                workspaceId,
+                job,
+                input,
+                result,
+                completedAt
         );
+        List<Long> targets = findConfirmationTargets(workspaceId);
+        Document document = documents.save(draft);
         saveConfirmationTargets(
                 document.getId(),
                 targets
@@ -102,6 +97,30 @@ public class DocumentGenerationResultService {
         return document.getId();
     }
 
+    private Document createDocument(
+            long workspaceId,
+            DocumentGenerationJob job,
+            DocumentGenerationInputResult input,
+            DocumentGenerationResult result,
+            Instant completedAt
+    ) {
+        try {
+            return Document.createDraft(
+                    workspaceId,
+                    input.recordingSessionId(),
+                    input.transcriptId(),
+                    job.getId(),
+                    job.getTopic(),
+                    result.title(),
+                    result.summary(),
+                    result.content(),
+                    completedAt
+            );
+        } catch (DocumentException exception) {
+            throw new DocumentException(DocumentErrorCode.INVALID_DOCUMENT_GENERATION_RESPONSE);
+        }
+    }
+
     private void lockWorkspace(long workspaceId) {
         validateIdentifier(workspaceId);
         workspaces.findIncludingDeletedByIdForUpdate(workspaceId)
@@ -115,13 +134,10 @@ public class DocumentGenerationResultService {
     ) {
         Document document = documents.findByGenerationJobId(job.getId())
                 .orElseThrow(() -> new DocumentException(DocumentErrorCode.GENERATION_REGISTRATION_CONFLICT));
-        if (document.getWorkspaceId() != workspaceId || document.getSourceTranscriptId() != job.getTranscriptId()) {
-            throw new DocumentException(DocumentErrorCode.GENERATION_REGISTRATION_CONFLICT);
-        }
-        if (!document.getTopic()
-                .equals(job.getTopic())) {
-            throw new DocumentException(DocumentErrorCode.GENERATION_REGISTRATION_CONFLICT);
-        }
+        document.validateGeneratedBy(
+                job,
+                workspaceId
+        );
         return document;
     }
 
@@ -150,35 +166,17 @@ public class DocumentGenerationResultService {
                 job.getTranscriptId()
         )
                 .orElseThrow(() -> new DocumentException(DocumentErrorCode.TRANSCRIPT_NOT_FOUND));
-        if (isBlank(input.content())) {
+        if (DocumentText.isBlank(input.content())) {
             throw new DocumentException(DocumentErrorCode.INVALID_DOCUMENT_GENERATION_INPUT);
         }
         DocumentGenerationBatch batch = batches.findByIdForUpdate(job.getBatchId())
                 .orElseThrow(() -> new DocumentException(DocumentErrorCode.GENERATION_REGISTRATION_CONFLICT));
-        validateRegisteredTarget(
-                batch,
+        batch.validateGenerationTarget(
                 job,
-                input
+                input.recordingSessionId(),
+                input.transcriptId()
         );
         return input;
-    }
-
-    private void validateRegisteredTarget(
-            DocumentGenerationBatch batch,
-            DocumentGenerationJob job,
-            DocumentGenerationInputResult input
-    ) {
-        if (batch.getTopicRegistrationState() != DocumentTopicRegistrationState.TOPICS_REGISTERED) {
-            throw new DocumentException(DocumentErrorCode.GENERATION_REGISTRATION_CONFLICT);
-        }
-        if (!Long.valueOf(input.transcriptId())
-                .equals(batch.getTranscriptId()) || input.recordingSessionId() != batch.getRecordingSessionId()) {
-            throw new DocumentException(DocumentErrorCode.GENERATION_REGISTRATION_CONFLICT);
-        }
-        if (!batch.getTopics()
-                .contains(job.getTopic())) {
-            throw new DocumentException(DocumentErrorCode.GENERATION_REGISTRATION_CONFLICT);
-        }
     }
 
     private List<Long> findConfirmationTargets(long workspaceId) {
@@ -209,19 +207,6 @@ public class DocumentGenerationResultService {
         if (result == null) {
             throw new DocumentException(DocumentErrorCode.INVALID_DOCUMENT_GENERATION_RESPONSE);
         }
-        validateRequiredResultText(result.title());
-        validateRequiredResultText(result.content());
-    }
-
-    private void validateRequiredResultText(String value) {
-        if (isBlank(value)) {
-            throw new DocumentException(DocumentErrorCode.INVALID_DOCUMENT_GENERATION_RESPONSE);
-        }
-    }
-
-    private boolean isBlank(String value) {
-        return value == null || value.codePoints()
-                .allMatch(c -> Character.isWhitespace(c) || Character.isSpaceChar(c));
     }
 
     private void validateIdentifier(long identifier) {

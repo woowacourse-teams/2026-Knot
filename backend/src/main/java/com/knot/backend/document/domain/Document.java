@@ -55,6 +55,21 @@ public class Document {
 
     protected Document() {}
 
+    public void validateGeneratedBy(
+            DocumentGenerationJob job,
+            long workspaceId
+    ) {
+        if (this.workspaceId != workspaceId) {
+            throw new DocumentException(DocumentErrorCode.GENERATION_REGISTRATION_CONFLICT);
+        }
+        if (sourceTranscriptId != job.getTranscriptId()) {
+            throw new DocumentException(DocumentErrorCode.GENERATION_REGISTRATION_CONFLICT);
+        }
+        if (!topic.equals(job.getTopic())) {
+            throw new DocumentException(DocumentErrorCode.GENERATION_REGISTRATION_CONFLICT);
+        }
+    }
+
     public void archive(Instant archivedAt) {
         if (status == DocumentStatus.ARCHIVED) {
             return;
@@ -111,7 +126,7 @@ public class Document {
     }
 
     private void validateRequiredText(String value) {
-        if (value == null || value.isBlank()) {
+        if (DocumentText.isBlank(value)) {
             throw new DocumentException(DocumentErrorCode.INVALID_DOCUMENT_DATA);
         }
     }

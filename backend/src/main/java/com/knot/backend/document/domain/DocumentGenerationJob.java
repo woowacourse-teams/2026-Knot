@@ -114,7 +114,7 @@ public class DocumentGenerationJob {
     public static DocumentGenerationJob queueGeneration(
             long batchId,
             long transcriptId,
-            String topic,
+            DocumentTopic topic,
             Instant createdAt
     ) {
         validateTopic(topic);
@@ -122,16 +122,23 @@ public class DocumentGenerationJob {
                 batchId,
                 transcriptId,
                 DocumentGenerationJobStage.GENERATION,
-                topic,
+                topic.value(),
                 createdAt
         );
     }
 
-    private static void validateTopic(String topic) {
-        if (topic == null || topic.codePoints()
-                .allMatch(c -> Character.isWhitespace(c) || Character.isSpaceChar(c))) {
+    private static void validateTopic(DocumentTopic topic) {
+        if (topic == null) {
             throw new DocumentException(DocumentErrorCode.INVALID_DOCUMENT_DATA);
         }
+    }
+
+    public boolean isSucceeded() {
+        return status == DocumentGenerationJobStatus.SUCCEEDED;
+    }
+
+    public boolean isFailed() {
+        return status == DocumentGenerationJobStatus.FAILED;
     }
 
     public void startRunning(Instant startedAt) {

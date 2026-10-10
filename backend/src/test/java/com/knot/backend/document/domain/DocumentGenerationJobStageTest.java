@@ -22,7 +22,7 @@ class DocumentGenerationJobStageTest {
         DocumentGenerationJob generation = DocumentGenerationJob.queueGeneration(
                 1,
                 2,
-                "검색",
+                DocumentTopic.of("검색"),
                 NOW
         );
         // then
@@ -47,7 +47,7 @@ class DocumentGenerationJobStageTest {
                 () -> DocumentGenerationJob.queueGeneration(
                         1,
                         2,
-                        " ",
+                        DocumentTopic.of(" "),
                         NOW
                 )
         ).isInstanceOf(DocumentException.class);
@@ -67,6 +67,8 @@ class DocumentGenerationJobStageTest {
         job.validateRunningAttempt(1);
         job.recordSuccess(NOW.plusSeconds(2));
         // then
+        assertThat(job.isSucceeded()).isTrue();
+        assertThat(job.isFailed()).isFalse();
         assertThat(job.getAttemptCount()).isEqualTo(1);
         assertThat(job.getStatus()).isEqualTo(DocumentGenerationJobStatus.SUCCEEDED);
     }
@@ -86,5 +88,19 @@ class DocumentGenerationJobStageTest {
         assertThatThrownBy(() -> job.startRunning(NOW)).isInstanceOf(DocumentException.class);
         assertThatThrownBy(() -> job.validateRunningAttempt(2)).isInstanceOf(DocumentException.class);
         assertThatThrownBy(() -> job.recordSuccess(NOW.minusSeconds(1))).isInstanceOf(DocumentException.class);
+    }
+
+    @Test
+    @DisplayName("생성 Job은 누락된 주제 객체를 거절한다")
+    void queueGeneration_failure_missingTopic() {
+        // when & then
+        assertThatThrownBy(
+                () -> DocumentGenerationJob.queueGeneration(
+                        1,
+                        2,
+                        null,
+                        NOW
+                )
+        ).hasMessage(DocumentErrorCode.INVALID_DOCUMENT_DATA.getMessage());
     }
 }

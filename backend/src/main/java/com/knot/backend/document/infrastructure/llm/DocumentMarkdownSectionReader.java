@@ -1,5 +1,6 @@
 package com.knot.backend.document.infrastructure.llm;
 
+import com.knot.backend.document.domain.DocumentText;
 import com.knot.backend.document.domain.DocumentErrorCode;
 import com.knot.backend.document.domain.DocumentException;
 import java.util.LinkedHashMap;
@@ -10,7 +11,6 @@ import java.util.regex.Pattern;
 class DocumentMarkdownSectionReader {
     private static final Pattern HEADING = Pattern.compile("^ {0,3}##[ \\t]+(.+?)[ \\t]*#*[ \\t]*$");
     private static final Pattern FENCE = Pattern.compile("^ {0,3}(`{3,}|~{3,})(.*)$");
-    private static final Pattern BLANK = Pattern.compile("[\\p{javaWhitespace}\\p{Z}]*");
 
     private final Map<String, StringBuilder> sections = new LinkedHashMap<>();
     private StringBuilder body;
@@ -87,7 +87,7 @@ class DocumentMarkdownSectionReader {
         if (marker.length() < fenceLength) {
             return false;
         }
-        return trailing.isBlank();
+        return DocumentText.isBlank(trailing);
     }
 
     private void appendBody(String line) {
@@ -118,8 +118,7 @@ class DocumentMarkdownSectionReader {
     }
 
     private void validatePreamble(String line) {
-        Matcher blank = BLANK.matcher(line);
-        if (!blank.matches()) {
+        if (!DocumentText.isBlank(line)) {
             throw invalidResponse();
         }
     }
