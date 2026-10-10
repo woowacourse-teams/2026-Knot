@@ -4,9 +4,15 @@ export interface DocumentConfirmationSummary {
   excludedCount: number;
 }
 
+/** 문서 상태 */
+export type DocumentStatus = "DRAFT" | "ARCHIVED";
+
+/** 내 확인 상태. 상세 · 목록 응답이 같은 기준을 씀 */
+export type MyConfirmationState = "PENDING" | "CONFIRMED" | "NOT_REQUIRED";
+
 export interface DocumentTopic {
   topic: string;
-  /** 한 응답에 담긴 문서 수가 아니라 그 주제의 전체 문서 수 */
+  /** 조회 조건(myConfirmation · recordingSessionId)을 만족하는 그 주제의 문서 수. cursor · size는 반영하지 않음 */
   documentCount: number;
 }
 
@@ -17,15 +23,15 @@ export interface DocumentListItem {
   title: string;
   /** 없으면 null */
   summary: string | null;
-  status: "DRAFT" | "ARCHIVED";
+  status: DocumentStatus;
   createdAt: string;
   recordingDurationSeconds: number;
-  myConfirmationState: "PENDING" | "CONFIRMED" | "NOT_REQUIRED";
+  myConfirmationState: MyConfirmationState;
   confirmationSummary: DocumentConfirmationSummary;
 }
 
 export interface DocumentsResponse {
-  /** 페이지와 관계없이 문서가 있는 주제 전체 */
+  /** 조회 조건을 만족하는 문서가 있는 주제 전체. cursor · size와 관계없이 전체가 옴 */
   topics: DocumentTopic[];
   items: DocumentListItem[];
   /** 마지막 페이지면 null */
@@ -40,13 +46,13 @@ export interface DocumentDetailResponse {
   /** 없으면 null */
   summary: string | null;
   content: string;
-  status: "DRAFT" | "ARCHIVED";
+  status: DocumentStatus;
   createdAt: string;
   /** DRAFT면 null */
   archivedAt: string | null;
   recordingDurationSeconds: number;
   sourceTranscriptId: number;
-  myConfirmationState: "PENDING" | "CONFIRMED" | "NOT_REQUIRED";
+  myConfirmationState: MyConfirmationState;
   confirmationSummary: DocumentConfirmationSummary;
 }
 
@@ -74,7 +80,7 @@ export interface DocumentConfirmationsResponse {
 export interface DocumentMyConfirmationResponse {
   documentId: number;
   confirmedAt: string;
-  documentStatus: "DRAFT" | "ARCHIVED";
+  documentStatus: DocumentStatus;
   /** DRAFT면 null */
   archivedAt: string | null;
   confirmationSummary: DocumentConfirmationSummary;
