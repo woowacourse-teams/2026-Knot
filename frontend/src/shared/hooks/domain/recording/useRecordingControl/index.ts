@@ -50,6 +50,7 @@ interface UploadRecordedAudioParams {
  */
 const useRecordingControl = () => {
   const { navigateToWorkspaceHome } = useNavigateToWorkspaceHome();
+  //TODO: shared훅에서 mutate 제거하기
   const { mutateAsync: startRecordingSession } = useStartRecordingMutation();
   const { mutateAsync: pauseRecordingSession } = usePauseRecordingMutation();
   const { mutateAsync: resumeRecordingSession } = useResumeRecordingMutation();
@@ -61,6 +62,7 @@ const useRecordingControl = () => {
     useCompleteRecordingAudioUploadMutation();
   const { openEndRecordingDialog } = useEndRecordingDialog();
 
+  //TODO: shared훅에서 라우팅 제거하기
   /** 녹음을 버리고 다음 녹음은 새 시작 요청으로 보내도록 증명을 지운 뒤 홈으로 가요 */
   const closeRecording = useCallback(
     (workspaceId: number) => {
