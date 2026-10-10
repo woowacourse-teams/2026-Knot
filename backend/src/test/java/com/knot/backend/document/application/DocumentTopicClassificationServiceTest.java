@@ -1,5 +1,6 @@
 package com.knot.backend.document.application;
 
+import com.knot.backend.document.domain.DocumentTopic;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -37,13 +38,13 @@ class DocumentTopicClassificationServiceTest {
     @DisplayName("상위 서비스에 주제 목록을 반환하고 짧은 유효한 논의를 제외하지 않는다")
     void classify_success() {
         // given
-        when(classifier.classify("검색하자")).thenReturn(List.of("검색"));
+        when(classifier.classify("검색하자")).thenReturn(List.of(DocumentTopic.of("검색")));
 
         // when
         DocumentTopicClassificationResult result = service.classify("검색하자");
 
         // then
-        assertThat(result.topics()).containsExactly("검색");
+        assertThat(result.topicNames()).containsExactly("검색");
         assertThat(result.isNoContent()).isFalse();
     }
 
@@ -86,13 +87,13 @@ class DocumentTopicClassificationServiceTest {
     @DisplayName("결과 생성 후 입력 목록이 바뀌어도 분류 결과는 유지한다")
     void result_success_defensiveCopy() {
         // given
-        List<String> topics = new ArrayList<>(List.of("검색"));
+        List<DocumentTopic> topics = new ArrayList<>(List.of(DocumentTopic.of("검색")));
 
         // when
         DocumentTopicClassificationResult result = new DocumentTopicClassificationResult(topics);
         topics.clear();
 
         // then
-        assertThat(result.topics()).containsExactly("검색");
+        assertThat(result.topicNames()).containsExactly("검색");
     }
 }
