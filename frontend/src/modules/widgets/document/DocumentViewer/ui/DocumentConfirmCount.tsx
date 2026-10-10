@@ -1,41 +1,32 @@
-import useDocumentQuery from "@api/queries/useDocumentQuery";
 import Popover from "@composites/Popover";
 import styled from "@emotion/styled";
-import { useParams } from "react-router";
 
 import ChevronDownIcon from "@/assets/icons/chevronDown.svg";
 
-import { useDocumentConfirmationMembers } from "./model/useDocumentConfirmationMembers";
-import ConfirmedMembersCard from "./ui/ConfirmedMembersCard";
+import { useDocumentConfirmationMembers } from "../model/useDocumentConfirmationMembers";
+
+import ConfirmedMembersCard from "./ConfirmedMembersCard";
 
 interface DocumentConfirmCountProps {
-  /**
-   * 확인 현황을 보여줄 문서의 ID.
-   * 같은 녹음의 문서를 넘겨 보는 녹음 직후 확인 화면에서는 지금 보는 문서의 ID가 주소에 없을 수 있어요.
-   * 그 화면에도 놓을 수 있게 주소에서 읽지 않고 받아요. 워크스페이스 ID는 워크스페이스 아래 모든 화면의 주소에 있어 주소에서 읽어요
-   */
+  workspaceId: number;
   documentId: number;
+  /** 문서를 확인한 사람 수. 문서 보기가 받은 문서의 확인 집계에서 넘겨줘요 */
+  confirmedCount: number;
 }
 
 /**
  * 문서를 확인한 사람 수. 포인터를 올리면 확인한 사람 팝오버가 떠요(CONF-R5).
  *
- * 수는 문서 상세의 집계를 써요. 문서 보기 위젯과 같은 키로 조회해서 요청이 더 나가지 않고 캐시를 나눠 써요.
- * 문서를 아직 받지 못했으면 아무것도 그리지 않아요.
+ * 수는 문서 보기가 받은 값을 받고, 팝오버에 그릴 확인한 사람 목록만 여기서 조회해요. 목록은 문서와 다른 API예요.
+ * 문서를 받은 뒤에만 그려지므로, 문서를 불러오지 못했을 때는 목록도 요청하지 않아요.
  */
 export default function DocumentConfirmCount({
+  workspaceId,
   documentId,
+  confirmedCount,
 }: DocumentConfirmCountProps) {
-  const params = useParams();
-  const workspaceId = Number(params.workspaceId);
-  const { data: documentDetail } = useDocumentQuery({
-    workspaceId,
-    documentId,
-  });
   const { status, confirmedMembers, pendingMembers, retryIfFailed } =
     useDocumentConfirmationMembers({ workspaceId, documentId });
-
-  if (documentDetail === undefined) return null;
 
   return (
     <Popover
@@ -57,7 +48,7 @@ export default function DocumentConfirmCount({
             retryIfFailed();
           }}
         >
-          {`${documentDetail.confirmationSummary.confirmedCount}명 확인했어요`}
+          {`${confirmedCount}명 확인했어요`}
           <ChevronDownIcon size={12} />
         </Trigger>
       )}
