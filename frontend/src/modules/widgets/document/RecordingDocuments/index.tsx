@@ -1,36 +1,76 @@
-import { useParams } from "react-router";
+import useNavigateToWorkspaceHome from "@hooks/domain/workspace/useNavigateToWorkspaceHome";
+import LoadingIndicator from "@primitives/ui/LoadingIndicator";
+import { getRouterPath } from "@routes/PATH_ROUTE";
+import { Navigate, useParams } from "react-router";
 
+import { useRecordingDocuments } from "./model/useRecordingDocuments";
+import DocumentFailedState from "./ui/DocumentFailedState";
+import DraftingState from "./ui/DraftingState";
 import LoadFailedState from "./ui/LoadFailedState";
-import RecordingDocumentsContent from "./ui/RecordingDocumentsContent";
+import NothingToOrganizeState from "./ui/NothingToOrganizeState";
 
 /**
  * 녹음을 끝낸 뒤 문서가 만들어질 때까지 보여 주는 정리 화면 섹션.
  *
- * 주소의 녹음 상태를 3초마다 다시 조회하고, 상태에 따라 정리 중 · 문서로 만들 내용 없음 · 문서를 만들지 못함 가운데 하나를 보여줘요.
+ * 주소의 녹음 상태를 3초마다 다시 조회하고, 상태에 따라 정리 중 · 문서로 만들 내용 없음 · 문서를 만들지 못함 · 불러오지 못함 가운데 하나를 보여줘요.
  * 문서 만들기에 실패했으면 그 자리에서 다시 시도할 수 있고, 접수되면 정리 중으로 돌아가요.
+ * 이 화면에 머물 이유가 없는 녹음은 다른 화면으로 보내요.
  *
- * 주소의 두 id는 읽은 이 자리에서 확인해요. 정수가 아니면 조회를 시작하지 않고 문서를 불러오지 못했다고 알려요.
- * 그래서 조회하는 쪽(`ui/RecordingDocumentsContent`와 그 아래)은 정수만 받고 다시 검사하지 않아요.
+ * 주소의 두 id는 숫자인지 확인하지 않고 그대로 요청해요. 잘못된 주소인지는 서버가 판단하고, 여기서는 그 응답에 따라 문서를 불러오지 못했다고 알려요.
+ * 같은 판단을 프론트에도 두면 기준이 두 곳에 생기기 때문이에요.
  */
 export default function RecordingDocuments() {
   const params = useParams();
 
   const workspaceId = Number(params.workspaceId);
   const recordingId = Number(params.recordingId);
-  const isValidAddress =
-    Number.isInteger(workspaceId) && Number.isInteger(recordingId);
+  const { status, retryLoad, retryGeneration, isRetrying } =
+    useRecordingDocuments({ workspaceId, recordingId });
+  const { navigateToWorkspaceHome } = useNavigateToWorkspaceHome();
 
-  if (!isValidAddress) {
-    // 주소가 잘못되면 다시 조회할 것이 없어 「다시 시도」에 동작을 넘기지 않아요
-    return <LoadFailedState />;
+  const routeParams = { workspaceId: String(workspaceId) };
+  const handleGoHome = () => navigateToWorkspaceHome(routeParams);
+
+  if (status === "loading") {
+    return <LoadingIndicator label="문서 정리 상태를 확인하고 있어요" />;
   }
 
-  // 다른 녹음의 주소로 바뀌면 다시 시도 결과 같은 앞 녹음의 상태가 남지 않도록 새로 그려요
-  return (
-    <RecordingDocumentsContent
-      key={recordingId}
-      workspaceId={workspaceId}
-      recordingId={recordingId}
-    />
-  );
+  // 정리가 끝난 녹음은 워크스페이스 홈으로 보내요. 녹음 직후 확인 화면이 생기면 그 화면으로 바꿔요.
+  // 뒤로 가기로 이 주소에 돌아와 다시 보내지는 일이 없도록 지금 기록을 바꿔요
+  if (status === "completed") {
+    return (
+      <Navigate
+        to={getRouterPath({ routeKey: "WORKSPACE_HOME", params: routeParams })}
+        replace
+      />
+    );
+  }
+
+  // 아직 끝내지 않은 녹음은 녹음 화면으로 돌려보내요
+  if (status === "recording") {
+    return (
+      <Navigate
+        to={getRouterPath({ routeKey: "RECORDING", params: routeParams })}
+        replace
+      />
+    );
+  }
+
+  if (status === "organizing") return <DraftingState />;
+
+  if (status === "noContent") {
+    return <NothingToOrganizeState onGoHome={handleGoHome} />;
+  }
+
+  if (status === "failed") {
+    return (
+      <DocumentFailedState
+        onRetry={retryGeneration}
+        isRetrying={isRetrying}
+        onGoHome={handleGoHome}
+      />
+    );
+  }
+
+  return <LoadFailedState onRetry={retryLoad} />;
 }

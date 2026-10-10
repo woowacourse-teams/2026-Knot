@@ -6,8 +6,8 @@ import DocumentFailedIllustration from "@/assets/illustrations/documentFailed.sv
 import StateMessage from "./StateMessage";
 
 interface LoadFailedStateProps {
-  /** 「다시 시도」를 눌렀을 때. 주소가 잘못돼 다시 조회할 것이 없으면 넘기지 않아요 */
-  onRetry?: () => void;
+  /** 「다시 시도」를 눌렀을 때 실행할 동작 */
+  onRetry: () => void;
 }
 
 /**

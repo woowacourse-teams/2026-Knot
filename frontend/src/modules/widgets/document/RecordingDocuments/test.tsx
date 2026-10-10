@@ -33,6 +33,8 @@ const RECORDING_REQUEST =
 const RETRY_REQUEST =
   "*/api/v1/workspaces/:workspaceId/document-generation-jobs/:jobId/retry";
 const POLL_INTERVAL_MS = 3000;
+// mock 녹음의 어느 작업과도 겹치지 않는 문서 생성 작업 id
+const ANOTHER_JOB_ID = 188;
 
 const ORGANIZING_TITLE = "회의 내용을 바탕으로 문서를 정리하고 있어요";
 const FAILED_TITLE = "문서를 만들지 못했어요";
@@ -40,22 +42,16 @@ const NO_CONTENT_TITLE = "문서로 만들 내용이 없었어요";
 const LOAD_FAILED_TITLE = "문서를 불러오지 못했어요";
 const RECORDING_KEPT_NOTICE = "녹음은 보관해 두었어요.";
 
-// 주소에 id가 빠진 경우를 보려고 위젯을 놓는 경로예요
-const NO_RECORDING_ID_PATH = "/workspace/:workspaceId/no-recording-id";
-const NO_WORKSPACE_ID_PATH = "/no-workspace-id/:recordingId";
+const getRecordingDocumentsPath = (recordingId: number | string) =>
+  getRouterPath({
+    routeKey: "RECORDING_DOCUMENTS",
+    params: {
+      workspaceId: String(WORKSPACE_ID),
+      recordingId: String(recordingId),
+    },
+  });
 
-const renderRecordingDocuments = (recordingId: number | string) =>
-  renderRecordingDocumentsAt(
-    getRouterPath({
-      routeKey: "RECORDING_DOCUMENTS",
-      params: {
-        workspaceId: String(WORKSPACE_ID),
-        recordingId: String(recordingId),
-      },
-    }),
-  );
-
-const renderRecordingDocumentsAt = (entry: string) => {
+const renderRecordingDocuments = (recordingId: number | string) => {
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: { retry: false },
@@ -69,13 +65,11 @@ const renderRecordingDocumentsAt = (entry: string) => {
         path: PATH_ROUTE.RECORDING_DOCUMENTS,
         element: <RecordingDocuments />,
       },
-      { path: NO_RECORDING_ID_PATH, element: <RecordingDocuments /> },
-      { path: NO_WORKSPACE_ID_PATH, element: <RecordingDocuments /> },
       { path: PATH_ROUTE.WORKSPACE_HOME, element: <p>워크스페이스 홈</p> },
       { path: PATH_ROUTE.RECORDING, element: <p>녹음 화면</p> },
       { path: PATH_ROUTE.LOGIN, element: <p>로그인 화면</p> },
     ],
-    { initialEntries: [entry] },
+    { initialEntries: [getRecordingDocumentsPath(recordingId)] },
   );
 
   render(
@@ -85,6 +79,8 @@ const renderRecordingDocumentsAt = (entry: string) => {
       </QueryClientProvider>
     </ThemeProvider>,
   );
+
+  return { router };
 };
 
 describe("RecordingDocuments", () => {
@@ -365,40 +361,22 @@ describe("RecordingDocuments", () => {
     },
   );
 
-  it.each([
-    [
-      "녹음 id가 숫자가 아니면",
-      getRouterPath({
-        routeKey: "RECORDING_DOCUMENTS",
-        params: { workspaceId: String(WORKSPACE_ID), recordingId: "abc" },
+  it("주소의 녹음 id가 숫자가 아니어도 확인하지 않고 그대로 요청하고, 서버가 거절하면 문서를 불러오지 못했다고 알린다", async () => {
+    let requestCount = 0;
+    mockServer.use(
+      http.get(RECORDING_REQUEST, () => {
+        requestCount += 1;
+        // 서버는 숫자가 아닌 녹음 id를 잘못된 요청으로 거절해요
+        return new HttpResponse(null, { status: 400 });
       }),
-    ],
-    ["주소에 녹음 id가 없으면", `/workspace/${WORKSPACE_ID}/no-recording-id`],
-    [
-      "주소에 워크스페이스 id가 없으면",
-      `/no-workspace-id/${organizingRecording.recordingId}`,
-    ],
-  ])(
-    "%s 요청하지 않고 문서를 불러오지 못했다고 알린다",
-    async (_condition, entry) => {
-      let requestCount = 0;
-      mockServer.use(
-        http.get(RECORDING_REQUEST, () => {
-          requestCount += 1;
-          return HttpResponse.json(organizingRecording);
-        }),
-      );
-      renderRecordingDocumentsAt(entry);
+    );
+    renderRecordingDocuments("abc");
 
-      expect(
-        await screen.findByRole("heading", {
-          level: 2,
-          name: LOAD_FAILED_TITLE,
-        }),
-      ).toBeInTheDocument();
-      expect(requestCount).toBe(0);
-    },
-  );
+    expect(
+      await screen.findByRole("heading", { level: 2, name: LOAD_FAILED_TITLE }),
+    ).toBeInTheDocument();
+    expect(requestCount).toBe(1);
+  });
 
   it("서버 오류로 처음 조회에 실패하면 문서를 불러오지 못했다고 알리고, 다시 시도를 누르면 상태를 보여준다", async () => {
     mockServer.use(
@@ -479,6 +457,43 @@ describe("RecordingDocuments", () => {
       ).toBeInTheDocument();
     },
   );
+
+  it("다른 녹음의 주소로 가면 앞 녹음에서 거절된 다시 시도를 남기지 않고 다시 시도 버튼을 보여준다", async () => {
+    // 문서 만들기에 실패한 또 다른 녹음이에요. 다시 시도할 작업도 달라요
+    const anotherFailedRecording = {
+      ...failedRecording,
+      recordingId: failedRecording.recordingId + 100,
+      documentGenerationJobId: ANOTHER_JOB_ID,
+    };
+    mockServer.use(
+      http.post(RETRY_REQUEST, () => new HttpResponse(null, { status: 404 })),
+      http.get(RECORDING_REQUEST, ({ params }) =>
+        HttpResponse.json(
+          Number(params.recordingId) === anotherFailedRecording.recordingId
+            ? anotherFailedRecording
+            : failedRecording,
+        ),
+      ),
+    );
+    const { router } = renderRecordingDocuments(failedRecording.recordingId);
+
+    fireEvent.click(await screen.findByRole("button", { name: "다시 시도" }));
+    await screen.findByRole("button", { name: "홈으로" });
+    expect(
+      screen.queryByRole("button", { name: "다시 시도" }),
+    ).not.toBeInTheDocument();
+
+    await act(async () => {
+      await router.navigate(
+        getRecordingDocumentsPath(anotherFailedRecording.recordingId),
+      );
+    });
+
+    expect(
+      await screen.findByRole("button", { name: "다시 시도" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(RECORDING_KEPT_NOTICE)).toBeInTheDocument();
+  });
 
   it.each([
     {
