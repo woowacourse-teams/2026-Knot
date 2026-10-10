@@ -1,8 +1,9 @@
 package com.knot.backend.document.application;
 
+import com.knot.backend.document.domain.DocumentTopic;
 import java.util.List;
 
 public interface DocumentTopicClassifier {
 
-    List<String> classify(String transcriptContent);
+    List<DocumentTopic> classify(String transcriptContent);
 }

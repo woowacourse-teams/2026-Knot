@@ -1,5 +1,6 @@
 package com.knot.backend.document.application;
 
+import com.knot.backend.document.domain.DocumentText;
 import com.knot.backend.document.application.dto.result.DocumentGenerationInputResult;
 import com.knot.backend.document.application.dto.result.DocumentGenerationRegistrationResult;
 import com.knot.backend.document.domain.DocumentErrorCode;
@@ -97,10 +98,10 @@ public class DocumentGenerationIntakeService {
     ) {
         RecordingSession recording = recordings.findByIdForUpdate(recordingSessionId)
                 .orElseThrow(() -> new DocumentException(DocumentErrorCode.TRANSCRIPT_NOT_FOUND));
-        if (recording.getWorkspaceId() != workspaceId) {
+        if (!recording.belongsTo(workspaceId)) {
             throw new DocumentException(DocumentErrorCode.TRANSCRIPT_NOT_FOUND);
         }
-        recording.validateAudioUploadable();
+        recording.validateEnded();
     }
 
     private void validateRecordingInput(
@@ -113,8 +114,7 @@ public class DocumentGenerationIntakeService {
     }
 
     private boolean isEmptyContent(String content) {
-        return content.codePoints()
-                .allMatch(c -> Character.isWhitespace(c) || Character.isSpaceChar(c));
+        return DocumentText.isBlank(content);
     }
 
     private DocumentGenerationRegistrationResult result(DocumentGenerationBatch batch) {

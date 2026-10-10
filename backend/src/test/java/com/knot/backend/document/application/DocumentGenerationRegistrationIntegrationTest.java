@@ -247,7 +247,7 @@ class DocumentGenerationRegistrationIntegrationTest {
     void completeClassification_success_registeredTopics() {
         // given
         long jobId = startClassification();
-        DocumentTopicClassificationResult topics = new DocumentTopicClassificationResult(
+        DocumentTopicClassificationResult topics = DocumentTopicClassificationResult.fromNames(
                 List.of(
                         "검색",
                         "알림"
@@ -298,7 +298,7 @@ class DocumentGenerationRegistrationIntegrationTest {
                         workspaceId,
                         jobId,
                         1,
-                        new DocumentTopicClassificationResult(
+                        DocumentTopicClassificationResult.fromNames(
                                 List.of(
                                         "검색",
                                         "알림"
@@ -321,14 +321,14 @@ class DocumentGenerationRegistrationIntegrationTest {
                 workspaceId,
                 jobId,
                 1,
-                new DocumentTopicClassificationResult(List.of())
+                DocumentTopicClassificationResult.fromNames(List.of())
         );
         when(clock.instant()).thenReturn(NOW.plusSeconds(1));
         classifications.completeClassification(
                 workspaceId,
                 jobId,
                 1,
-                new DocumentTopicClassificationResult(List.of())
+                DocumentTopicClassificationResult.fromNames(List.of())
         );
         jdbc.sql("DELETE FROM document_generation_jobs")
                 .update();
@@ -384,7 +384,7 @@ class DocumentGenerationRegistrationIntegrationTest {
                         workspaceId,
                         jobId,
                         1,
-                        new DocumentTopicClassificationResult(List.of("검색"))
+                        DocumentTopicClassificationResult.fromNames(List.of("검색"))
                 )
         ).isInstanceOf(DocumentException.class);
         assertThat(
@@ -392,7 +392,7 @@ class DocumentGenerationRegistrationIntegrationTest {
                         workspaceId,
                         jobId,
                         2,
-                        new DocumentTopicClassificationResult(List.of("검색"))
+                        DocumentTopicClassificationResult.fromNames(List.of("검색"))
                 )
                         .generationJobIds()
         ).hasSize(1);
@@ -407,7 +407,7 @@ class DocumentGenerationRegistrationIntegrationTest {
                 workspaceId,
                 classifier,
                 1,
-                new DocumentTopicClassificationResult(List.of("검색"))
+                DocumentTopicClassificationResult.fromNames(List.of("검색"))
         )
                 .generationJobIds()
                 .getFirst();
@@ -417,7 +417,7 @@ class DocumentGenerationRegistrationIntegrationTest {
                         workspaceId,
                         classifier,
                         1,
-                        new DocumentTopicClassificationResult(List.of("알림"))
+                        DocumentTopicClassificationResult.fromNames(List.of("알림"))
                 )
         ).isInstanceOf(DocumentException.class);
         assertThatThrownBy(
@@ -449,7 +449,7 @@ class DocumentGenerationRegistrationIntegrationTest {
                         workspaceId,
                         classifier,
                         1,
-                        new DocumentTopicClassificationResult(List.of("검색"))
+                        DocumentTopicClassificationResult.fromNames(List.of("검색"))
                 )
         ).isInstanceOf(DocumentException.class);
         assertThatThrownBy(
@@ -467,7 +467,7 @@ class DocumentGenerationRegistrationIntegrationTest {
     void completeClassification_success_concurrent() throws Exception {
         // given
         long classifier = startClassification();
-        DocumentTopicClassificationResult topics = new DocumentTopicClassificationResult(
+        DocumentTopicClassificationResult topics = DocumentTopicClassificationResult.fromNames(
                 List.of(
                         "검색",
                         "알림"
@@ -524,7 +524,7 @@ class DocumentGenerationRegistrationIntegrationTest {
             return invocation.getArgument(0);
         }).when(jobs)
                 .save(any(DocumentGenerationJob.class));
-        DocumentTopicClassificationResult topics = new DocumentTopicClassificationResult(
+        DocumentTopicClassificationResult topics = DocumentTopicClassificationResult.fromNames(
                 List.of(
                         "검색",
                         "알림"
@@ -570,7 +570,7 @@ class DocumentGenerationRegistrationIntegrationTest {
                         workspaceId,
                         classifier,
                         1,
-                        new DocumentTopicClassificationResult(List.of("검색"))
+                        DocumentTopicClassificationResult.fromNames(List.of("검색"))
                 )
         ).isInstanceOf(InvalidDataAccessApiUsageException.class);
         assertThat(count("document_generation_batch_topics")).isZero();
@@ -629,7 +629,7 @@ class DocumentGenerationRegistrationIntegrationTest {
                         workspaceId,
                         classifier,
                         1,
-                        new DocumentTopicClassificationResult(List.of("검색"))
+                        DocumentTopicClassificationResult.fromNames(List.of("검색"))
                 )
         ).isInstanceOf(WorkspaceException.class);
         assertThat(status(classifier)).isEqualTo("RUNNING");
@@ -655,7 +655,7 @@ class DocumentGenerationRegistrationIntegrationTest {
         )
                 .classificationJobId();
         startJob(secondClassifier);
-        DocumentTopicClassificationResult topics = new DocumentTopicClassificationResult(List.of("검색"));
+        DocumentTopicClassificationResult topics = DocumentTopicClassificationResult.fromNames(List.of("검색"));
         // when
         classifications.completeClassification(
                 workspaceId,
@@ -685,7 +685,7 @@ class DocumentGenerationRegistrationIntegrationTest {
                 workspaceId,
                 classifier,
                 1,
-                new DocumentTopicClassificationResult(List.of("검색"))
+                DocumentTopicClassificationResult.fromNames(List.of("검색"))
         )
                 .generationJobIds()
                 .getFirst();
@@ -709,7 +709,7 @@ class DocumentGenerationRegistrationIntegrationTest {
                 workspaceId,
                 classifier,
                 1,
-                new DocumentTopicClassificationResult(List.of("검색"))
+                DocumentTopicClassificationResult.fromNames(List.of("검색"))
         )
                 .generationJobIds()
                 .getFirst();
@@ -885,7 +885,7 @@ class DocumentGenerationRegistrationIntegrationTest {
                 workspaceId,
                 classifier,
                 2,
-                new DocumentTopicClassificationResult(List.of())
+                DocumentTopicClassificationResult.fromNames(List.of())
         );
         // then
         assertThat(failed).extracting(DocumentGenerationJobItemResult::jobId)

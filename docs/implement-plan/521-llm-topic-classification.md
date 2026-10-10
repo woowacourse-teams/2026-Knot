@@ -1,7 +1,7 @@
 # #521 공통 LLM API 연동과 전사 원문 주제 분류 구현 계획
 
 - 상태: #521 제품 구현과 실제 합성 API 관찰 완료. #534 리뷰에 따라 계층 의존성과 문서 근거를 보완한다. 품질 관찰의 실패와 한계는 별도로 기록한다.
-- 계획·첫 검증: 2026-10-08 KST. 리뷰 반영: 2026-10-09 KST.
+- 계획·첫 검증: 2026-10-08 KST. 리뷰 반영: 2026-10-09·10 KST.
 - 대상: [Issue #521](https://github.com/woowacourse-teams/2026-Knot/issues/521).
 - 현재 브랜치: `be/feature/#521`.
 - 현재 요청 범위: #534 리뷰 수정·검증·커밋·푸시·답글. 공용 Notion 하네스는 사용자의 지시에 따라 같은 PR에 포함하며, 작성·선별 실험은 #535로 이동한다.
@@ -206,8 +206,8 @@ user content는 문자열 연결로 JSON을 만들지 않고 Jackson으로 직�
 | `global/exception/LlmException`·`LlmErrorCode` | 공급자 실패의 타입 있는 계약 | `ProjectException` 기반. 원문·인증값이 없는 code/message |
 | `document/application/DocumentTopicClassificationService` | 주제 분류 유즈케이스 진입점 | `classify(String transcriptContent): DocumentTopicClassificationResult` |
 | `document/application/dto/result/DocumentTopicClassificationResult` | 검증된 불변 주제 목록 전달 | `topics()`, `isNoContent()`. 빈 목록에서만 내용 없음 판정 |
-| `document/application/DocumentTopicClassifier` | 서비스가 사용하는 분류 계약 | `classify(String): List<String>` |
-| `document/infrastructure/llm/LlmDocumentTopicClassifier` | 문서용 요청·응답 해석·주제 정규화 | `classify(String): List<String>` |
+| `document/application/DocumentTopicClassifier` | 서비스가 사용하는 분류 계약 | `classify(String): List<DocumentTopic>` |
+| `document/infrastructure/llm/LlmDocumentTopicClassifier` | 문서용 요청·응답 해석·주제 정규화 | `classify(String): List<DocumentTopic>` |
 | `document/infrastructure/llm/DocumentTopicPrompt` | 분류 prompt·schema·분류 설정 조립 | `createRequest(String): LlmCompletionRequest` |
 
 주제 분류 Service는 application의 `DocumentTopicClassifier` 인터페이스를 호출한다. infrastructure의 `LlmDocumentTopicClassifier`가 그 계약을 구현하고 Spring이 주입한다. HTTP나 Jackson 타입은 infrastructure 내부에 둔다. 공통 client는 Document·Transcript·Job·주제의 의미를 알지 않는다. #522의 작성 adapter도 같은 `complete(...)`를 사용하면서 다른 prompt·schema·options를 넘길 수 있다.
@@ -304,12 +304,12 @@ system prompt·schema resource와 분류용 옵션을 가진다. classpath resou
 
 | 접근·메서드 후보 | 입력 → 반환 | 판단·부작용 |
 | --- | --- | --- |
-| public `classify(String transcriptContent)` | 전체 원문 → 불변 `List<String>` | prompt 구성 → client 호출 → 주제 JSON 해석. client를 한 번 호출 |
-| private `parseTopics(String content)` | assistant content → `List<String>` | JSON 객체·topics 배열·추가 필드 정책 확인 후 항목 검증과 정규화 수행 |
+| public `classify(String transcriptContent)` | 전체 원문 → 불변 `List<DocumentTopic>` | prompt 구성 → client 호출 → 주제 JSON 해석. client를 한 번 호출 |
+| private `parseTopics(String content)` | assistant content → `List<DocumentTopic>` | JSON 객체·topics 배열·추가 필드 정책 확인 후 항목 검증과 정규화 수행 |
 | private `validateTopicsArray(JsonNode root)` | 해석한 JSON → void | 객체와 필수 topics 배열 확인. null·누락·잘못된 타입 거절 |
 | private `validateTopicName(JsonNode topic)` | 배열 항목 → void | 실제 문자열인지 확인. 숫자·boolean·null의 강제 문자열 변환 금지 |
 | private `normalizeTopicName(String topic)` | 주제 문자열 → 정리한 문자열 | Unicode NFC·Unicode 공백 정리. 정리 후 빈 문자열이면 분류 응답 오류 |
-| private `removeDuplicateTopics(List<String> topics)` | 정리된 주제 목록 → 불변 `List<String>` | 정규화 문자열의 정확한 중복만 제거하고 최초 순서 유지 |
+| private `removeDuplicateTopics(List<DocumentTopic> topics)` | 정리된 주제 목록 → 불변 `List<DocumentTopic>` | 정규화 문자열의 정확한 중복만 제거하고 최초 순서 유지 |
 
 `[" 검색 기능 ", "검색  기능", "알림 채널"]`은 `["검색 기능", "알림 채널"]`로 정리한다. `["검색 기능", " "]`은 전체 응답 실패다. 공백 항목만 버리고 성공 처리하지 않는다. 유효한 `[]`는 그대로 성공 반환한다.
 
@@ -328,12 +328,12 @@ Service의 핵심은 다음 정도로 유지하는 제안이다. 이 예시는 �
 ```java
 public DocumentTopicClassificationResult classify(String transcriptContent) {
     validateTranscriptContent(transcriptContent);
-    List<String> topics = classifier.classify(transcriptContent);
+    List<DocumentTopic> topics = classifier.classify(transcriptContent);
     return new DocumentTopicClassificationResult(topics);
 }
 ```
 
-Result는 `List<String> topics`를 가진 record 후보이며 생성 시 `List.copyOf`로 방어 복사한다. 별도의 status 필드에 NO_CONTENT를 함께 저장하지 않아 상태와 목록이 어긋나는 경우를 만들지 않는다. 저장할 상태는 #523이 `isNoContent()`를 보고 결정한다.
+Result는 `List<DocumentTopic> topics`를 가진 record 후보이며 생성 시 `List.copyOf`로 방어 복사한다. 별도의 status 필드에 NO_CONTENT를 함께 저장하지 않아 상태와 목록이 어긋나는 경우를 만들지 않는다. 저장할 상태는 #523이 `isNoContent()`를 보고 결정한다.
 
 ### 상위 서비스가 분류 서비스를 사용하는 관계
 
@@ -522,3 +522,10 @@ Mockito는 위임·결과 계약을 확인하고 실제 HTTP 기한이나 인증
 후속은 #522가 공통 client에 작성 v7·작성 옵션을 연결하고, #523이 저장 원문 접수와 주제 목록·Job 등록을 연결하는 순서다. 장문 발언 선별은 #522의 기존 전체 원문 요청 계약을 변경할 수 있는 별도 최적화 후보다. 이번 #521에 끼워 넣거나 이미 합의된 작성 계약으로 표현하지 않는다.
 
 실제 합성 completion 10회 중 개선 prompt의 정상 5회는 추론 0·stop으로 완료했고 초과 입력 1회는 거절됐다. [현재 주제 분류 실제 관찰](../llm-test/521-topic-classification-2026-10-08.md)에 표본과 한계를 기록했다. 사용자는 이후 commit/push/Draft PR 게시를 요청했다. Issue 본문이나 다른 도메인 코드는 변경하지 않는다.
+
+## 2026-10-10 공백·주제 계약 리뷰 반영
+
+- `DocumentText.isBlank`는 null·빈 문자열·Java 공백·Unicode 구분자(NBSP 포함)를 공백으로 판정한다. 문서 생성·저장·원문 조회·재시도 입력에 같은 기준을 사용한다.
+- `DocumentTopic.of`에서 NFC·공백 정규화와 빈 주제 검증을 수행한다. 분류 adapter는 문자열을 이 값 객체로 변환하고 정확한 값 중복을 제거한다. 도메인 생성 실패는 분류 응답 오류로 변환한다.
+- application 분류 계약과 Result는 `List<DocumentTopic>`을 전달한다. `topicNames()`는 문자열 경계 변환이며, 후속 Job 저장은 기존 TEXT 컬럼을 유지한다. DB CHECK는 우회 저장 방어이므로 제거하지 않는다.
+- 이번 수정은 로컬 단위·HTTP 통합 검증이다. 운영 LLM 품질을 새로 검증했다고 해석하지 않는다.

@@ -1,5 +1,7 @@
 package com.knot.backend.document.domain;
 
+import com.knot.backend.document.application.dto.result.DocumentTopicClassificationResult;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -120,11 +122,14 @@ class DocumentGenerationExecutionTest {
                 NOW
         );
         batch.registerTopics(
-                List.of(
-                        "A",
-                        "B",
-                        "C"
-                ),
+                DocumentTopicClassificationResult.fromNames(
+                        List.of(
+                                "A",
+                                "B",
+                                "C"
+                        )
+                )
+                        .topics(),
                 NOW
         );
         for (int index = 0; index < 2; index++) {
@@ -172,7 +177,8 @@ class DocumentGenerationExecutionTest {
                 NOW
         );
         batch.registerTopics(
-                List.of("A"),
+                DocumentTopicClassificationResult.fromNames(List.of("A"))
+                        .topics(),
                 NOW
         );
         // when & then

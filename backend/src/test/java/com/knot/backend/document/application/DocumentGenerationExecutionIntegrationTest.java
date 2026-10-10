@@ -125,7 +125,7 @@ class DocumentGenerationExecutionIntegrationTest {
         )
                 .classificationJobId();
         when(classifier.classify(anyString())).thenReturn(
-                new DocumentTopicClassificationResult(
+                DocumentTopicClassificationResult.fromNames(
                         List.of(
                                 "A",
                                 "B",
@@ -217,7 +217,7 @@ class DocumentGenerationExecutionIntegrationTest {
                                 TimeUnit.SECONDS
                         );
             }
-            return new DocumentTopicClassificationResult(
+            return DocumentTopicClassificationResult.fromNames(
                     List.of(
                             "A",
                             "B",
@@ -469,7 +469,7 @@ class DocumentGenerationExecutionIntegrationTest {
     @DisplayName("내용 없음은 생성 성공과 구분하며 재시도 대상이 아니다")
     void execute_success_noContent() {
         // given
-        when(classifier.classify(anyString())).thenReturn(new DocumentTopicClassificationResult(List.of()));
+        when(classifier.classify(anyString())).thenReturn(DocumentTopicClassificationResult.fromNames(List.of()));
         // when
         worker.execute(
                 workspaceId,
@@ -878,7 +878,7 @@ class DocumentGenerationExecutionIntegrationTest {
                         workspaceId,
                         targetId,
                         1,
-                        new DocumentTopicClassificationResult(List.of("A"))
+                        DocumentTopicClassificationResult.fromNames(List.of("A"))
                 );
             case "generation" :
                 return () -> results.completeGeneration(
