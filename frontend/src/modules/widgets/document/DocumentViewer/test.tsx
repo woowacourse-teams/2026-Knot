@@ -721,6 +721,31 @@ describe("DocumentViewer", () => {
     ).toBeInTheDocument();
   });
 
+  it("확인 대상이 아니고 같은 녹음의 문서도 불러오지 못하면 본문 아래 줄을 남기지 않는다", async () => {
+    let requestCount = 0;
+    mockServer.use(
+      http.get(DOCUMENT_REQUEST, () =>
+        HttpResponse.json({
+          ...documentDetailsResponse[0],
+          myConfirmationState: "NOT_REQUIRED",
+        }),
+      ),
+      http.get(DOCUMENTS_REQUEST, () => {
+        requestCount += 1;
+
+        return new HttpResponse(null, { status: 500 });
+      }),
+    );
+    renderViewer(String(expected.id));
+
+    const viewer = await screen.findByRole("region", { name: expected.title });
+    await waitFor(() => expect(requestCount).toBe(1));
+
+    // 아래 줄은 문서 보기의 마지막 줄이에요. 스테퍼도 확인 버튼도 없으면 구분선과 여백까지 감춰요
+    expect(viewer.lastElementChild).toBeEmptyDOMElement();
+    expect(viewer.lastElementChild).not.toBeVisible();
+  });
+
   it("같은 녹음의 문서를 여러 번에 나눠 받아도 요청마다 녹음 id를 붙이고, 받은 문서를 모두 센다", async () => {
     const requestedRecordingIds: (string | null)[] = [];
 

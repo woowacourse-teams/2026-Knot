@@ -164,6 +164,11 @@ const ConfirmBar = styled.div`
   justify-content: space-between;
   padding: 0.75rem 0; /* 12px 0 */
   border-top: 1px solid ${({ theme }) => theme.neutral[200]};
+
+  /* 스테퍼도 확인 버튼도 그리지 않을 때는 구분선과 여백을 남기지 않아요 */
+  &:empty {
+    display: none;
+  }
 `;
 
 /** 스테퍼가 아직 그려지지 않았을 때도 확인 버튼이 오른쪽 끝에 있게 해요 */
