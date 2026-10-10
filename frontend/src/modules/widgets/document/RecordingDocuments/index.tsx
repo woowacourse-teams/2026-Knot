@@ -1,9 +1,9 @@
 import useNavigateToWorkspaceHome from "@hooks/domain/workspace/useNavigateToWorkspaceHome";
 import LoadingIndicator from "@primitives/ui/LoadingIndicator";
-import { getRouterPath } from "@routes/PATH_ROUTE";
-import { Navigate, useParams } from "react-router";
+import { useParams } from "react-router";
 
 import { useRecordingDocuments } from "./model/useRecordingDocuments";
+import { useRecordingDocumentsRedirect } from "./model/useRecordingDocumentsRedirect";
 import DocumentFailedState from "./ui/DocumentFailedState";
 import DraftingState from "./ui/DraftingState";
 import LoadFailedState from "./ui/LoadFailedState";
@@ -26,34 +26,20 @@ export default function RecordingDocuments() {
   const recordingId = Number(params.recordingId);
   const { status, retryLoad, retryGeneration, isRetrying } =
     useRecordingDocuments({ workspaceId, recordingId });
+  const { isRedirecting } = useRecordingDocumentsRedirect({
+    workspaceId,
+    status,
+  });
   const { navigateToWorkspaceHome } = useNavigateToWorkspaceHome();
 
-  const routeParams = { workspaceId: String(workspaceId) };
-  const handleGoHome = () => navigateToWorkspaceHome(routeParams);
+  const handleGoHome = () =>
+    navigateToWorkspaceHome({ workspaceId: String(workspaceId) });
+
+  // 다른 화면으로 보내는 동안에는 그릴 것이 없어요
+  if (isRedirecting) return null;
 
   if (status === "loading") {
     return <LoadingIndicator label="문서 정리 상태를 확인하고 있어요" />;
-  }
-
-  // 정리가 끝난 녹음은 워크스페이스 홈으로 보내요. 녹음 직후 확인 화면이 생기면 그 화면으로 바꿔요.
-  // 뒤로 가기로 이 주소에 돌아와 다시 보내지는 일이 없도록 지금 기록을 바꿔요
-  if (status === "completed") {
-    return (
-      <Navigate
-        to={getRouterPath({ routeKey: "WORKSPACE_HOME", params: routeParams })}
-        replace
-      />
-    );
-  }
-
-  // 아직 끝내지 않은 녹음은 녹음 화면으로 돌려보내요
-  if (status === "recording") {
-    return (
-      <Navigate
-        to={getRouterPath({ routeKey: "RECORDING", params: routeParams })}
-        replace
-      />
-    );
   }
 
   if (status === "organizing") return <DraftingState />;

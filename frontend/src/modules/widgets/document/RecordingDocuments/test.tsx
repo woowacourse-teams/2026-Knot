@@ -295,14 +295,15 @@ describe("RecordingDocuments", () => {
     ).toBeInTheDocument();
   });
 
-  it("문서 정리가 끝났으면 워크스페이스 홈으로 보낸다", async () => {
-    renderRecordingDocuments(completedRecording.recordingId);
+  it("문서 정리가 끝났으면 워크스페이스 홈으로 보내고, 뒤로 가도 정리 화면으로 돌아오지 않게 지금 기록을 바꾼다", async () => {
+    const { router } = renderRecordingDocuments(completedRecording.recordingId);
 
     expect(await screen.findByText("워크스페이스 홈")).toBeInTheDocument();
+    expect(router.state.historyAction).toBe("REPLACE");
   });
 
   it.each(["RECORDING", "PAUSED"] as const)(
-    "아직 녹음 중이면(%s) 녹음 화면으로 보낸다",
+    "아직 녹음 중이면(%s) 지금 기록을 바꿔 녹음 화면으로 보낸다",
     async (status) => {
       mockServer.use(
         http.get(RECORDING_REQUEST, () =>
@@ -315,9 +316,12 @@ describe("RecordingDocuments", () => {
           }),
         ),
       );
-      renderRecordingDocuments(organizingRecording.recordingId);
+      const { router } = renderRecordingDocuments(
+        organizingRecording.recordingId,
+      );
 
       expect(await screen.findByText("녹음 화면")).toBeInTheDocument();
+      expect(router.state.historyAction).toBe("REPLACE");
     },
   );
 
