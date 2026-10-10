@@ -48,7 +48,10 @@ export interface DocumentTopicRaw {
 export class DocumentTopicDto {
   /** 폴더 이름. AI가 분류한 주제 (예: "회원") */
   topic: string;
-  /** 이 주제의 전체 문서 수. 한 응답에 담긴 문서 수가 아니라 워크스페이스 전체를 센 값이에요 */
+  /**
+   * 조회 조건(녹음 ID 등)을 만족하는 이 주제의 문서 수.
+   * 한 응답에 담긴 문서 수가 아니라 cursor · size와 관계없이 센 값이에요. 조건이 없으면 워크스페이스 전체를 센 값이에요
+   */
   documentCount: number;
 
   constructor(raw: DocumentTopicRaw) {
@@ -121,9 +124,10 @@ export interface GetDocumentsResponseRaw {
  * 문서 목록 조회 응답.
  *
  * 문서(`items`)만 한 페이지씩 나눠서 오고, 주제 폴더(`topics`)는 어느 페이지에서나 전체가 와요.
+ * 녹음 ID 같은 조회 조건은 `items`와 `topics` 모두에 적용돼요.
  */
 export class GetDocumentsResponseDto {
-  /** 문서가 있는 주제 폴더 전체. 문서가 없는 주제는 들어 있지 않아요. 순서는 명세에 없어요 */
+  /** 조회 조건을 만족하는 문서가 있는 주제 폴더 전체. 조건에 맞는 문서가 없는 주제는 들어 있지 않아요. 순서는 명세에 없어요 */
   topics: DocumentTopicDto[];
   /** 문서 한 페이지. 최신순(생성 시각 내림차순, 같으면 ID 내림차순)이에요 */
   items: DocumentListItemDto[];

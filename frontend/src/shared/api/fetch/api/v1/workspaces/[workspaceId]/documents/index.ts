@@ -57,7 +57,7 @@ interface GetAllDocumentsApiParams {
 /**
  * @description 워크스페이스의 문서를 다음 페이지가 없을 때까지 이어 받아 하나로 합칩니다. 녹음 ID를 주면 그 녹음에서 나온 문서만 대상이에요. 도중에 한 요청이라도 실패하면 그때까지 받은 문서를 돌려주지 않고 실패해요
  * @param params - 워크스페이스 ID·녹음 ID
- * @returns 주제 폴더 전체·최신순 문서 전체(최대 2,000개)·다음 페이지 커서. 응답 하나가 아니라 여러 응답을 합친 값이에요
+ * @returns 주제 폴더 전체·최신순 문서 전체(최대 2,000개)·`nextCursor`. 응답 하나가 아니라 여러 응답을 합친 값이에요. `nextCursor`는 끝까지 받았으면 null이고, 요청 횟수 한계에서 멈춰 받지 못한 문서가 남았으면 null이 아니에요
  * @example
  * const { topics, items } = await getAllDocumentsApi({ workspaceId: 1 });
  */
@@ -89,7 +89,6 @@ export const getAllDocumentsApi = async ({
     nextCursor = page.nextCursor;
   }
 
-  // 주제 폴더는 어느 응답에나 전체가 담겨 있어 첫 응답의 것을 써요.
-  // 한계에서 멈췄으면 nextCursor가 null이 아니에요
+  // 주제 폴더는 어느 응답에나 전체가 담겨 있어 첫 응답의 것을 써요
   return { topics: firstPage.topics, items, nextCursor };
 };
