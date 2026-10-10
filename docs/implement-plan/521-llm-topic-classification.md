@@ -222,7 +222,7 @@ user content는 문자열 연결로 JSON을 만들지 않고 Jackson으로 직�
 - `LlmDocumentTopicClassifier.classify`: 공통 client의 문자열을 JSON으로 해석하고 주제 계약을 검증·정규화한다. 유효하지 않은 항목 하나라도 있으면 전체 응답을 실패 처리한다.
 - `DocumentTopicClassificationResult.isNoContent`: 이미 검증된 목록이 비어 있는지만 판정한다. 호출 실패를 처리하거나 예외를 잡는 메서드가 아니다.
 
-검증 private 메서드는 `validateTranscriptContent`, `validateCompletionStatus`, `validateFinishReason`, `validateAssistantContent`, `validateTopicsArray`, `validateTopicName`, `normalizeTopicName`, `removeDuplicateTopics`처럼 규칙 단위로 나눈다. 모든 비교를 무조건 메서드로 만들지는 않는다. 삼항 연산자 금지·선언 다음 빈 줄·필드 공백 규칙은 기존 AGENTS를 따른다.
+검증 private 메서드는 `validateTranscriptContent`, `validateCompletionStatus`, `validateFinishReason`, `validateAssistantContent`, `validateTopicsArray`, `validateTopicName`, `DocumentTopic.of`, `removeDuplicateTopics`처럼 규칙 단위로 나눈다. 모든 비교를 무조건 메서드로 만들지는 않는다. 삼항 연산자 금지·첫 선언 유형에 따른 공백·필드 공백 규칙은 기존 AGENTS를 따른다.
 
 ### 클래스 의존 관계
 
@@ -308,7 +308,7 @@ system prompt·schema resource와 분류용 옵션을 가진다. classpath resou
 | private `parseTopics(String content)` | assistant content → `List<DocumentTopic>` | JSON 객체·topics 배열·추가 필드 정책 확인 후 항목 검증과 정규화 수행 |
 | private `validateTopicsArray(JsonNode root)` | 해석한 JSON → void | 객체와 필수 topics 배열 확인. null·누락·잘못된 타입 거절 |
 | private `validateTopicName(JsonNode topic)` | 배열 항목 → void | 실제 문자열인지 확인. 숫자·boolean·null의 강제 문자열 변환 금지 |
-| private `normalizeTopicName(String topic)` | 주제 문자열 → 정리한 문자열 | Unicode NFC·Unicode 공백 정리. 정리 후 빈 문자열이면 분류 응답 오류 |
+| private `createTopic(String topic): DocumentTopic` | 주제 문자열 → 검증된 값 객체 | `DocumentTopic.of`가 NFC·공백 정규화와 빈 값 검증을 담당한다. 도메인 오류를 분류 응답 오류로 변환 |
 | private `removeDuplicateTopics(List<DocumentTopic> topics)` | 정리된 주제 목록 → 불변 `List<DocumentTopic>` | 정규화 문자열의 정확한 중복만 제거하고 최초 순서 유지 |
 
 `[" 검색 기능 ", "검색  기능", "알림 채널"]`은 `["검색 기능", "알림 채널"]`로 정리한다. `["검색 기능", " "]`은 전체 응답 실패다. 공백 항목만 버리고 성공 처리하지 않는다. 유효한 `[]`는 그대로 성공 반환한다.
@@ -480,7 +480,7 @@ Mockito는 위임·결과 계약을 확인하고 실제 HTTP 기한이나 인증
 3. **대기 기한·중단**: 응답 지연·중간 본문 정지·interrupt·크기 초과 테스트 → 전체 대기 한도와 취소 처리. happy path도 함께 유지.
 4. **분류 요청 구성**: 전체 원문·system/user 분리·Schema·추론 끔 옵션의 실패 테스트 → Prompt와 resource 검증.
 5. **정상 복수 주제와 내용 없음 구분**: `classify_success_multipleTopics`·정상 빈 배열·누락/타입/공백 항목 실패 테스트 → classifier의 JSON 해석·검증. client는 Mockito로 대체한다.
-6. **주제 정규화**: 공백·Unicode·중복·순서 테스트 → `normalizeTopicName`·`removeDuplicateTopics`. 의미 유사 주제 임의 병합 금지.
+6. **주제 정규화**: 공백·Unicode·중복·순서 테스트 → `DocumentTopic.of`·`removeDuplicateTopics`. 의미 유사 주제 임의 병합 금지.
 7. **유즈케이스 연결**: 정상 위임·공백 입력 거절·공급자 실패 전파 테스트 → Service와 불변 Result. 실패를 내용 없음으로 바꾸지 않음.
 8. **설정 조립**: 활성/비활성·필수값·범위 실패 테스트 → properties·Bean·환경변수 연결. 기본 테스트에 실제 token 불필요.
 9. **실제 분류 확인·문서**: 합성 사례의 실제 API 관찰 → 분류 설정·prompt 수정 시 같은 fixture 재측정. 요청/결과/판정·제한을 Markdown으로 기록.
