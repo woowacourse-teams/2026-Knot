@@ -11,6 +11,7 @@ import {
 import {
   GetDocumentConfirmationsResponseDto,
   GetDocumentResponseDto,
+  GetDocumentsResponseDto,
   PutDocumentConfirmationResponseDto,
 } from "@api/dto/document";
 import {
@@ -49,6 +50,7 @@ import {
   createChatSessionApi,
   getChatSessionsApi,
 } from "@api/fetch/api/v1/workspaces/[workspaceId]/conversations";
+import { getDocumentsApi } from "@api/fetch/api/v1/workspaces/[workspaceId]/documents";
 import { getDocumentApi } from "@api/fetch/api/v1/workspaces/[workspaceId]/documents/[documentId]";
 import { getDocumentConfirmationsApi } from "@api/fetch/api/v1/workspaces/[workspaceId]/documents/[documentId]/confirmations";
 import { confirmDocumentApi } from "@api/fetch/api/v1/workspaces/[workspaceId]/documents/[documentId]/confirmations/me";
@@ -80,6 +82,7 @@ import {
 import {
   documentConfirmationsResponse,
   documentDetailsResponse,
+  documentsResponse,
 } from "@api/mock/responses/document";
 import {
   recordingAudioUploadCompleteResponse,
@@ -200,6 +203,61 @@ describe("mock 기본 핸들러와 fetch 요청 함수의 대응", () => {
   });
 
   describe("문서", () => {
+    describe("GET /api/v1/workspaces/:workspaceId/documents", () => {
+      const expected = new GetDocumentsResponseDto(documentsResponse);
+
+      it("documentsResponse를 돌려준다", async () => {
+        await expect(
+          getDocumentsApi({ workspaceId: WORKSPACE_ID }),
+        ).resolves.toEqual(expected);
+      });
+
+      it("문서가 size보다 많으면 앞에서 size개만 주고 nextCursor를 준다. 주제 폴더는 전체를 준다", async () => {
+        const page = await getDocumentsApi({
+          workspaceId: WORKSPACE_ID,
+          size: 3,
+        });
+
+        expect(page.items).toEqual(expected.items.slice(0, 3));
+        expect(page.topics).toEqual(expected.topics);
+        expect(page.nextCursor).not.toBeNull();
+      });
+
+      it("nextCursor로 요청하면 그다음 문서부터 주고, 마지막 페이지의 nextCursor는 null이다", async () => {
+        const { nextCursor } = await getDocumentsApi({
+          workspaceId: WORKSPACE_ID,
+          size: 4,
+        });
+
+        const lastPage = await getDocumentsApi({
+          workspaceId: WORKSPACE_ID,
+          size: 4,
+          cursor: nextCursor ?? undefined,
+        });
+
+        expect(lastPage.items).toEqual(expected.items.slice(4));
+        expect(lastPage.nextCursor).toBeNull();
+      });
+
+      it("없는 cursor면 400 INVALID_PARAMETER로 답한다", async () => {
+        await expect(
+          getDocumentsApi({ workspaceId: WORKSPACE_ID, cursor: "없는 커서" }),
+        ).rejects.toMatchObject({
+          type: HTTP_ERROR_TYPE.badRequest,
+          code: "INVALID_PARAMETER",
+        });
+      });
+
+      it("size가 1~100을 벗어나면 400 INVALID_PARAMETER로 답한다", async () => {
+        await expect(
+          getDocumentsApi({ workspaceId: WORKSPACE_ID, size: 101 }),
+        ).rejects.toMatchObject({
+          type: HTTP_ERROR_TYPE.badRequest,
+          code: "INVALID_PARAMETER",
+        });
+      });
+    });
+
     it("GET /api/v1/workspaces/:workspaceId/documents/:documentId는 documentDetailsResponse에서 그 id의 문서를 돌려준다", async () => {
       const [document] = documentDetailsResponse;
 
@@ -286,6 +344,18 @@ describe("mock 기본 핸들러와 fetch 요청 함수의 대응", () => {
           "CONFIRMED",
           "PENDING",
         ]);
+      });
+
+      it("확인한 뒤에는 문서 목록의 그 문서도 내 상태와 집계가 함께 바뀐다", async () => {
+        const { confirmationSummary } = await confirmDocumentApi(pendingParams);
+
+        const { items } = await getDocumentsApi({ workspaceId: WORKSPACE_ID });
+        const confirmedItem = items.find(({ id }) => id === pendingDocument.id);
+
+        expect(confirmedItem).toMatchObject({
+          myConfirmationState: "CONFIRMED",
+          confirmationSummary,
+        });
       });
 
       it("다시 확인해도 처음 확인한 시각과 같은 집계를 돌려준다", async () => {

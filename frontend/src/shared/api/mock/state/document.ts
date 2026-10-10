@@ -2,12 +2,14 @@ import { meResponse } from "@api/mock/responses/auth";
 import {
   documentConfirmationsResponse,
   documentDetailsResponse,
+  documentsResponse,
 } from "@api/mock/responses/document";
 import type {
   DocumentConfirmationItem,
   DocumentConfirmationsResponse,
   DocumentDetailResponse,
   DocumentMyConfirmationResponse,
+  DocumentsResponse,
 } from "@api/mock/types/document";
 
 // 내가 확인을 누른 문서의 ID와 그 시각.
@@ -25,10 +27,60 @@ const STATE_ORDER = { CONFIRMED: 0, PENDING: 1, EXCLUDED: 2 };
 const isMe = ({ memberId }: DocumentConfirmationItem) =>
   memberId === meResponse.memberId;
 
+/** 문서 상세와 목록 항목이 함께 가진, 확인과 관련된 값 */
+type DocumentConfirmationFields = Pick<
+  DocumentDetailResponse,
+  "id" | "myConfirmationState" | "confirmationSummary"
+>;
+
 /** 기본 응답에서는 내가 미확인이지만, 그 뒤에 확인을 누른 문서인지 */
-const isNewlyConfirmed = (document: DocumentDetailResponse) =>
+const isNewlyConfirmed = (document: DocumentConfirmationFields) =>
   document.myConfirmationState === "PENDING" &&
   confirmedAtByDocumentId.has(document.id);
+
+/** 확인을 누른 문서에 덮어쓸 내 상태와 집계. 상세와 목록 항목이 같은 값을 써요 */
+const confirmedFields = ({
+  confirmationSummary,
+}: DocumentConfirmationFields) => ({
+  myConfirmationState: "CONFIRMED" as const,
+  confirmationSummary: {
+    ...confirmationSummary,
+    confirmedCount: confirmationSummary.confirmedCount + 1,
+    pendingCount: confirmationSummary.pendingCount - 1,
+  },
+});
+
+interface FindDocumentsParams {
+  /** 앞 페이지의 nextCursor. 첫 페이지면 null */
+  cursor: string | null;
+  size: number;
+}
+
+/**
+ * 문서 목록의 한 페이지. 확인을 누른 문서는 내 상태와 집계를 바꿔서 돌려줘요.
+ * 커서는 앞 페이지의 마지막 문서 ID예요. 그 ID의 문서가 없으면 undefined예요.
+ */
+export const findDocuments = ({ cursor, size }: FindDocumentsParams) => {
+  const { topics, items } = documentsResponse;
+  const cursorIndex = items.findIndex(({ id }) => String(id) === cursor);
+
+  if (cursor !== null && cursorIndex === -1) return undefined;
+
+  // 첫 페이지면 cursorIndex가 -1이라 0번째부터 잘라요
+  const start = cursorIndex + 1;
+  const end = start + size;
+  const hasNextPage = end < items.length;
+
+  return {
+    topics,
+    items: items
+      .slice(start, end)
+      .map((item) =>
+        isNewlyConfirmed(item) ? { ...item, ...confirmedFields(item) } : item,
+      ),
+    nextCursor: hasNextPage ? String(items[end - 1].id) : null,
+  } satisfies DocumentsResponse;
+};
 
 /** 문서 상세. 확인을 누른 문서는 내 상태와 집계를 바꿔서 돌려줘요 */
 export const findDocumentDetail = (documentId: number) => {
@@ -38,12 +90,7 @@ export const findDocumentDetail = (documentId: number) => {
 
   return {
     ...document,
-    myConfirmationState: "CONFIRMED",
-    confirmationSummary: {
-      ...document.confirmationSummary,
-      confirmedCount: document.confirmationSummary.confirmedCount + 1,
-      pendingCount: document.confirmationSummary.pendingCount - 1,
-    },
+    ...confirmedFields(document),
   } satisfies DocumentDetailResponse;
 };
 
