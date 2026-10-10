@@ -7,12 +7,19 @@ import { mockServer } from "@api/mock/server";
 import { ThemeProvider } from "@emotion/react";
 import { theme } from "@provider/themeProvider";
 import { getRouterPath, PATH_ROUTE } from "@routes/PATH_ROUTE";
+import { useRecordingStore } from "@store/recordingStore";
 import {
   focusManager,
   QueryClient,
   QueryClientProvider,
 } from "@tanstack/react-query";
-import { act, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { formatRecordingTime } from "@utils/formatRecordingTime";
 import { delay, http, HttpResponse } from "msw";
 import { createMemoryRouter, RouterProvider } from "react-router";
@@ -23,6 +30,10 @@ import RecordingListCard from ".";
 const WORKSPACE_ID = 1;
 const HOME_PATH = getRouterPath({
   routeKey: "WORKSPACE_HOME",
+  params: { workspaceId: String(WORKSPACE_ID) },
+});
+const RECORDING_PATH = getRouterPath({
+  routeKey: "RECORDING",
   params: { workspaceId: String(WORKSPACE_ID) },
 });
 const CURRENT_URL = `*${CURRENT_RECORDING_API_PATH(WORKSPACE_ID)}`;
@@ -46,7 +57,10 @@ const renderCard = () => {
     defaultOptions: { queries: { retry: false } },
   });
   const router = createMemoryRouter(
-    [{ path: PATH_ROUTE.WORKSPACE_HOME, element: <RecordingListCard /> }],
+    [
+      { path: PATH_ROUTE.WORKSPACE_HOME, element: <RecordingListCard /> },
+      { path: PATH_ROUTE.RECORDING, element: null },
+    ],
     { initialEntries: [HOME_PATH] },
   );
 
@@ -57,6 +71,8 @@ const renderCard = () => {
       </QueryClientProvider>
     </ThemeProvider>,
   );
+
+  return { router };
 };
 
 /** 현재 녹음 조회가 이 응답으로 답하게 해요 */
@@ -83,10 +99,23 @@ const advanceTimers = async (ms: number) => {
   });
 };
 
+/** 독에서 시작한 것처럼 이 탭에서 녹음을 시작해 둬요 */
+const startRecordingInThisTab = async () => {
+  await act(async () => {
+    await useRecordingStore.getState().connectMicrophone();
+    useRecordingStore.getState().startRecording({
+      workspaceId: WORKSPACE_ID,
+      recordingId: expectedRecording.recordingId,
+    });
+  });
+};
+
 describe("RecordingListCard", () => {
   afterEach(() => {
     vi.useRealTimers();
     vi.restoreAllMocks();
+    // 전역 저장소라 테스트끼리 녹음이 새지 않도록 처음 상태로 되돌려요
+    useRecordingStore.getState().discardRecording();
   });
 
   it("현재 녹음을 조회하는 동안에는 카드가 불러오는 중으로 표시된다", () => {
@@ -181,6 +210,38 @@ describe("RecordingListCard", () => {
     expect(
       screen.queryByRole("button", { name: OPEN_RECORDING }),
     ).not.toBeInTheDocument();
+  });
+
+  it("이 탭에서 시작한 녹음이면 「녹음 화면으로」를 눌러 녹음 화면으로 간다", async () => {
+    await startRecordingInThisTab();
+    const { router } = renderCard();
+
+    await act(async () => {
+      fireEvent.click(
+        await screen.findByRole("button", { name: OPEN_RECORDING }),
+      );
+    });
+
+    expect(router.state.location.pathname).toBe(RECORDING_PATH);
+  });
+
+  it("이 탭에서 시작한 녹음이면 서버 응답이 아니라 이 탭의 상태와 시간을 보여 준다", async () => {
+    // 서버가 아직 녹음을 모르는 것처럼 답해도 이 탭의 녹음을 보여 줘요
+    respondNoRecording();
+    await startRecordingInThisTab();
+    renderCard();
+
+    expect(
+      await screen.findByText(`녹음 중 · ${formatRecordingTime(0)}`),
+    ).toBeInTheDocument();
+
+    await act(async () => {
+      useRecordingStore.getState().pauseRecording();
+    });
+
+    expect(
+      screen.getByText(`일시정지 · ${formatRecordingTime(0)}`),
+    ).toBeInTheDocument();
   });
 
   it("창으로 돌아오면 현재 녹음을 다시 조회한다", async () => {
