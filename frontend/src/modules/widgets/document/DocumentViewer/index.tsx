@@ -14,6 +14,7 @@ import DocumentConfirmButton from "./ui/DocumentConfirmButton";
 import DocumentConfirmCount from "./ui/DocumentConfirmCount";
 import DocumentCopyButton from "./ui/DocumentCopyButton";
 import DocumentLoadFailed from "./ui/DocumentLoadFailed";
+import DocumentStepper from "./ui/DocumentStepper";
 import DocumentSkeleton from "./ui/DocumentSkeleton";
 
 /**
@@ -23,7 +24,8 @@ import DocumentSkeleton from "./ui/DocumentSkeleton";
  * 같은 판단을 프론트에도 두면 기준이 두 곳에 생기기 때문이에요.
  *
  * 받은 문서 값을 그리기만 하면 되는 것(경로 · 제목 · 날짜 · 녹음 길이 · 본문)은 여기서 직접 그려요.
- * 복사 버튼 · 확인 수 · 확인 버튼은 이 위젯의 부품(`ui/`)이고, 필요한 값과 동작을 여기서 넘겨줘요. 문서는 여기서 한 번만 조회해요.
+ * 복사 버튼 · 확인 수 · 스테퍼 · 확인 버튼은 이 위젯의 부품(`ui/`)이고, 필요한 값과 동작을 여기서 넘겨줘요. 문서는 여기서 한 번만 조회해요.
+ * 본문 아래 줄에는 왼쪽에 같은 녹음의 문서를 넘기는 스테퍼를, 오른쪽에 확인 버튼을 놓아요.
  * 확인 버튼은 확인 대상에게만 보여요. 확인한 뒤에는 누를 수 없는 「확인했어요」로 바뀌고, 확인 대상이 아니면 그리지 않아요.
  * 결정이 없는 회의 문서는 본문의 결정 없음 문장을 흐리게 그려요(STT-R23).
  */
@@ -54,7 +56,8 @@ export default function DocumentViewer() {
   }
 
   return (
-    <Container aria-labelledby={titleId}>
+    // 스테퍼로 다른 문서로 넘어가면 「복사됨」 같은 앞 문서의 표시가 남지 않게, 문서마다 새로 그려요
+    <Container key={documentDetail.id} aria-labelledby={titleId}>
       <Breadcrumb parent="문서" current={documentDetail.title} />
       <TopRow>
         <DocumentCopyButton
@@ -86,15 +89,22 @@ export default function DocumentViewer() {
         content={documentDetail.content}
         mutedLines={[NO_DECISION_SENTENCE]}
       />
-      {documentDetail.myConfirmationState !== "NOT_REQUIRED" && (
-        <ConfirmBar>
-          <DocumentConfirmButton
-            isConfirmed={documentDetail.myConfirmationState === "CONFIRMED"}
-            isConfirming={isConfirming}
-            onConfirm={confirmDocument}
-          />
-        </ConfirmBar>
-      )}
+      <ConfirmBar>
+        <DocumentStepper
+          workspaceId={workspaceId}
+          documentId={documentDetail.id}
+          recordingSessionId={documentDetail.recordingSessionId}
+        />
+        {documentDetail.myConfirmationState !== "NOT_REQUIRED" && (
+          <ConfirmButtonWrapper>
+            <DocumentConfirmButton
+              isConfirmed={documentDetail.myConfirmationState === "CONFIRMED"}
+              isConfirming={isConfirming}
+              onConfirm={confirmDocument}
+            />
+          </ConfirmButtonWrapper>
+        )}
+      </ConfirmBar>
     </Container>
   );
 }
@@ -147,11 +157,16 @@ const CreatedDate = styled.time`
   color: ${({ theme }) => theme.neutral[500]};
 `;
 
-/** 피그마 Confirm/하단 바: 본문 아래 구분선과 위아래 12px, 확인 버튼은 오른쪽 끝 */
+/** 피그마 Confirm/하단 바: 본문 아래 구분선과 위아래 12px, 왼쪽에 스테퍼 · 오른쪽에 확인 버튼 */
 const ConfirmBar = styled.div`
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: space-between;
   padding: 0.75rem 0; /* 12px 0 */
   border-top: 1px solid ${({ theme }) => theme.neutral[200]};
+`;
+
+/** 스테퍼가 아직 그려지지 않았을 때도 확인 버튼이 오른쪽 끝에 있게 해요 */
+const ConfirmButtonWrapper = styled.div`
+  margin-left: auto;
 `;

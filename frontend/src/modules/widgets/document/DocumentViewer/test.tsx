@@ -1,13 +1,19 @@
 import {
   GetDocumentConfirmationsResponseDto,
   GetDocumentResponseDto,
+  GetDocumentsResponseDto,
 } from "@api/dto/document";
 import {
   documentConfirmationsResponse,
   documentDetailsResponse,
+  documentsResponse,
 } from "@api/mock/responses/document";
 import { mockServer } from "@api/mock/server";
-import type { DocumentConfirmationsResponse } from "@api/mock/types/document";
+import { findDocuments } from "@api/mock/state/document";
+import type {
+  DocumentConfirmationsResponse,
+  DocumentsResponse,
+} from "@api/mock/types/document";
 import { ThemeProvider } from "@emotion/react";
 import { theme } from "@provider/themeProvider";
 import { getRouterPath, PATH_ROUTE } from "@routes/PATH_ROUTE";
@@ -34,6 +40,7 @@ const WORKSPACE_ID = "1";
 // 경로 파라미터 자리에 무엇이 와도 잡도록 fetch 상수 대신 패턴을 적어요
 const DOCUMENT_REQUEST =
   "*/api/v1/workspaces/:workspaceId/documents/:documentId";
+const DOCUMENTS_REQUEST = "*/api/v1/workspaces/:workspaceId/documents";
 const CONFIRMATIONS_REQUEST = `${DOCUMENT_REQUEST}/confirmations`;
 const MY_CONFIRMATION_REQUEST = `${CONFIRMATIONS_REQUEST}/me`;
 
@@ -64,6 +71,23 @@ const LOAD_FAILED_NOTICE = "목록을 불러오지 못했어요";
 const COPIED_DURATION_MS = 3000;
 const CONFIRM_BUTTON_NAME = "문서를 확인했어요";
 const CONFIRMED_BUTTON_NAME = "확인했어요";
+const STEPPER_NAME = "같은 녹음의 문서";
+
+// 여는 문서와 같은 녹음에서 나온 문서들. 스테퍼는 서버가 준 이 순서대로 넘겨요
+const recordingDocuments = new GetDocumentsResponseDto(
+  documentsResponse,
+).items.filter(
+  ({ recordingSessionId }) =>
+    recordingSessionId === expected.recordingSessionId,
+);
+const [firstRecordingDocument] = recordingDocuments;
+const lastRecordingDocument = recordingDocuments[recordingDocuments.length - 1];
+
+const getDocumentPath = (documentId: number) =>
+  getRouterPath({
+    routeKey: "DOCUMENT",
+    params: { workspaceId: WORKSPACE_ID, documentId: String(documentId) },
+  });
 
 const writeText = vi.fn<(text: string) => Promise<void>>();
 
@@ -94,6 +118,17 @@ const renderViewer = (documentId: string) => {
       </QueryClientProvider>
     </ThemeProvider>,
   );
+
+  return { router };
+};
+
+const findStepper = () => screen.findByRole("group", { name: STEPPER_NAME });
+
+/** 스테퍼의 이전 · 다음 버튼. 버튼에 이름이 없어 놓인 순서로 찾아요 */
+const getStepButtons = (stepper: HTMLElement) => {
+  const [previousButton, nextButton] = within(stepper).getAllByRole("button");
+
+  return { previousButton, nextButton };
 };
 
 /** 확인 수 문구에 포인터를 올려 확인한 사람 팝오버를 열어요 */
@@ -539,6 +574,181 @@ describe("DocumentViewer", () => {
     expect(
       await screen.findByRole("heading", { level: 2, name: expected.title }),
     ).toBeInTheDocument();
+  });
+
+  it("같은 녹음에서 나온 문서 가운데 지금 문서가 몇 번째인지 보여준다", async () => {
+    const position =
+      recordingDocuments.findIndex(({ id }) => id === expected.id) + 1;
+
+    renderViewer(String(expected.id));
+
+    expect(await findStepper()).toHaveTextContent(
+      `${position} / ${recordingDocuments.length}`,
+    );
+  });
+
+  it("다음을 누르면 같은 녹음의 다음 문서로 가고, 뒤로 가면 앞 문서로 돌아온다", async () => {
+    const [first, second] = recordingDocuments;
+    const { router } = renderViewer(String(first.id));
+
+    await click(getStepButtons(await findStepper()).nextButton);
+
+    expect(
+      await screen.findByRole("heading", { level: 2, name: second.title }),
+    ).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe(getDocumentPath(second.id));
+
+    await act(async () => {
+      await router.navigate(-1);
+    });
+
+    expect(
+      await screen.findByRole("heading", { level: 2, name: first.title }),
+    ).toBeInTheDocument();
+  });
+
+  it("이전을 누르면 같은 녹음의 앞 문서로 간다", async () => {
+    const [first, second] = recordingDocuments;
+    renderViewer(String(second.id));
+
+    await click(getStepButtons(await findStepper()).previousButton);
+
+    expect(
+      await screen.findByRole("heading", { level: 2, name: first.title }),
+    ).toBeInTheDocument();
+  });
+
+  it("첫 문서에서는 이전을, 마지막 문서에서는 다음을 누를 수 없다", async () => {
+    const { router } = renderViewer(String(firstRecordingDocument.id));
+
+    const firstButtons = getStepButtons(await findStepper());
+
+    expect(firstButtons.previousButton).toBeDisabled();
+    expect(firstButtons.nextButton).toBeEnabled();
+
+    await act(async () => {
+      await router.navigate(getDocumentPath(lastRecordingDocument.id));
+    });
+    await screen.findByRole("heading", {
+      level: 2,
+      name: lastRecordingDocument.title,
+    });
+
+    const lastButtons = getStepButtons(await findStepper());
+
+    expect(lastButtons.previousButton).toBeEnabled();
+    expect(lastButtons.nextButton).toBeDisabled();
+  });
+
+  it("스테퍼로 다른 문서로 넘어가면 앞 문서의 「복사됨」 표시가 남지 않는다", async () => {
+    const [first, second] = recordingDocuments;
+    renderViewer(String(first.id));
+
+    // 두 문서를 한 번씩 열어 둬요. 받아 둔 문서는 다시 넘길 때 불러오는 중 화면 없이 바로 바뀌어요
+    await click(getStepButtons(await findStepper()).nextButton);
+    await screen.findByRole("heading", { level: 2, name: second.title });
+    await click(getStepButtons(await findStepper()).previousButton);
+    await screen.findByRole("heading", { level: 2, name: first.title });
+
+    await click(screen.getByRole("button", { name: "복사" }));
+    expect(screen.getByRole("button", { name: "복사됨" })).toBeInTheDocument();
+
+    await click(getStepButtons(await findStepper()).nextButton);
+    await screen.findByRole("heading", { level: 2, name: second.title });
+
+    expect(
+      screen.queryByRole("button", { name: "복사됨" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("문서가 하나뿐인 녹음이면 1 / 1을 보여주고 이전 · 다음을 누를 수 없다", async () => {
+    const onlyDocument = documentsResponse.items.find(
+      ({ id }) => id === expected.id,
+    );
+    mockServer.use(
+      http.get(DOCUMENTS_REQUEST, () =>
+        HttpResponse.json({
+          topics: [],
+          items: onlyDocument === undefined ? [] : [onlyDocument],
+          nextCursor: null,
+        } satisfies DocumentsResponse),
+      ),
+    );
+    renderViewer(String(expected.id));
+
+    const stepper = await findStepper();
+    const { previousButton, nextButton } = getStepButtons(stepper);
+
+    expect(stepper).toHaveTextContent("1 / 1");
+    expect(previousButton).toBeDisabled();
+    expect(nextButton).toBeDisabled();
+  });
+
+  it("확인 대상이 아니어도 스테퍼는 보여준다", async () => {
+    mockServer.use(
+      http.get(DOCUMENT_REQUEST, () =>
+        HttpResponse.json({
+          ...documentDetailsResponse[0],
+          myConfirmationState: "NOT_REQUIRED",
+        }),
+      ),
+    );
+    renderViewer(String(expected.id));
+
+    expect(await findStepper()).toBeInTheDocument();
+    expect(queryConfirmButton()).not.toBeInTheDocument();
+  });
+
+  it("같은 녹음의 문서를 불러오지 못하면 스테퍼만 그리지 않고 문서는 그대로 보여준다", async () => {
+    let requestCount = 0;
+    mockServer.use(
+      http.get(DOCUMENTS_REQUEST, () => {
+        requestCount += 1;
+
+        return new HttpResponse(null, { status: 500 });
+      }),
+    );
+    renderViewer(String(expected.id));
+
+    await screen.findByRole("heading", { level: 2, name: expected.title });
+    await waitFor(() => expect(requestCount).toBe(1));
+
+    expect(
+      screen.queryByRole("group", { name: STEPPER_NAME }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { level: 2, name: expected.title }),
+    ).toBeInTheDocument();
+  });
+
+  it("같은 녹음의 문서를 여러 번에 나눠 받아도 요청마다 녹음 id를 붙이고, 받은 문서를 모두 센다", async () => {
+    const requestedRecordingIds: (string | null)[] = [];
+
+    // 요청한 size와 관계없이 1개씩만 줘서 여러 번 받게 해요
+    mockServer.use(
+      http.get(DOCUMENTS_REQUEST, ({ request }) => {
+        const { searchParams } = new URL(request.url);
+        const recordingSessionId = searchParams.get("recordingSessionId");
+
+        requestedRecordingIds.push(recordingSessionId);
+
+        return HttpResponse.json(
+          findDocuments({
+            cursor: searchParams.get("cursor"),
+            size: 1,
+            recordingSessionId: Number(recordingSessionId),
+          }),
+        );
+      }),
+    );
+    renderViewer(String(firstRecordingDocument.id));
+
+    expect(await findStepper()).toHaveTextContent(
+      `1 / ${recordingDocuments.length}`,
+    );
+    expect(requestedRecordingIds).toEqual(
+      recordingDocuments.map(() => String(expected.recordingSessionId)),
+    );
   });
 
   it("로그인이 풀렸으면(401) 로그인 화면으로 보낸다", async () => {
