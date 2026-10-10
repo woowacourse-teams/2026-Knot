@@ -95,6 +95,25 @@ public class DocumentGenerationBatch {
         }
     }
 
+    public void validateGenerationTarget(
+            DocumentGenerationJob job,
+            long inputRecordingSessionId,
+            long inputTranscriptId
+    ) {
+        if (topicRegistrationState != DocumentTopicRegistrationState.TOPICS_REGISTERED) {
+            throw new DocumentException(DocumentErrorCode.GENERATION_REGISTRATION_CONFLICT);
+        }
+        if (transcriptId == null || transcriptId != inputTranscriptId) {
+            throw new DocumentException(DocumentErrorCode.GENERATION_REGISTRATION_CONFLICT);
+        }
+        if (recordingSessionId != inputRecordingSessionId) {
+            throw new DocumentException(DocumentErrorCode.GENERATION_REGISTRATION_CONFLICT);
+        }
+        if (!topics.contains(job.getTopic())) {
+            throw new DocumentException(DocumentErrorCode.GENERATION_REGISTRATION_CONFLICT);
+        }
+    }
+
     public boolean isRegisteredWith(List<DocumentTopic> classifiedTopics) {
         if (topicRegistrationState == DocumentTopicRegistrationState.WAITING_CLASSIFICATION) {
             return false;

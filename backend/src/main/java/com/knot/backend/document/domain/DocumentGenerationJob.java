@@ -157,6 +157,12 @@ public class DocumentGenerationJob {
         }
     }
 
+    public void validateGenerationStage() {
+        if (stage != DocumentGenerationJobStage.GENERATION) {
+            throw new DocumentException(DocumentErrorCode.GENERATION_REGISTRATION_CONFLICT);
+        }
+    }
+
     public void recordSuccess(Instant completedAt) {
         validateRunningAttempt(attemptCount);
         validateFailureTime(completedAt);
