@@ -10,7 +10,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { formatDate } from "@utils/formatDate";
 import { formatDurationFromSeconds } from "@utils/formatDurationFromSeconds";
-import { http, HttpResponse } from "msw";
+import { delay, http, HttpResponse } from "msw";
 import { createMemoryRouter, RouterProvider, useParams } from "react-router";
 import { describe, expect, it } from "vitest";
 
@@ -25,6 +25,8 @@ const DOCUMENTS_REQUEST = "*/api/v1/workspaces/:workspaceId/documents";
 // 한 번에 요청하는 문서 수와 이어 받는 횟수의 한계. getAllDocumentsApi의 값과 같아요
 const REQUEST_SIZE = "100";
 const MAX_REQUEST_COUNT = 20;
+const LOADING_LABEL = "문서 목록을 불러오고 있어요";
+const LOAD_FAILED_NOTICE = "목록을 불러오지 못했어요. 다시 시도해 주세요.";
 
 // 어느 문서로 갔는지 확인할 수 있게 문서 보기 경로에 표시만 하는 화면을 둬요
 function DocumentViewStub() {
@@ -33,7 +35,8 @@ function DocumentViewStub() {
   return <p>문서 보기 화면 {documentId}</p>;
 }
 
-const renderDocumentList = () => {
+// 이동을 확인할 수 있게 로그인 · 워크스페이스 선택 경로에 표시만 하는 화면을 둬요
+const renderDocumentList = (workspaceId = WORKSPACE_ID) => {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
@@ -41,8 +44,10 @@ const renderDocumentList = () => {
     [
       { path: DOCUMENT_LIST_PATH, element: <DocumentList /> },
       { path: PATH_ROUTE.DOCUMENT, element: <DocumentViewStub /> },
+      { path: PATH_ROUTE.LOGIN, element: <p>로그인 화면</p> },
+      { path: PATH_ROUTE.WORKSPACE, element: <p>워크스페이스 선택 화면</p> },
     ],
-    { initialEntries: [`/workspace/${WORKSPACE_ID}/documents`] },
+    { initialEntries: [`/workspace/${workspaceId}/documents`] },
   );
 
   render(
@@ -68,6 +73,9 @@ const findRow = (title: string) =>
 
 const documentsOf = (topic: string) =>
   expected.items.filter((item) => item.topic === topic);
+
+const clickRetry = async () =>
+  fireEvent.click(await screen.findByRole("button", { name: "다시 시도" }));
 
 describe("DocumentList", () => {
   it("문서 화면의 제목과 설명을 보여 준다", async () => {
@@ -240,5 +248,176 @@ describe("DocumentList", () => {
       MAX_REQUEST_COUNT,
     );
     expect(requestCount).toBe(MAX_REQUEST_COUNT);
+  });
+
+  it("불러오는 동안에는 불러오는 중이라고 알리고, 문서를 받으면 폴더로 바꾼다", async () => {
+    mockServer.use(
+      http.get(DOCUMENTS_REQUEST, async () => {
+        await delay(50);
+
+        return HttpResponse.json(documentsResponse);
+      }),
+    );
+
+    renderDocumentList();
+
+    expect(
+      screen.getByRole("status", { name: LOADING_LABEL }),
+    ).toBeInTheDocument();
+
+    await findFolder(expected.topics[0].topic);
+
+    expect(
+      screen.queryByRole("status", { name: LOADING_LABEL }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("문서가 하나도 없으면 아직 문서가 없다고 알리고, 제목과 설명은 그대로 둔다", async () => {
+    respondWith({ topics: [], items: [], nextCursor: null });
+
+    renderDocumentList();
+
+    expect(await screen.findByText("아직 문서가 없어요")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "독의 마이크로 회의를 녹음하면 주제별로 정리된 문서가 폴더에 모여요",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { level: 2, name: "문서" }),
+    ).toBeInTheDocument();
+  });
+
+  it.each([
+    ["잘못된 요청(400)", () => new HttpResponse(null, { status: 400 })],
+    ["서버 오류(500)", () => new HttpResponse(null, { status: 500 })],
+    ["네트워크 오류", () => HttpResponse.error()],
+  ])(
+    "%s로 불러오지 못하면 목록 자리에 안내와 「다시 시도」를 보여 주고, 제목과 설명은 그대로 둔다",
+    async (_, respond) => {
+      mockServer.use(http.get(DOCUMENTS_REQUEST, respond));
+
+      renderDocumentList();
+
+      expect(await screen.findByRole("alert")).toHaveTextContent(
+        LOAD_FAILED_NOTICE,
+      );
+      expect(
+        screen.getByRole("button", { name: "다시 시도" }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("heading", { level: 2, name: "문서" }),
+      ).toBeInTheDocument();
+    },
+  );
+
+  it("「다시 시도」를 누르면 다시 불러와 폴더를 보여 준다", async () => {
+    let requestCount = 0;
+    mockServer.use(
+      http.get(DOCUMENTS_REQUEST, () => {
+        requestCount += 1;
+
+        return requestCount === 1
+          ? new HttpResponse(null, { status: 500 })
+          : HttpResponse.json(documentsResponse);
+      }),
+    );
+
+    renderDocumentList();
+    await clickRetry();
+
+    expect(await findFolder(expected.topics[0].topic)).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("이어 받는 도중 한 번이라도 실패하면 받은 문서를 보여 주지 않고, 「다시 시도」는 처음부터 다시 받는다", async () => {
+    const PAGE_SIZE = 3;
+    const requestedCursors: (string | null)[] = [];
+    let hasFailed = false;
+
+    // 3개씩 주다가, 다음 페이지를 처음 요청받았을 때 한 번만 실패해요
+    mockServer.use(
+      http.get(DOCUMENTS_REQUEST, ({ request }) => {
+        const cursor = new URL(request.url).searchParams.get("cursor");
+
+        requestedCursors.push(cursor);
+
+        if (cursor !== null && !hasFailed) {
+          hasFailed = true;
+
+          return new HttpResponse(null, { status: 500 });
+        }
+
+        return HttpResponse.json(findDocuments({ cursor, size: PAGE_SIZE }));
+      }),
+    );
+
+    renderDocumentList();
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      LOAD_FAILED_NOTICE,
+    );
+    // 첫 페이지의 문서 3개는 받았지만 보여 주지 않아요
+    expect(screen.queryByRole("link")).not.toBeInTheDocument();
+
+    await clickRetry();
+
+    for (const { title } of expected.items) {
+      expect(await findRow(title)).toBeInTheDocument();
+    }
+
+    // 실패한 요청 다음은 커서 없는 첫 페이지 요청이에요
+    const [, failedCursor, cursorAfterRetry] = requestedCursors;
+
+    expect(failedCursor).not.toBeNull();
+    expect(cursorAfterRetry).toBeNull();
+  });
+
+  it("로그인이 풀렸으면(401) 로그인 화면으로 보낸다", async () => {
+    mockServer.use(
+      http.get(
+        DOCUMENTS_REQUEST,
+        () => new HttpResponse(null, { status: 401 }),
+      ),
+    );
+
+    renderDocumentList();
+
+    expect(await screen.findByText("로그인 화면")).toBeInTheDocument();
+  });
+
+  it("워크스페이스 멤버가 아니면(403) 워크스페이스 선택 화면으로 보낸다", async () => {
+    mockServer.use(
+      http.get(
+        DOCUMENTS_REQUEST,
+        () => new HttpResponse(null, { status: 403 }),
+      ),
+    );
+
+    renderDocumentList();
+
+    expect(
+      await screen.findByText("워크스페이스 선택 화면"),
+    ).toBeInTheDocument();
+  });
+
+  it("주소의 워크스페이스 id가 정수가 아니면 문서를 요청하지 않는다", async () => {
+    let requestCount = 0;
+    mockServer.use(
+      http.get(DOCUMENTS_REQUEST, () => {
+        requestCount += 1;
+
+        return HttpResponse.json(documentsResponse);
+      }),
+    );
+
+    renderDocumentList("abc");
+
+    expect(
+      await screen.findByRole("heading", { level: 2, name: "문서" }),
+    ).toBeInTheDocument();
+    // 요청이 나갔다면 응답이 돌아올 만큼 기다린 뒤에 세요
+    await delay(50);
+    expect(requestCount).toBe(0);
   });
 });

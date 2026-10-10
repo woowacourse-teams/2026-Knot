@@ -8,6 +8,7 @@ import DocumentFolders from "./ui/DocumentFolders";
  * 문서 목록 섹션. 워크스페이스의 모든 문서를 폴더(주제)별로 모아 보여주고, 행을 누르면 그 문서 보기로 가요.
  *
  * 주소의 워크스페이스 id는 읽은 이 자리에서 확인해요. 그래서 조회하는 쪽(`ui/DocumentFolders`)은 정수만 받고 다시 검사하지 않아요.
+ * 정수가 아니면 조회하지 않고 제목과 설명만 그려요. 그 주소는 `WorkspaceLayout`이 워크스페이스 선택 화면으로 보내므로 따로 안내를 두지 않아요.
  */
 export default function DocumentList() {
   const titleId = useId();

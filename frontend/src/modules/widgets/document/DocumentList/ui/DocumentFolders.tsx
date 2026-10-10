@@ -1,9 +1,12 @@
-import useDocumentsQuery from "@api/queries/useDocumentsQuery";
 import styled from "@emotion/styled";
 import { getRouterPath } from "@routes/PATH_ROUTE";
-import { groupDocumentsByTopic } from "@utils/groupDocumentsByTopic";
+
+import { useDocumentList } from "../model/useDocumentList";
 
 import DocumentFolder from "./DocumentFolder";
+import DocumentListEmpty from "./DocumentListEmpty";
+import DocumentListLoadFailed from "./DocumentListLoadFailed";
+import DocumentListSkeleton from "./DocumentListSkeleton";
 import DocumentRow from "./DocumentRow";
 
 interface DocumentFoldersProps {
@@ -12,23 +15,25 @@ interface DocumentFoldersProps {
 }
 
 /**
- * 워크스페이스의 문서를 모두 불러와 폴더별로 보여줘요. 주소 확인은 `DocumentList`가 끝낸 뒤예요.
+ * 워크스페이스의 문서를 모두 불러와 상태에 맞는 화면을 그려요. 주소 확인은 `DocumentList`가 끝낸 뒤예요.
+ * 문서를 받으면 폴더별로 보여주고, 불러오는 중 · 문서 없음 · 불러오기 실패는 목록 자리에 안내를 둬요.
  *
  * 폴더는 이름순, 폴더 안의 문서는 최신순이에요. 확인 여부나 문서 상태로 묶거나 정렬하지 않아요(DOC-R11).
  */
 export default function DocumentFolders({ workspaceId }: DocumentFoldersProps) {
-  const { data: documentList } = useDocumentsQuery({ workspaceId });
+  const documentList = useDocumentList({ workspaceId });
 
-  if (documentList === undefined) return null;
+  if (documentList.status === "loading") return <DocumentListSkeleton />;
 
-  const folders = groupDocumentsByTopic({
-    topics: documentList.topics,
-    documents: documentList.items,
-  });
+  if (documentList.status === "failed") {
+    return <DocumentListLoadFailed onRetry={documentList.retry} />;
+  }
+
+  if (documentList.status === "empty") return <DocumentListEmpty />;
 
   return (
     <Container>
-      {folders.map(({ topic, documentCount, documents }) => (
+      {documentList.folders.map(({ topic, documentCount, documents }) => (
         <DocumentFolder key={topic} topic={topic} documentCount={documentCount}>
           {documents.map(
             ({ id, title, summary, createdAt, recordingDurationSeconds }) => (
