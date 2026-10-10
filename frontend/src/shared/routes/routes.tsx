@@ -109,6 +109,7 @@ export const routes: RouteObject[] = [
 
   // GNB — 워크스페이스 입장 후
   {
+    handle: { hasDock: true },
     element: <WorkspaceLayout />,
     children: [
       {

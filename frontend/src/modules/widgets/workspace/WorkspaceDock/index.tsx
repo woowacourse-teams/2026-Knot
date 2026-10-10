@@ -1,5 +1,6 @@
 import { keyframes } from "@emotion/react";
 import styled from "@emotion/styled";
+import { DOCK_HEIGHT } from "@primitives/layout/DockColumn";
 import Textarea from "@primitives/ui/Textarea";
 
 import GhostIcon from "@/assets/icons/ghost.svg";
@@ -178,7 +179,7 @@ const Bar = styled.form<{
 
     return $hasMic ? "6.75rem" : "4rem"; /* 108px : 64px */
   }};
-  min-height: 3.75rem; /* 60px — 여러 줄이면 이만큼에서부터 늘어나요 */
+  min-height: ${DOCK_HEIGHT}; /* 여러 줄이면 이만큼에서부터 늘어나요 */
   padding: ${({ $isExpanded }) =>
     $isExpanded
       ? "0.75rem 0.75rem 0.75rem 1.25rem" /* 12px 12px 12px 20px */

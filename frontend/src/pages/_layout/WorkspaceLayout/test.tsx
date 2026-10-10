@@ -3,7 +3,10 @@ import { workspaceDetailResponse } from "@api/mock/responses/workspace";
 import { SEARCH_MESSAGES_MOCK } from "@hooks/domain/search/useSearchMessages/mock";
 import { mockServer } from "@api/mock/server";
 import { ThemeProvider } from "@emotion/react";
-import { DialogProvider } from "@provider/context/dialogContext";
+import CenteredLayout from "@pages/_layout/CenteredLayout";
+import AppProviders from "@provider/AppProviders";
+import { useDialog } from "@provider/context/dialogContext";
+import { useToast } from "@provider/context/toastContext";
 import { theme } from "@provider/themeProvider";
 import { getRouterPath, PATH_ROUTE } from "@routes/PATH_ROUTE";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -16,7 +19,7 @@ import {
   within,
 } from "@testing-library/react";
 import { delay, http, HttpResponse } from "msw";
-import { createMemoryRouter, RouterProvider } from "react-router";
+import { createMemoryRouter, Outlet, RouterProvider } from "react-router";
 import { describe, expect, it } from "vitest";
 
 import WorkspaceLayout from ".";
@@ -35,11 +38,48 @@ const CONVERSATION_PATH = getRouterPath({
   routeKey: "CHAT_SESSION",
   params: { workspaceId: String(WORKSPACE_ID), sessionId: "10" },
 });
+const TOAST_PATH = `${HOME_PATH}/toast`;
 const ELSEWHERE_PATH = "/elsewhere";
 const HOME_TEXT = "홈 본문";
 const CHAT_TEXT = "탐색 본문";
 // 경로 파라미터가 있어 fetch 상수 대신 mock 핸들러와 같은 패턴을 적어요
 const WORKSPACE_PATH_PATTERN = "*/api/v1/workspaces/:workspaceId";
+
+const SAVED = "녹음을 저장했어요";
+
+function ToastTriggerPage() {
+  const { show } = useToast();
+  const { open } = useDialog();
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => show({ variant: "success", message: SAVED })}
+      >
+        {SAVED} 알리기
+      </button>
+      <button type="button" onClick={() => open(() => <ToastDialog />)}>
+        알림 모달 열기
+      </button>
+    </>
+  );
+}
+
+function ToastDialog() {
+  const { show } = useToast();
+
+  return (
+    <div role="dialog" aria-label="알림 모달">
+      <button
+        type="button"
+        onClick={() => show({ variant: "success", message: SAVED })}
+      >
+        모달에서 알리기
+      </button>
+    </div>
+  );
+}
 
 const renderLayout = (initialPath = HOME_PATH) => {
   const queryClient = new QueryClient({
@@ -48,19 +88,39 @@ const renderLayout = (initialPath = HOME_PATH) => {
       mutations: { retry: false },
     },
   });
+  const layouts = [
+    {
+      handle: { hasDock: true },
+      element: <WorkspaceLayout />,
+      children: [
+        { path: PATH_ROUTE.WORKSPACE_HOME, element: <p>{HOME_TEXT}</p> },
+        {
+          path: `${PATH_ROUTE.WORKSPACE_HOME}/toast`,
+          element: <ToastTriggerPage />,
+        },
+        { path: PATH_ROUTE.CHAT, element: <p>{CHAT_TEXT}</p> },
+        { path: PATH_ROUTE.CHAT_SESSION, element: <p>{CHAT_TEXT}</p> },
+      ],
+    },
+    {
+      element: <CenteredLayout />,
+      children: [
+        { path: ELSEWHERE_PATH, element: <p>다른 화면</p> },
+        { path: PATH_ROUTE.WORKSPACE, element: <p>워크스페이스 선택</p> },
+        { path: PATH_ROUTE.LOGIN, element: <p>로그인</p> },
+      ],
+    },
+  ];
   const router = createMemoryRouter(
     [
-      { path: ELSEWHERE_PATH, element: <p>다른 화면</p> },
       {
-        element: <WorkspaceLayout />,
-        children: [
-          { path: PATH_ROUTE.WORKSPACE_HOME, element: <p>{HOME_TEXT}</p> },
-          { path: PATH_ROUTE.CHAT, element: <p>{CHAT_TEXT}</p> },
-          { path: PATH_ROUTE.CHAT_SESSION, element: <p>{CHAT_TEXT}</p> },
-        ],
+        element: (
+          <AppProviders routes={layouts}>
+            <Outlet />
+          </AppProviders>
+        ),
+        children: layouts,
       },
-      { path: PATH_ROUTE.WORKSPACE, element: <p>워크스페이스 선택</p> },
-      { path: PATH_ROUTE.LOGIN, element: <p>로그인</p> },
     ],
     { initialEntries: [ELSEWHERE_PATH, initialPath] },
   );
@@ -68,9 +128,7 @@ const renderLayout = (initialPath = HOME_PATH) => {
   render(
     <ThemeProvider theme={theme}>
       <QueryClientProvider client={queryClient}>
-        <DialogProvider>
-          <RouterProvider router={router} />
-        </DialogProvider>
+        <RouterProvider router={router} />
       </QueryClientProvider>
     </ThemeProvider>,
   );
@@ -386,5 +444,85 @@ describe("WorkspaceLayout", () => {
     expect(getBody()?.lastElementChild).toContainElement(
       screen.getByRole("region", { name: "찾은 기록" }),
     );
+  });
+
+  it("[공통 UI 규칙·위치] 토스트는 독과 같은 자리의 독 바로 위에 그려진다", async () => {
+    renderLayout(TOAST_PATH);
+
+    await act(async () => {
+      fireEvent.click(
+        await screen.findByRole("button", { name: `${SAVED} 알리기` }),
+      );
+    });
+
+    const toastList = screen.getByTestId("toast-list");
+    const dockButton = screen.getByRole("button", { name: "무엇이든 요청하기" });
+
+    expect(within(toastList).getByText(SAVED)).toBeVisible();
+    // 목록 바로 다음 칸에 독이 놓여요
+    expect(toastList.nextElementSibling).toContainElement(
+      dockButton,
+    );
+  });
+
+  it("홈에서 탐색으로 이동해도 같은 토스트 목록을 유지한다", async () => {
+    const { router } = renderLayout(TOAST_PATH);
+    fireEvent.click(await screen.findByRole("button", { name: `${SAVED} 알리기` }));
+    const list = screen.getByTestId("toast-list");
+
+    await act(() => router.navigate(CHAT_PATH));
+
+    expect(await screen.findByText(CHAT_TEXT)).toBeInTheDocument();
+    expect(screen.getByTestId("toast-list")).toBe(list);
+    expect(within(list).getByText(SAVED)).toBeVisible();
+  });
+
+  it("같은 레이아웃에서 이동한 뒤에도 열린 모달이 토스트를 띄울 수 있다", async () => {
+    const { router } = renderLayout(TOAST_PATH);
+    fireEvent.click(await screen.findByRole("button", { name: "알림 모달 열기" }));
+
+    await act(() => router.navigate(CHAT_PATH));
+    expect(await screen.findByText(CHAT_TEXT)).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "알림 모달" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "모달에서 알리기" }));
+    expect(within(screen.getByTestId("toast-list")).getByText(SAVED)).toBeVisible();
+  });
+
+  it("다른 레이아웃으로 나가도 모달은 유지하고 이전 토스트만 정리한다", async () => {
+    const { router } = renderLayout(TOAST_PATH);
+    fireEvent.click(await screen.findByRole("button", { name: "알림 모달 열기" }));
+    fireEvent.click(screen.getByRole("button", { name: "모달에서 알리기" }));
+
+    await act(() => router.navigate(PATH_ROUTE.LOGIN));
+
+    expect(screen.getByRole("dialog", { name: "알림 모달" })).toBeInTheDocument();
+    expect(screen.getByTestId("toast-list")).toBeEmptyDOMElement();
+    fireEvent.click(screen.getByRole("button", { name: "모달에서 알리기" }));
+    expect(within(screen.getByTestId("toast-list")).getByText(SAVED)).toBeVisible();
+  });
+
+  it("다른 워크스페이스를 불러오는 동안에도 같은 레이아웃의 토스트를 유지한다", async () => {
+    const { router } = renderLayout(TOAST_PATH);
+    fireEvent.click(await screen.findByRole("button", { name: `${SAVED} 알리기` }));
+    const list = screen.getByTestId("toast-list");
+    holdWorkspaceResponse();
+
+    await act(() => router.navigate("/workspace/2"));
+
+    expect(screen.getByRole("main")).toHaveAttribute("aria-busy", "true");
+    expect(screen.getByTestId("toast-list")).toBe(list);
+    expect(within(list).getByText(SAVED)).toBeVisible();
+  });
+
+  it("다른 레이아웃으로 나갔다 돌아오면 이전 토스트가 다시 나타나지 않는다", async () => {
+    const { router } = renderLayout(TOAST_PATH);
+    fireEvent.click(await screen.findByRole("button", { name: `${SAVED} 알리기` }));
+
+    await act(() => router.navigate(PATH_ROUTE.LOGIN));
+    expect(screen.getByTestId("toast-list")).toBeEmptyDOMElement();
+
+    await act(() => router.navigate(-1));
+    expect(await screen.findByRole("button", { name: `${SAVED} 알리기` })).toBeVisible();
+    expect(screen.getByTestId("toast-list")).toBeEmptyDOMElement();
   });
 });
