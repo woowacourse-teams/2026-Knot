@@ -53,6 +53,16 @@ public enum DocumentErrorCode implements ErrorCode {
             "INVALID_TOPIC_CLASSIFICATION_RESPONSE",
             "주제 분류 응답이 올바르지 않습니다"
     ),
+    INVALID_DOCUMENT_GENERATION_INPUT(
+            ErrorCategory.INTERNAL_SERVER_ERROR,
+            "INVALID_DOCUMENT_GENERATION_INPUT",
+            "문서 생성에 사용할 원문 또는 주제가 올바르지 않습니다"
+    ),
+    INVALID_DOCUMENT_GENERATION_RESPONSE(
+            ErrorCategory.INTERNAL_SERVER_ERROR,
+            "INVALID_DOCUMENT_GENERATION_RESPONSE",
+            "문서 생성 응답이 올바르지 않습니다"
+    ),
     INVALID_DOCUMENT_DATA(
             ErrorCategory.INVALID_INPUT,
             "INVALID_DOCUMENT_DATA",
