@@ -1,5 +1,6 @@
 import { NO_DECISION_SENTENCE } from "@constants/document";
 import styled from "@emotion/styled";
+import useConfirmDocument from "@hooks/domain/document/useConfirmDocument";
 import Breadcrumb from "@primitives/ui/Breadcrumb";
 import Chip from "@primitives/ui/Chip";
 import DocumentBody from "@primitives/ui/DocumentBody";
@@ -8,7 +9,6 @@ import { formatDurationFromSeconds } from "@utils/formatDurationFromSeconds";
 import { useId } from "react";
 import { useParams } from "react-router";
 
-import { useConfirmDocument } from "./model/useConfirmDocument";
 import { useDocumentViewer } from "./model/useDocumentViewer";
 import DocumentConfirmButton from "./ui/DocumentConfirmButton";
 import DocumentConfirmCount from "./ui/DocumentConfirmCount";
