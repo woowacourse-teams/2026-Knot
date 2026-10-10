@@ -38,19 +38,19 @@ public class RecordingSessionRepositoryAdapter implements RecordingSessionReposi
     }
 
     @Override
-    public Optional<RecordingSession> findByMemberIdAndRequestId(
+    public Optional<RecordingSession> findByMemberIdAndRequestIdForUpdate(
             long memberId,
             UUID requestId
     ) {
-        return recordingSessionJpaRepository.findByMemberIdAndRequestId(
+        return recordingSessionJpaRepository.findWithLockByMemberIdAndRequestId(
                 memberId,
                 requestId
         );
     }
 
     @Override
-    public boolean existsActiveByMemberId(long memberId) {
-        return recordingSessionJpaRepository.existsByMemberIdAndStatusIn(
+    public List<RecordingSession> findAllActiveByMemberIdForUpdate(long memberId) {
+        return recordingSessionJpaRepository.findAllByMemberIdAndStatusInOrderByIdAsc(
                 memberId,
                 RecordingStatus.ACTIVE_STATUSES
         );

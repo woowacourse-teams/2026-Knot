@@ -14,6 +14,7 @@ import static org.mockito.Mockito.when;
 
 import com.knot.backend.recording.application.dto.command.RecordingControlCommand;
 import com.knot.backend.recording.application.dto.result.RecordingEndResult;
+import com.knot.backend.recording.domain.RecordingEndReason;
 import com.knot.backend.recording.domain.RecordingErrorCode;
 import com.knot.backend.recording.domain.RecordingException;
 import com.knot.backend.recording.domain.RecordingSession;
@@ -61,12 +62,15 @@ class RecordingEndServiceTest {
         when(hasher.hash(CONTROL_TOKEN)).thenReturn(HASH);
         when(hasher.hash(OTHER_CONTROL_TOKEN)).thenReturn(OTHER_HASH);
         service = new RecordingEndService(
-                new RecordingWorkspaceAccessValidator(
-                        workspaceRepository,
-                        workspaceMemberRepository
+                new RecordingControlledSessionLoader(
+                        new RecordingWorkspaceAccessValidator(
+                                workspaceRepository,
+                                workspaceMemberRepository
+                        ),
+                        recordingSessionRepository,
+                        hasher
                 ),
                 recordingSessionRepository,
-                hasher,
                 Clock.fixed(
                         NOW,
                         ZoneOffset.UTC
@@ -80,6 +84,10 @@ class RecordingEndServiceTest {
         // given
         prepareAccess();
         RecordingSession session = recordingSession(MEMBER_ID);
+        keepAlive(
+                session,
+                NOW
+        );
         when(recordingSessionRepository.findByIdForUpdate(RECORDING_ID)).thenReturn(Optional.of(session));
         when(recordingSessionRepository.save(session)).thenReturn(session);
 
@@ -111,6 +119,29 @@ class RecordingEndServiceTest {
                 .findByIdForUpdate(RECORDING_ID);
         inOrder.verify(recordingSessionRepository)
                 .save(session);
+    }
+
+    @Test
+    @DisplayName("연결이 만료된 녹음을 종료하면 요청 시각이 아니라 만료 시각으로 종료한다")
+    void end_success_connectionExpired() {
+        // given
+        prepareAccess();
+        RecordingSession session = recordingSession(MEMBER_ID);
+        when(recordingSessionRepository.findByIdForUpdate(RECORDING_ID)).thenReturn(Optional.of(session));
+        when(recordingSessionRepository.save(session)).thenReturn(session);
+
+        // when
+        RecordingEndResult result = service.end(
+                WORKSPACE_ID,
+                MEMBER_ID,
+                RECORDING_ID,
+                command(TAB_ID)
+        );
+
+        // then
+        assertThat(result.status()).isEqualTo(RecordingStatus.ENDED);
+        assertThat(result.endedAt()).isEqualTo(STARTED_AT.plusSeconds(120));
+        assertThat(session.getEndReason()).isEqualTo(RecordingEndReason.CONNECTION_EXPIRED);
     }
 
     @Test
@@ -405,5 +436,15 @@ class RecordingEndServiceTest {
                 HASH,
                 STARTED_AT
         );
+    }
+
+    private void keepAlive(
+            RecordingSession session,
+            Instant until
+    ) {
+        for (Instant at = session.getLastSeenAt()
+                .plusSeconds(60); at.isBefore(until); at = at.plusSeconds(60)) {
+            session.recordHeartbeat(at);
+        }
     }
 }

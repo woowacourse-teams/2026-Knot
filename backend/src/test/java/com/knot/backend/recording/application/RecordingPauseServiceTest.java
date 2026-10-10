@@ -58,15 +58,20 @@ class RecordingPauseServiceTest {
         hasher = mock(RecordingControlTokenHasher.class);
         when(hasher.hash(CONTROL_TOKEN)).thenReturn(HASH);
         service = new RecordingPauseService(
-                new RecordingWorkspaceAccessValidator(
-                        workspaceRepository,
-                        workspaceMemberRepository
-                ),
-                recordingSessionRepository,
-                hasher,
-                Clock.fixed(
-                        NOW,
-                        ZoneOffset.UTC
+                new RecordingPauseTransaction(
+                        new RecordingControlledSessionLoader(
+                                new RecordingWorkspaceAccessValidator(
+                                        workspaceRepository,
+                                        workspaceMemberRepository
+                                ),
+                                recordingSessionRepository,
+                                hasher
+                        ),
+                        recordingSessionRepository,
+                        Clock.fixed(
+                                NOW,
+                                ZoneOffset.UTC
+                        )
                 )
         );
     }
@@ -77,6 +82,10 @@ class RecordingPauseServiceTest {
         // given
         prepareAccess();
         RecordingSession session = recordingSession(MEMBER_ID);
+        keepAlive(
+                session,
+                NOW
+        );
         when(recordingSessionRepository.findByIdForUpdate(RECORDING_ID)).thenReturn(Optional.of(session));
         when(recordingSessionRepository.save(session)).thenReturn(session);
 
@@ -102,6 +111,34 @@ class RecordingPauseServiceTest {
                 .findByIdForUpdate(RECORDING_ID);
         inOrder.verify(recordingSessionRepository)
                 .save(session);
+    }
+
+    @Test
+    @DisplayName("연결이 만료된 녹음은 만료 종료를 저장한 뒤 이미 종료된 녹음으로 거절한다")
+    void pause_failure_connectionExpired() {
+        // given
+        prepareAccess();
+        RecordingSession session = recordingSession(MEMBER_ID);
+        when(recordingSessionRepository.findByIdForUpdate(RECORDING_ID)).thenReturn(Optional.of(session));
+        when(recordingSessionRepository.save(session)).thenReturn(session);
+
+        // when
+        Throwable failure = catchThrowable(
+                () -> service.pause(
+                        WORKSPACE_ID,
+                        MEMBER_ID,
+                        RECORDING_ID,
+                        command(TAB_ID)
+                )
+        );
+
+        // then
+        assertThat(failure).isInstanceOf(RecordingException.class)
+                .extracting("errorCode")
+                .isEqualTo(RecordingErrorCode.RECORDING_ALREADY_ENDED);
+        assertThat(session.getStatus()).isEqualTo(RecordingStatus.ENDED);
+        assertThat(session.getEndedAt()).isEqualTo(STARTED_AT.plusSeconds(120));
+        verify(recordingSessionRepository).save(session);
     }
 
     @Test
@@ -253,5 +290,15 @@ class RecordingPauseServiceTest {
                 HASH,
                 STARTED_AT
         );
+    }
+
+    private void keepAlive(
+            RecordingSession session,
+            Instant until
+    ) {
+        for (Instant at = session.getLastSeenAt()
+                .plusSeconds(60); at.isBefore(until); at = at.plusSeconds(60)) {
+            session.recordHeartbeat(at);
+        }
     }
 }

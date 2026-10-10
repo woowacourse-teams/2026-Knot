@@ -8,6 +8,7 @@ import com.knot.backend.recording.domain.RecordingException;
 import com.knot.backend.recording.domain.RecordingSession;
 import com.knot.backend.recording.domain.RecordingSessionRepository;
 import java.time.Clock;
+import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -37,7 +38,7 @@ public class RecordingStartService {
                 .orElseThrow(() -> new RecordingException(RecordingErrorCode.RECORDING_MEMBER_NOT_FOUND));
 
         String controlTokenHash = controlTokenHasher.hash(command.controlToken());
-        Optional<RecordingSession> existing = recordingSessionRepository.findByMemberIdAndRequestId(
+        Optional<RecordingSession> existing = recordingSessionRepository.findByMemberIdAndRequestIdForUpdate(
                 memberId,
                 command.requestId()
         );
@@ -49,9 +50,7 @@ public class RecordingStartService {
                     controlTokenHash
             );
         }
-        if (recordingSessionRepository.existsActiveByMemberId(memberId)) {
-            throw new RecordingException(RecordingErrorCode.ACTIVE_RECORDING_ALREADY_EXISTS);
-        }
+        reclaimDisconnectedOrRejectActive(memberId);
 
         RecordingSession session = RecordingSession.start(
                 workspaceId,
@@ -59,8 +58,7 @@ public class RecordingStartService {
                 command.requestId(),
                 command.tabId(),
                 controlTokenHash,
-                clock.instant()
-                        .truncatedTo(ChronoUnit.MICROS)
+                now()
         );
         return RecordingStartResult.from(
                 recordingSessionRepository.save(session),
@@ -81,9 +79,27 @@ public class RecordingStartService {
         )) {
             throw new RecordingException(RecordingErrorCode.RECORDING_START_REQUEST_CONFLICT);
         }
+        if (session.expireIfDisconnected(now())) {
+            recordingSessionRepository.save(session);
+        }
         return RecordingStartResult.from(
                 session,
                 false
         );
+    }
+
+    private void reclaimDisconnectedOrRejectActive(long memberId) {
+        Instant now = now();
+        for (RecordingSession active : recordingSessionRepository.findAllActiveByMemberIdForUpdate(memberId)) {
+            if (!active.expireIfDisconnected(now)) {
+                throw new RecordingException(RecordingErrorCode.ACTIVE_RECORDING_ALREADY_EXISTS);
+            }
+            recordingSessionRepository.save(active);
+        }
+    }
+
+    private Instant now() {
+        return clock.instant()
+                .truncatedTo(ChronoUnit.MICROS);
     }
 }

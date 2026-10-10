@@ -130,6 +130,10 @@ class RecordingCurrentServiceTest {
         Instant resumedAt = NOW.plusMillis(2);
         RecordingSession session = recordingSession();
         session.pause(STARTED_AT.plusSeconds(60));
+        keepAlive(
+                session,
+                NOW
+        );
         when(
                 recordingSessionRepository.findActiveByWorkspaceIdAndMemberId(
                         WORKSPACE_ID,
@@ -322,5 +326,15 @@ class RecordingCurrentServiceTest {
         doReturn(RECORDING_ID).when(session)
                 .getId();
         return session;
+    }
+
+    private void keepAlive(
+            RecordingSession session,
+            Instant until
+    ) {
+        for (Instant at = session.getLastSeenAt()
+                .plusSeconds(60); at.isBefore(until); at = at.plusSeconds(60)) {
+            session.recordHeartbeat(at);
+        }
     }
 }

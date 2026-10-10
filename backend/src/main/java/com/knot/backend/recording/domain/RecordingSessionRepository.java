@@ -12,12 +12,12 @@ public interface RecordingSessionRepository {
 
     Optional<RecordingSession> findByIdForUpdate(long recordingSessionId);
 
-    Optional<RecordingSession> findByMemberIdAndRequestId(
+    Optional<RecordingSession> findByMemberIdAndRequestIdForUpdate(
             long memberId,
             UUID requestId
     );
 
-    boolean existsActiveByMemberId(long memberId);
+    List<RecordingSession> findAllActiveByMemberIdForUpdate(long memberId);
 
     Optional<RecordingSession> findActiveByWorkspaceIdAndMemberId(
             long workspaceId,
