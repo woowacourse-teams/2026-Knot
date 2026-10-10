@@ -5,6 +5,7 @@ import static com.knot.backend.global.config.OpenApiConfig.ACCESS_TOKEN_COOKIE;
 import com.knot.backend.auth.domain.AuthenticatedMember;
 import com.knot.backend.global.response.ErrorResponse;
 import com.knot.backend.search.presentation.dto.response.SearchConversationListResponse;
+import com.knot.backend.search.presentation.dto.response.SearchMessageListResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -32,6 +33,24 @@ public interface SearchConversationApi {
             @Parameter(description = "Workspace ID", schema = @Schema(minimum = "1")) Long workspaceId,
             @Parameter(description = "이전 응답의 nextCursor. 같은 Workspace·Member 범위") String cursor,
             @Parameter(description = "페이지 크기", schema = @Schema(defaultValue = "20", minimum = "1", maximum = "100")) Integer size,
+            @Parameter(hidden = true) AuthenticatedMember authenticatedMember
+    );
+
+    @Operation(summary = "내 탐색 대화 메시지 조회", description = "활성 Workspace 멤버인 대화 소유자만 읽습니다. "
+            + "최신 메시지부터 size개를 선택하고 sequence 오름차순으로 반환합니다. " + "previousCursor를 정수로 변환해 다음 요청의 beforeSequence에 전달합니다. "
+            + "본문과 부분 답변은 그대로 반환하고 근거는 같은 Workspace의 Document 카드만 rank 순으로 반환합니다. "
+            + "목록에서 숨겨진 대화도 소유자는 조회할 수 있으며 조회는 저장 상태를 변경하지 않습니다.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "메시지 조회 성공", content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE, schema = @Schema(implementation = SearchMessageListResponse.class))),
+            @ApiResponse(responseCode = "400", description = "INVALID_PARAMETER: size·beforeSequence·경로 형식 또는 범위 오류", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "401", description = "UNAUTHENTICATED: 로그인하지 않음", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "403", description = "SEARCH_ACCESS_DENIED: 활성 멤버가 아니거나 대화 소유·Workspace 범위 불일치", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "404", description = "CONVERSATION_NOT_FOUND: 대화가 없음", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))})
+    SearchMessageListResponse findMessages(
+            @Parameter(description = "Workspace ID", schema = @Schema(minimum = "1")) Long workspaceId,
+            @Parameter(description = "본인 대화 ID", schema = @Schema(minimum = "1")) Long conversationId,
+            @Parameter(description = "이 sequence보다 앞선 메시지 조회", schema = @Schema(minimum = "1")) Integer beforeSequence,
+            @Parameter(description = "페이지 크기", schema = @Schema(defaultValue = "30", minimum = "1", maximum = "100")) Integer size,
             @Parameter(hidden = true) AuthenticatedMember authenticatedMember
     );
 }
