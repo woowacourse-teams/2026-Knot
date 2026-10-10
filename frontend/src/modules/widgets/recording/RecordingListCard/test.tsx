@@ -1,5 +1,6 @@
 import { GetMeResponseDto } from "@api/dto/auth";
 import { GetCurrentRecordingResponseDto } from "@api/dto/recording";
+import { AUTH_ME_API_PATH } from "@api/fetch/api/v1/auth/me";
 import { CURRENT_RECORDING_API_PATH } from "@api/fetch/api/v1/workspaces/[workspaceId]/recordings/current";
 import { meResponse } from "@api/mock/responses/auth";
 import { currentRecordingResponse } from "@api/mock/responses/recording";
@@ -129,6 +130,25 @@ describe("RecordingListCard", () => {
     expect(
       screen.getByRole("region", { name: "진행 중인 녹음" }),
     ).toHaveAttribute("aria-busy", "true");
+  });
+
+  it("내 닉네임을 조회하는 동안에는 녹음이 있어도 녹음 칸 대신 불러오는 중으로 표시된다", async () => {
+    mockServer.use(
+      http.get(`*${AUTH_ME_API_PATH}`, async () => {
+        await delay("infinite");
+        return HttpResponse.json(meResponse);
+      }),
+    );
+    vi.useFakeTimers();
+    renderCard();
+    await advanceTimers(0); // 현재 녹음 조회 응답을 흘려보내요
+
+    expect(
+      screen.getByRole("region", { name: "진행 중인 녹음" }),
+    ).toHaveAttribute("aria-busy", "true");
+    expect(
+      screen.queryByText(`녹음 중 · ${elapsedTimeAfter(0)}`),
+    ).not.toBeInTheDocument();
   });
 
   it("진행 중인 녹음이 없으면(204) 빈 상태 문구를 보여 주고 버튼은 두지 않는다", async () => {
