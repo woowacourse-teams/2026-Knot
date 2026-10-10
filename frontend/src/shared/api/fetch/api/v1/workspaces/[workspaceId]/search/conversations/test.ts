@@ -13,8 +13,9 @@ import {
 } from "@api/dto/search";
 import { searchAnswerStreamResponse } from "@api/mock/responses/search";
 import { mockServer } from "@api/mock/server";
+import { SseRequestError } from "@api/sse/requestSseStream";
 
-import { SearchStreamRequestError, createSearchConversationApi } from ".";
+import { createSearchConversationApi } from ".";
 
 const WORKSPACE_ID = 1;
 const SEARCH_CONVERSATIONS_PATH =
@@ -47,6 +48,13 @@ const readAllSearchEvents = async () => {
 
   return events;
 };
+
+/** 스트림을 끝까지 받다가 throw된 오류를 돌려줘요 */
+const catchSearchError = () =>
+  readAllSearchEvents().then(
+    () => undefined,
+    (error: unknown) => error,
+  );
 
 /** 서버가 보내는 SSE 프레임 한 개예요 */
 const toFrame = (event: string, data: object) =>
@@ -127,28 +135,23 @@ describe("createSearchConversationApi", () => {
   });
 
   // SEARCH-R6 409 중복 거절
-  it("[SEARCH-R6] accepted 전 409는 상태 코드와 오류 코드를 담아 throw한다", async () => {
+  it("[SEARCH-R6] accepted 전 409는 상태 코드와 서버 오류 코드를 담아 throw한다", async () => {
     respondWithError(409, "SEARCH_REQUEST_CONFLICT");
 
-    const result = readAllSearchEvents();
+    const error = await catchSearchError();
 
-    await expect(result).rejects.toThrow(SearchStreamRequestError);
-    await expect(result).rejects.toMatchObject({
-      status: 409,
-      code: "SEARCH_REQUEST_CONFLICT",
-    });
+    expect(error).toBeInstanceOf(SseRequestError);
+    expect(error).toMatchObject({ status: 409, code: "SEARCH_REQUEST_CONFLICT" });
   });
 
   // SEARCH-R4 accepted 전 실패
-  it("[SEARCH-R4] accepted 전 403은 상태 코드와 오류 코드를 담아 throw한다", async () => {
+  it("[SEARCH-R4] accepted 전 403은 상태 코드와 서버 오류 코드를 담아 throw한다", async () => {
     respondWithError(403, "WORKSPACE_ACCESS_DENIED");
 
-    const result = readAllSearchEvents();
+    const error = await catchSearchError();
 
-    await expect(result).rejects.toMatchObject({
-      status: 403,
-      code: "WORKSPACE_ACCESS_DENIED",
-    });
+    expect(error).toBeInstanceOf(SseRequestError);
+    expect(error).toMatchObject({ status: 403, code: "WORKSPACE_ACCESS_DENIED" });
   });
 
   // SEARCH-R4 accepted 뒤의 실패는 HTTP 오류가 아니라 이벤트로 와요
