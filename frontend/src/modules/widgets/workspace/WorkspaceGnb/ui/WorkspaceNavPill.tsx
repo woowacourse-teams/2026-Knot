@@ -2,13 +2,17 @@ import styled from "@emotion/styled";
 import useWorkspaceNav from "@hooks/domain/workspace/useWorkspaceNav";
 
 /**
- * GNB 가운데의 내비 필. 홈과 탐색을 오가고 지금 화면을 채워진 모양으로 알려줘요.
- *
- * Figma의 `문서` 슬롯은 아직 화면이 없어 그리지 않아요.
+ * GNB 가운데의 내비 필. 홈 · 탐색 · 문서를 오가고 지금 화면을 채워진 모양으로 알려줘요.
  */
 export default function WorkspaceNavPill() {
-  const { isHomeActive, isChatActive, navigateToHome, navigateToExplore } =
-    useWorkspaceNav();
+  const {
+    isHomeActive,
+    isChatActive,
+    isDocumentsActive,
+    navigateToHome,
+    navigateToExplore,
+    navigateToDocuments,
+  } = useWorkspaceNav();
 
   return (
     <Container aria-label="워크스페이스 화면 이동">
@@ -27,6 +31,14 @@ export default function WorkspaceNavPill() {
         onClick={navigateToExplore}
       >
         탐색
+      </NavItem>
+      <NavItem
+        type="button"
+        aria-current={isDocumentsActive ? "page" : undefined}
+        $isActive={isDocumentsActive}
+        onClick={navigateToDocuments}
+      >
+        문서
       </NavItem>
     </Container>
   );
