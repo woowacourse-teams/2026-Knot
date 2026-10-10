@@ -2,13 +2,6 @@ import { getDocumentApi } from "@api/fetch/api/v1/workspaces/[workspaceId]/docum
 import { documentKeys } from "@api/queryKey/document";
 import { useQuery } from "@tanstack/react-query";
 
-/**
- * 문서를 받은 뒤 이 시간 동안은 새로 그려지는 컴포넌트가 같은 문서를 다시 요청하지 않아요.
- * 막으려는 것은 문서를 받은 직후에 그려지는 컴포넌트의 요청이라 짧게 둬요.
- * 길게 두면 다른 탭이나 화면에서 돌아왔을 때 그 시간만큼 문서를 다시 받지 않아, 확인 수가 늦게 바뀌어요
- */
-const DOCUMENT_STALE_TIME_MS = 5 * 1000;
-
 interface UseDocumentQueryParams {
   workspaceId: number;
   documentId: number;
@@ -17,9 +10,7 @@ interface UseDocumentQueryParams {
 /**
  * 문서 하나의 상세를 조회하는 쿼리 훅.
  *
- * 문서 보기 위젯이 쓰고, 복사 버튼 · 확인 수 · 확인 버튼도 같은 키를 써서 캐시를 나눠 써요.
- * 이 컴포넌트들은 위젯이 문서를 받은 뒤에 그려져요. 받은 응답을 곧바로 오래된 것으로 보면 그때 같은 문서를 한 번 더 요청하므로,
- * `staleTime`을 둬서 요청이 한 번만 나가게 해요. 확인 요청 뒤의 캐시 무효화는 이 시간과 관계없이 다시 받아요.
+ * 문서 보기 위젯이 써요. 복사 버튼 · 확인 수 · 확인 버튼은 위젯이 받은 값을 넘겨받아, 문서를 다시 조회하지 않아요.
  *
  * 두 id가 정수인지는 확인하지 않고 그대로 요청해요. 잘못된 id인지는 서버가 판단해 400 · 404로 답해요.
  */
@@ -30,7 +21,6 @@ const useDocumentQuery = ({
   return useQuery({
     queryKey: documentKeys.detail({ workspaceId, documentId }),
     queryFn: () => getDocumentApi({ workspaceId, documentId }),
-    staleTime: DOCUMENT_STALE_TIME_MS,
   });
 };
 
