@@ -10,8 +10,11 @@ import {
 import {
   ConfirmationSummaryDto,
   DocumentConfirmationItemDto,
+  DocumentListItemDto,
+  DocumentTopicDto,
   GetDocumentConfirmationsResponseDto,
   GetDocumentResponseDto,
+  GetDocumentsResponseDto,
   PutDocumentConfirmationResponseDto,
 } from "./document";
 import {
@@ -132,6 +135,40 @@ describe("DTO 생성자 변환", () => {
   });
 
   describe("문서", () => {
+    it("목록 응답의 주제를 DocumentTopicDto로, 문서를 DocumentListItemDto로, 문서의 확인 집계를 ConfirmationSummaryDto로 감싸고 나머지 필드는 그대로 옮긴다", () => {
+      const raw = {
+        topics: [{ topic: "회원", documentCount: 12 }],
+        items: [
+          {
+            id: 301,
+            recordingSessionId: 42,
+            topic: "회원",
+            title: "회원 탈퇴 정책",
+            summary: null,
+            status: "DRAFT" as const,
+            createdAt: "2026-09-15T03:00:00.000Z",
+            recordingDurationSeconds: 1920,
+            myConfirmationState: "PENDING" as const,
+            confirmationSummary: {
+              confirmedCount: 1,
+              pendingCount: 2,
+              excludedCount: 0,
+            },
+          },
+        ],
+        nextCursor: "opaque-cursor-value",
+      };
+
+      const dto = new GetDocumentsResponseDto(raw);
+
+      expect(dto.topics[0]).toBeInstanceOf(DocumentTopicDto);
+      expect(dto.items[0]).toBeInstanceOf(DocumentListItemDto);
+      expect(dto.items[0].confirmationSummary).toBeInstanceOf(
+        ConfirmationSummaryDto,
+      );
+      expect(dto).toEqual(raw);
+    });
+
     it("상세 응답의 확인 집계를 ConfirmationSummaryDto로 감싸고 나머지 필드는 그대로 옮긴다", () => {
       const raw = {
         id: 101,

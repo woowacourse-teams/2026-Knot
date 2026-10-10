@@ -1,6 +1,7 @@
 /**
  * 문서 DTO
  *
+ * - GET /api/v1/workspaces/{workspaceId}/documents
  * - GET /api/v1/workspaces/{workspaceId}/documents/{documentId}
  * - GET /api/v1/workspaces/{workspaceId}/documents/{documentId}/confirmations
  * - PUT /api/v1/workspaces/{workspaceId}/documents/{documentId}/confirmations/me
@@ -19,7 +20,7 @@ export interface ConfirmationSummaryRaw {
   excludedCount: number;
 }
 
-/** 문서 확인 집계. 문서 상세 · 확인 대상 조회 · 내 확인 응답이 담아요 */
+/** 문서 확인 집계. 문서 목록 · 문서 상세 · 확인 대상 조회 · 내 확인 응답이 담아요 */
 export class ConfirmationSummaryDto {
   /** 확인을 마친 대상 수. 확인한 뒤 워크스페이스를 나가도 포함해요 */
   confirmedCount: number;
@@ -32,6 +33,107 @@ export class ConfirmationSummaryDto {
     this.confirmedCount = raw.confirmedCount;
     this.pendingCount = raw.pendingCount;
     this.excludedCount = raw.excludedCount;
+  }
+}
+
+// GET /api/v1/workspaces/{workspaceId}/documents
+
+/** 주제 폴더 하나의 서버 응답 모양 */
+export interface DocumentTopicRaw {
+  topic: string;
+  documentCount: number;
+}
+
+/** 문서가 있는 주제 폴더 하나. 문서 목록 조회 응답의 `topics`가 담아요 */
+export class DocumentTopicDto {
+  /** 폴더 이름. AI가 분류한 주제 (예: "회원") */
+  topic: string;
+  /** 이 주제의 전체 문서 수. 한 응답에 담긴 문서 수가 아니라 워크스페이스 전체를 센 값이에요 */
+  documentCount: number;
+
+  constructor(raw: DocumentTopicRaw) {
+    this.topic = raw.topic;
+    this.documentCount = raw.documentCount;
+  }
+}
+
+/** 문서 목록 항목의 서버 응답 모양 */
+export interface DocumentListItemRaw {
+  id: number;
+  recordingSessionId: number;
+  topic: string;
+  title: string;
+  summary: string | null;
+  status: DocumentStatus;
+  createdAt: string;
+  recordingDurationSeconds: number;
+  myConfirmationState: MyConfirmationState;
+  confirmationSummary: ConfirmationSummaryRaw;
+}
+
+/** 문서 목록의 문서 하나. 문서 상세에서 본문 · 보관 시각 · 원문 ID가 빠진 모양이에요 */
+export class DocumentListItemDto {
+  /** 문서 ID */
+  id: number;
+  /** 이 문서가 만들어진 녹음 ID. 녹음 API의 `recordingId`와 같은 녹음이에요 */
+  recordingSessionId: number;
+  /** 폴더 이름. 응답의 `topics` 중 하나와 같아요 */
+  topic: string;
+  /** 읽기 전용 제목 */
+  title: string;
+  /** 한 줄 요약. 없으면 null */
+  summary: string | null;
+  /** DRAFT 또는 ARCHIVED. 화면에는 쓰지 않아요 (DOC-R10) */
+  status: DocumentStatus;
+  /** 문서 생성 시각(ISO 8601, UTC) */
+  createdAt: string;
+  /** 일시정지를 뺀 원본 녹음 길이(초). 서버가 소수 초를 버린 정수로 보내요 */
+  recordingDurationSeconds: number;
+  /** 내 확인 상태. 확인 대상이 아니면 NOT_REQUIRED */
+  myConfirmationState: MyConfirmationState;
+  /** 확인 집계 */
+  confirmationSummary: ConfirmationSummaryDto;
+
+  constructor(raw: DocumentListItemRaw) {
+    this.id = raw.id;
+    this.recordingSessionId = raw.recordingSessionId;
+    this.topic = raw.topic;
+    this.title = raw.title;
+    this.summary = raw.summary;
+    this.status = raw.status;
+    this.createdAt = raw.createdAt;
+    this.recordingDurationSeconds = raw.recordingDurationSeconds;
+    this.myConfirmationState = raw.myConfirmationState;
+    this.confirmationSummary = new ConfirmationSummaryDto(
+      raw.confirmationSummary,
+    );
+  }
+}
+
+/** 문서 목록 조회의 서버 응답 모양 */
+export interface GetDocumentsResponseRaw {
+  topics: DocumentTopicRaw[];
+  items: DocumentListItemRaw[];
+  nextCursor: string | null;
+}
+
+/**
+ * 문서 목록 조회 응답.
+ *
+ * 문서(`items`)만 한 페이지씩 나눠서 오고, 주제 폴더(`topics`)는 어느 페이지에서나 전체가 와요.
+ */
+export class GetDocumentsResponseDto {
+  /** 문서가 있는 주제 폴더 전체. 문서가 없는 주제는 들어 있지 않아요. 순서는 명세에 없어요 */
+  topics: DocumentTopicDto[];
+  /** 문서 한 페이지. 최신순(생성 시각 내림차순, 같으면 ID 내림차순)이에요 */
+  items: DocumentListItemDto[];
+  /** 다음 페이지 커서. 마지막 페이지면 null */
+  nextCursor: string | null;
+
+  constructor(raw: GetDocumentsResponseRaw) {
+    this.topics = raw.topics.map((topic) => new DocumentTopicDto(topic));
+    this.items = raw.items.map((item) => new DocumentListItemDto(item));
+    this.nextCursor = raw.nextCursor;
   }
 }
 
