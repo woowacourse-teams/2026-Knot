@@ -1,9 +1,13 @@
 package com.knot.backend.search.infrastructure;
 
 import com.knot.backend.search.application.SearchMessageListQuery;
+import com.knot.backend.search.application.dto.result.SearchEvidenceItemResult;
 import com.knot.backend.search.domain.SearchConversation;
 import com.knot.backend.search.domain.SearchMessage;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
@@ -14,6 +18,7 @@ import org.springframework.stereotype.Repository;
 public class SearchMessageListQueryAdapter implements SearchMessageListQuery {
 
     private final SearchMessageListJpaRepository messages;
+    private final SearchEvidenceReadJpaRepository evidences;
 
     @Override
     public Optional<SearchConversation> findConversation(long conversationId) {
@@ -38,5 +43,39 @@ public class SearchMessageListQueryAdapter implements SearchMessageListQuery {
                         size + 1
                 )
         );
+    }
+
+    @Override
+    public Map<Long, List<SearchEvidenceItemResult>> findEvidences(
+            long workspaceId,
+            long memberId,
+            long conversationId,
+            List<Long> answerIds
+    ) {
+        if (answerIds.isEmpty()) {
+            return Map.of();
+        }
+        List<SearchEvidenceRow> rows = evidences.findForMessages(
+                workspaceId,
+                memberId,
+                conversationId,
+                answerIds
+        );
+        Map<Long, List<SearchEvidenceItemResult>> grouped = new HashMap<>();
+        for (SearchEvidenceRow row : rows) {
+            List<SearchEvidenceItemResult> items = grouped.computeIfAbsent(
+                    row.messageId(),
+                    ignored -> new ArrayList<>()
+            );
+            items.add(
+                    new SearchEvidenceItemResult(
+                            row.documentId(),
+                            row.title(),
+                            row.topic(),
+                            row.rank()
+                    )
+            );
+        }
+        return grouped;
     }
 }
