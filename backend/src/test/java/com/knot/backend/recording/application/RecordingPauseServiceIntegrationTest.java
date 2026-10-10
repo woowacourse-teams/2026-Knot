@@ -99,7 +99,8 @@ class RecordingPauseServiceIntegrationTest {
         RecordingEndResult ended = recordingEndService.end(
                 workspaceId,
                 memberId,
-                recording.id()
+                recording.id(),
+                recording.control()
         );
 
         // then
@@ -192,7 +193,8 @@ class RecordingPauseServiceIntegrationTest {
                 () -> recordingEndService.end(
                         workspaceId,
                         memberId,
-                        recording.id()
+                        recording.id(),
+                        recording.control()
                 )
         );
 

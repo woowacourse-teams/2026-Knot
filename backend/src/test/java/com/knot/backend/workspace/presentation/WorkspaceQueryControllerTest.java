@@ -12,6 +12,7 @@ import com.knot.backend.auth.domain.AuthenticatedMember;
 import com.knot.backend.global.exception.GlobalExceptionHandler;
 import com.knot.backend.workspace.application.WorkspaceQueryService;
 import com.knot.backend.workspace.application.dto.result.WorkspaceDetailResult;
+import com.knot.backend.workspace.domain.WorkspaceMemberRole;
 import com.knot.backend.workspace.application.dto.result.WorkspaceListItemResult;
 import com.knot.backend.workspace.application.dto.result.WorkspaceListResult;
 import com.knot.backend.workspace.domain.WorkspaceErrorCode;
@@ -48,7 +49,7 @@ class WorkspaceQueryControllerTest {
     }
 
     @Test
-    @DisplayName("워크스페이스 멤버가 단건 조회하면 200과 이름을 반환한다")
+    @DisplayName("워크스페이스 멤버가 단건 조회하면 200과 이름, 내 역할, 활성 멤버 수를 반환한다")
     void detail_success() throws Exception {
         // given
         SecurityContextHolder.getContext()
@@ -58,7 +59,13 @@ class WorkspaceQueryControllerTest {
                         1L,
                         10L
                 )
-        ).thenReturn(new WorkspaceDetailResult("Knot 팀"));
+        ).thenReturn(
+                new WorkspaceDetailResult(
+                        "Knot 팀",
+                        WorkspaceMemberRole.OWNER,
+                        2L
+                )
+        );
 
         // when
         ResultActions result = mockMvc.perform(
@@ -70,7 +77,9 @@ class WorkspaceQueryControllerTest {
 
         // then
         result.andExpect(status().isOk())
-                .andExpect(jsonPath("$.name").value("Knot 팀"));
+                .andExpect(jsonPath("$.name").value("Knot 팀"))
+                .andExpect(jsonPath("$.myRole").value("OWNER"))
+                .andExpect(jsonPath("$.activeMemberCount").value(2));
         verify(workspaceQueryService).findDetail(
                 1L,
                 10L

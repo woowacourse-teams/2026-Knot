@@ -9,6 +9,7 @@ import static org.mockito.Mockito.when;
 import com.knot.backend.global.exception.ErrorCode;
 import com.knot.backend.global.exception.ProjectException;
 import com.knot.backend.recording.application.dto.command.RecordingAudioUploadUrlCommand;
+import com.knot.backend.recording.application.dto.command.RecordingControlCommand;
 import com.knot.backend.recording.application.dto.command.RecordingStartCommand;
 import com.knot.backend.recording.application.dto.result.PresignedAudioUpload;
 import com.knot.backend.recording.application.dto.result.RecordingAudioUploadCompletionResult;
@@ -362,14 +363,20 @@ class RecordingAudioUploadCompletionServiceIntegrationTest {
                 memberId,
                 "OWNER"
         );
+        UUID tabId = UUID.randomUUID();
         long recordingId = startRecording(
                 workspaceId,
-                memberId
+                memberId,
+                tabId
         );
         recordingEndService.end(
                 workspaceId,
                 memberId,
-                recordingId
+                recordingId,
+                new RecordingControlCommand(
+                        tabId,
+                        CONTROL_TOKEN
+                )
         );
         return new Fixture(
                 workspaceId,
@@ -460,20 +467,21 @@ class RecordingAudioUploadCompletionServiceIntegrationTest {
 
     private long startRecording(
             long workspaceId,
-            long memberId
+            long memberId,
+            UUID tabId
     ) {
         return recordingStartService.start(
                 workspaceId,
                 memberId,
-                command()
+                command(tabId)
         )
                 .recordingId();
     }
 
-    private RecordingStartCommand command() {
+    private RecordingStartCommand command(UUID tabId) {
         return new RecordingStartCommand(
                 UUID.randomUUID(),
-                UUID.randomUUID(),
+                tabId,
                 CONTROL_TOKEN
         );
     }

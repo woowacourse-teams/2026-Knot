@@ -5,9 +5,11 @@ import static org.assertj.core.api.Assertions.catchThrowable;
 
 import com.knot.backend.global.exception.ErrorCode;
 import com.knot.backend.global.exception.ProjectException;
+import com.knot.backend.recording.application.dto.command.RecordingControlCommand;
 import com.knot.backend.recording.application.dto.command.RecordingStartCommand;
 import com.knot.backend.recording.application.dto.result.RecordingEndResult;
 import com.knot.backend.recording.application.dto.result.RecordingStartResult;
+import com.knot.backend.recording.domain.RecordingErrorCode;
 import com.knot.backend.recording.domain.RecordingStatus;
 import com.knot.backend.testsupport.TestApplicationProperties;
 import com.knot.backend.testsupport.TestcontainersConfiguration;
@@ -46,6 +48,7 @@ class RecordingEndServiceIntegrationTest {
     private final RecordingEndService recordingEndService;
     private final RecordingStartService recordingStartService;
     private final WorkspaceLeaveService workspaceLeaveService;
+    private final RecordingControlTokenHasher controlTokenHasher;
     private final TransactionTemplate transactionTemplate;
     private final JdbcClient jdbcClient;
 
@@ -53,12 +56,14 @@ class RecordingEndServiceIntegrationTest {
             RecordingEndService recordingEndService,
             RecordingStartService recordingStartService,
             WorkspaceLeaveService workspaceLeaveService,
+            RecordingControlTokenHasher controlTokenHasher,
             TransactionTemplate transactionTemplate,
             JdbcClient jdbcClient
     ) {
         this.recordingEndService = recordingEndService;
         this.recordingStartService = recordingStartService;
         this.workspaceLeaveService = workspaceLeaveService;
+        this.controlTokenHasher = controlTokenHasher;
         this.transactionTemplate = transactionTemplate;
         this.jdbcClient = jdbcClient;
     }
@@ -84,9 +89,11 @@ class RecordingEndServiceIntegrationTest {
                 memberId,
                 "OWNER"
         );
+        RecordingControlCommand control = control(UUID.randomUUID());
         long recordingId = savePausedRecording(
                 workspaceId,
                 memberId,
+                control,
                 30_000L
         );
 
@@ -94,7 +101,8 @@ class RecordingEndServiceIntegrationTest {
         RecordingEndResult result = recordingEndService.end(
                 workspaceId,
                 memberId,
-                recordingId
+                recordingId,
+                control
         );
 
         // then
@@ -116,7 +124,7 @@ class RecordingEndServiceIntegrationTest {
                 memberId,
                 "OWNER"
         );
-        long recordingId = startRecording(
+        StartedRecording recording = startRecording(
                 workspaceId,
                 memberId
         );
@@ -126,12 +134,14 @@ class RecordingEndServiceIntegrationTest {
                 () -> recordingEndService.end(
                         workspaceId,
                         memberId,
-                        recordingId
+                        recording.id(),
+                        recording.control()
                 ),
                 () -> recordingEndService.end(
                         workspaceId,
                         memberId,
-                        recordingId
+                        recording.id(),
+                        recording.control()
                 )
         );
 
@@ -144,7 +154,7 @@ class RecordingEndServiceIntegrationTest {
                 result.second()
                         .errorCode()
         ).isNull();
-        Instant endedAt = recordingState(recordingId).endedAt();
+        Instant endedAt = recordingState(recording.id()).endedAt();
         assertThat(
                 result.first()
                         .value()
@@ -174,7 +184,7 @@ class RecordingEndServiceIntegrationTest {
                 memberId,
                 "MEMBER"
         );
-        long recordingId = startRecording(
+        StartedRecording recording = startRecording(
                 workspaceId,
                 memberId
         );
@@ -184,7 +194,8 @@ class RecordingEndServiceIntegrationTest {
                 () -> recordingEndService.end(
                         workspaceId,
                         memberId,
-                        recordingId
+                        recording.id(),
+                        recording.control()
                 ),
                 () -> {
                     workspaceLeaveService.leave(
@@ -200,7 +211,7 @@ class RecordingEndServiceIntegrationTest {
                 result.second()
                         .errorCode()
         ).isNull();
-        String status = recordingState(recordingId).status();
+        String status = recordingState(recording.id()).status();
         if (result.first()
                 .errorCode() == null) {
             assertThat(status).isEqualTo("ENDED");
@@ -224,27 +235,106 @@ class RecordingEndServiceIntegrationTest {
                 memberId,
                 "OWNER"
         );
-        long recordingId = startRecording(
+        StartedRecording recording = startRecording(
                 workspaceId,
                 memberId
         );
         recordingEndService.end(
                 workspaceId,
                 memberId,
-                recordingId
+                recording.id(),
+                recording.control()
         );
 
         // when
         RecordingStartResult next = recordingStartService.start(
                 workspaceId,
                 memberId,
-                command()
+                startCommand(UUID.randomUUID())
         );
 
         // then
         assertThat(next.created()).isTrue();
-        assertThat(next.recordingId()).isNotEqualTo(recordingId);
-        assertThat(recordingState(recordingId).status()).isEqualTo("ENDED");
+        assertThat(next.recordingId()).isNotEqualTo(recording.id());
+        assertThat(recordingState(recording.id()).status()).isEqualTo("ENDED");
+    }
+
+    @Test
+    @DisplayName("같은 회원의 다른 탭이 종료하면 거절하고 녹음 상태를 바꾸지 않는다")
+    void end_failure_otherTabKeepsRecording() {
+        // given
+        long memberId = saveMember("member");
+        long workspaceId = saveWorkspace("다른 탭 팀");
+        saveWorkspaceMember(
+                workspaceId,
+                memberId,
+                "OWNER"
+        );
+        StartedRecording recording = startRecording(
+                workspaceId,
+                memberId
+        );
+
+        // when
+        Throwable thrown = catchThrowable(
+                () -> recordingEndService.end(
+                        workspaceId,
+                        memberId,
+                        recording.id(),
+                        control(UUID.randomUUID())
+                )
+        );
+
+        // then
+        assertThat(thrown).isInstanceOf(ProjectException.class)
+                .extracting("errorCode")
+                .isEqualTo(RecordingErrorCode.RECORDING_CONTROL_DENIED);
+        RecordingState state = recordingState(recording.id());
+        assertThat(state.status()).isEqualTo("RECORDING");
+        assertThat(state.endedAt()).isNull();
+    }
+
+    @Test
+    @DisplayName("탈퇴한 시작자가 최초 탭 증명으로 종료해도 거절하고 폐기 상태를 유지한다")
+    void end_failure_leftMemberKeepsDiscarded() {
+        // given
+        long ownerId = saveMember("owner");
+        long memberId = saveMember("member");
+        long workspaceId = saveWorkspace("탈퇴 후 종료 팀");
+        saveWorkspaceMember(
+                workspaceId,
+                ownerId,
+                "OWNER"
+        );
+        saveWorkspaceMember(
+                workspaceId,
+                memberId,
+                "MEMBER"
+        );
+        StartedRecording recording = startRecording(
+                workspaceId,
+                memberId
+        );
+        workspaceLeaveService.leave(
+                memberId,
+                workspaceId
+        );
+
+        // when
+        Throwable thrown = catchThrowable(
+                () -> recordingEndService.end(
+                        workspaceId,
+                        memberId,
+                        recording.id(),
+                        recording.control()
+                )
+        );
+
+        // then
+        assertThat(thrown).isInstanceOf(ProjectException.class)
+                .extracting("errorCode")
+                .isEqualTo(WorkspaceErrorCode.WORKSPACE_ACCESS_DENIED);
+        assertThat(recordingState(recording.id()).status()).isEqualTo("DISCARDED");
     }
 
     @Test
@@ -258,7 +348,7 @@ class RecordingEndServiceIntegrationTest {
                 memberId,
                 "OWNER"
         );
-        long recordingId = startRecording(
+        StartedRecording recording = startRecording(
                 workspaceId,
                 memberId
         );
@@ -268,14 +358,15 @@ class RecordingEndServiceIntegrationTest {
             recordingEndService.end(
                     workspaceId,
                     memberId,
-                    recordingId
+                    recording.id(),
+                    recording.control()
             );
             throw new IllegalStateException("종료 후 롤백 검증");
         }));
 
         // then
         assertThat(thrown).isInstanceOf(IllegalStateException.class);
-        RecordingState state = recordingState(recordingId);
+        RecordingState state = recordingState(recording.id());
         assertThat(state.status()).isEqualTo("RECORDING");
         assertThat(state.endedAt()).isNull();
     }
@@ -337,22 +428,34 @@ class RecordingEndServiceIntegrationTest {
         };
     }
 
-    private long startRecording(
+    private StartedRecording startRecording(
             long workspaceId,
             long memberId
     ) {
-        return recordingStartService.start(
+        UUID tabId = UUID.randomUUID();
+        long recordingId = recordingStartService.start(
                 workspaceId,
                 memberId,
-                command()
+                startCommand(tabId)
         )
                 .recordingId();
+        return new StartedRecording(
+                recordingId,
+                control(tabId)
+        );
     }
 
-    private RecordingStartCommand command() {
+    private RecordingStartCommand startCommand(UUID tabId) {
         return new RecordingStartCommand(
                 UUID.randomUUID(),
-                UUID.randomUUID(),
+                tabId,
+                CONTROL_TOKEN
+        );
+    }
+
+    private RecordingControlCommand control(UUID tabId) {
+        return new RecordingControlCommand(
+                tabId,
                 CONTROL_TOKEN
         );
     }
@@ -420,6 +523,7 @@ class RecordingEndServiceIntegrationTest {
     private long savePausedRecording(
             long workspaceId,
             long memberId,
+            RecordingControlCommand control,
             long accumulatedMillis
     ) {
         return jdbcClient.sql("""
@@ -428,7 +532,7 @@ class RecordingEndServiceIntegrationTest {
                     started_at, current_interval_started_at, ended_at, last_seen_at, accumulated_recording_millis
                 )
                 VALUES (
-                    :workspaceId, :memberId, gen_random_uuid(), gen_random_uuid(), repeat('a', 64), 'PAUSED',
+                    :workspaceId, :memberId, gen_random_uuid(), :tabId, :controlTokenHash, 'PAUSED',
                     CAST(:startedAt AS TIMESTAMPTZ), NULL, NULL, CAST(:pausedAt AS TIMESTAMPTZ), :accumulatedMillis
                 )
                 RETURNING id
@@ -440,6 +544,14 @@ class RecordingEndServiceIntegrationTest {
                 .param(
                         "memberId",
                         memberId
+                )
+                .param(
+                        "tabId",
+                        control.tabId()
+                )
+                .param(
+                        "controlTokenHash",
+                        controlTokenHasher.hash(control.controlToken())
                 )
                 .param(
                         "startedAt",
@@ -485,6 +597,12 @@ class RecordingEndServiceIntegrationTest {
                         }
                 )
                 .single();
+    }
+
+    private record StartedRecording(
+            long id,
+            RecordingControlCommand control
+    ) {
     }
 
     private record RecordingState(
