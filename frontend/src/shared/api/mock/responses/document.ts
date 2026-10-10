@@ -1,6 +1,13 @@
-import type { DocumentDetailResponse } from "@api/mock/types/document";
+import { meResponse } from "@api/mock/responses/auth";
+import type {
+  DocumentConfirmationsResponse,
+  DocumentDetailResponse,
+  DocumentListItem,
+  DocumentsResponse,
+} from "@api/mock/types/document";
 
-const DAY = 24 * 60 * 60 * 1000;
+const HOUR = 60 * 60 * 1000;
+const DAY = 24 * HOUR;
 
 // 지난 시각을 고정값으로 두면 언젠가 전부 오래된 날짜가 되므로 지금을 기준으로 만들어요
 const fromNow = (elapsed: number) =>
@@ -74,3 +81,204 @@ export const documentDetailsResponse = [
     },
   },
 ] satisfies DocumentDetailResponse[];
+
+// 목록 항목은 상세에서 본문 · 보관 시각 · 원문 ID가 빠진 모양이에요.
+// 같은 문서의 값이 목록과 상세에서 어긋나지 않게 상세에서 만들어요
+const toListItem = ({
+  id,
+  recordingSessionId,
+  topic,
+  title,
+  summary,
+  status,
+  createdAt,
+  recordingDurationSeconds,
+  myConfirmationState,
+  confirmationSummary,
+}: DocumentDetailResponse) =>
+  ({
+    id,
+    recordingSessionId,
+    topic,
+    title,
+    summary,
+    status,
+    createdAt,
+    recordingDurationSeconds,
+    myConfirmationState,
+    confirmationSummary,
+  }) satisfies DocumentListItem;
+
+const [memberWithdrawalDocument, homeRenewalDocument] = documentDetailsResponse;
+
+// 워크스페이스의 문서 전체예요. 핸들러가 cursor · size로 잘라서 돌려줘요.
+// 문서는 서버 정렬(생성 시각 내림차순, 같으면 ID 내림차순)을, 주제는 서버가 주는 이름순을 따라요.
+// 상세 mock이 있는 문서는 101 · 102뿐이라, 나머지 문서는 눌러도 문서 없음(404)으로 답해요
+export const documentsResponse = {
+  topics: [
+    { topic: "사용자 인터뷰", documentCount: 3 },
+    { topic: "주간 회의", documentCount: 2 },
+    { topic: "회원 관리", documentCount: 2 },
+  ],
+  items: [
+    {
+      id: 104,
+      recordingSessionId: 44,
+      topic: "주간 회의",
+      title: "스프린트 회고",
+      summary: "이번 스프린트에서 잘된 점과 다음에 바꿀 점을 정리했어요.",
+      status: "DRAFT",
+      createdAt: fromNow(3 * HOUR),
+      recordingDurationSeconds: 2710,
+      myConfirmationState: "PENDING",
+      confirmationSummary: {
+        confirmedCount: 0,
+        pendingCount: 4,
+        excludedCount: 0,
+      },
+    },
+    {
+      id: 103,
+      recordingSessionId: 43,
+      topic: "사용자 인터뷰",
+      title: "온보딩 인터뷰 정리",
+      summary: "처음 쓰는 사람이 어디에서 막히는지 세 명에게 물었어요.",
+      status: "DRAFT",
+      createdAt: fromNow(DAY),
+      recordingDurationSeconds: 3540,
+      myConfirmationState: "NOT_REQUIRED",
+      confirmationSummary: {
+        confirmedCount: 1,
+        pendingCount: 2,
+        excludedCount: 0,
+      },
+    },
+    toListItem(homeRenewalDocument),
+    toListItem(memberWithdrawalDocument),
+    {
+      id: 100,
+      recordingSessionId: 41,
+      topic: "사용자 인터뷰",
+      title: "검색 기능 사용성 인터뷰",
+      summary: "찾은 기록을 다시 여는 과정이 번거롭다는 의견이 많았어요.",
+      status: "DRAFT",
+      createdAt: fromNow(6 * DAY),
+      recordingDurationSeconds: 1265,
+      myConfirmationState: "CONFIRMED",
+      confirmationSummary: {
+        confirmedCount: 3,
+        pendingCount: 1,
+        excludedCount: 0,
+      },
+    },
+    {
+      id: 99,
+      recordingSessionId: 40,
+      topic: "회원 관리",
+      title: "휴면 계정 전환 기준",
+      summary: "1년 동안 로그인하지 않은 계정을 휴면으로 바꾸기로 했어요.",
+      status: "DRAFT",
+      createdAt: fromNow(13 * DAY),
+      recordingDurationSeconds: 845,
+      myConfirmationState: "CONFIRMED",
+      confirmationSummary: {
+        confirmedCount: 2,
+        pendingCount: 1,
+        excludedCount: 1,
+      },
+    },
+    {
+      id: 98,
+      recordingSessionId: 39,
+      topic: "사용자 인터뷰",
+      title: "첫 사용자 인터뷰",
+      summary: null,
+      status: "ARCHIVED",
+      createdAt: fromNow(40 * DAY),
+      recordingDurationSeconds: 5400,
+      myConfirmationState: "CONFIRMED",
+      confirmationSummary: {
+        confirmedCount: 4,
+        pendingCount: 0,
+        excludedCount: 0,
+      },
+    },
+  ],
+  nextCursor: null,
+} satisfies DocumentsResponse;
+
+// 로그인한 사람(auth mock의 me)을 확인 대상에 넣어, 문서 상세의 myConfirmationState와 맞춰요
+const me = {
+  memberId: meResponse.memberId,
+  nickname: meResponse.nickname,
+  profileImageUrl: meResponse.profileImageUrl,
+};
+
+// 문서 상세의 confirmationSummary · myConfirmationState와 같은 내용이에요.
+// 순서는 서버 정렬(CONFIRMED → PENDING)을 따라요.
+export const documentConfirmationsResponse = [
+  {
+    documentId: 101,
+    confirmedCount: 2,
+    pendingCount: 2,
+    excludedCount: 0,
+    confirmedByMe: false,
+    items: [
+      {
+        memberId: 2,
+        nickname: "도넛",
+        profileImageUrl: null,
+        confirmedAt: fromNow(DAY),
+        state: "CONFIRMED",
+      },
+      {
+        memberId: 3,
+        nickname: "흑곰",
+        profileImageUrl: null,
+        confirmedAt: fromNow(5 * HOUR),
+        state: "CONFIRMED",
+      },
+      { ...me, confirmedAt: null, state: "PENDING" },
+      {
+        memberId: 4,
+        nickname: "유월",
+        profileImageUrl: null,
+        confirmedAt: null,
+        state: "PENDING",
+      },
+    ],
+    nextCursor: null,
+  },
+  {
+    documentId: 102,
+    confirmedCount: 3,
+    pendingCount: 1,
+    excludedCount: 0,
+    confirmedByMe: true,
+    items: [
+      {
+        memberId: 2,
+        nickname: "도넛",
+        profileImageUrl: null,
+        confirmedAt: fromNow(DAY),
+        state: "CONFIRMED",
+      },
+      {
+        memberId: 3,
+        nickname: "흑곰",
+        profileImageUrl: null,
+        confirmedAt: fromNow(5 * HOUR),
+        state: "CONFIRMED",
+      },
+      { ...me, confirmedAt: fromNow(HOUR), state: "CONFIRMED" },
+      {
+        memberId: 4,
+        nickname: "유월",
+        profileImageUrl: null,
+        confirmedAt: null,
+        state: "PENDING",
+      },
+    ],
+    nextCursor: null,
+  },
+] satisfies DocumentConfirmationsResponse[];

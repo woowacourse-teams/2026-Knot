@@ -7,7 +7,16 @@ import {
   PostChatSessionRequestDto,
   PostChatSessionResponseDto,
 } from "./chatSession";
-import { ConfirmationSummaryDto, GetDocumentResponseDto } from "./document";
+import {
+  ConfirmationSummaryDto,
+  DocumentConfirmationItemDto,
+  DocumentListItemDto,
+  DocumentTopicDto,
+  GetDocumentConfirmationsResponseDto,
+  GetDocumentResponseDto,
+  GetDocumentsResponseDto,
+  PutDocumentConfirmationResponseDto,
+} from "./document";
 import {
   GetNotionConnectionResponseDto,
   PostNotionOAuthAuthorizationResponseDto,
@@ -126,6 +135,40 @@ describe("DTO 생성자 변환", () => {
   });
 
   describe("문서", () => {
+    it("목록 응답의 주제를 DocumentTopicDto로, 문서를 DocumentListItemDto로, 문서의 확인 집계를 ConfirmationSummaryDto로 감싸고 나머지 필드는 그대로 옮긴다", () => {
+      const raw = {
+        topics: [{ topic: "회원", documentCount: 12 }],
+        items: [
+          {
+            id: 301,
+            recordingSessionId: 42,
+            topic: "회원",
+            title: "회원 탈퇴 정책",
+            summary: null,
+            status: "DRAFT" as const,
+            createdAt: "2026-09-15T03:00:00.000Z",
+            recordingDurationSeconds: 1920,
+            myConfirmationState: "PENDING" as const,
+            confirmationSummary: {
+              confirmedCount: 1,
+              pendingCount: 2,
+              excludedCount: 0,
+            },
+          },
+        ],
+        nextCursor: "opaque-cursor-value",
+      };
+
+      const dto = new GetDocumentsResponseDto(raw);
+
+      expect(dto.topics[0]).toBeInstanceOf(DocumentTopicDto);
+      expect(dto.items[0]).toBeInstanceOf(DocumentListItemDto);
+      expect(dto.items[0].confirmationSummary).toBeInstanceOf(
+        ConfirmationSummaryDto,
+      );
+      expect(dto).toEqual(raw);
+    });
+
     it("상세 응답의 확인 집계를 ConfirmationSummaryDto로 감싸고 나머지 필드는 그대로 옮긴다", () => {
       const raw = {
         id: 101,
@@ -148,6 +191,67 @@ describe("DTO 생성자 변환", () => {
       };
 
       const dto = new GetDocumentResponseDto(raw);
+
+      expect(dto.confirmationSummary).toBeInstanceOf(ConfirmationSummaryDto);
+      expect(dto).toEqual(raw);
+    });
+
+    it("확인 대상 조회 응답의 대상을 DocumentConfirmationItemDto로 감싸고, 집계 세 값은 ConfirmationSummaryDto로 묶고, confirmedByMe는 옮기지 않는다", () => {
+      const items = [
+        {
+          memberId: 2,
+          nickname: "도넛",
+          profileImageUrl: null,
+          confirmedAt: "2026-09-15T04:00:00.000Z",
+          state: "CONFIRMED" as const,
+        },
+        {
+          memberId: 1,
+          nickname: "노티드",
+          profileImageUrl: "https://example.com/profiles/1.png",
+          confirmedAt: null,
+          state: "PENDING" as const,
+        },
+      ];
+
+      const dto = new GetDocumentConfirmationsResponseDto({
+        documentId: 101,
+        confirmedCount: 1,
+        pendingCount: 1,
+        excludedCount: 0,
+        confirmedByMe: false,
+        items,
+        nextCursor: null,
+      });
+
+      expect(dto.items[0]).toBeInstanceOf(DocumentConfirmationItemDto);
+      expect(dto.confirmationSummary).toBeInstanceOf(ConfirmationSummaryDto);
+      expect(dto).toEqual({
+        documentId: 101,
+        confirmationSummary: {
+          confirmedCount: 1,
+          pendingCount: 1,
+          excludedCount: 0,
+        },
+        items,
+        nextCursor: null,
+      });
+    });
+
+    it("내 확인 응답의 확인 집계를 ConfirmationSummaryDto로 감싸고 나머지 필드는 그대로 옮긴다", () => {
+      const raw = {
+        documentId: 101,
+        confirmedAt: "2026-09-24T09:40:00.000Z",
+        documentStatus: "DRAFT" as const,
+        archivedAt: null,
+        confirmationSummary: {
+          confirmedCount: 3,
+          pendingCount: 1,
+          excludedCount: 0,
+        },
+      };
+
+      const dto = new PutDocumentConfirmationResponseDto(raw);
 
       expect(dto.confirmationSummary).toBeInstanceOf(ConfirmationSummaryDto);
       expect(dto).toEqual(raw);
