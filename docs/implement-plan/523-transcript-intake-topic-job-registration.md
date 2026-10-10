@@ -296,3 +296,9 @@ LLM enabled=false에서도 접수 기록을 거짓 NO_CONTENT로 바꾸지 않�
 이 계획의 산출물은 문서 쪽의 내구성 있는 접수·등록 기능이다. STT가 아직 생산자로 연결되지 않았거나 #525 실행기가 없으면 사용자 녹음에서 자동 문서가 생성된다고 보고하지 않는다.
 
 다음은 [#524](https://github.com/woowacourse-teams/2026-Knot/issues/524)의 DRAFT·확인 대상·Job 성공 원자적 저장, 이어 [#525](https://github.com/woowacourse-teams/2026-Knot/issues/525)의 실행·복구·종합 결과, [#526](https://github.com/woowacourse-teams/2026-Knot/issues/526)의 보존 정리다. 확정 주제, Job 단계, 회차 증가 계약을 이 작업들이 동일하게 사용해야 한다.
+
+## 2026-10-10 도메인 책임 리뷰 반영
+
+- 분류 Result의 `List<DocumentTopic>`을 Batch와 생성 Job으로 그대로 전달한다. Batch는 목록의 누락·중복을, Job은 주제 객체의 누락을 검사한다. 문자열 정규화·공백 검증은 값 객체에만 있으며 기존 DB TEXT와 CHECK는 유지한다.
+- 반복 분류 결과의 상태·주제 순서 일치는 `Batch.isRegisteredWith`·`validateRegisteredWith`가 판단한다. 서비스는 `Job.isSucceeded`·`isFailed`로 흐름을 조합한다.
+- 녹음 소속은 `RecordingSession.belongsTo`로 확인하고 종료는 `validateEnded`로 확인한다. 업로드 조건에서 문서 접수 조건을 분리하며 소속 오류와 종료·폐기 오류의 기존 계약을 유지한다.
