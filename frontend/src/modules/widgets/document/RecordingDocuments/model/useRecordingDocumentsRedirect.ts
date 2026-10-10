@@ -1,8 +1,9 @@
 import useDocumentsByRecordingQuery from "@api/queries/useDocumentsByRecordingQuery";
 import useRedirectToLoginOnUnauthorized from "@hooks/domain/auth/useRedirectToLoginOnUnauthorized";
-import { getRouterPath } from "@routes/PATH_ROUTE";
+import useNavigateToDocument from "@hooks/domain/document/useNavigateToDocument";
+import useNavigateToRecording from "@hooks/domain/recording/useNavigateToRecording";
+import useNavigateToWorkspaceHome from "@hooks/domain/workspace/useNavigateToWorkspaceHome";
 import { useEffect } from "react";
-import { useNavigate } from "react-router";
 
 import type { RecordingDocumentsViewStatus } from "../types/recordingDocuments";
 
@@ -28,7 +29,9 @@ export const useRecordingDocumentsRedirect = ({
   recordingId,
   viewStatus,
 }: UseRecordingDocumentsRedirectParams) => {
-  const navigate = useNavigate();
+  const { navigateToRecording } = useNavigateToRecording();
+  const { navigateToDocument } = useNavigateToDocument();
+  const { navigateToWorkspaceHome } = useNavigateToWorkspaceHome();
   const {
     data: recordingDocumentList,
     error: documentsError,
@@ -49,37 +52,34 @@ export const useRecordingDocumentsRedirect = ({
     (isDocumentsError && !isUnauthorized);
 
   useEffect(() => {
-    const params = { workspaceId: String(workspaceId) };
-
     if (viewStatus === "recording") {
-      navigate(getRouterPath({ routeKey: "RECORDING", params }), {
-        replace: true,
-      });
+      navigateToRecording({ workspaceId: String(workspaceId), replace: true });
       return;
     }
 
     if (viewStatus !== "completed") return;
 
     if (firstDocumentId !== undefined) {
-      navigate(
-        getRouterPath({
-          routeKey: "DOCUMENT",
-          params: { ...params, documentId: String(firstDocumentId) },
-        }),
-        { replace: true },
-      );
+      navigateToDocument({
+        workspaceId,
+        documentId: firstDocumentId,
+        replace: true,
+      });
       return;
     }
 
     if (isDocumentListSettled) {
-      navigate(getRouterPath({ routeKey: "WORKSPACE_HOME", params }), {
+      navigateToWorkspaceHome({
+        workspaceId: String(workspaceId),
         replace: true,
       });
     }
   }, [
     firstDocumentId,
     isDocumentListSettled,
-    navigate,
+    navigateToDocument,
+    navigateToRecording,
+    navigateToWorkspaceHome,
     viewStatus,
     workspaceId,
   ]);
