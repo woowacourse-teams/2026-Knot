@@ -643,4 +643,42 @@ class RecordingSessionTest {
                 STARTED_AT
         );
     }
+
+    @Test
+    @DisplayName("녹음이 Workspace 소속 여부를 직접 판단한다")
+    void belongsTo_success() {
+        // given
+        RecordingSession session = startRecording();
+
+        // when & then
+        assertThat(session.belongsTo(WORKSPACE_ID)).isTrue();
+        assertThat(session.belongsTo(99)).isFalse();
+    }
+
+    @Test
+    @DisplayName("종료 검증은 업로드 요청 없이도 종료된 녹음을 허용한다")
+    void validateEnded_success() {
+        // given
+        RecordingSession session = startRecording();
+        session.end(STARTED_AT.plusSeconds(10));
+
+        // when & then
+        assertThat(catchThrowable(session::validateEnded)).isNull();
+    }
+
+    @Test
+    @DisplayName("종료 검증은 실행 중과 폐기된 녹음을 각각 기존 오류로 거절한다")
+    void validateEnded_failure() {
+        // given
+        RecordingSession session = startRecording();
+
+        // when & then
+        assertThat(catchThrowable(session::validateEnded)).isInstanceOf(RecordingException.class)
+                .extracting("errorCode")
+                .isEqualTo(RecordingErrorCode.RECORDING_NOT_ENDED);
+        session.discard(STARTED_AT.plusSeconds(10));
+        assertThat(catchThrowable(session::validateEnded)).isInstanceOf(RecordingException.class)
+                .extracting("errorCode")
+                .isEqualTo(RecordingErrorCode.RECORDING_ALREADY_DISCARDED);
+    }
 }

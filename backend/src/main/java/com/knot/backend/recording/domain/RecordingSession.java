@@ -145,7 +145,15 @@ public class RecordingSession {
         }
     }
 
+    public boolean belongsTo(long workspaceId) {
+        return this.workspaceId == workspaceId;
+    }
+
     public void validateAudioUploadable() {
+        validateEnded();
+    }
+
+    public void validateEnded() {
         ensureNotDiscarded();
         if (status != RecordingStatus.ENDED) {
             throw new RecordingException(RecordingErrorCode.RECORDING_NOT_ENDED);
