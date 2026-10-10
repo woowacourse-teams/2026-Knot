@@ -1,6 +1,7 @@
 /**
  * 녹음 DTO
  *
+ * - GET  /api/v1/workspaces/{workspaceId}/recordings/current
  * - POST /api/v1/workspaces/{workspaceId}/recordings
  * - POST /api/v1/workspaces/{workspaceId}/recordings/{recordingId}/pause
  * - POST /api/v1/workspaces/{workspaceId}/recordings/{recordingId}/resume
@@ -11,6 +12,45 @@
 
 /** 녹음 세션 상태. 시작·일시정지·재개·종료 응답이 공유하는 서버 값 */
 export type RecordingSessionStatus = "RECORDING" | "PAUSED" | "ENDED";
+
+// GET /api/v1/workspaces/{workspaceId}/recordings/current
+
+/**
+ * 현재 녹음의 화면용 종합 상태. `ENDED`는 종료 후 최종 오디오 업로드 확인 전,
+ * `PROCESSING`은 전사·문서 작업 중, `FAILED`는 처리 실패예요
+ */
+export type CurrentRecordingStatus =
+  "RECORDING" | "PAUSED" | "ENDED" | "PROCESSING" | "FAILED";
+
+/**
+ * 내 현재 녹음 조회의 서버 응답 모양.
+ * 명세의 종료 시각·실패 원인·단계별 처리 상태 필드는 화면에서 쓰지 않아 담지 않아요
+ */
+export interface GetCurrentRecordingResponseRaw {
+  recordingId: number;
+  status: CurrentRecordingStatus;
+  startedAt: string;
+  elapsedMillis: number;
+}
+
+/** 내 현재 녹음 조회 응답. 표시할 녹음이 없으면 서버가 본문 없이 204로 답하고 요청 함수가 `null`을 돌려줘요 */
+export class GetCurrentRecordingResponseDto {
+  /** 녹음 세션 ID */
+  recordingId: number;
+  /** 화면용 종합 상태. 녹음 중·일시정지인 녹음이 먼저 오고, 없으면 가장 최근의 종료·처리 중·실패 녹음이 와요 */
+  status: CurrentRecordingStatus;
+  /** 녹음 시작 시각(ISO 8601) */
+  startedAt: string;
+  /** 조회 시점까지 누적 녹음 시간(ms). 일시정지 구간은 빠져요 */
+  elapsedMillis: number;
+
+  constructor(raw: GetCurrentRecordingResponseRaw) {
+    this.recordingId = raw.recordingId;
+    this.status = raw.status;
+    this.startedAt = raw.startedAt;
+    this.elapsedMillis = raw.elapsedMillis;
+  }
+}
 
 // POST /api/v1/workspaces/{workspaceId}/recordings
 

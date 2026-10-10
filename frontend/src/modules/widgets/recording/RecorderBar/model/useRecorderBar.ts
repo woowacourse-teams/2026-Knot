@@ -1,5 +1,5 @@
 import useMicrophoneUnavailableDialog from "@hooks/domain/recording/useMicrophoneUnavailableDialog";
-import useRecording from "@hooks/domain/recording/useRecording";
+import useRecordingState from "@hooks/domain/recording/useRecordingState";
 import useRecordingControl from "@hooks/domain/recording/useRecordingControl";
 import useRecordingElapsedTime from "@hooks/domain/recording/useRecordingElapsedTime";
 import { formatRecordingTime } from "@utils/formatRecordingTime";
@@ -13,7 +13,7 @@ import { formatRecordingTime } from "@utils/formatRecordingTime";
  */
 export const useRecorderBar = () => {
   const { openMicrophoneUnavailableDialog } = useMicrophoneUnavailableDialog();
-  const { status, analyser, isEnding } = useRecording();
+  const { status, analyser, isEnding } = useRecordingState();
   const { elapsedSeconds } = useRecordingElapsedTime();
   const { pauseRecording, resumeRecording, endRecording } =
     useRecordingControl();

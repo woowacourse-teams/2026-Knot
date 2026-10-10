@@ -9,7 +9,7 @@ import { useRecordingStore } from "@store/recordingStore";
  * 녹음을 시작한 사람만 조작하므로 권한 구분은 없어요. 끝내면 처음 상태로 돌아가요.
  * 시작·일시정지·이어서 녹음·끝내기는 서버 세션과 맞춰야 해서 `useRecordingControl`이 맡아요.
  */
-const useRecording = () => {
+const useRecordingState = () => {
   const status = useRecordingStore((state) => state.status);
   const isEnding = useRecordingStore((state) => state.isEnding);
   const analyser = useRecordingStore((state) => state.analyser);
@@ -28,4 +28,4 @@ const useRecording = () => {
   };
 };
 
-export default useRecording;
+export default useRecordingState;
