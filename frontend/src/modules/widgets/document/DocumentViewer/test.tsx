@@ -83,6 +83,19 @@ const recordingDocuments = new GetDocumentsResponseDto(
 const [firstRecordingDocument] = recordingDocuments;
 const lastRecordingDocument = recordingDocuments[recordingDocuments.length - 1];
 
+/** 그 문서를 열었을 때 보이는 제목. 제목 줄은 문서 상세 응답을 그려서 상세 DTO에서 가져와요 */
+const getDocumentTitle = (documentId: number) => {
+  const documentDetail = documentDetailsResponse.find(
+    ({ id }) => id === documentId,
+  );
+
+  if (documentDetail === undefined) {
+    throw new Error(`문서 상세 mock이 없는 문서예요: ${documentId}`);
+  }
+
+  return new GetDocumentResponseDto(documentDetail).title;
+};
+
 const getDocumentPath = (documentId: number) =>
   getRouterPath({
     routeKey: "DOCUMENT",
@@ -242,6 +255,47 @@ describe("DocumentViewer", () => {
     });
 
     await waitFor(() => expect(requestCount).toBe(2));
+  });
+
+  it("문서를 보는 동안 문서가 없어지면(404) 다시 불러올 때 문서를 불러오지 못했다고 알린다", async () => {
+    renderViewer(String(expected.id));
+    await screen.findByRole("heading", { level: 2, name: expected.title });
+
+    mockServer.use(
+      http.get(DOCUMENT_REQUEST, () => new HttpResponse(null, { status: 404 })),
+    );
+    act(() => {
+      window.dispatchEvent(new Event("visibilitychange"));
+    });
+
+    expect(
+      await screen.findByRole("heading", { name: "문서를 불러오지 못했어요" }),
+    ).toBeInTheDocument();
+  });
+
+  it("문서를 보는 동안 다시 불러오기가 서버 오류로 실패하면 받은 문서를 계속 보여준다", async () => {
+    let failedRequestCount = 0;
+    renderViewer(String(expected.id));
+    await screen.findByRole("heading", { level: 2, name: expected.title });
+
+    mockServer.use(
+      http.get(DOCUMENT_REQUEST, () => {
+        failedRequestCount += 1;
+
+        return new HttpResponse(null, { status: 500 });
+      }),
+    );
+    act(() => {
+      window.dispatchEvent(new Event("visibilitychange"));
+    });
+    await waitFor(() => expect(failedRequestCount).toBe(1));
+
+    expect(
+      screen.getByRole("heading", { level: 2, name: expected.title }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { name: "문서를 불러오지 못했어요" }),
+    ).not.toBeInTheDocument();
   });
 
   it("문서 머리에 경로 · 만든 날짜 · 녹음 길이를 보여준다", async () => {
@@ -594,7 +648,10 @@ describe("DocumentViewer", () => {
     await click(getStepButtons(await findStepper()).nextButton);
 
     expect(
-      await screen.findByRole("heading", { level: 2, name: second.title }),
+      await screen.findByRole("heading", {
+        level: 2,
+        name: getDocumentTitle(second.id),
+      }),
     ).toBeInTheDocument();
     expect(router.state.location.pathname).toBe(getDocumentPath(second.id));
 
@@ -603,7 +660,10 @@ describe("DocumentViewer", () => {
     });
 
     expect(
-      await screen.findByRole("heading", { level: 2, name: first.title }),
+      await screen.findByRole("heading", {
+        level: 2,
+        name: getDocumentTitle(first.id),
+      }),
     ).toBeInTheDocument();
   });
 
@@ -614,7 +674,10 @@ describe("DocumentViewer", () => {
     await click(getStepButtons(await findStepper()).previousButton);
 
     expect(
-      await screen.findByRole("heading", { level: 2, name: first.title }),
+      await screen.findByRole("heading", {
+        level: 2,
+        name: getDocumentTitle(first.id),
+      }),
     ).toBeInTheDocument();
   });
 
@@ -631,7 +694,7 @@ describe("DocumentViewer", () => {
     });
     await screen.findByRole("heading", {
       level: 2,
-      name: lastRecordingDocument.title,
+      name: getDocumentTitle(lastRecordingDocument.id),
     });
 
     const lastButtons = getStepButtons(await findStepper());
@@ -646,15 +709,24 @@ describe("DocumentViewer", () => {
 
     // 두 문서를 한 번씩 열어 둬요. 받아 둔 문서는 다시 넘길 때 불러오는 중 화면 없이 바로 바뀌어요
     await click(getStepButtons(await findStepper()).nextButton);
-    await screen.findByRole("heading", { level: 2, name: second.title });
+    await screen.findByRole("heading", {
+      level: 2,
+      name: getDocumentTitle(second.id),
+    });
     await click(getStepButtons(await findStepper()).previousButton);
-    await screen.findByRole("heading", { level: 2, name: first.title });
+    await screen.findByRole("heading", {
+      level: 2,
+      name: getDocumentTitle(first.id),
+    });
 
     await click(screen.getByRole("button", { name: "복사" }));
     expect(screen.getByRole("button", { name: "복사됨" })).toBeInTheDocument();
 
     await click(getStepButtons(await findStepper()).nextButton);
-    await screen.findByRole("heading", { level: 2, name: second.title });
+    await screen.findByRole("heading", {
+      level: 2,
+      name: getDocumentTitle(second.id),
+    });
 
     expect(
       screen.queryByRole("button", { name: "복사됨" }),
@@ -744,6 +816,33 @@ describe("DocumentViewer", () => {
     // 아래 줄은 문서 보기의 마지막 줄이에요. 스테퍼도 확인 버튼도 없으면 구분선과 여백까지 감춰요
     expect(viewer.lastElementChild).toBeEmptyDOMElement();
     expect(viewer.lastElementChild).not.toBeVisible();
+  });
+
+  it("같은 녹음의 문서 목록에 지금 문서가 없으면 스테퍼를 그리지 않는다", async () => {
+    let requestCount = 0;
+    mockServer.use(
+      http.get(DOCUMENTS_REQUEST, () => {
+        requestCount += 1;
+
+        return HttpResponse.json({
+          topics: [],
+          items: documentsResponse.items.filter(
+            ({ id, recordingSessionId }) =>
+              recordingSessionId === expected.recordingSessionId &&
+              id !== expected.id,
+          ),
+          nextCursor: null,
+        } satisfies DocumentsResponse);
+      }),
+    );
+    renderViewer(String(expected.id));
+
+    await screen.findByRole("heading", { level: 2, name: expected.title });
+    await waitFor(() => expect(requestCount).toBe(1));
+
+    expect(
+      screen.queryByRole("group", { name: STEPPER_NAME }),
+    ).not.toBeInTheDocument();
   });
 
   it("같은 녹음의 문서를 여러 번에 나눠 받아도 요청마다 녹음 id를 붙이고, 받은 문서를 모두 센다", async () => {

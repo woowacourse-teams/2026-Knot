@@ -265,11 +265,13 @@ describe("mock 기본 핸들러와 fetch 요청 함수의 대응", () => {
 
         expect(recordingItems).toHaveLength(documentDetailsResponse.length);
         expect(page.items).toEqual(recordingItems);
+        const recordingTopics = recordingItems.map(({ topic }) => topic);
+
         expect(page.topics).toEqual(
-          // 두 문서의 주제가 서로 달라 주제마다 문서가 하나예요. 순서는 이름순이에요
-          recordingItems
-            .map(({ topic }) => ({ topic, documentCount: 1 }))
-            .sort((a, b) => a.topic.localeCompare(b.topic, "ko")),
+          // 순서는 전체 응답의 주제 순서를 따르고, 두 문서의 주제가 서로 달라 주제마다 문서가 하나예요
+          expected.topics
+            .filter(({ topic }) => recordingTopics.includes(topic))
+            .map((topic) => ({ ...topic, documentCount: 1 })),
         );
         expect(page.nextCursor).toBeNull();
       });
