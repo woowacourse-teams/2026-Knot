@@ -23,6 +23,7 @@ export const PATH_ROUTE = {
   // 녹음을 끝낸 뒤 문서가 만들어질 때까지 보여 주는 정리 화면
   RECORDING_DOCUMENTS: "/workspace/:workspaceId/recordings/:recordingId",
 
+  DOCUMENTS: "/workspace/:workspaceId/documents",
   DOCUMENT: "/workspace/:workspaceId/documents/:documentId",
 
   INVITE: "/invite/:token",

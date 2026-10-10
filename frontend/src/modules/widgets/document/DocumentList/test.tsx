@@ -5,7 +5,7 @@ import { findDocuments } from "@api/mock/state/document";
 import type { DocumentsResponse } from "@api/mock/types/document";
 import { ThemeProvider } from "@emotion/react";
 import { theme } from "@provider/themeProvider";
-import { PATH_ROUTE } from "@routes/PATH_ROUTE";
+import { getRouterPath, PATH_ROUTE } from "@routes/PATH_ROUTE";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { formatDate } from "@utils/formatDate";
@@ -18,8 +18,6 @@ import DocumentList from ".";
 
 const expected = new GetDocumentsResponseDto(documentsResponse);
 const WORKSPACE_ID = "1";
-// 위젯을 놓는 경로예요. 주소에서 워크스페이스 id를 읽을 수 있으면 돼요
-const DOCUMENT_LIST_PATH = "/workspace/:workspaceId/documents";
 // 경로 파라미터 자리에 무엇이 와도 잡도록 fetch 상수 대신 패턴을 적어요
 const DOCUMENTS_REQUEST = "*/api/v1/workspaces/:workspaceId/documents";
 // 한 번에 요청하는 문서 수와 이어 받는 횟수의 한계. getAllDocumentsApi의 값과 같아요
@@ -42,12 +40,16 @@ const renderDocumentList = (workspaceId = WORKSPACE_ID) => {
   });
   const router = createMemoryRouter(
     [
-      { path: DOCUMENT_LIST_PATH, element: <DocumentList /> },
+      { path: PATH_ROUTE.DOCUMENTS, element: <DocumentList /> },
       { path: PATH_ROUTE.DOCUMENT, element: <DocumentViewStub /> },
       { path: PATH_ROUTE.LOGIN, element: <p>로그인 화면</p> },
       { path: PATH_ROUTE.WORKSPACE, element: <p>워크스페이스 선택 화면</p> },
     ],
-    { initialEntries: [`/workspace/${workspaceId}/documents`] },
+    {
+      initialEntries: [
+        getRouterPath({ routeKey: "DOCUMENTS", params: { workspaceId } }),
+      ],
+    },
   );
 
   render(
