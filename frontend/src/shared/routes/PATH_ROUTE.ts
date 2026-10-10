@@ -21,7 +21,6 @@ export const PATH_ROUTE = {
 
   RECORDING: "/workspace/:workspaceId/recording",
 
-  // 문서 보기 화면은 아직 라우트에 연결되지 않음 — 문서 화면 작업에서 페이지를 붙임
   DOCUMENT: "/workspace/:workspaceId/documents/:documentId",
 
   INVITE: "/invite/:token",

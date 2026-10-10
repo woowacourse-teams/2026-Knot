@@ -18,6 +18,7 @@ description: 구현·설계를 마친 컴포넌트의 스토리북 스토리(`in
 - API를 호출하는 컴포넌트(쿼리·뮤테이션 훅을 쓰는 위젯·피처)도 대상이다. 실제 서버 대신 msw가 응답한다.
   - 기본 응답은 `.storybook/preview.tsx`가 `shared/api/mock/handlers`(vitest와 같은 핸들러)로 깔아 둔다. 정상 상태 스토리는 따로 핸들러를 두지 않는다.
   - 빈 목록·에러·로딩처럼 응답에 따라 화면이 달라지는 상태 중 테스트에 시나리오가 있는 것만 스토리의 `parameters.msw.handlers`로 그 요청을 덮어 보여 준다. 응답 값은 `shared/api/mock/responses`에서 가져오고 새로 지어내지 않는다.
+  - 응답을 덮는 스토리는 문서 페이지에서 따로 그리게 한다. 그렇게 하지 않으면 문서 페이지에서 다른 스토리의 응답과 섞인다. (아래 「작성 규칙」)
   - 스토리마다 새 QueryClient가 만들어지고 재시도가 꺼져 있어, 에러 상태가 바로 보인다.
 
 ## 어떤 상태를 스토리로 두나
@@ -43,7 +44,7 @@ description: 구현·설계를 마친 컴포넌트의 스토리북 스토리(`in
 3. **목록을 먼저 보여 준다.** 스토리 이름과 한 줄 설명, 근거 테스트(파일과 시나리오 이름)를 사용자에게 보여 주고, 빠진 상태가 없는지 확인받은 뒤 작성한다. 테스트가 없어 뺀 상태도 함께 보여 준다.
 4. **작성한다.** 컴포넌트 폴더 바로 아래 `index.stories.tsx`에 둔다. (`.claude/rules/segment-pattern.md` 「스토리 위치」)
 5. **Figma 링크를 옮긴다.** 컴포넌트(`index.tsx`와 `ui/` 서브 컴포넌트) JSDoc에 Figma `@see`가 있으면 스토리 `parameters.design`으로 옮기고 컴포넌트에서는 `@see`를 지운다. 개발자가 습관대로 넣은 `@see`도 스토리를 작성·갱신할 때마다 이렇게 정리한다. 스토리가 없는 pages·유틸의 `@see`는 그대로 둔다. 컴포넌트 JSDoc의 설명과 코드 주석은 스토리 설명과 겹쳐도 그대로 둔다. 컴포넌트에 스토리북을 가리키는 안내 문장은 쓰지 않는다.
-6. **검증한다.** `pnpm build-storybook`과 `pnpm tsc`가 통과하는지 확인하고, `pnpm storybook`에서 확인할 스토리 목록을 알린다.
+6. **검증한다.** `pnpm build-storybook`과 `pnpm tsc`가 통과하는지 확인하고, `pnpm storybook`에서 확인할 스토리 목록을 알린다. 응답을 덮는 스토리가 있으면 스토리를 하나씩 연 화면과 문서 페이지 양쪽에서 스토리마다 제 상태로 보이는지 확인한다.
 
 ## 스토리를 지울 때
 
@@ -75,6 +76,12 @@ description: 구현·설계를 마친 컴포넌트의 스토리북 스토리(`in
 - 선택지가 정해진 prop은 `argTypes`에 `control`과 `options`를 둬 리뷰어가 바꿔 볼 수 있게 한다.
 - 여러 크기·모양을 나란히 비교할 때만 `render`를 쓴다.
 - 라벨과 예시 텍스트는 실제 서비스 문구를 쓴다. `Button`, `Lorem ipsum` 같은 자리 표시 문구를 쓰지 않는다.
+- `parameters.msw.handlers`로 응답을 덮는 스토리에는 `parameters.docs`에 `{ story: { inline: false, iframeHeight } }`를 함께 둔다.
+  - 문서 페이지는 한 컴포넌트의 스토리를 한 화면에 함께 그리는데 msw는 화면에 하나뿐이다. 스토리마다 앞 스토리의 응답 설정을 지우고 자기 설정을 넣으므로, 따로 그리게 하지 않으면 마지막 스토리의 응답이 모든 스토리에 적용된다. 스토리를 하나씩 열면 정상이라 문서 페이지를 보기 전에는 알 수 없다.
+  - `iframeHeight`는 그 스토리 화면이 잘리지 않는 높이(px)다. 스토리를 하나씩 연 화면에서 재서 넣는다.
+  - 한 파일에 그런 스토리가 여럿이고 높이가 같으면 파일 위쪽에 상수로 한 번만 정의한다. 예: `src/modules/widgets/document/DocumentViewer/index.stories.tsx`의 `ISOLATED_DOCS`
+  - 응답을 덮지 않는 스토리와 meta, `.storybook/preview.tsx`에는 넣지 않는다. 따로 그리는 스토리는 저마다 화면을 새로 불러와 문서 페이지가 무거워진다.
+  - 따로 그린 스토리는 `pnpm storybook`에서 파일을 저장해도 문서 페이지에서 스스로 다시 그려지지 않는다. 문서 페이지를 새로고침해 확인한다. (`.storybook/preview-head.html`)
 
 ## 예시
 
