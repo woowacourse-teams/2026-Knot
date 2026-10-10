@@ -79,7 +79,7 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 /** 독에서 시작한 녹음이 이어지는 상태예요. 시간이 1초마다 늘어나고, 파형이 소리를 따라 움직여요. */
-export const Recording: Story = {
+export const Default: Story = {
   beforeEach: () => {
     useRecordingStore.setState({
       status: "recording",
