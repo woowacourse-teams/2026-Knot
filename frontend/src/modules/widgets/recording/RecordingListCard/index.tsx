@@ -20,7 +20,7 @@ import LoadingFallback from "./ui/LoadingFallback";
  */
 export default function RecordingListCard() {
   const titleId = useTitleId();
-  const title = useRecordingTitle();
+  const { title, isLoading: isTitleLoading } = useRecordingTitle();
   const {
     status: thisTabStatus,
     elapsedTime: thisTabElapsedTime,
@@ -32,8 +32,9 @@ export default function RecordingListCard() {
     isLoading: isServerLoading,
   } = useServerRecording();
 
-  // 이 탭의 녹음은 조회를 기다리지 않고 바로 보여 줘요
-  const isLoading = thisTabStatus === "idle" && isServerLoading;
+  // 이 탭의 녹음은 현재 녹음 조회를 기다리지 않고 바로 보여 줘요. 녹음 이름은 어느 쪽이든 칸에 들어가 기다려요
+  const isLoading =
+    isTitleLoading || (thisTabStatus === "idle" && isServerLoading);
 
   return (
     <Container aria-labelledby={titleId} aria-busy={isLoading}>
