@@ -78,8 +78,8 @@ sequenceDiagram
     participant Save as 후속 #524 저장 서비스
     Worker->>Service: generate(전체 원문, 확정 주제 하나)
     Service->>Service: 원문·주제 입력 검증
-    Service->>Generator: generate(원문, 주제)
-    Generator->>Prompt: createRequest(원문, 주제)
+    Service->>Generator: generate(검증된 DocumentGenerationInput)
+    Generator->>Prompt: createRequest(검증된 DocumentGenerationInput)
     Prompt-->>Generator: system + user JSON + schema + options
     Generator->>Client: complete(request)
     Client->>Model: 공급자 API 요청
@@ -134,11 +134,11 @@ sequenceDiagram
 
 | 위치·클래스 | 책임 | 메서드 초안과 결과 |
 |---|---|---|
-| `document/application/DocumentGenerationService` | 상위 실행기가 호출할 단일 주제 작성 유즈케이스 | public `generate(String transcriptContent, String topic)` → `DocumentGenerationResult` |
+| `document/application/DocumentGenerationService` | 상위 실행기가 호출할 단일 주제 작성 유즈케이스 | public `generate(DocumentGenerationInput input)` → `DocumentGenerationResult` |
 | 동일 Service | 입력을 나눠 검증하고 유효한 호출만 위임 | private `validateTranscriptContent`, `validateTopic` |
-| `document/infrastructure/llm/DocumentGenerationPrompt` | 작성 규칙·템플릿·스키마·설정으로 요청 구성 | public `createRequest(String transcriptContent, String topic)` → `LlmCompletionRequest` |
+| `document/infrastructure/llm/DocumentGenerationPrompt` | 작성 규칙·템플릿·스키마·설정으로 요청 구성 | public `createRequest(DocumentGenerationInput input)` → `LlmCompletionRequest` |
 | 동일 Prompt | 원문·주제를 JSON 데이터로 보존하고 리소스 로드 | private `createMessages`, `serializeInput`, `createOptions`, `readResource` |
-| `document/application/DocumentGenerator` | 서비스가 사용하는 작성 계약 | `generate(String, String)` → `DocumentGenerationResult` |
+| `document/application/DocumentGenerator` | 서비스가 사용하는 작성 계약 | `generate(DocumentGenerationInput input)` → `DocumentGenerationResult` |
 | `document/infrastructure/llm/LlmDocumentGenerator` | client 호출, 응답 해석·검증·결과 구성 | public `generate(String transcriptContent, String topic)` → `DocumentGenerationResult` |
 | 동일 Generator | 타입 강제 변환 없이 JSON 계약 검사 | private `readResponse`, `validateResponseFields`, `readRequiredText`, `readSummary` |
 | `document/infrastructure/llm/DocumentMarkdownValidator` | 코드로 확인 가능한 본문 형식과 출력 링크 검사 | public `validate(DocumentGenerationResult result)`; 위반이면 예외 |
@@ -252,3 +252,9 @@ DB 변경과 Flyway migration은 필요 없다. 기존 Document의 title/content
 ## 2026-10-09 리뷰 반영
 
 application의 `DocumentGenerator` 인터페이스를 infrastructure의 `LlmDocumentGenerator`가 구현한다. 서비스와 서비스 단위 테스트는 application 계약만 의존한다. #534에서 제외한 작성·발언 선별 실험 문서 10개를 이 브랜치에서 보관하며 실제 출력과 과거 관측은 유지한다.
+
+## 2026-10-10 입력·공백 판정 리뷰 반영
+
+- `DocumentGenerationService`에서 `DocumentGenerationInput`을 생성한다. 원문 공백 검증과 `DocumentTopic` 생성 오류는 `INVALID_DOCUMENT_GENERATION_INPUT`으로 처리하며 공급자를 호출하지 않는다.
+- generator 계약·adapter·Prompt는 검증된 입력 객체를 공유한다. Prompt에서 원문·주제 검증을 반복하지 않는다. 원문은 그대로 보존하고 주제명만 값 객체 규칙으로 정규화한다.
+- Markdown 행·응답 텍스트·리소스의 공백 판정도 #534의 `DocumentText.isBlank`를 사용한다. LLM 응답 검증과 도메인 저장 검증은 서로 다른 경계다.

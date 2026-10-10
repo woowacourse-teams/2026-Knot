@@ -2,6 +2,7 @@ package com.knot.backend.document.infrastructure;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.knot.backend.document.domain.DocumentTopic;
 import com.knot.backend.document.DocumentFixtures;
 import com.knot.backend.document.application.DocumentDetailQuery;
 import com.knot.backend.document.application.dto.result.DocumentDetailResult;
@@ -306,7 +307,7 @@ class DocumentDetailQueryIntegrationTest {
         DocumentGenerationJob job = DocumentGenerationJob.queueGeneration(
                 batchId,
                 transcript.getId(),
-                "개발 정책",
+                DocumentTopic.of("개발 정책"),
                 DocumentFixtures.CREATED_AT
         );
         entityManager.persist(job);

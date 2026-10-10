@@ -1,15 +1,14 @@
 package com.knot.backend.document.infrastructure.llm;
 
+import com.knot.backend.document.domain.DocumentTopic;
 import com.knot.backend.document.application.DocumentTopicClassifier;
 import com.knot.backend.document.domain.DocumentErrorCode;
 import com.knot.backend.document.domain.DocumentException;
 import com.knot.backend.global.infrastructure.llm.LlmClient;
 import com.knot.backend.global.infrastructure.llm.LlmCompletionRequest;
-import java.text.Normalizer;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.regex.Pattern;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 import tools.jackson.core.JacksonException;
@@ -21,7 +20,6 @@ import tools.jackson.databind.ObjectMapper;
 @Component
 @ConditionalOnProperty(prefix = "knot.llm", name = "enabled", havingValue = "true")
 public class LlmDocumentTopicClassifier implements DocumentTopicClassifier {
-    private static final Pattern WHITESPACE = Pattern.compile("[\\p{javaWhitespace}\\p{Z}]+");
 
     private final DocumentTopicPrompt prompt;
     private final LlmClient client;
@@ -40,21 +38,20 @@ public class LlmDocumentTopicClassifier implements DocumentTopicClassifier {
     }
 
     @Override
-    public List<String> classify(String transcriptContent) {
+    public List<DocumentTopic> classify(String transcriptContent) {
         LlmCompletionRequest request = prompt.createRequest(transcriptContent);
         String response = client.complete(request);
         return parseTopics(response);
     }
 
-    private List<String> parseTopics(String response) {
+    private List<DocumentTopic> parseTopics(String response) {
         JsonNode root = readResponse(response);
         validateTopicsArray(root);
-        List<String> topics = new ArrayList<>();
+        List<DocumentTopic> topics = new ArrayList<>();
         for (JsonNode topic : root.path("topics")) {
             validateTopicName(topic);
             String topicName = topic.asString();
-            String normalizedTopicName = normalizeTopicName(topicName);
-            topics.add(normalizedTopicName);
+            topics.add(createTopic(topicName));
         }
         return removeDuplicateTopics(topics);
     }
@@ -97,21 +94,15 @@ public class LlmDocumentTopicClassifier implements DocumentTopicClassifier {
         }
     }
 
-    private String normalizeTopicName(String topic) {
-        String normalized = Normalizer.normalize(
-                topic,
-                Normalizer.Form.NFC
-        );
-        normalized = WHITESPACE.matcher(normalized)
-                .replaceAll(" ")
-                .strip();
-        if (normalized.isEmpty()) {
+    private DocumentTopic createTopic(String topic) {
+        try {
+            return DocumentTopic.of(topic);
+        } catch (DocumentException exception) {
             throw invalidResponse();
         }
-        return normalized;
     }
 
-    private List<String> removeDuplicateTopics(List<String> topics) {
+    private List<DocumentTopic> removeDuplicateTopics(List<DocumentTopic> topics) {
         return List.copyOf(new LinkedHashSet<>(topics));
     }
 

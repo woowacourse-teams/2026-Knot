@@ -118,7 +118,7 @@ class DocumentTest {
 
     @ParameterizedTest
     @NullAndEmptySource
-    @ValueSource(strings = {" ", "\n"})
+    @ValueSource(strings = {" ", "\n", "\u00a0", "\u2007", "\u202f", "　"})
     @DisplayName("문서의 빈 제목은 거절한다")
     void createDraft_failure_blankTitle(String title) {
         // when & then
@@ -135,6 +135,39 @@ class DocumentTest {
                         CREATED_AT
                 )
         ).isInstanceOf(DocumentException.class);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"\u00a0", "\u2007", "\u202f", "　"})
+    @DisplayName("주제와 본문도 같은 Unicode 공백 기준으로 거절한다")
+    void createDraft_failure_blankTopicOrContent(String value) {
+        // when & then
+        assertThatThrownBy(
+                () -> Document.createDraft(
+                        1,
+                        2,
+                        3,
+                        4,
+                        value,
+                        "제목",
+                        null,
+                        "본문",
+                        CREATED_AT
+                )
+        ).hasMessage(DocumentErrorCode.INVALID_DOCUMENT_DATA.getMessage());
+        assertThatThrownBy(
+                () -> Document.createDraft(
+                        1,
+                        2,
+                        3,
+                        4,
+                        "주제",
+                        "제목",
+                        null,
+                        value,
+                        CREATED_AT
+                )
+        ).hasMessage(DocumentErrorCode.INVALID_DOCUMENT_DATA.getMessage());
     }
 
     @Test

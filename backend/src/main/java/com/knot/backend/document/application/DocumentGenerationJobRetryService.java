@@ -1,5 +1,6 @@
 package com.knot.backend.document.application;
 
+import com.knot.backend.document.domain.DocumentText;
 import com.knot.backend.document.application.dto.result.DocumentGenerationInputResult;
 import com.knot.backend.document.application.dto.result.DocumentGenerationJobRetryResult;
 import com.knot.backend.document.domain.DocumentErrorCode;
@@ -99,8 +100,7 @@ public class DocumentGenerationJobRetryService {
     }
 
     private void validateInput(DocumentGenerationInputResult input) {
-        if (input.content() == null || input.content()
-                .isBlank()) {
+        if (DocumentText.isBlank(input.content())) {
             throw new DocumentException(DocumentErrorCode.RETRY_NOT_ALLOWED);
         }
     }
