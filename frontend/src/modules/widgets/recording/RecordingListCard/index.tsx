@@ -1,45 +1,41 @@
 import styled from "@emotion/styled";
 
+import { useRecordingTitle } from "./model/useRecordingTitle";
+import { useServerRecording } from "./model/useServerRecording";
 import { useTitleId } from "./model/useTitleId";
 import CurrentRecordingItem from "./ui/CurrentRecordingItem";
 import EmptyRecording from "./ui/EmptyRecording";
 import LoadingFallback from "./ui/LoadingFallback";
 
-import type { CurrentRecording } from "./types/currentRecording";
-
-interface RecordingListCardProps {
-  /** 내가 지금 진행 중인 녹음. 없으면 `null` */
-  recording: CurrentRecording | null;
-  /** 녹음을 조회하는 중이면 뼈대를 보여 줘요 */
-  isLoading: boolean;
-  /** 넘기지 않으면 「녹음 화면으로」 버튼을 숨겨요 */
-  onOpenRecording?: () => void;
-}
-
 /**
  * 홈의 「진행 중인 녹음」 카드. 내가 지금 진행 중인 녹음 하나만 보여 주고, 없으면 빈 상태 문구를 보여 줘요.
+ *
+ * 현재 `:workspaceId`의 현재 녹음 조회 응답을 보여 주고 「녹음 화면으로」 버튼은 숨겨요.
+ * 응답의 누적 시간에 응답을 받은 뒤 흐른 시간을 더해 녹음 중이면 매초 늘리고, 일시정지면 멈춰 둬요.
+ * 녹음 중·일시정지가 아닌 녹음(문서 정리 중·실패)과 조회 실패는 녹음이 없는 것으로 보여 줘요.
  */
-export default function RecordingListCard({
-  recording,
-  isLoading,
-  onOpenRecording,
-}: RecordingListCardProps) {
+export default function RecordingListCard() {
   const titleId = useTitleId();
+  const title = useRecordingTitle();
+  const {
+    status: serverStatus,
+    elapsedTime: serverElapsedTime,
+    isLoading: isServerLoading,
+  } = useServerRecording();
 
   return (
-    <Container aria-labelledby={titleId} aria-busy={isLoading}>
+    <Container aria-labelledby={titleId} aria-busy={isServerLoading}>
       <Header>
         <Title id={titleId}>진행 중인 녹음</Title>
       </Header>
 
-      {isLoading ? (
+      {isServerLoading ? (
         <LoadingFallback />
-      ) : recording ? (
+      ) : serverStatus ? (
         <CurrentRecordingItem
-          recordingStatus={recording.status}
-          title={recording.title}
-          elapsedTime={recording.elapsedTime}
-          onOpenRecording={onOpenRecording}
+          recordingStatus={serverStatus}
+          title={title}
+          elapsedTime={serverElapsedTime}
         />
       ) : (
         <EmptyRecording />
