@@ -1,6 +1,5 @@
 import { NO_DECISION_SENTENCE } from "@constants/document";
 import styled from "@emotion/styled";
-import DocumentConfirmButton from "@features/document/DocumentConfirmButton";
 import DocumentConfirmCount from "@features/document/DocumentConfirmCount";
 import Breadcrumb from "@primitives/ui/Breadcrumb";
 import Chip from "@primitives/ui/Chip";
@@ -10,7 +9,9 @@ import { formatDurationFromSeconds } from "@utils/formatDurationFromSeconds";
 import { useId } from "react";
 import { useParams } from "react-router";
 
+import { useConfirmDocument } from "./model/useConfirmDocument";
 import { useDocumentViewer } from "./model/useDocumentViewer";
+import DocumentConfirmButton from "./ui/DocumentConfirmButton";
 import DocumentCopyButton from "./ui/DocumentCopyButton";
 import DocumentLoadFailed from "./ui/DocumentLoadFailed";
 import DocumentSkeleton from "./ui/DocumentSkeleton";
@@ -22,16 +23,23 @@ import DocumentSkeleton from "./ui/DocumentSkeleton";
  * 같은 판단을 프론트에도 두면 기준이 두 곳에 생기기 때문이에요.
  *
  * 받은 문서 값을 그리기만 하면 되는 것(경로 · 제목 · 날짜 · 녹음 길이 · 본문)은 여기서 직접 그려요.
- * 복사 버튼은 이 위젯의 부품(`ui/`)이고, 받은 문서의 제목과 본문을 넘겨줘요.
- * 확인 수와 확인 버튼은 문서 ID만 받는 features를 놓아요.
+ * 복사 버튼과 확인 버튼은 이 위젯의 부품(`ui/`)이고, 필요한 값과 동작을 여기서 넘겨줘요.
+ * 확인 버튼은 아직 확인하지 않은 확인 대상에게만 보여요(CONF-R6). 이미 확인했거나 확인 대상이 아니면 그 줄을 그리지 않아요.
+ * 확인 수는 문서 ID만 받는 feature를 놓아요.
  * 결정이 없는 회의 문서는 본문의 결정 없음 문장을 흐리게 그려요(STT-R23).
  */
 export default function DocumentViewer() {
   const titleId = useId();
   const params = useParams();
+  const workspaceId = Number(params.workspaceId);
+  const documentId = Number(params.documentId);
   const { status, documentDetail, retry } = useDocumentViewer({
-    workspaceId: Number(params.workspaceId),
-    documentId: Number(params.documentId),
+    workspaceId,
+    documentId,
+  });
+  const { confirmDocument, isConfirming } = useConfirmDocument({
+    workspaceId,
+    documentId,
   });
 
   if (status === "loading") {
@@ -75,9 +83,14 @@ export default function DocumentViewer() {
         content={documentDetail.content}
         mutedLines={[NO_DECISION_SENTENCE]}
       />
-      <ConfirmArea>
-        <DocumentConfirmButton documentId={documentDetail.id} />
-      </ConfirmArea>
+      {documentDetail.myConfirmationState === "PENDING" && (
+        <ConfirmArea>
+          <DocumentConfirmButton
+            isConfirming={isConfirming}
+            onConfirm={confirmDocument}
+          />
+        </ConfirmArea>
+      )}
     </Container>
   );
 }
@@ -135,9 +148,4 @@ const ConfirmArea = styled.div`
   display: flex;
   justify-content: center;
   padding: 1rem 0 0.5rem; /* 16px 0 8px */
-
-  /* 확인 버튼은 스스로 보일지 정해요. 그리지 않을 때는 이 줄의 여백과 간격도 남기지 않아요 */
-  &:empty {
-    display: none;
-  }
 `;
