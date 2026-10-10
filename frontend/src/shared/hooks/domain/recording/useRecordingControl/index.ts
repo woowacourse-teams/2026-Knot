@@ -16,6 +16,7 @@ import {
   getRecordingStartProof,
 } from "@utils/recordingControlProof";
 import { useCallback } from "react";
+import useEndRecordingDialog from "../useEndRecordingDialog";
 
 /** 최종 오디오 업로드가 일시 실패했을 때 다시 시도하는 최대 횟수(첫 시도 제외) */
 const AUDIO_UPLOAD_MAX_RETRIES = 3;
@@ -57,6 +58,7 @@ const useRecordingControl = () => {
   const { mutateAsync: uploadAudio } = useUploadRecordingAudioMutation();
   const { mutateAsync: completeAudioUpload } =
     useCompleteRecordingAudioUploadMutation();
+  const { openEndRecordingDialog } = useEndRecordingDialog();
 
   /** 녹음을 버리고 다음 녹음은 새 시작 요청으로 보내도록 증명을 지운 뒤 홈으로 가요 */
   const closeRecording = useCallback(
@@ -198,29 +200,34 @@ const useRecordingControl = () => {
     [completeAudioUpload, issueAudioUploadUrl, uploadAudio],
   );
 
-  const endRecording = useCallback(async () => {
-    const { session, isEnding, beginEnding } = useRecordingStore.getState();
-    if (!session || isEnding) return;
+  const endRecording = useCallback(() => {
+    openEndRecordingDialog({
+      onEnd: async () => {
+        const { session, isEnding, beginEnding } = useRecordingStore.getState();
+        if (!session || isEnding) return;
 
-    // 응답을 기다리는 동안 다시 눌러도 종료 요청이 겹치지 않게 먼저 표시해요
-    beginEnding();
+        // 응답을 기다리는 동안 다시 눌러도 종료 요청이 겹치지 않게 먼저 표시해요
+        beginEnding();
 
-    try {
-      await endRecordingSession(session);
-    } catch (error) {
-      useRecordingStore.getState().cancelEnding();
-      handleControlError({ action: "녹음 종료", error, ...session });
+        try {
+          await endRecordingSession(session);
+        } catch (error) {
+          useRecordingStore.getState().cancelEnding();
+          handleControlError({ action: "녹음 종료", error, ...session });
 
-      return;
-    }
+          return;
+        }
 
-    const audio = await useRecordingStore.getState().stopRecording();
-    await uploadRecordedAudio({ ...session, audio });
-    closeRecording(session.workspaceId);
+        const audio = await useRecordingStore.getState().stopRecording();
+        await uploadRecordedAudio({ ...session, audio });
+        closeRecording(session.workspaceId);
+      },
+    });
   }, [
     closeRecording,
     endRecordingSession,
     handleControlError,
+    openEndRecordingDialog,
     uploadRecordedAudio,
   ]);
 
