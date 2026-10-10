@@ -50,7 +50,7 @@ class DocumentTopicClassificationIntegrationTest {
             DocumentTopicClassificationResult result = service.classify(transcript);
 
             // then
-            assertThat(result.topics()).containsExactly(
+            assertThat(result.topicNames()).containsExactly(
                     "검색 조건",
                     "알림"
             );

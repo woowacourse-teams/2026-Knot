@@ -1,5 +1,6 @@
 package com.knot.backend.document.infrastructure.llm;
 
+import com.knot.backend.document.domain.DocumentTopic;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -46,14 +47,16 @@ class LlmDocumentTopicClassifierTest {
         when(client.complete(any())).thenReturn("{\"topics\":[\"알림 문구\",\"검색 도입\"]}");
 
         // when
-        List<String> topics = classifier.classify("알림 문구를 바꾸자. 문서가 늘면 검색도 필요하다.");
+        List<DocumentTopic> topics = classifier.classify("알림 문구를 바꾸자. 문서가 늘면 검색도 필요하다.");
 
         // then
-        assertThat(topics).containsExactly(
-                "알림 문구",
-                "검색 도입"
-        );
-        assertThatThrownBy(() -> topics.add("다른 주제")).isInstanceOf(UnsupportedOperationException.class);
+        assertThat(topics).extracting(DocumentTopic::value)
+                .containsExactly(
+                        "알림 문구",
+                        "검색 도입"
+                );
+        assertThatThrownBy(() -> topics.add(DocumentTopic.of("다른 주제")))
+                .isInstanceOf(UnsupportedOperationException.class);
         verify(client).complete(any());
     }
 
@@ -64,7 +67,7 @@ class LlmDocumentTopicClassifierTest {
         when(client.complete(any())).thenReturn("{\"topics\":[]}");
 
         // when
-        List<String> topics = classifier.classify("소리 들리나요? 네.");
+        List<DocumentTopic> topics = classifier.classify("소리 들리나요? 네.");
 
         // then
         assertThat(topics).isEmpty();
@@ -79,15 +82,16 @@ class LlmDocumentTopicClassifierTest {
                 """);
 
         // when
-        List<String> topics = classifier.classify("유효한 논의");
+        List<DocumentTopic> topics = classifier.classify("유효한 논의");
 
         // then
-        assertThat(topics).containsExactly(
-                "알림 문구",
-                "가",
-                "검색 도입",
-                "검색 기능 개발"
-        );
+        assertThat(topics).extracting(DocumentTopic::value)
+                .containsExactly(
+                        "알림 문구",
+                        "가",
+                        "검색 도입",
+                        "검색 기능 개발"
+                );
     }
 
     @ParameterizedTest
