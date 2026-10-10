@@ -21,7 +21,7 @@ class DocumentGenerationJobTest {
         DocumentGenerationJob job = DocumentGenerationJob.queueGeneration(
                 1,
                 1,
-                "검색",
+                DocumentTopic.of("검색"),
                 CREATED_AT
         );
         // when
