@@ -1,6 +1,6 @@
 import styled from "@emotion/styled";
-import { useId } from "react";
 
+import { useTitleId } from "./model/useTitleId";
 import CurrentRecordingItem from "./ui/CurrentRecordingItem";
 import EmptyRecording from "./ui/EmptyRecording";
 import LoadingFallback from "./ui/LoadingFallback";
@@ -24,7 +24,7 @@ export default function RecordingListCard({
   isLoading,
   onOpenRecording,
 }: RecordingListCardProps) {
-  const titleId = useId();
+  const titleId = useTitleId();
 
   return (
     <Container aria-labelledby={titleId} aria-busy={isLoading}>
