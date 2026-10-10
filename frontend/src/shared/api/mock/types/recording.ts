@@ -8,6 +8,33 @@ export interface RecordingStartResponse {
   startedAt: string;
 }
 
+/** 화면용 종합 상태 */
+export type RecordingStatus =
+  RecordingSessionStatus | "PROCESSING" | "COMPLETED" | "NO_CONTENT" | "FAILED";
+
+/** 전사·문서 생성 작업의 상태 */
+export type RecordingJobStatus =
+  "NOT_STARTED" | "QUEUED" | "RUNNING" | "SUCCEEDED" | "FAILED";
+
+export interface RecordingDetailResponse {
+  recordingId: number;
+  status: RecordingStatus;
+  sessionStatus: RecordingSessionStatus;
+  audioUploadStatus: "NOT_STARTED" | "PENDING" | "COMPLETED" | "FAILED";
+  /** ISO 8601 */
+  startedAt: string;
+  /** 끝나기 전이면 null */
+  endedAt: string | null;
+  /** 끝나기 전이면 null */
+  durationMillis: number | null;
+  transcriptionStatus: RecordingJobStatus;
+  documentGenerationStatus: RecordingJobStatus;
+  /** 문서 생성 작업이 없으면 null */
+  documentGenerationJobId: number | null;
+  failureStage: "AUDIO_UPLOAD" | "TRANSCRIPTION" | "DOCUMENT_GENERATION" | null;
+  failureReason: string | null;
+}
+
 export interface RecordingPauseResponse {
   recordingId: number;
   status: RecordingSessionStatus;

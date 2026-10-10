@@ -20,6 +20,8 @@ export const PATH_ROUTE = {
   CHAT_SESSION: "/workspace/:workspaceId/chat/:sessionId",
 
   RECORDING: "/workspace/:workspaceId/recording",
+  // 녹음을 끝낸 뒤 문서가 만들어질 때까지 보여 주는 정리 화면
+  RECORDING_DOCUMENTS: "/workspace/:workspaceId/recordings/:recordingId",
 
   DOCUMENT: "/workspace/:workspaceId/documents/:documentId",
 

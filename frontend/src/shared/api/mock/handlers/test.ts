@@ -1,5 +1,6 @@
 import { GetCsrfTokenResponseDto, GetMeResponseDto } from "@api/dto/auth";
 import { GetChatMessagesResponseDto } from "@api/dto/chatMessage";
+import { PostDocumentGenerationJobRetryResponseDto } from "@api/dto/documentGenerationJob";
 import {
   GetNotionConnectionResponseDto,
   PostNotionOAuthAuthorizationResponseDto,
@@ -15,6 +16,7 @@ import {
   PutDocumentConfirmationResponseDto,
 } from "@api/dto/document";
 import {
+  GetRecordingResponseDto,
   PostRecordingAudioUploadCompleteResponseDto,
   PostRecordingAudioUploadUrlResponseDto,
   PostRecordingEndResponseDto,
@@ -73,7 +75,9 @@ import { getNotionConnectionApi } from "@api/fetch/api/v1/workspaces/[workspaceI
 import { startNotionOAuthApi } from "@api/fetch/api/v1/workspaces/[workspaceId]/notionOauthAuthorizations";
 import { issueWorkspaceInvitationApi } from "@api/fetch/api/v1/workspaces/[workspaceId]/invitations";
 import { reissueWorkspaceInvitationApi } from "@api/fetch/api/v1/workspaces/[workspaceId]/invitations/reissue";
+import { retryDocumentGenerationJobApi } from "@api/fetch/api/v1/workspaces/[workspaceId]/documentGenerationJobs/[jobId]/retry";
 import { startRecordingApi } from "@api/fetch/api/v1/workspaces/[workspaceId]/recordings";
+import { getRecordingApi } from "@api/fetch/api/v1/workspaces/[workspaceId]/recordings/[recordingId]";
 import { completeRecordingAudioUploadApi } from "@api/fetch/api/v1/workspaces/[workspaceId]/recordings/[recordingId]/audioUploadComplete";
 import {
   issueRecordingAudioUploadUrlApi,
@@ -84,6 +88,7 @@ import { pauseRecordingApi } from "@api/fetch/api/v1/workspaces/[workspaceId]/re
 import { resumeRecordingApi } from "@api/fetch/api/v1/workspaces/[workspaceId]/recordings/[recordingId]/resume";
 import { HTTP_ERROR_TYPE } from "@api/httpClient/error";
 import { csrfTokenResponse, meResponse } from "@api/mock/responses/auth";
+import { documentGenerationJobRetryResponse } from "@api/mock/responses/documentGenerationJob";
 import {
   notionConnectionResponse,
   notionOAuthAuthorizationResponse,
@@ -101,6 +106,7 @@ import {
 import {
   recordingAudioUploadCompleteResponse,
   recordingAudioUploadUrlResponse,
+  recordingDetailsResponse,
   recordingEndResponse,
   recordingPauseResponse,
   recordingResumeResponse,
@@ -679,6 +685,106 @@ describe("mock 기본 핸들러와 fetch 요청 함수의 대응", () => {
         new PostRecordingAudioUploadCompleteResponseDto(
           recordingAudioUploadCompleteResponse,
         ),
+      );
+    });
+
+    it("GET .../recordings/:recordingId는 recordingDetailsResponse에서 그 녹음을 찾아 돌려준다", async () => {
+      // 상태가 서로 다른 녹음을 모두 물어, 핸들러가 id로 골라 주는지 확인해요
+      for (const recording of recordingDetailsResponse) {
+        await expect(
+          getRecordingApi({
+            workspaceId: WORKSPACE_ID,
+            recordingId: recording.recordingId,
+          }),
+        ).resolves.toEqual(new GetRecordingResponseDto(recording));
+      }
+    });
+
+    it("recordingDetailsResponse에 없는 녹음을 물으면 404 RECORDING_NOT_FOUND로 답한다", async () => {
+      await expect(
+        getRecordingApi({ workspaceId: WORKSPACE_ID, recordingId: 999 }),
+      ).rejects.toMatchObject({
+        type: HTTP_ERROR_TYPE.notFound,
+        code: "RECORDING_NOT_FOUND",
+      });
+    });
+  });
+
+  describe("문서 생성 작업", () => {
+    // 정리 중인 녹음(작업 진행 중)과 문서 만들기에 실패한 녹음(작업 실패)
+    const [processingRecording, , failedRecording] = recordingDetailsResponse;
+    const failedJobParams = {
+      workspaceId: WORKSPACE_ID,
+      jobId: documentGenerationJobRetryResponse.jobId,
+    };
+    const failedRecordingParams = {
+      workspaceId: WORKSPACE_ID,
+      recordingId: failedRecording.recordingId,
+    };
+
+    it("POST .../document-generation-jobs/:jobId/retry는 실패한 작업을 접수하고 documentGenerationJobRetryResponse를 돌려준다", async () => {
+      await expect(
+        retryDocumentGenerationJobApi(failedJobParams),
+      ).resolves.toEqual(
+        new PostDocumentGenerationJobRetryResponseDto(
+          documentGenerationJobRetryResponse,
+        ),
+      );
+    });
+
+    it("다시 시도한 뒤에는 그 녹음의 상세가 정리 중으로 바뀌고 실패 사유가 지워진다", async () => {
+      await retryDocumentGenerationJobApi(failedJobParams);
+
+      await expect(
+        getRecordingApi(failedRecordingParams),
+      ).resolves.toMatchObject({
+        status: "PROCESSING",
+        documentGenerationStatus: "QUEUED",
+        failureStage: null,
+        failureReason: null,
+      });
+    });
+
+    it("이미 다시 시도해 실패 상태가 아닌 작업을 또 시도하면 409 RETRY_NOT_ALLOWED로 답한다", async () => {
+      await retryDocumentGenerationJobApi(failedJobParams);
+
+      await expect(
+        retryDocumentGenerationJobApi(failedJobParams),
+      ).rejects.toMatchObject({
+        type: HTTP_ERROR_TYPE.conflict,
+        code: "RETRY_NOT_ALLOWED",
+      });
+    });
+
+    it("진행 중인 작업을 다시 시도하면 409 RETRY_NOT_ALLOWED로 답한다", async () => {
+      await expect(
+        retryDocumentGenerationJobApi({
+          workspaceId: WORKSPACE_ID,
+          // mock 데이터에서 이 작업 ID가 사라지면 0이 되어 404로 실패하므로, 테스트가 알려 줘요
+          jobId: Number(processingRecording.documentGenerationJobId),
+        }),
+      ).rejects.toMatchObject({
+        type: HTTP_ERROR_TYPE.conflict,
+        code: "RETRY_NOT_ALLOWED",
+      });
+    });
+
+    it("없는 작업을 다시 시도하면 404 DOCUMENT_GENERATION_JOB_NOT_FOUND로 답한다", async () => {
+      await expect(
+        retryDocumentGenerationJobApi({
+          workspaceId: WORKSPACE_ID,
+          jobId: 999,
+        }),
+      ).rejects.toMatchObject({
+        type: HTTP_ERROR_TYPE.notFound,
+        code: "DOCUMENT_GENERATION_JOB_NOT_FOUND",
+      });
+    });
+
+    it("다시 시도한 기록은 테스트가 끝나면 지워져, 다음 테스트는 기본 응답을 받는다", async () => {
+      // 위 테스트들이 작업을 다시 시도했지만 vitest.setup의 afterEach가 기록을 지웠어요
+      await expect(getRecordingApi(failedRecordingParams)).resolves.toEqual(
+        new GetRecordingResponseDto(failedRecording),
       );
     });
   });
