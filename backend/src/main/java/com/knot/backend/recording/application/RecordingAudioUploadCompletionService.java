@@ -12,7 +12,6 @@ public class RecordingAudioUploadCompletionService {
     private final RecordingAudioUploadCompletionTransaction completionTransaction;
     private final RecordingAudioStorage audioStorage;
 
-    // 저장소 확인을 DB 잠금 밖에서 하고, 기록 직전 잠금 아래에서 권한·상태를 다시 검증한다.
     public RecordingAudioUploadCompletionResult complete(
             long workspaceId,
             long memberId,
