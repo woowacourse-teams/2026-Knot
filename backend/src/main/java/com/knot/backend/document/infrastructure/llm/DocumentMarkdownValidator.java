@@ -1,5 +1,6 @@
 package com.knot.backend.document.infrastructure.llm;
 
+import com.knot.backend.document.domain.DocumentText;
 import com.knot.backend.document.application.dto.result.DocumentGenerationResult;
 import com.knot.backend.document.domain.DocumentErrorCode;
 import com.knot.backend.document.domain.DocumentException;
@@ -25,7 +26,6 @@ public class DocumentMarkdownValidator {
             Pattern.MULTILINE
     );
     private static final Pattern PLACEHOLDER = Pattern.compile("^(?:없음|해당없음|내용없음)[.!。]?$");
-    private static final Pattern BLANK = Pattern.compile("[\\p{javaWhitespace}\\p{Z}]*");
 
     public void validate(DocumentGenerationResult result) {
         validateLinks(result.title());
@@ -107,8 +107,7 @@ public class DocumentMarkdownValidator {
     }
 
     private boolean isBodyLine(String line) {
-        if (BLANK.matcher(line)
-                .matches()) {
+        if (DocumentText.isBlank(line)) {
             return false;
         }
         if (FENCE.matcher(line)
