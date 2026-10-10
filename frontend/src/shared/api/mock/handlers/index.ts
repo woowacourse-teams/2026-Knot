@@ -23,6 +23,7 @@ import { recordingAudioUploadUrlHandlers } from "./api/v1/workspaces/[workspaceI
 import { recordingEndHandlers } from "./api/v1/workspaces/[workspaceId]/recordings/[recordingId]/end";
 import { recordingPauseHandlers } from "./api/v1/workspaces/[workspaceId]/recordings/[recordingId]/pause";
 import { recordingResumeHandlers } from "./api/v1/workspaces/[workspaceId]/recordings/[recordingId]/resume";
+import { currentRecordingHandlers } from "./api/v1/workspaces/[workspaceId]/recordings/current";
 
 // 리다이렉트 엔드포인트(OAuth 시작·로그아웃)는 XHR 응답이 아니라 두지 않아요
 export const handlers = [
@@ -42,6 +43,7 @@ export const handlers = [
   ...workspaceNotionConnectionHandlers,
   ...workspaceNotionPageTreeHandlers,
   ...workspaceRecordingsHandlers,
+  ...currentRecordingHandlers,
   ...recordingPauseHandlers,
   ...recordingResumeHandlers,
   ...recordingEndHandlers,

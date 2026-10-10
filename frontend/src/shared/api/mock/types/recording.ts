@@ -1,6 +1,19 @@
 /** 녹음 세션 상태 */
 export type RecordingSessionStatus = "RECORDING" | "PAUSED" | "ENDED";
 
+/** 현재 녹음의 화면용 종합 상태 */
+export type CurrentRecordingStatus =
+  "RECORDING" | "PAUSED" | "ENDED" | "PROCESSING" | "FAILED";
+
+export interface CurrentRecordingResponse {
+  recordingId: number;
+  status: CurrentRecordingStatus;
+  /** ISO 8601 */
+  startedAt: string;
+  /** 조회 시점까지 누적 녹음 시간(ms) */
+  elapsedMillis: number;
+}
+
 export interface RecordingStartResponse {
   recordingId: number;
   status: RecordingSessionStatus;

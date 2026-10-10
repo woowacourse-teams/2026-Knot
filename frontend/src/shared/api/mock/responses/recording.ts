@@ -1,4 +1,5 @@
 import type {
+  CurrentRecordingResponse,
   RecordingAudioUploadCompleteResponse,
   RecordingAudioUploadUrlResponse,
   RecordingEndResponse,
@@ -17,6 +18,13 @@ const fromNow = (offset: number) => new Date(Date.now() + offset).toISOString();
  * 와일드카드 대신 이 오리진으로 PUT을 가로채요
  */
 export const MOCK_AUDIO_STORAGE_ORIGIN = "https://audio-storage.knot.mock";
+
+export const currentRecordingResponse = {
+  recordingId: 10,
+  status: "RECORDING",
+  startedAt: fromNow(-12 * MINUTE),
+  elapsedMillis: 12 * MINUTE,
+} satisfies CurrentRecordingResponse;
 
 export const recordingStartResponse = {
   recordingId: 10,
