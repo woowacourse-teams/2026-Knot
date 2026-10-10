@@ -51,10 +51,18 @@ const meta = {
   component: RecorderBar,
   parameters: {
     layout: "padded",
-    design: {
-      type: "figma",
-      url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=1705-3280",
-    },
+    design: [
+      {
+        name: "Recorder/Bar",
+        type: "figma",
+        url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=1705-3280",
+      },
+      {
+        name: "녹음 종료/종료 확인",
+        type: "figma",
+        url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=2017-35790",
+      },
+    ],
   },
   beforeEach: resetRecording,
   decorators: [
