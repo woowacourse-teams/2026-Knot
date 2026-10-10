@@ -2,6 +2,7 @@
  * 탐색 DTO
  *
  * - POST /api/v1/workspaces/{workspaceId}/search/conversations (SSE)
+ * - POST /api/v1/workspaces/{workspaceId}/search/conversations/{conversationId}/questions (SSE)
  */
 
 /** 답변 준비 단계. SEARCHING은 문서 검색 중, GENERATING은 답변 생성 중 */
@@ -28,24 +29,28 @@ export class PostSearchConversationRequestDto {
   }
 }
 
-/** accepted 전 HTTP 오류의 서버 응답 모양 */
-export interface PostSearchConversationErrorResponseRaw {
-  code: string;
-  message: string;
+// POST /api/v1/workspaces/{workspaceId}/search/conversations/{conversationId}/questions (SSE)
+
+/** 후속 질문 전송 시 앱이 넘기는 값 */
+export interface PostSearchQuestionRequestInput {
+  content: string;
+  requestId: string;
 }
 
-/** accepted 이벤트 전에 실패한 HTTP 오류 응답. 403·409 등이 같은 모양 */
-export class PostSearchConversationErrorResponseDto {
-  /** 오류 코드. 예: WORKSPACE_ACCESS_DENIED */
-  code: string;
-  /** 사용자에게 보여 줄 수 있는 오류 메시지 */
-  message: string;
+/** 후속 질문 전송 요청 본문. 첫 질문과 모양이 같고 응답도 같은 SSE 스트림 */
+export class PostSearchQuestionRequestDto {
+  /** 질문 내용. 앞뒤 공백 제거 */
+  content: string;
+  /** 같은 질문의 재전송을 서버가 알아보는 키(UUID). 재시도에도 같은 값을 보냄 */
+  requestId: string;
 
-  constructor(raw: PostSearchConversationErrorResponseRaw) {
-    this.code = raw.code;
-    this.message = raw.message;
+  constructor({ content, requestId }: PostSearchQuestionRequestInput) {
+    this.content = content.trim();
+    this.requestId = requestId;
   }
 }
+
+// 아래 이벤트 DTO는 첫 질문·후속 질문 스트림이 공유
 
 /** `event: accepted`의 data 모양 */
 export interface SearchStreamAcceptedRaw {
@@ -56,7 +61,7 @@ export interface SearchStreamAcceptedRaw {
 
 /** 서버가 질문을 받아 대화와 메시지를 만들었음을 알리는 이벤트. 스트림의 첫 이벤트 */
 export class SearchStreamAcceptedDto {
-  /** 새로 만들어진 탐색 대화 ID */
+  /** 탐색 대화 ID. 첫 질문이면 새로 만들어진 대화, 후속 질문이면 경로의 대화 */
   conversationId: number;
   /** 저장된 질문 메시지 ID */
   questionMessageId: number;

@@ -1,4 +1,7 @@
-import type { SearchAnswerStream } from "@api/mock/types/search";
+import type {
+  SearchAnswerStream,
+  SearchQuestionAnswerStream,
+} from "@api/mock/types/search";
 
 /**
  * 답변이 조각으로 도착하는 모습을 화면에서 확인하려고 일부러 잘게 나눠 둔 첫 질문 응답이에요.
@@ -40,3 +43,22 @@ export const searchAnswerStreamResponse = {
     },
   ],
 } satisfies SearchAnswerStream;
+
+/**
+ * 첫 질문에 이어 보내는 후속 질문 응답이에요.
+ * 같은 대화에 메시지가 쌓이므로 첫 질문 응답과 메시지 ID가 겹치지 않게 둬요.
+ */
+export const searchQuestionAnswerStreamResponse = {
+  questionMessageId: 1003,
+  answerMessageId: 1004,
+  stages: ["SEARCHING", "GENERATING"],
+  deltas: ["초기 스키마는 ", "백엔드 팀이 ", "ERD 문서로 ", "정리했어요."],
+  evidences: [
+    {
+      documentId: 12,
+      title: "초기 ERD",
+      topic: "데이터 모델",
+      rank: 1,
+    },
+  ],
+} satisfies SearchQuestionAnswerStream;

@@ -19,6 +19,7 @@ import { workspaceNotionOAuthAuthorizationsHandlers } from "./api/v1/workspaces/
 import { workspaceNotionPageTreeHandlers } from "./api/v1/workspaces/[workspaceId]/notionPages/tree";
 import { workspaceRecordingsHandlers } from "./api/v1/workspaces/[workspaceId]/recordings";
 import { workspaceSearchConversationsHandlers } from "./api/v1/workspaces/[workspaceId]/search/conversations";
+import { workspaceSearchConversationQuestionsHandlers } from "./api/v1/workspaces/[workspaceId]/search/conversations/[conversationId]/questions";
 import { recordingAudioUploadCompleteHandlers } from "./api/v1/workspaces/[workspaceId]/recordings/[recordingId]/audioUploadComplete";
 import { recordingAudioUploadUrlHandlers } from "./api/v1/workspaces/[workspaceId]/recordings/[recordingId]/audioUploadUrl";
 import { recordingEndHandlers } from "./api/v1/workspaces/[workspaceId]/recordings/[recordingId]/end";
@@ -53,4 +54,5 @@ export const handlers = [
   ...invitationPreviewHandlers,
   ...chatMessagesHandlers,
   ...workspaceSearchConversationsHandlers,
+  ...workspaceSearchConversationQuestionsHandlers,
 ];

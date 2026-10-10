@@ -9,7 +9,7 @@ export interface SearchEvidenceItem {
   rank: number;
 }
 
-/** 첫 질문 SSE 스트림 한 번이 흘려보낼 값들. 핸들러가 이 값으로 프레임을 만들어요 */
+/** 탐색 SSE 스트림 한 번이 흘려보낼 값들. 핸들러가 이 값으로 프레임을 만들어요 */
 export interface SearchAnswerStream {
   conversationId: number;
   questionMessageId: number;
@@ -21,3 +21,9 @@ export interface SearchAnswerStream {
   /** evidence 이벤트의 items. 최대 3개 */
   evidences: SearchEvidenceItem[];
 }
+
+/** 후속 질문 SSE 스트림의 값들. 대화 ID는 요청 경로에서 받아 채워요 */
+export type SearchQuestionAnswerStream = Omit<
+  SearchAnswerStream,
+  "conversationId"
+>;
