@@ -66,13 +66,13 @@ export const useDockRecording = () => {
     }
     if (result === "failed") return;
 
-    navigateToRecording(workspaceId);
+    navigateToRecording({ workspaceId });
   };
 
   const handleOpenRecording = () => {
     if (!workspaceId) return;
 
-    navigateToRecording(workspaceId);
+    navigateToRecording({ workspaceId });
   };
 
   return {

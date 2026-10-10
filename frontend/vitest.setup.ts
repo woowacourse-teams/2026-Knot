@@ -3,6 +3,7 @@ import { afterAll, afterEach, beforeAll, vi } from "vitest";
 
 import { mockServer } from "@api/mock/server";
 import { resetDocumentMockState } from "@api/mock/state/document";
+import { resetRecordingMockState } from "@api/mock/state/recording";
 
 import { installFakeMedia } from "./vitest.media";
 
@@ -13,7 +14,9 @@ beforeAll(() => mockServer.listen({ onUnhandledRequest: "error" }));
 beforeAll(() => installFakeMedia());
 afterEach(() => {
   mockServer.resetHandlers();
+  // 요청으로 바뀐 mock 상태가 다음 테스트의 응답을 바꾸지 않게 지워요
   resetDocumentMockState();
+  resetRecordingMockState();
   vi.restoreAllMocks();
 });
 afterAll(() => mockServer.close());
