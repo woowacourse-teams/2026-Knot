@@ -24,7 +24,7 @@ import DocumentSkeleton from "./ui/DocumentSkeleton";
  *
  * 받은 문서 값을 그리기만 하면 되는 것(경로 · 제목 · 날짜 · 녹음 길이 · 본문)은 여기서 직접 그려요.
  * 복사 버튼 · 확인 수 · 확인 버튼은 이 위젯의 부품(`ui/`)이고, 필요한 값과 동작을 여기서 넘겨줘요. 문서는 여기서 한 번만 조회해요.
- * 확인 버튼은 아직 확인하지 않은 확인 대상에게만 보여요(CONF-R6). 이미 확인했거나 확인 대상이 아니면 그 줄을 그리지 않아요.
+ * 확인 버튼은 확인 대상에게만 보여요. 확인한 뒤에는 누를 수 없는 「확인했어요」로 바뀌고, 확인 대상이 아니면 그리지 않아요.
  * 결정이 없는 회의 문서는 본문의 결정 없음 문장을 흐리게 그려요(STT-R23).
  */
 export default function DocumentViewer() {
@@ -86,13 +86,14 @@ export default function DocumentViewer() {
         content={documentDetail.content}
         mutedLines={[NO_DECISION_SENTENCE]}
       />
-      {documentDetail.myConfirmationState === "PENDING" && (
-        <ConfirmArea>
+      {documentDetail.myConfirmationState !== "NOT_REQUIRED" && (
+        <ConfirmBar>
           <DocumentConfirmButton
+            isConfirmed={documentDetail.myConfirmationState === "CONFIRMED"}
             isConfirming={isConfirming}
             onConfirm={confirmDocument}
           />
-        </ConfirmArea>
+        </ConfirmBar>
       )}
     </Container>
   );
@@ -146,9 +147,11 @@ const CreatedDate = styled.time`
   color: ${({ theme }) => theme.neutral[500]};
 `;
 
-/** 피그마 ConfirmArea: 확인 버튼을 가운데에 놓는 줄. 위 16px · 아래 8px */
-const ConfirmArea = styled.div`
+/** 피그마 Confirm/하단 바: 본문 아래 구분선과 위아래 12px, 확인 버튼은 오른쪽 끝 */
+const ConfirmBar = styled.div`
   display: flex;
-  justify-content: center;
-  padding: 1rem 0 0.5rem; /* 16px 0 8px */
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0.75rem 0; /* 12px 0 */
+  border-top: 1px solid ${({ theme }) => theme.neutral[200]};
 `;

@@ -63,6 +63,7 @@ const [pendingMember, excludedMember, confirmedMember] =
 const LOAD_FAILED_NOTICE = "목록을 불러오지 못했어요";
 const COPIED_DURATION_MS = 3000;
 const CONFIRM_BUTTON_NAME = "문서를 확인했어요";
+const CONFIRMED_BUTTON_NAME = "확인했어요";
 
 const writeText = vi.fn<(text: string) => Promise<void>>();
 
@@ -312,14 +313,17 @@ describe("DocumentViewer", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("아직 확인하지 않았으면 확인 버튼을 보여주고, 누르면 버튼이 사라지고 확인 수가 늘어난다", async () => {
+  it("아직 확인하지 않았으면 확인 버튼을 보여주고, 누르면 누를 수 없는 「확인했어요」로 바뀌고 확인 수가 늘어난다", async () => {
     renderViewer(String(expected.id));
 
     fireEvent.click(
       await screen.findByRole("button", { name: CONFIRM_BUTTON_NAME }),
     );
 
-    await waitForElementToBeRemoved(queryConfirmButton);
+    expect(
+      await screen.findByRole("button", { name: CONFIRMED_BUTTON_NAME }),
+    ).toBeDisabled();
+    expect(queryConfirmButton()).not.toBeInTheDocument();
     expect(
       screen.getByText(
         `${expected.confirmationSummary.confirmedCount + 1}명 확인했어요`,
@@ -327,24 +331,41 @@ describe("DocumentViewer", () => {
     ).toBeInTheDocument();
   });
 
-  it.each(["CONFIRMED", "NOT_REQUIRED"] as const)(
-    "내 확인 상태가 %s이면 확인 버튼을 보여주지 않는다",
-    async (myConfirmationState) => {
-      mockServer.use(
-        http.get(DOCUMENT_REQUEST, () =>
-          HttpResponse.json({
-            ...documentDetailsResponse[0],
-            myConfirmationState,
-          }),
-        ),
-      );
-      renderViewer(String(expected.id));
+  it("이미 확인한 문서를 열면 누를 수 없는 「확인했어요」를 보여준다", async () => {
+    mockServer.use(
+      http.get(DOCUMENT_REQUEST, () =>
+        HttpResponse.json({
+          ...documentDetailsResponse[0],
+          myConfirmationState: "CONFIRMED",
+        }),
+      ),
+    );
+    renderViewer(String(expected.id));
 
-      await screen.findByRole("heading", { level: 2, name: expected.title });
+    expect(
+      await screen.findByRole("button", { name: CONFIRMED_BUTTON_NAME }),
+    ).toBeDisabled();
+    expect(queryConfirmButton()).not.toBeInTheDocument();
+  });
 
-      expect(queryConfirmButton()).not.toBeInTheDocument();
-    },
-  );
+  it("확인 대상이 아니면 확인 버튼도 「확인했어요」도 보여주지 않는다", async () => {
+    mockServer.use(
+      http.get(DOCUMENT_REQUEST, () =>
+        HttpResponse.json({
+          ...documentDetailsResponse[0],
+          myConfirmationState: "NOT_REQUIRED",
+        }),
+      ),
+    );
+    renderViewer(String(expected.id));
+
+    await screen.findByRole("heading", { level: 2, name: expected.title });
+
+    expect(queryConfirmButton()).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: CONFIRMED_BUTTON_NAME }),
+    ).not.toBeInTheDocument();
+  });
 
   it("확인 대상이 아니라는 응답(409)을 받으면 문서를 다시 불러와 확인 버튼을 없앤다", async () => {
     // 확인 요청을 받기 전에는 확인이 필요하다고, 받은 뒤에는 확인 대상이 아니라고 답해요.
