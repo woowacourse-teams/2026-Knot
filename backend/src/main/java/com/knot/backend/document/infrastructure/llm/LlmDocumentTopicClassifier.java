@@ -20,6 +20,7 @@ import tools.jackson.databind.ObjectMapper;
 @Component
 @ConditionalOnProperty(prefix = "knot.llm", name = "enabled", havingValue = "true")
 public class LlmDocumentTopicClassifier implements DocumentTopicClassifier {
+
     private final DocumentTopicPrompt prompt;
     private final LlmClient client;
     private final ObjectMapper mapper;

@@ -17,12 +17,13 @@ class DocumentTopicTest {
         // when
         DocumentTopic topic = DocumentTopic.of("　가\u00a0  검색　");
 
+        DocumentTopic equivalent = DocumentTopic.of("가 검색");
+
         // then
         assertThat(topic.value()).isEqualTo("가 검색");
         assertThat(topic).isEqualTo(DocumentTopic.of("가 검색"));
         assertThat(topic.hashCode()).isEqualTo(
-                DocumentTopic.of("가 검색")
-                        .hashCode()
+                equivalent.hashCode()
         );
         assertThat(topic).isNotEqualTo(DocumentTopic.of("가 검색 기능"));
     }
