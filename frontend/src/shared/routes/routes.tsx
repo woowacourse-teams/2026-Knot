@@ -8,6 +8,7 @@ import OnboardingCompletePage from "@pages/onboarding/complete";
 import WorkspacePage from "@pages/workspace";
 import WorkspaceHomePage from "@pages/workspace/[workspaceId]";
 import ChatPage from "@pages/workspace/[workspaceId]/chat";
+import DocumentPage from "@pages/workspace/[workspaceId]/documents/[documentId]";
 import WorkspaceInvitePage from "@pages/workspace/[workspaceId]/invite";
 import WorkspaceJoinPage from "@pages/workspace/[workspaceId]/join";
 import WorkspaceNotionConnectionPage from "@pages/workspace/[workspaceId]/notion-connection";
@@ -125,6 +126,10 @@ export const routes: RouteObject[] = [
       {
         path: PATH_ROUTE.RECORDING,
         element: <RecordingPage />,
+      },
+      {
+        path: PATH_ROUTE.DOCUMENT,
+        element: <DocumentPage />,
       },
     ],
   },

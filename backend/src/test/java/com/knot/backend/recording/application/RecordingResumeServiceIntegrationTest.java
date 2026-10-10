@@ -254,7 +254,8 @@ class RecordingResumeServiceIntegrationTest {
                 () -> recordingEndService.end(
                         workspaceId,
                         memberId,
-                        recording.id()
+                        recording.id(),
+                        recording.control()
                 )
         );
 

@@ -34,6 +34,8 @@ export const Default: Story = {};
 /** 회원 정보를 받아 오는 중이에요. 닉네임 없이 인사만 보여요. */
 export const Loading: Story = {
   parameters: {
+    // 문서 페이지에서는 스토리를 한 화면에 함께 그려 응답이 섞이므로, 이 스토리는 따로 그려요
+    docs: { story: { inline: false, iframeHeight: 100 } },
     msw: {
       handlers: {
         me: http.get(`*${AUTH_ME_API_PATH}`, async () => {

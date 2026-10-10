@@ -306,7 +306,8 @@ class RecordingResumeAcceptanceTest {
         end(
                 workspaceId,
                 recording.id(),
-                memberId
+                memberId,
+                recording.tabId()
         ).andExpect(status().isOk());
 
         // when
@@ -539,7 +540,8 @@ class RecordingResumeAcceptanceTest {
     private ResultActions end(
             long workspaceId,
             long recordingId,
-            long memberId
+            long memberId,
+            UUID tabId
     ) throws Exception {
         CsrfCredentials csrf = csrfCredentials();
         return mockMvc.perform(
@@ -551,6 +553,15 @@ class RecordingResumeAcceptanceTest {
                         .header(
                                 "X-XSRF-TOKEN",
                                 csrf.token()
+                        )
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(
+                                """
+                                        {"tabId":"%s","controlToken":"%s"}
+                                        """.formatted(
+                                        tabId,
+                                        CONTROL_TOKEN
+                                )
                         )
         );
     }

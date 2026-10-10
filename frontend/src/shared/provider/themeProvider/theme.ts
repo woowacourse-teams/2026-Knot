@@ -26,6 +26,18 @@ const text = {
     line-height: 1.5;
     letter-spacing: -0.02em;
   `,
+  heading03: css`
+    font-size: 1.25rem; /* 20px */
+    font-weight: 600;
+    line-height: 1.5;
+    letter-spacing: -0.02em;
+  `,
+  heading04: css`
+    font-size: 1.125rem; /* 18px */
+    font-weight: 600;
+    line-height: 1.5;
+    letter-spacing: -0.02em;
+  `,
 
   body01: css`
     font-size: 1rem; /* 16px */
