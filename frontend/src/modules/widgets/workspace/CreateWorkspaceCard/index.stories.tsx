@@ -100,6 +100,8 @@ export const Filled: Story = {
 /** 생성 요청을 보내고 응답을 기다리는 상태예요. 버튼이 로딩으로 잠겨 두 번 보내지 않아요. */
 export const Submitting: Story = {
   parameters: {
+    // 문서 페이지에서는 스토리를 한 화면에 함께 그려 응답이 섞이므로, 이 스토리는 따로 그려요
+    docs: { story: { inline: false, iframeHeight: 360 } },
     msw: {
       handlers: {
         createWorkspace: http.post(`*${WORKSPACES_API_PATH}`, async () => {

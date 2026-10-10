@@ -1,6 +1,7 @@
 package com.knot.backend.workspace.application;
 
 import com.knot.backend.workspace.application.dto.result.WorkspaceDetailResult;
+import com.knot.backend.workspace.application.dto.result.WorkspaceDetailSnapshot;
 import com.knot.backend.workspace.application.dto.result.WorkspaceListResult;
 import com.knot.backend.workspace.domain.Workspace;
 import com.knot.backend.workspace.domain.WorkspaceErrorCode;
@@ -19,19 +20,22 @@ import org.springframework.transaction.annotation.Transactional;
 public class WorkspaceQueryService {
     private final WorkspaceRepository workspaceRepository;
     private final WorkspaceMemberRepository workspaceMemberRepository;
+    private final WorkspaceDetailQuery workspaceDetailQuery;
 
     public WorkspaceDetailResult findDetail(
             Long workspaceId,
             Long memberId
     ) {
         validateWorkspaceId(workspaceId);
-        Workspace workspace = workspaceRepository.findById(workspaceId)
-                .orElseThrow(() -> new WorkspaceException(WorkspaceErrorCode.WORKSPACE_NOT_FOUND));
-        validateWorkspaceMember(
+        WorkspaceDetailSnapshot snapshot = workspaceDetailQuery.find(
                 workspaceId,
                 memberId
-        );
-        return WorkspaceDetailResult.from(workspace);
+        )
+                .orElseThrow(() -> new WorkspaceException(WorkspaceErrorCode.WORKSPACE_NOT_FOUND));
+        if (!snapshot.isMember()) {
+            throw new WorkspaceException(WorkspaceErrorCode.WORKSPACE_ACCESS_DENIED);
+        }
+        return WorkspaceDetailResult.from(snapshot);
     }
 
     public WorkspaceListResult findAllByMemberId(long memberId) {
@@ -65,18 +69,6 @@ public class WorkspaceQueryService {
     private void validateWorkspaceId(Long workspaceId) {
         if (workspaceId == null || workspaceId <= 0) {
             throw new WorkspaceException(WorkspaceErrorCode.INVALID_WORKSPACE_ID);
-        }
-    }
-
-    private void validateWorkspaceMember(
-            Long workspaceId,
-            Long memberId
-    ) {
-        if (!workspaceMemberRepository.existsByWorkspaceIdAndMemberId(
-                workspaceId,
-                memberId
-        )) {
-            throw new WorkspaceException(WorkspaceErrorCode.WORKSPACE_ACCESS_DENIED);
         }
     }
 }

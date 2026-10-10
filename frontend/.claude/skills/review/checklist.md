@@ -152,6 +152,9 @@
       (`grep -rn "new [A-Za-z]*Dto(" src --exclude=test.tsx --exclude='*.test.ts'`로 확인. 테스트 파일의 응답 클래스 `new`는 예외 — C-7-6)
 - [ ] C-5-18. **`Raw`/`Input`이 클래스와 분리돼 있는가** — 응답 클래스의 생성자 입력은 서버 JSON 모양(`Raw`), 요청 클래스의 생성자 입력은 앱 값(`Input`).
       클래스를 `httpClient` 제네릭이나 `mutationFn` 인자 타입에 그대로 쓰지 않았는가
+- [ ] C-5-19. 요청으로 응답이 바뀌는 mock 도메인(`mock/state/{도메인}.ts`가 있는 도메인)의 핸들러가 `responses/`를 직접 읽지 않고 `state/`의 함수만 거치는가.
+      `responses/`의 기본값을 바꾸지 않고, 빈 목록·에러 같은 변형을 `state/`로 만들지 않았는가 (`.claude/rules/api-guide.md` 「요청으로 바뀌는 상태」)
+- [ ] C-5-20. `reset{Domain}MockState`가 `vitest.setup.ts`의 `afterEach`와, 그 상태를 바꾸거나 읽는 컴포넌트 스토리의 meta `loaders`에서 불리는가
 
 ### C-6. 쿼리·뮤테이션 훅
 
@@ -191,6 +194,8 @@
 - [ ] C-7-10. 로직이 만드는 상태(응답별 화면, 로딩·에러, 상호작용 결과, 타이머)의 스토리마다 그 시나리오의 테스트(`test.tsx`·`*.test.ts`·`src/__test__/**`)가 있는가.
       테스트가 없는 상태의 스토리, 다른 화면으로 이동만 하는 결과를 자리표시 문구로 보여 주는 스토리, 다른 스토리와 화면이 같은 스토리가 없는가.
       props 조합만 보여 주는 프레젠테이션 컴포넌트의 스토리는 대상 아님 (`create-story` 스킬 「어떤 상태를 스토리로 두나」)
+- [ ] C-7-11. `parameters.msw.handlers`로 응답을 덮는 스토리에 `parameters.docs.story`의 `inline: false`와 `iframeHeight`가 함께 있는가.
+      없으면 문서 페이지에서 마지막 스토리의 응답이 모든 스토리에 적용돼 상태가 틀리게 보임. 응답을 덮지 않는 스토리나 meta에 넣은 경우도 지적 (`create-story` 스킬 「작성 규칙」)
 
 ---
 

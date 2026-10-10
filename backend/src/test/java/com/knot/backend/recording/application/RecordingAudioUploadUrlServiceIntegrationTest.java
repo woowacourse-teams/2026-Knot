@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.catchThrowable;
 import com.knot.backend.global.exception.ErrorCode;
 import com.knot.backend.global.exception.ProjectException;
 import com.knot.backend.recording.application.dto.command.RecordingAudioUploadUrlCommand;
+import com.knot.backend.recording.application.dto.command.RecordingControlCommand;
 import com.knot.backend.recording.application.dto.command.RecordingStartCommand;
 import com.knot.backend.recording.application.dto.result.RecordingAudioUploadUrlResult;
 import com.knot.backend.recording.domain.RecordingErrorCode;
@@ -272,14 +273,20 @@ class RecordingAudioUploadUrlServiceIntegrationTest {
                 memberId,
                 "OWNER"
         );
+        UUID tabId = UUID.randomUUID();
         long recordingId = startRecording(
                 workspaceId,
-                memberId
+                memberId,
+                tabId
         );
         recordingEndService.end(
                 workspaceId,
                 memberId,
-                recordingId
+                recordingId,
+                new RecordingControlCommand(
+                        tabId,
+                        CONTROL_TOKEN
+                )
         );
         return new Fixture(
                 workspaceId,
@@ -403,20 +410,21 @@ class RecordingAudioUploadUrlServiceIntegrationTest {
 
     private long startRecording(
             long workspaceId,
-            long memberId
+            long memberId,
+            UUID tabId
     ) {
         return recordingStartService.start(
                 workspaceId,
                 memberId,
-                command()
+                command(tabId)
         )
                 .recordingId();
     }
 
-    private RecordingStartCommand command() {
+    private RecordingStartCommand command(UUID tabId) {
         return new RecordingStartCommand(
                 UUID.randomUUID(),
-                UUID.randomUUID(),
+                tabId,
                 CONTROL_TOKEN
         );
     }

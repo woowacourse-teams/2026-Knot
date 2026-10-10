@@ -45,6 +45,7 @@ class RecordingAudioUploadUrlAcceptanceTest {
     private static final String JWT_COOKIE_NAME = "KNOT_ACCESS_TOKEN";
     private static final String CSRF_COOKIE_NAME = "XSRF-TOKEN";
     private static final String CONTROL_TOKEN = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefA";
+    private static final UUID TAB_ID = UUID.fromString("22222222-2222-2222-2222-222222222222");
     private static final Instant CREATED_AT = Instant.parse("2026-10-05T00:00:00Z");
     private static final Instant JOINED_AT = Instant.parse("2026-10-05T00:01:00Z");
 
@@ -454,6 +455,15 @@ class RecordingAudioUploadUrlAcceptanceTest {
                                 "X-XSRF-TOKEN",
                                 csrf.token()
                         )
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(
+                                """
+                                        {"tabId":"%s","controlToken":"%s"}
+                                        """.formatted(
+                                        TAB_ID,
+                                        CONTROL_TOKEN
+                                )
+                        )
         );
     }
 
@@ -480,7 +490,7 @@ class RecordingAudioUploadUrlAcceptanceTest {
                                         {"requestId":"%s","tabId":"%s","controlToken":"%s"}
                                         """.formatted(
                                         UUID.randomUUID(),
-                                        UUID.randomUUID(),
+                                        TAB_ID,
                                         CONTROL_TOKEN
                                 )
                         )

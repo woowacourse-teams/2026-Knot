@@ -187,6 +187,18 @@ class ApiDocumentationAcceptanceTest {
                 )
                 .andExpect(jsonPath(detailWorkspacePath + ".security[*].accessTokenCookie").exists())
                 .andExpect(jsonPath("$.components.schemas.WorkspaceDetailResponse").exists())
+                .andExpect(
+                        jsonPath("$.components.schemas.WorkspaceDetailResponse.properties.myRole.enum").value(
+                                hasItems(
+                                        "OWNER",
+                                        "MEMBER"
+                                )
+                        )
+                )
+                .andExpect(
+                        jsonPath("$.components.schemas.WorkspaceDetailResponse.properties.activeMemberCount.type")
+                                .value("integer")
+                )
                 .andExpect(jsonPath("$.components.schemas.ErrorResponse").exists())
                 .andExpect(jsonPath(oauthLocationPath).exists());
     }
