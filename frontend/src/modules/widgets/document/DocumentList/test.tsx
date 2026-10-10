@@ -1,0 +1,244 @@
+import { GetDocumentsResponseDto } from "@api/dto/document";
+import { documentsResponse } from "@api/mock/responses/document";
+import { mockServer } from "@api/mock/server";
+import { findDocuments } from "@api/mock/state/document";
+import type { DocumentsResponse } from "@api/mock/types/document";
+import { ThemeProvider } from "@emotion/react";
+import { theme } from "@provider/themeProvider";
+import { PATH_ROUTE } from "@routes/PATH_ROUTE";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { fireEvent, render, screen, within } from "@testing-library/react";
+import { formatDate } from "@utils/formatDate";
+import { formatDurationFromSeconds } from "@utils/formatDurationFromSeconds";
+import { http, HttpResponse } from "msw";
+import { createMemoryRouter, RouterProvider, useParams } from "react-router";
+import { describe, expect, it } from "vitest";
+
+import DocumentList from ".";
+
+const expected = new GetDocumentsResponseDto(documentsResponse);
+const WORKSPACE_ID = "1";
+// 위젯을 놓는 경로예요. 주소에서 워크스페이스 id를 읽을 수 있으면 돼요
+const DOCUMENT_LIST_PATH = "/workspace/:workspaceId/documents";
+// 경로 파라미터 자리에 무엇이 와도 잡도록 fetch 상수 대신 패턴을 적어요
+const DOCUMENTS_REQUEST = "*/api/v1/workspaces/:workspaceId/documents";
+// 한 번에 요청하는 문서 수와 이어 받는 횟수의 한계. getAllDocumentsApi의 값과 같아요
+const REQUEST_SIZE = "100";
+const MAX_REQUEST_COUNT = 20;
+
+// 어느 문서로 갔는지 확인할 수 있게 문서 보기 경로에 표시만 하는 화면을 둬요
+function DocumentViewStub() {
+  const { documentId } = useParams();
+
+  return <p>문서 보기 화면 {documentId}</p>;
+}
+
+const renderDocumentList = () => {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  const router = createMemoryRouter(
+    [
+      { path: DOCUMENT_LIST_PATH, element: <DocumentList /> },
+      { path: PATH_ROUTE.DOCUMENT, element: <DocumentViewStub /> },
+    ],
+    { initialEntries: [`/workspace/${WORKSPACE_ID}/documents`] },
+  );
+
+  render(
+    <ThemeProvider theme={theme}>
+      <QueryClientProvider client={queryClient}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>
+    </ThemeProvider>,
+  );
+};
+
+const respondWith = (response: DocumentsResponse) =>
+  mockServer.use(
+    http.get(DOCUMENTS_REQUEST, () => HttpResponse.json(response)),
+  );
+
+const findFolder = (topic: string) =>
+  screen.findByRole("region", { name: topic });
+
+// 행은 링크예요. 링크 이름은 행 안의 글 전체라 제목으로 시작하는 것을 찾아요
+const findRow = (title: string) =>
+  screen.findByRole("link", { name: (name) => name.startsWith(title) });
+
+const documentsOf = (topic: string) =>
+  expected.items.filter((item) => item.topic === topic);
+
+describe("DocumentList", () => {
+  it("문서 화면의 제목과 설명을 보여 준다", async () => {
+    renderDocumentList();
+
+    expect(
+      await screen.findByRole("heading", { level: 2, name: "문서" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("녹음하고 정리한 내용을 폴더별로 모아둬요"),
+    ).toBeInTheDocument();
+  });
+
+  it("서버가 주제를 어떤 순서로 줘도 폴더를 이름순으로 놓는다", async () => {
+    // 기본 응답의 주제는 이름순이라, 순서를 바꿔서 줘요
+    const [first, second, third] = documentsResponse.topics;
+    respondWith({ ...documentsResponse, topics: [third, first, second] });
+
+    renderDocumentList();
+
+    const folderNames = await screen.findAllByRole("heading", { level: 3 });
+
+    expect(folderNames.map(({ textContent }) => textContent)).toEqual(
+      expected.topics.map(({ topic }) => topic),
+    );
+  });
+
+  it("폴더 이름 옆에 서버가 준 문서 수를 보여 준다", async () => {
+    // 받은 문서 수와 다른 값을 줘서, 행을 세지 않고 서버 값을 쓰는지 봐요
+    const EXTRA_COUNT = 10;
+    respondWith({
+      ...documentsResponse,
+      topics: documentsResponse.topics.map((topic) => ({
+        ...topic,
+        documentCount: topic.documentCount + EXTRA_COUNT,
+      })),
+    });
+
+    renderDocumentList();
+
+    for (const { topic, documentCount } of expected.topics) {
+      const folder = await findFolder(topic);
+
+      expect(
+        within(folder).getByText(String(documentCount + EXTRA_COUNT)),
+      ).toBeInTheDocument();
+    }
+  });
+
+  it("폴더 안에 그 주제의 문서를 받은 순서(최신순)대로 놓는다", async () => {
+    renderDocumentList();
+
+    for (const { topic } of expected.topics) {
+      const folder = await findFolder(topic);
+      const rows = within(folder).getAllByRole("listitem");
+      const titles = documentsOf(topic).map(({ title }) => title);
+
+      expect(rows).toHaveLength(titles.length);
+      rows.forEach((row, index) => {
+        expect(row).toHaveTextContent(titles[index]);
+      });
+    }
+  });
+
+  it("행에 제목 · 한 줄 요약 · 만든 날짜 · 녹음 길이를 보여 준다", async () => {
+    const [document] = expected.items.filter(({ summary }) => summary !== null);
+
+    renderDocumentList();
+
+    const row = within(await findRow(document.title));
+
+    expect(row.getByText(document.title)).toBeInTheDocument();
+    expect(row.getByText(document.summary ?? "")).toBeInTheDocument();
+    expect(row.getByText(formatDate(document.createdAt))).toBeInTheDocument();
+    expect(
+      row.getByText(
+        formatDurationFromSeconds(document.recordingDurationSeconds),
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("요약이 없는 문서는 요약 줄을 그리지 않는다", async () => {
+    const [withSummary] = expected.items.filter(
+      ({ summary }) => summary !== null,
+    );
+    const [withoutSummary] = expected.items.filter(
+      ({ summary }) => summary === null,
+    );
+
+    renderDocumentList();
+
+    // 글 줄은 제목과 요약이에요. 요약이 없으면 빈 줄도 남기지 않아 제목 한 줄만 있어요
+    expect(
+      within(await findRow(withSummary.title)).getAllByRole("paragraph"),
+    ).toHaveLength(2);
+    expect(
+      within(await findRow(withoutSummary.title)).getAllByRole("paragraph"),
+    ).toHaveLength(1);
+  });
+
+  it("행을 누르면 그 문서의 문서 보기 화면으로 간다", async () => {
+    const [document] = expected.items;
+
+    renderDocumentList();
+    fireEvent.click(await findRow(document.title));
+
+    expect(
+      await screen.findByText(`문서 보기 화면 ${document.id}`),
+    ).toBeInTheDocument();
+  });
+
+  it("문서가 한 번에 다 오지 않으면 다음 페이지가 없을 때까지 이어 받아 모두 보여 준다", async () => {
+    const PAGE_SIZE = 3;
+    const requests: { cursor: string | null; size: string | null }[] = [];
+    const nextCursors: (string | null)[] = [];
+
+    // 요청한 size와 관계없이 3개씩만 줘서 여러 번 받게 해요
+    mockServer.use(
+      http.get(DOCUMENTS_REQUEST, ({ request }) => {
+        const { searchParams } = new URL(request.url);
+        const cursor = searchParams.get("cursor");
+        const page = findDocuments({ cursor, size: PAGE_SIZE });
+
+        if (page === undefined) return HttpResponse.json(null, { status: 400 });
+
+        requests.push({ cursor, size: searchParams.get("size") });
+        nextCursors.push(page.nextCursor);
+
+        return HttpResponse.json(page);
+      }),
+    );
+
+    renderDocumentList();
+
+    for (const { title } of expected.items) {
+      expect(await findRow(title)).toBeInTheDocument();
+    }
+
+    expect(requests).toHaveLength(Math.ceil(expected.items.length / PAGE_SIZE));
+    // 첫 요청에는 커서가 없고, 그 뒤로는 앞 응답의 nextCursor를 그대로 보내요
+    expect(requests.map(({ cursor }) => cursor)).toEqual([
+      null,
+      ...nextCursors.slice(0, -1),
+    ]);
+    expect(requests.every(({ size }) => size === REQUEST_SIZE)).toBe(true);
+  });
+
+  it("스무 번을 받아도 다음 페이지가 남아 있으면 더 받지 않고, 그때까지 받은 문서를 보여 준다", async () => {
+    const [item] = documentsResponse.items;
+    let requestCount = 0;
+
+    // 몇 번을 받아도 다음 페이지가 있다고 답해요
+    mockServer.use(
+      http.get(DOCUMENTS_REQUEST, () => {
+        requestCount += 1;
+
+        return HttpResponse.json({
+          topics: [{ topic: item.topic, documentCount: 9999 }],
+          items: [{ ...item, id: requestCount, title: `문서 ${requestCount}` }],
+          nextCursor: `cursor-${requestCount}`,
+        } satisfies DocumentsResponse);
+      }),
+    );
+
+    renderDocumentList();
+
+    const folder = await findFolder(item.topic);
+
+    expect(within(folder).getAllByRole("listitem")).toHaveLength(
+      MAX_REQUEST_COUNT,
+    );
+    expect(requestCount).toBe(MAX_REQUEST_COUNT);
+  });
+});
