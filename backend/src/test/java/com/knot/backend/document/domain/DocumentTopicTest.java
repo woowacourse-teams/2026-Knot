@@ -22,9 +22,7 @@ class DocumentTopicTest {
         // then
         assertThat(topic.value()).isEqualTo("가 검색");
         assertThat(topic).isEqualTo(DocumentTopic.of("가 검색"));
-        assertThat(topic.hashCode()).isEqualTo(
-                equivalent.hashCode()
-        );
+        assertThat(topic.hashCode()).isEqualTo(equivalent.hashCode());
         assertThat(topic).isNotEqualTo(DocumentTopic.of("가 검색 기능"));
     }
 
