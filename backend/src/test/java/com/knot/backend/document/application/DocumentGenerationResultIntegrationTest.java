@@ -7,6 +7,7 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.doReturn;
 
+import com.knot.backend.document.domain.DocumentTopic;
 import com.knot.backend.document.DocumentFixtures;
 import com.knot.backend.document.application.dto.result.DocumentGenerationResult;
 import com.knot.backend.document.application.dto.query.DocumentListParameters;
@@ -147,7 +148,7 @@ class DocumentGenerationResultIntegrationTest {
                 workspaceId,
                 classifierId,
                 1,
-                new DocumentTopicClassificationResult(List.of("검색"))
+                DocumentTopicClassificationResult.fromNames(List.of("검색"))
         )
                 .generationJobIds()
                 .getFirst();
@@ -538,7 +539,7 @@ class DocumentGenerationResultIntegrationTest {
                     DocumentGenerationJob.queueGeneration(
                             current.getBatchId(),
                             transcriptId,
-                            "알림",
+                            DocumentTopic.of("알림"),
                             NOW
                     )
             );
