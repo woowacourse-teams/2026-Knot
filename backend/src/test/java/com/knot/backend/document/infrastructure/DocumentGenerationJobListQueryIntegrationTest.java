@@ -304,7 +304,9 @@ class DocumentGenerationJobListQueryIntegrationTest {
                 transcriptId,
                 "FAILED"
         );
-        jdbc.sql("UPDATE document_generation_jobs SET status = 'RUNNING' WHERE id = :id")
+        jdbc.sql(
+                "UPDATE document_generation_jobs SET status = 'RUNNING', execution_deadline_at = updated_at + INTERVAL '150 seconds', failure_cause = NULL WHERE id = :id"
+        )
                 .param(
                         "id",
                         runningId
@@ -425,7 +427,9 @@ class DocumentGenerationJobListQueryIntegrationTest {
                 transcriptId,
                 "RUNNING"
         );
-        jdbc.sql("UPDATE document_generation_jobs SET updated_at = :time WHERE id = :id")
+        jdbc.sql(
+                "UPDATE document_generation_jobs SET updated_at = :time, execution_deadline_at = CAST(:time AS timestamptz) + INTERVAL '150 seconds' WHERE id = :id"
+        )
                 .param(
                         "time",
                         Timestamp.from(NOW)

@@ -26,4 +26,15 @@ public class DocumentGenerationBatchRepositoryAdapter implements DocumentGenerat
     public DocumentGenerationBatch saveAndFlush(DocumentGenerationBatch batch) {
         return repository.saveAndFlush(batch);
     }
+
+    @Override
+    public Optional<DocumentGenerationBatch> findByWorkspaceIdAndRecordingSessionId(
+            long workspaceId,
+            long recordingSessionId
+    ) {
+        return repository.findByWorkspaceIdAndRecordingSessionId(
+                workspaceId,
+                recordingSessionId
+        );
+    }
 }

@@ -8,6 +8,7 @@ import com.knot.backend.document.domain.DocumentException;
 import com.knot.backend.document.domain.DocumentGenerationBatch;
 import com.knot.backend.document.domain.DocumentGenerationBatchRepository;
 import com.knot.backend.document.domain.DocumentGenerationJob;
+import com.knot.backend.document.domain.DocumentGenerationJobStatus;
 import com.knot.backend.document.domain.DocumentGenerationJobRepository;
 import com.knot.backend.workspace.domain.WorkspaceErrorCode;
 import com.knot.backend.workspace.domain.WorkspaceException;
@@ -49,9 +50,12 @@ public class DocumentClassificationResultService {
             batch.validateRegisteredWith(classification.topics());
             return result(batch);
         }
-        job.validateRunningAttempt(expectedAttemptCount);
         Instant completedAt = clock.instant()
                 .truncatedTo(ChronoUnit.MICROS);
+        job.validateRunningAttemptAt(
+                expectedAttemptCount,
+                completedAt
+        );
         batch.registerTopics(
                 classification.topics(),
                 completedAt
@@ -69,6 +73,12 @@ public class DocumentClassificationResultService {
             );
         }
         job.recordSuccess(completedAt);
+        batch.recordJobTransition(
+                job.getStage(),
+                DocumentGenerationJobStatus.RUNNING,
+                job.getStatus(),
+                completedAt
+        );
         jobs.flush();
         return result(batch);
     }
@@ -88,9 +98,16 @@ public class DocumentClassificationResultService {
             return;
         }
         job.validateRunningAttempt(expectedAttemptCount);
-        job.recordFailure(
-                clock.instant()
-                        .truncatedTo(ChronoUnit.MICROS)
+        Instant failedAt = clock.instant()
+                .truncatedTo(ChronoUnit.MICROS);
+        DocumentGenerationBatch batch = batches.findByIdForUpdate(job.getBatchId())
+                .orElseThrow(() -> new DocumentException(DocumentErrorCode.GENERATION_REGISTRATION_CONFLICT));
+        job.recordFailure(failedAt);
+        batch.recordJobTransition(
+                job.getStage(),
+                DocumentGenerationJobStatus.RUNNING,
+                job.getStatus(),
+                failedAt
         );
         jobs.flush();
     }
@@ -102,7 +119,8 @@ public class DocumentClassificationResultService {
     ) {
         validateIdentifier(workspaceId);
         validateIdentifier(jobId);
-        workspaces.findByIdForUpdate(workspaceId)
+        workspaces.findIncludingDeletedByIdForUpdate(workspaceId)
+                .filter(workspace -> !workspace.isDeleted())
                 .orElseThrow(() -> new WorkspaceException(WorkspaceErrorCode.WORKSPACE_ACCESS_DENIED));
         DocumentGenerationJob job = jobs.findByWorkspaceIdAndIdForUpdate(
                 workspaceId,

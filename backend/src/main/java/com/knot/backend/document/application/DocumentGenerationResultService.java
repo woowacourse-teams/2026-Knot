@@ -11,6 +11,7 @@ import com.knot.backend.document.domain.DocumentException;
 import com.knot.backend.document.domain.DocumentGenerationBatch;
 import com.knot.backend.document.domain.DocumentGenerationBatchRepository;
 import com.knot.backend.document.domain.DocumentGenerationJob;
+import com.knot.backend.document.domain.DocumentGenerationJobStatus;
 import com.knot.backend.document.domain.DocumentGenerationJobRepository;
 import com.knot.backend.document.domain.DocumentRepository;
 import com.knot.backend.workspace.domain.WorkspaceErrorCode;
@@ -66,6 +67,10 @@ public class DocumentGenerationResultService {
         validateResult(result);
         Instant completedAt = clock.instant()
                 .truncatedTo(ChronoUnit.MICROS);
+        job.validateRunningAttemptAt(
+                expectedAttemptCount,
+                completedAt
+        );
         Document draft = createDocument(
                 workspaceId,
                 job,
@@ -80,6 +85,14 @@ public class DocumentGenerationResultService {
                 targets
         );
         job.recordSuccess(completedAt);
+        DocumentGenerationBatch batch = batches.findByIdForUpdate(job.getBatchId())
+                .orElseThrow(() -> new DocumentException(DocumentErrorCode.GENERATION_REGISTRATION_CONFLICT));
+        batch.recordJobTransition(
+                job.getStage(),
+                DocumentGenerationJobStatus.RUNNING,
+                job.getStatus(),
+                completedAt
+        );
         jobs.flush();
         return document.getId();
     }
@@ -110,7 +123,8 @@ public class DocumentGenerationResultService {
 
     private void lockWorkspace(long workspaceId) {
         validateIdentifier(workspaceId);
-        workspaces.findByIdForUpdate(workspaceId)
+        workspaces.findIncludingDeletedByIdForUpdate(workspaceId)
+                .filter(workspace -> !workspace.isDeleted())
                 .orElseThrow(() -> new WorkspaceException(WorkspaceErrorCode.WORKSPACE_ACCESS_DENIED));
     }
 

@@ -8,6 +8,7 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public class WorkspaceRepositoryAdapter implements WorkspaceRepository {
+
     private final WorkspaceJpaRepository workspaceJpaRepository;
 
     public WorkspaceRepositoryAdapter(WorkspaceJpaRepository workspaceJpaRepository) {
@@ -27,6 +28,12 @@ public class WorkspaceRepositoryAdapter implements WorkspaceRepository {
     @Override
     public Optional<Workspace> findByIdForUpdate(Long workspaceId) {
         return workspaceJpaRepository.findWithLockByIdAndDeletedAtIsNull(workspaceId);
+    }
+
+    @Override
+    public Optional<Workspace> findIncludingDeletedByIdForUpdate(Long workspaceId) {
+        workspaceJpaRepository.limitExecutionLockWait();
+        return workspaceJpaRepository.findIncludingDeletedWithLockById(workspaceId);
     }
 
     @Override

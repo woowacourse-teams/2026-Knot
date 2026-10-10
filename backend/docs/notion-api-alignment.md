@@ -14,6 +14,33 @@
 5. queue는 [정합성 워크플로](../../docs/harness/notion-alignment.md#queue-완료-조건)의 비교·반영 조건을
    만족한 뒤 처리한다. 캐시 수집이나 DB의 구현 표시만으로 완료 처리하지 않는다.
 
+## 2026-10-09 문서 확인 API 재수집 대조
+
+02:42:53 KST 시작한 n8n 실행 `561506`이 성공했다. 문서 관련 API 7개의 본문
+revision은 `2026-10-08T17:06:00Z`인데 같은 실행 Search 출력의 속성 revision은
+9/30 또는 10/6~10/7로 남아 있다. `revision_mismatch`이므로 최신 정합 완료로
+판정하지 않고 후보를 유지한다. 기존 캐시 이력은 보존했다.
+
+5개 API는 이전 본문과 같고 캡처 시각·수집 상태만 달라졌다. 실제 본문 차이는
+[확인 현황 조회](https://www.notion.so/3ebb43517522802da344e8f8eedd6849)와
+[내 확인 처리](https://www.notion.so/3ebb4351752280fd8377e25d15fa3380)의 표 행이
+추가 수집된 것이다. 이를 새 제품 결정으로 취급하지 않는다.
+
+- 조회 표의 대상·집계·nullable 필드와 cursor/size는 기존
+  [#497](https://github.com/woowacourse-teams/2026-Knot/issues/497) 계약과 같다.
+  원문에서 기본 50·최대 100과 정렬은 여전히 제안이다. 현재 구현 계약은 Issue와
+  `DocumentConfirmationService`·`DocumentController`에 따른다.
+- 확인 표의 비대상 `409 CONFIRMATION_NOT_REQUIRED`, 최초 시각 유지, 확인·집계·보관의
+  트랜잭션은 [#498](https://github.com/woowacourse-teams/2026-Knot/issues/498) 및
+  `DocumentConfirmationCommandService`의 현재 코드와 대조했다.
+- 두 원문의 “API/controller 없음” 문장은 현재 코드와 다르다. GET/PUT Controller와
+  서비스가 존재하고 두 Issue는 조회 시 CLOSED였다. 배포·테스트 통과까지 확인한 것은 아니다.
+- 목록·상세의 내 확인 3상태는 [ADR #496](../../docs/adr/496-document-my-confirmation-state.md)의
+  기존 결정에 따른다. 확인 현황 API의 Boolean과 구분하며 이번 수집으로 변경하지 않는다.
+
+본문과 속성 revision이 일치하는 수집 근거를 확보한 뒤 queue 완료 여부를 다시 판정해야 한다.
+이번 대조에서는 원문·기능 코드·진행 중인 #524 계획과 후보 상태를 변경하지 않았다.
+
 아래 과거 관측은 이력으로 보존한다. 현재 API와 구현 상태를 재검토한 결과가 자동으로 갱신된 것은 아니다.
 
 ## 2026-10-01 검토 이력
