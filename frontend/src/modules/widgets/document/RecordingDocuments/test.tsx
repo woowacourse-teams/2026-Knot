@@ -1,4 +1,6 @@
+import { GetDocumentsResponseDto } from "@api/dto/document";
 import { RECORDING_API_PATH } from "@api/fetch/api/v1/workspaces/[workspaceId]/recordings/[recordingId]";
+import { documentsResponse } from "@api/mock/responses/document";
 import { recordingDetailsResponse } from "@api/mock/responses/recording";
 import { mockServer } from "@api/mock/server";
 import { ThemeProvider } from "@emotion/react";
@@ -32,6 +34,7 @@ const RECORDING_REQUEST =
   "*/api/v1/workspaces/:workspaceId/recordings/:recordingId";
 const RETRY_REQUEST =
   "*/api/v1/workspaces/:workspaceId/document-generation-jobs/:jobId/retry";
+const DOCUMENTS_REQUEST = "*/api/v1/workspaces/:workspaceId/documents";
 const POLL_INTERVAL_MS = 3000;
 // mock 녹음의 어느 작업과도 겹치지 않는 문서 생성 작업 id
 const ANOTHER_JOB_ID = 188;
@@ -41,6 +44,25 @@ const FAILED_TITLE = "문서를 만들지 못했어요";
 const NO_CONTENT_TITLE = "문서로 만들 내용이 없었어요";
 const LOAD_FAILED_TITLE = "문서를 불러오지 못했어요";
 const RECORDING_KEPT_NOTICE = "녹음은 보관해 두었어요.";
+
+// 정리가 끝난 mock 녹음에서 나온 문서. 서버가 준 순서 그대로라 첫 문서가 정리 뒤에 보내는 문서예요
+const completedRecordingDocumentItems = documentsResponse.items.filter(
+  ({ recordingSessionId }) =>
+    recordingSessionId === completedRecording.recordingId,
+);
+const [firstCompletedRecordingDocument] = new GetDocumentsResponseDto({
+  ...documentsResponse,
+  items: completedRecordingDocumentItems,
+}).items;
+
+const getDocumentPath = (documentId: number) =>
+  getRouterPath({
+    routeKey: "DOCUMENT",
+    params: {
+      workspaceId: String(WORKSPACE_ID),
+      documentId: String(documentId),
+    },
+  });
 
 const getRecordingDocumentsPath = (recordingId: number | string) =>
   getRouterPath({
@@ -58,7 +80,7 @@ const renderRecordingDocuments = (recordingId: number | string) => {
       mutations: { retry: false },
     },
   });
-  // 이동을 확인할 수 있게 홈 · 녹음 · 로그인 경로에 표시만 하는 화면을 둬요
+  // 이동을 확인할 수 있게 홈 · 녹음 · 문서 · 로그인 경로에 표시만 하는 화면을 둬요
   const router = createMemoryRouter(
     [
       {
@@ -67,6 +89,7 @@ const renderRecordingDocuments = (recordingId: number | string) => {
       },
       { path: PATH_ROUTE.WORKSPACE_HOME, element: <p>워크스페이스 홈</p> },
       { path: PATH_ROUTE.RECORDING, element: <p>녹음 화면</p> },
+      { path: PATH_ROUTE.DOCUMENT, element: <p>문서 화면</p> },
       { path: PATH_ROUTE.LOGIN, element: <p>로그인 화면</p> },
     ],
     { initialEntries: [getRecordingDocumentsPath(recordingId)] },
@@ -295,11 +318,90 @@ describe("RecordingDocuments", () => {
     ).toBeInTheDocument();
   });
 
-  it("문서 정리가 끝났으면 워크스페이스 홈으로 보내고, 뒤로 가도 정리 화면으로 돌아오지 않게 지금 기록을 바꾼다", async () => {
+  it("문서 정리가 끝났으면 그 녹음의 첫 문서로 보내고, 뒤로 가도 정리 화면으로 돌아오지 않게 지금 기록을 바꾼다", async () => {
     const { router } = renderRecordingDocuments(completedRecording.recordingId);
 
-    expect(await screen.findByText("워크스페이스 홈")).toBeInTheDocument();
+    expect(await screen.findByText("문서 화면")).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe(
+      getDocumentPath(firstCompletedRecordingDocument.id),
+    );
     expect(router.state.historyAction).toBe("REPLACE");
+  });
+
+  it("정리 중에는 문서 목록을 조회하지 않고, 정리가 끝나면 조회해 첫 문서로 보낸다", async () => {
+    let recordingRequestCount = 0;
+    let documentsRequestCount = 0;
+    mockServer.use(
+      http.get(RECORDING_REQUEST, () => {
+        recordingRequestCount += 1;
+        // 두 번째 조회부터는 정리가 끝났다는 결과를 돌려줘요
+        return HttpResponse.json(
+          recordingRequestCount === 1
+            ? {
+                ...organizingRecording,
+                recordingId: completedRecording.recordingId,
+              }
+            : completedRecording,
+        );
+      }),
+      http.get(DOCUMENTS_REQUEST, () => {
+        documentsRequestCount += 1;
+        return HttpResponse.json({
+          ...documentsResponse,
+          items: completedRecordingDocumentItems,
+        });
+      }),
+    );
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const { router } = renderRecordingDocuments(completedRecording.recordingId);
+
+    await screen.findByRole("heading", { level: 2, name: ORGANIZING_TITLE });
+    expect(documentsRequestCount).toBe(0);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS);
+    });
+
+    expect(await screen.findByText("문서 화면")).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe(
+      getDocumentPath(firstCompletedRecordingDocument.id),
+    );
+    expect(documentsRequestCount).toBe(1);
+  });
+
+  it.each([
+    {
+      reason: "그 녹음에서 나온 문서가 없으면",
+      documentsResponder: () =>
+        HttpResponse.json({ ...documentsResponse, topics: [], items: [] }),
+    },
+    {
+      reason: "문서 목록을 불러오지 못하면",
+      documentsResponder: () => new HttpResponse(null, { status: 500 }),
+    },
+  ])(
+    "문서 정리가 끝났는데 $reason 지금 기록을 바꿔 워크스페이스 홈으로 보낸다",
+    async ({ documentsResponder }) => {
+      mockServer.use(http.get(DOCUMENTS_REQUEST, documentsResponder));
+      const { router } = renderRecordingDocuments(
+        completedRecording.recordingId,
+      );
+
+      expect(await screen.findByText("워크스페이스 홈")).toBeInTheDocument();
+      expect(router.state.historyAction).toBe("REPLACE");
+    },
+  );
+
+  it("문서 정리가 끝난 뒤 문서 목록 조회에서 로그인이 풀렸으면(401) 로그인 화면으로 보낸다", async () => {
+    mockServer.use(
+      http.get(
+        DOCUMENTS_REQUEST,
+        () => new HttpResponse(null, { status: 401 }),
+      ),
+    );
+    renderRecordingDocuments(completedRecording.recordingId);
+
+    expect(await screen.findByText("로그인 화면")).toBeInTheDocument();
   });
 
   it.each(["RECORDING", "PAUSED"] as const)(
@@ -507,9 +609,9 @@ describe("RecordingDocuments", () => {
         screen.findByRole("heading", { level: 2, name: ORGANIZING_TITLE }),
     },
     {
-      condition: "이미 정리가 끝났으면 워크스페이스 홈으로 보낸다",
+      condition: "이미 정리가 끝났으면 그 녹음의 문서로 보낸다",
       latestRecording: completedRecording,
-      expectedScreen: () => screen.findByText("워크스페이스 홈"),
+      expectedScreen: () => screen.findByText("문서 화면"),
     },
   ])(
     "다시 시도가 409로 거절되면 녹음 상태를 다시 조회하고, 서버에서 $condition",
@@ -527,6 +629,13 @@ describe("RecordingDocuments", () => {
               ? { ...latestRecording, recordingId: failedRecording.recordingId }
               : failedRecording,
           ),
+        ),
+        // 다시 만든 문서가 이 녹음에서 나온 문서예요
+        http.get(DOCUMENTS_REQUEST, () =>
+          HttpResponse.json({
+            ...documentsResponse,
+            items: completedRecordingDocumentItems,
+          }),
         ),
       );
       renderRecordingDocuments(failedRecording.recordingId);

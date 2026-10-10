@@ -1,3 +1,4 @@
+import { documentDetailsResponse } from "@api/mock/responses/document";
 import type {
   RecordingAudioUploadCompleteResponse,
   RecordingAudioUploadUrlResponse,
@@ -53,6 +54,11 @@ const endedRecording = {
   durationMillis: 32 * MINUTE,
 } satisfies Partial<RecordingDetailResponse>;
 
+// 문서 mock의 문서(회원 탈퇴 정책 · 홈 개편 논의)가 나온 녹음의 ID.
+// 정리가 끝난 녹음을 이 ID로 둬야, 정리 화면이 그 녹음의 문서로 이어져요
+const [{ recordingSessionId: COMPLETED_RECORDING_ID }] =
+  documentDetailsResponse;
+
 // 녹음을 끝낸 뒤의 상태를 녹음마다 하나씩 둬, 정리 화면 주소의 녹음 ID만 바꿔 각 상태를 볼 수 있어요.
 // 10은 녹음 시작·종료 mock과 같은 녹음이라, 끝낸 직후에 보게 되는 정리 중으로 뒀어요
 export const recordingDetailsResponse = [
@@ -102,7 +108,7 @@ export const recordingDetailsResponse = [
   },
   {
     ...endedRecording,
-    recordingId: 14,
+    recordingId: COMPLETED_RECORDING_ID,
     status: "COMPLETED",
     audioUploadStatus: "COMPLETED",
     transcriptionStatus: "SUCCEEDED",

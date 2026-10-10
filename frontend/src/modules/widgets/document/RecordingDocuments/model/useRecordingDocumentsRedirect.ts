@@ -1,3 +1,5 @@
+import useDocumentsByRecordingQuery from "@api/queries/useDocumentsByRecordingQuery";
+import useRedirectToLoginOnUnauthorized from "@hooks/domain/auth/useRedirectToLoginOnUnauthorized";
 import { getRouterPath } from "@routes/PATH_ROUTE";
 import { useEffect } from "react";
 import { useNavigate } from "react-router";
@@ -6,41 +8,79 @@ import type { RecordingDocumentsViewStatus } from "../types/recordingDocuments";
 
 interface UseRecordingDocumentsRedirectParams {
   workspaceId: number;
+  recordingId: number;
   viewStatus: RecordingDocumentsViewStatus;
 }
 
 /**
  * 정리 화면에 머물 이유가 없는 녹음을 다른 화면으로 보내요.
  *
- * - `completed`: 정리가 끝난 녹음은 워크스페이스 홈으로 보내요. 녹음 직후 확인 화면이 생기면 그 화면으로 바꿔요.
  * - `recording`: 아직 끝내지 않은 녹음은 녹음 화면으로 돌려보내요.
+ * - `completed`: 정리가 끝난 녹음은 그 녹음에서 나온 첫 문서로 보내요. 서버가 준 순서의 첫 문서라, 문서 보기의 스테퍼가 `1 / n`인 문서예요.
+ *   그 녹음에서 나온 문서가 없거나 문서 목록을 불러오지 못하면 워크스페이스 홈으로 보내요.
+ *   문서 목록 조회에서 로그인이 풀렸으면(401) 로그인 화면으로 보내요.
  *
+ * 문서 목록은 정리가 끝난 뒤에만 조회해요. 정리 중에는 아직 문서가 없어, 미리 조회하면 빈 목록을 받아요.
  * 뒤로 가기로 이 주소에 돌아와 다시 보내지는 일이 없도록 지금 기록을 바꿔요(`replace`).
- * 보내는 동안 화면에 그릴 것이 없다는 것을 쓰는 쪽이 알 수 있게 `isRedirecting`을 돌려줘요.
  */
 export const useRecordingDocumentsRedirect = ({
   workspaceId,
+  recordingId,
   viewStatus,
 }: UseRecordingDocumentsRedirectParams) => {
   const navigate = useNavigate();
+  const {
+    data: recordingDocumentList,
+    error: documentsError,
+    isError: isDocumentsError,
+  } = useDocumentsByRecordingQuery({
+    workspaceId,
+    recordingSessionId: recordingId,
+    enabled: viewStatus === "completed",
+  });
+  const { isUnauthorized } = useRedirectToLoginOnUnauthorized({
+    error: documentsError,
+  });
+
+  const firstDocumentId = recordingDocumentList?.items[0]?.id;
+  // 문서 목록을 받았거나 받지 못한 것으로 끝났는지. 로그인이 풀린 실패는 로그인 화면으로 보내므로 빼요
+  const isDocumentListSettled =
+    recordingDocumentList !== undefined ||
+    (isDocumentsError && !isUnauthorized);
 
   useEffect(() => {
     const params = { workspaceId: String(workspaceId) };
-
-    if (viewStatus === "completed") {
-      navigate(getRouterPath({ routeKey: "WORKSPACE_HOME", params }), {
-        replace: true,
-      });
-    }
 
     if (viewStatus === "recording") {
       navigate(getRouterPath({ routeKey: "RECORDING", params }), {
         replace: true,
       });
+      return;
     }
-  }, [navigate, viewStatus, workspaceId]);
 
-  return {
-    isRedirecting: viewStatus === "completed" || viewStatus === "recording",
-  };
+    if (viewStatus !== "completed") return;
+
+    if (firstDocumentId !== undefined) {
+      navigate(
+        getRouterPath({
+          routeKey: "DOCUMENT",
+          params: { ...params, documentId: String(firstDocumentId) },
+        }),
+        { replace: true },
+      );
+      return;
+    }
+
+    if (isDocumentListSettled) {
+      navigate(getRouterPath({ routeKey: "WORKSPACE_HOME", params }), {
+        replace: true,
+      });
+    }
+  }, [
+    firstDocumentId,
+    isDocumentListSettled,
+    navigate,
+    viewStatus,
+    workspaceId,
+  ]);
 };
