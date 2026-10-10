@@ -24,10 +24,12 @@ export default function DocumentListLoadFailed({
   );
 }
 
-/** 빈 상태 안내와 같은 자리(높이 320px의 가운데)에 놓아요 */
+/**
+ * 피그마 「문서 목록/불러오기 실패」: 안내를 가로 가운데, 제목 묶음 아래 120px에 놓아요.
+ * 위젯이 제목 묶음과 목록 자리 사이에 28px을 두므로, 나머지 92px을 여기서 띄워요
+ */
 const Root = styled.div`
   display: flex;
-  align-items: center;
   justify-content: center;
-  height: 20rem; /* 320px */
+  padding-top: 5.75rem; /* 92px */
 `;
