@@ -1,6 +1,6 @@
 # Knot 기여 가이드
 
-이 문서는 Issue와 Pull Request에 적용되는 최소 컨벤션을 설명합니다.
+이 문서는 Issue, Pull Request와 Java 코드에 적용되는 최소 컨벤션을 설명합니다.
 
 ## 제목과 Label
 
@@ -51,3 +51,29 @@ python3 .github/scripts/validate_governance.py --repo OWNER/REPO --pr PR_NUMBER
 ```
 
 설명의 충분성이나 구현 품질은 자동 판정하지 않고 리뷰에서 확인합니다.
+
+## Java 코드 가독성
+
+- 클래스·인터페이스의 첫 선언이 상수이면 여는 중괄호 바로 다음 줄에 둡니다. 일반 필드나 메서드로 시작하면 빈 줄을 하나 둡니다.
+- enum의 첫 값은 여는 중괄호 바로 다음 줄에 둡니다.
+- 연속된 일반 필드는 붙여 쓰고, 상수와 일반 필드 사이·필드와 메서드 사이·메서드 사이에는 빈 줄을 하나 둡니다. JPA Entity의 애노테이션과 필드는 한 블록으로 묶고 필드 블록 사이에 빈 줄을 둡니다.
+- `else`와 삼항 연산자는 사용하지 않습니다. 조기 반환과 규칙별 메서드로 분기합니다.
+- 조건문 안에 조건문을 중첩하지 않습니다. 검증, 상태 판정과 결과 변환의 의도를 메서드 이름으로 드러내고, 책임이 커지면 클래스를 분리합니다.
+- 메서드 체인은 줄마다 호출 하나씩 작성합니다. 다른 객체의 내부 객체를 연달아 탐색하면 디미터 법칙에 따라 해당 책임을 가진 객체의 메서드나 별도 변환 메서드로 분리합니다.
+- production과 test 코드에 같은 규칙을 적용하고, 백엔드의 Spotless 설정으로 포맷을 확인합니다.
+
+```java
+public class DocumentGenerationService {
+    private static final Pattern BLANK = Pattern.compile("[\\p{javaWhitespace}\\p{Z}]*");
+
+    private final DocumentGenerator generator;
+}
+
+public enum DocumentGenerationProcessingStatus {
+    QUEUED,
+    RUNNING,
+    SUCCEEDED,
+    FAILED,
+    NO_CONTENT
+}
+```
