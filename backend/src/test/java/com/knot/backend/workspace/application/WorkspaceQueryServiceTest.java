@@ -9,6 +9,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.knot.backend.workspace.application.dto.result.WorkspaceDetailResult;
+import com.knot.backend.workspace.application.dto.result.WorkspaceDetailSnapshot;
 import com.knot.backend.workspace.application.dto.result.WorkspaceListResult;
 import com.knot.backend.workspace.domain.Workspace;
 import com.knot.backend.workspace.domain.WorkspaceErrorCode;
@@ -28,26 +29,29 @@ class WorkspaceQueryServiceTest {
     private static final Instant CREATED_AT = Instant.parse("2026-08-29T00:00:00Z");
 
     @Test
-    @DisplayName("워크스페이스 멤버는 워크스페이스 이름을 조회한다")
+    @DisplayName("워크스페이스 멤버는 이름과 내 역할, 활성 멤버 수를 조회한다")
     void findDetail_success() {
         // given
-        WorkspaceRepository workspaceRepository = mock(WorkspaceRepository.class);
-        WorkspaceMemberRepository workspaceMemberRepository = mock(WorkspaceMemberRepository.class);
+        WorkspaceDetailQuery workspaceDetailQuery = mock(WorkspaceDetailQuery.class);
         WorkspaceQueryService service = new WorkspaceQueryService(
-                workspaceRepository,
-                workspaceMemberRepository
+                mock(WorkspaceRepository.class),
+                mock(WorkspaceMemberRepository.class),
+                workspaceDetailQuery
         );
-        Workspace workspace = Workspace.create(
-                "Knot 팀",
-                CREATED_AT
-        );
-        when(workspaceRepository.findById(1L)).thenReturn(Optional.of(workspace));
         when(
-                workspaceMemberRepository.existsByWorkspaceIdAndMemberId(
+                workspaceDetailQuery.find(
                         1L,
                         10L
                 )
-        ).thenReturn(true);
+        ).thenReturn(
+                Optional.of(
+                        new WorkspaceDetailSnapshot(
+                                "Knot 팀",
+                                WorkspaceMemberRole.OWNER,
+                                2L
+                        )
+                )
+        );
 
         // when
         WorkspaceDetailResult result = service.findDetail(
@@ -57,17 +61,19 @@ class WorkspaceQueryServiceTest {
 
         // then
         assertThat(result.name()).isEqualTo("Knot 팀");
+        assertThat(result.myRole()).isEqualTo(WorkspaceMemberRole.OWNER);
+        assertThat(result.activeMemberCount()).isEqualTo(2L);
     }
 
     @Test
     @DisplayName("워크스페이스 ID가 양수가 아니면 조회를 거부한다")
     void findDetail_failure_invalidWorkspaceId() {
         // given
-        WorkspaceRepository workspaceRepository = mock(WorkspaceRepository.class);
-        WorkspaceMemberRepository workspaceMemberRepository = mock(WorkspaceMemberRepository.class);
+        WorkspaceDetailQuery workspaceDetailQuery = mock(WorkspaceDetailQuery.class);
         WorkspaceQueryService service = new WorkspaceQueryService(
-                workspaceRepository,
-                workspaceMemberRepository
+                mock(WorkspaceRepository.class),
+                mock(WorkspaceMemberRepository.class),
+                workspaceDetailQuery
         );
 
         // when
@@ -80,23 +86,25 @@ class WorkspaceQueryServiceTest {
         assertThatThrownBy(action).isInstanceOf(WorkspaceException.class)
                 .extracting(exception -> ((WorkspaceException) exception).getErrorCode())
                 .isEqualTo(WorkspaceErrorCode.INVALID_WORKSPACE_ID);
-        verifyNoInteractions(
-                workspaceRepository,
-                workspaceMemberRepository
-        );
+        verifyNoInteractions(workspaceDetailQuery);
     }
 
     @Test
-    @DisplayName("존재하지 않는 워크스페이스는 조회할 수 없다")
+    @DisplayName("존재하지 않거나 삭제된 워크스페이스는 조회할 수 없다")
     void findDetail_failure_workspaceNotFound() {
         // given
-        WorkspaceRepository workspaceRepository = mock(WorkspaceRepository.class);
-        WorkspaceMemberRepository workspaceMemberRepository = mock(WorkspaceMemberRepository.class);
+        WorkspaceDetailQuery workspaceDetailQuery = mock(WorkspaceDetailQuery.class);
         WorkspaceQueryService service = new WorkspaceQueryService(
-                workspaceRepository,
-                workspaceMemberRepository
+                mock(WorkspaceRepository.class),
+                mock(WorkspaceMemberRepository.class),
+                workspaceDetailQuery
         );
-        when(workspaceRepository.findById(1L)).thenReturn(Optional.empty());
+        when(
+                workspaceDetailQuery.find(
+                        1L,
+                        10L
+                )
+        ).thenReturn(Optional.empty());
 
         // when
         ThrowingCallable action = () -> service.findDetail(
@@ -108,33 +116,32 @@ class WorkspaceQueryServiceTest {
         assertThatThrownBy(action).isInstanceOf(WorkspaceException.class)
                 .extracting(exception -> ((WorkspaceException) exception).getErrorCode())
                 .isEqualTo(WorkspaceErrorCode.WORKSPACE_NOT_FOUND);
-        verifyNoInteractions(workspaceMemberRepository);
     }
 
     @Test
-    @DisplayName("워크스페이스 멤버가 아니면 워크스페이스 이름을 조회할 수 없다")
+    @DisplayName("현재 멤버십이 없으면 워크스페이스 정보를 조회할 수 없다")
     void findDetail_failure_accessDenied() {
         // given
-        WorkspaceRepository workspaceRepository = mock(WorkspaceRepository.class);
-        WorkspaceMemberRepository workspaceMemberRepository = mock(WorkspaceMemberRepository.class);
+        WorkspaceDetailQuery workspaceDetailQuery = mock(WorkspaceDetailQuery.class);
         WorkspaceQueryService service = new WorkspaceQueryService(
-                workspaceRepository,
-                workspaceMemberRepository
-        );
-        when(workspaceRepository.findById(1L)).thenReturn(
-                Optional.of(
-                        Workspace.create(
-                                "Knot 팀",
-                                CREATED_AT
-                        )
-                )
+                mock(WorkspaceRepository.class),
+                mock(WorkspaceMemberRepository.class),
+                workspaceDetailQuery
         );
         when(
-                workspaceMemberRepository.existsByWorkspaceIdAndMemberId(
+                workspaceDetailQuery.find(
                         1L,
                         10L
                 )
-        ).thenReturn(false);
+        ).thenReturn(
+                Optional.of(
+                        new WorkspaceDetailSnapshot(
+                                "Knot 팀",
+                                null,
+                                1L
+                        )
+                )
+        );
 
         // when
         ThrowingCallable action = () -> service.findDetail(
@@ -156,7 +163,8 @@ class WorkspaceQueryServiceTest {
         WorkspaceMemberRepository workspaceMemberRepository = mock(WorkspaceMemberRepository.class);
         WorkspaceQueryService service = new WorkspaceQueryService(
                 workspaceRepository,
-                workspaceMemberRepository
+                workspaceMemberRepository,
+                mock(WorkspaceDetailQuery.class)
         );
         Workspace recentWorkspace = workspace(
                 2L,
@@ -214,7 +222,8 @@ class WorkspaceQueryServiceTest {
         WorkspaceMemberRepository workspaceMemberRepository = mock(WorkspaceMemberRepository.class);
         WorkspaceQueryService service = new WorkspaceQueryService(
                 workspaceRepository,
-                workspaceMemberRepository
+                workspaceMemberRepository,
+                mock(WorkspaceDetailQuery.class)
         );
         when(workspaceRepository.findAllByMemberId(10L)).thenReturn(List.of());
         when(workspaceMemberRepository.findLastViewedByMemberId(10L)).thenReturn(Optional.empty());
@@ -237,7 +246,8 @@ class WorkspaceQueryServiceTest {
         WorkspaceMemberRepository workspaceMemberRepository = mock(WorkspaceMemberRepository.class);
         WorkspaceQueryService service = new WorkspaceQueryService(
                 workspaceRepository,
-                workspaceMemberRepository
+                workspaceMemberRepository,
+                mock(WorkspaceDetailQuery.class)
         );
         Workspace currentWorkspace = workspace(
                 1L,

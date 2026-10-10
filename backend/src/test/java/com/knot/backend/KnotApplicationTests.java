@@ -3,6 +3,7 @@ package com.knot.backend;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.startsWith;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -408,6 +409,89 @@ class KnotApplicationTests {
 
         // then
         result.andExpect(header().doesNotExist(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN));
+    }
+
+    @Test
+    @DisplayName("허용된 프론트 Origin의 워크스페이스 탈퇴 DELETE preflight 요청을 허용한다")
+    void leaveWorkspacePreflight_success_allowedOrigin() throws Exception {
+        // when
+        ResultActions result = mockMvc.perform(
+                options("/api/v1/workspaces/1/members/me").header(
+                        HttpHeaders.ORIGIN,
+                        FRONTEND_ORIGIN
+                )
+                        .header(
+                                HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD,
+                                HttpMethod.DELETE.name()
+                        )
+                        .header(
+                                HttpHeaders.ACCESS_CONTROL_REQUEST_HEADERS,
+                                "x-xsrf-token"
+                        )
+        );
+
+        // then
+        result.andExpect(status().isOk())
+                .andExpect(
+                        header().string(
+                                HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN,
+                                FRONTEND_ORIGIN
+                        )
+                )
+                .andExpect(
+                        header().string(
+                                HttpHeaders.ACCESS_CONTROL_ALLOW_METHODS,
+                                containsString(HttpMethod.DELETE.name())
+                        )
+                )
+                .andExpect(
+                        header().string(
+                                HttpHeaders.ACCESS_CONTROL_ALLOW_HEADERS,
+                                containsString("x-xsrf-token")
+                        )
+                )
+                .andExpect(
+                        header().string(
+                                HttpHeaders.ACCESS_CONTROL_ALLOW_CREDENTIALS,
+                                "true"
+                        )
+                );
+    }
+
+    @Test
+    @DisplayName("허용하지 않은 Origin의 워크스페이스 탈퇴 DELETE preflight 요청에는 CORS 허용 헤더를 제공하지 않는다")
+    void leaveWorkspacePreflight_failure_unallowedOrigin() throws Exception {
+        // when
+        ResultActions result = mockMvc.perform(
+                options("/api/v1/workspaces/1/members/me").header(
+                        HttpHeaders.ORIGIN,
+                        UNALLOWED_ORIGIN
+                )
+                        .header(
+                                HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD,
+                                HttpMethod.DELETE.name()
+                        )
+        );
+
+        // then
+        result.andExpect(status().isForbidden())
+                .andExpect(header().doesNotExist(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN));
+    }
+
+    @Test
+    @DisplayName("허용된 프론트 Origin이어도 CSRF 토큰이 없는 워크스페이스 탈퇴 DELETE 요청은 거부한다")
+    void leaveWorkspace_failure_missingCsrfToken() throws Exception {
+        // when
+        ResultActions result = mockMvc.perform(
+                delete("/api/v1/workspaces/1/members/me").header(
+                        HttpHeaders.ORIGIN,
+                        FRONTEND_ORIGIN
+                )
+        );
+
+        // then
+        result.andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("FORBIDDEN"));
     }
 
     @Test

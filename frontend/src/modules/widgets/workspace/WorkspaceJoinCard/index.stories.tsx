@@ -94,6 +94,8 @@ export const Default: Story = {};
 /** 「참여할게요」를 누른 뒤 응답을 기다리는 중이에요. 버튼이 로딩으로 잠겨요. */
 export const Joining: Story = {
   parameters: {
+    // 문서 페이지에서는 스토리를 한 화면에 함께 그려 응답이 섞이므로, 이 스토리는 따로 그려요
+    docs: { story: { inline: false, iframeHeight: 380 } },
     msw: {
       handlers: {
         acceptInvitation: http.post(

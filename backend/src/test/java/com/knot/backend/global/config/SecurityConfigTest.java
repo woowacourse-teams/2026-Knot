@@ -15,6 +15,7 @@ import java.time.Duration;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.web.cors.CorsConfiguration;
@@ -26,19 +27,7 @@ class SecurityConfigTest {
     @DisplayName("CORS 설정은 개발 Origin과 마지막으로 본 워크스페이스 갱신에 필요한 PUT을 허용한다")
     void corsConfigurationSource_success_allowsDevelopmentOriginsAndPutMethod() {
         // given
-        SecurityConfig securityConfig = new SecurityConfig(
-                mock(GithubOAuth2UserService.class),
-                mock(JwtAuthenticationFilter.class),
-                mock(OAuth2AuthenticationSuccessHandler.class),
-                mock(OAuth2AuthenticationFailureHandler.class),
-                mock(AuthAuthenticationEntryPoint.class),
-                mock(AuthAccessDeniedHandler.class),
-                mock(JwtLogoutHandler.class),
-                mock(AuthLogoutSuccessHandler.class),
-                jwtProperties(),
-                corsProperties(),
-                new ApiDocumentationProperties()
-        );
+        SecurityConfig securityConfig = securityConfig();
 
         // when
         UrlBasedCorsConfigurationSource source = securityConfig.corsConfigurationSource();
@@ -59,6 +48,52 @@ class SecurityConfigTest {
         assertThat(configuration.getAllowedOrigins()).containsExactly(
                 "https://dev.knoted.kr",
                 "http://localhost:3000"
+        );
+    }
+
+    @Test
+    @DisplayName("CORS 설정은 워크스페이스 탈퇴에 필요한 DELETE를 허용하고 기존 Method와 헤더를 유지한다")
+    void corsConfigurationSource_success_allowsDeleteMethodForWorkspaceLeave() {
+        // given
+        SecurityConfig securityConfig = securityConfig();
+        UrlBasedCorsConfigurationSource source = securityConfig.corsConfigurationSource();
+        MockHttpServletRequest request = new MockHttpServletRequest(
+                HttpMethod.DELETE.name(),
+                "/api/v1/workspaces/1/members/me"
+        );
+
+        // when
+        CorsConfiguration configuration = source.getCorsConfiguration(request);
+
+        // then
+        assertThat(configuration).isNotNull();
+        assertThat(configuration.getAllowedMethods()).containsExactly(
+                HttpMethod.GET.name(),
+                HttpMethod.POST.name(),
+                HttpMethod.PUT.name(),
+                HttpMethod.DELETE.name(),
+                HttpMethod.OPTIONS.name()
+        );
+        assertThat(configuration.getAllowedHeaders()).containsExactly(
+                HttpHeaders.CONTENT_TYPE,
+                "X-XSRF-TOKEN"
+        );
+        assertThat(configuration.getAllowCredentials()).isTrue();
+    }
+
+    private SecurityConfig securityConfig() {
+        return new SecurityConfig(
+                mock(GithubOAuth2UserService.class),
+                mock(JwtAuthenticationFilter.class),
+                mock(OAuth2AuthenticationSuccessHandler.class),
+                mock(OAuth2AuthenticationFailureHandler.class),
+                mock(AuthAuthenticationEntryPoint.class),
+                mock(AuthAccessDeniedHandler.class),
+                mock(JwtLogoutHandler.class),
+                mock(AuthLogoutSuccessHandler.class),
+                jwtProperties(),
+                corsProperties(),
+                new ApiDocumentationProperties()
         );
     }
 
