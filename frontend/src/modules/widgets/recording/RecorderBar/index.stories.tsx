@@ -95,6 +95,12 @@ export const Recording: Story = {
  * 예: 회의 중 쉬는 시간
  */
 export const Paused: Story = {
+  parameters: {
+    design: {
+      type: "figma",
+      url: "https://www.figma.com/design/jyDFCKX5AIztZessq4H7nQ/knot?node-id=1746-10197",
+    },
+  },
   beforeEach: () => {
     useRecordingStore.setState({
       status: "paused",
