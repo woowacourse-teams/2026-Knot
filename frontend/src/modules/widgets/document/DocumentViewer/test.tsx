@@ -68,23 +68,25 @@ const CONFIRM_BUTTON_NAME = "문서를 확인했어요";
 
 const writeText = vi.fn<(text: string) => Promise<void>>();
 
-// 주소에 id가 빠진 경우를 보려고 위젯을 놓는 경로예요
-const NO_DOCUMENT_ID_PATH = "/workspace/:workspaceId/no-document-id";
-const NO_WORKSPACE_ID_PATH = "/no-workspace-id/:documentId";
-
-const renderViewer = (documentId: string) =>
-  renderViewerAt(
-    getRouterPath({
-      routeKey: "DOCUMENT",
-      params: { workspaceId: WORKSPACE_ID, documentId },
-    }),
-  );
-
-const renderViewerAt = (entry: string) => {
+// 이동을 확인할 수 있게 로그인 경로에 표시만 하는 화면을 둬요
+const renderViewer = (documentId: string) => {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
-  const router = createMemoryRouterFor(entry);
+  const router = createMemoryRouter(
+    [
+      { path: PATH_ROUTE.DOCUMENT, element: <DocumentViewer /> },
+      { path: PATH_ROUTE.LOGIN, element: <p>로그인 화면</p> },
+    ],
+    {
+      initialEntries: [
+        getRouterPath({
+          routeKey: "DOCUMENT",
+          params: { workspaceId: WORKSPACE_ID, documentId },
+        }),
+      ],
+    },
+  );
 
   render(
     <ThemeProvider theme={theme}>
@@ -94,18 +96,6 @@ const renderViewerAt = (entry: string) => {
     </ThemeProvider>,
   );
 };
-
-// 이동을 확인할 수 있게 로그인 경로에 표시만 하는 화면을 둬요
-const createMemoryRouterFor = (entry: string) =>
-  createMemoryRouter(
-    [
-      { path: PATH_ROUTE.DOCUMENT, element: <DocumentViewer /> },
-      { path: NO_DOCUMENT_ID_PATH, element: <DocumentViewer /> },
-      { path: NO_WORKSPACE_ID_PATH, element: <DocumentViewer /> },
-      { path: PATH_ROUTE.LOGIN, element: <p>로그인 화면</p> },
-    ],
-    { initialEntries: [entry] },
-  );
 
 /** 확인 수 문구에 포인터를 올려 확인한 사람 팝오버를 열어요 */
 const hoverConfirmCount = async () => {
@@ -479,41 +469,24 @@ describe("DocumentViewer", () => {
     },
   );
 
-  it.each([
-    [
-      "문서 id가 숫자가 아니면",
-      getRouterPath({
-        routeKey: "DOCUMENT",
-        params: { workspaceId: WORKSPACE_ID, documentId: "abc" },
+  it("주소의 문서 id가 숫자가 아니어도 확인하지 않고 그대로 요청하고, 서버가 거절하면 문서를 불러오지 못했다고 알린다", async () => {
+    let requestCount = 0;
+    mockServer.use(
+      http.get(DOCUMENT_REQUEST, () => {
+        requestCount += 1;
+        // 서버는 숫자가 아닌 문서 id를 잘못된 요청으로 거절해요
+        return new HttpResponse(null, { status: 400 });
       }),
-    ],
-    ["주소에 문서 id가 없으면", `/workspace/${WORKSPACE_ID}/no-document-id`],
-    ["주소에 워크스페이스 id가 없으면", `/no-workspace-id/${expected.id}`],
-  ])(
-    "%s 요청하지 않고 문서를 불러오지 못했다고 알린다",
-    async (_condition, entry) => {
-      let requestCount = 0;
-      mockServer.use(
-        http.get(DOCUMENT_REQUEST, () => {
-          requestCount += 1;
-          return HttpResponse.json(documentDetailsResponse[0]);
-        }),
-        // 확인 대상 조회는 스스로 주소를 검사하지 않으므로, 함께 나가지 않는지 봐요
-        http.get(CONFIRMATIONS_REQUEST, () => {
-          requestCount += 1;
-          return HttpResponse.json(documentConfirmationsResponse[0]);
-        }),
-      );
-      renderViewerAt(entry);
+    );
+    renderViewer("abc");
 
-      expect(
-        await screen.findByRole("heading", {
-          name: "문서를 불러오지 못했어요",
-        }),
-      ).toBeInTheDocument();
-      expect(requestCount).toBe(0);
-    },
-  );
+    expect(
+      await screen.findByRole("heading", {
+        name: "문서를 불러오지 못했어요",
+      }),
+    ).toBeInTheDocument();
+    expect(requestCount).toBe(1);
+  });
 
   it("서버 오류면 문서를 불러오지 못했다고 알리고, 다시 시도를 누르면 다시 불러와 본문을 보여준다", async () => {
     mockServer.use(

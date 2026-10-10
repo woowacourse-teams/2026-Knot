@@ -12,7 +12,7 @@ interface UseDocumentConfirmationsQueryParams {
  *
  * 확인한 사람 팝오버가 써요. 확인 수는 문서 상세 응답에 있으므로 이 훅으로 세지 않아요.
  *
- * 두 id는 정수여야 해요. 주소에서 읽은 값이 정수인지는 주소를 읽는 쪽(문서 보기 위젯)이 확인하고, 여기서는 다시 검사하지 않아요.
+ * 두 id가 정수인지는 확인하지 않고 그대로 요청해요. 잘못된 id인지는 서버가 판단해 400 · 404로 답해요.
  */
 const useDocumentConfirmationsQuery = ({
   workspaceId,
