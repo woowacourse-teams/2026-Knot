@@ -4,10 +4,14 @@ import Button from "@primitives/ui/Button";
 import MicIcon from "@/assets/icons/mic.svg";
 
 import { RECORDING_STATUS_COPY } from "../constants/recordingStatus";
-import type { CurrentRecording } from "../types/currentRecording";
+import type { CurrentRecordingStatus } from "../types/currentRecording";
 
 interface CurrentRecordingItemProps {
-  recording: CurrentRecording;
+  recordingStatus: CurrentRecordingStatus;
+  /** 녹음 이름. 예: `유월 님의 녹음` */
+  title: string;
+  /** 녹음한 시간. 예: `12:48` */
+  elapsedTime: string;
   /** 넘기지 않으면 「녹음 화면으로」 버튼을 숨겨요 */
   onOpenRecording?: () => void;
 }
@@ -16,12 +20,13 @@ interface CurrentRecordingItemProps {
  * 진행 중인 녹음 한 칸. 상태 줄(점 + 상태 · 시간) / 녹음 이름 / 안내 한 줄과 오른쪽 버튼으로 이뤄져요.
  */
 export default function CurrentRecordingItem({
-  recording,
+  recordingStatus,
+  title,
+  elapsedTime,
   onOpenRecording,
 }: CurrentRecordingItemProps) {
-  const { status, title, elapsedTime } = recording;
-  const { label, hint } = RECORDING_STATUS_COPY[status];
-  const isPaused = status === "paused";
+  const { label, hint } = RECORDING_STATUS_COPY[recordingStatus];
+  const isPaused = recordingStatus === "paused";
 
   return (
     <Container>

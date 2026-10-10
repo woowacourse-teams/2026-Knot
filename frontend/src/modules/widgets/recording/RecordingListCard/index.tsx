@@ -36,7 +36,9 @@ export default function RecordingListCard({
         <LoadingFallback />
       ) : recording ? (
         <CurrentRecordingItem
-          recording={recording}
+          recordingStatus={recording.status}
+          title={recording.title}
+          elapsedTime={recording.elapsedTime}
           onOpenRecording={onOpenRecording}
         />
       ) : (
