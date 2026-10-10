@@ -24,11 +24,11 @@ export default function RecordingDocuments() {
 
   const workspaceId = Number(params.workspaceId);
   const recordingId = Number(params.recordingId);
-  const { status, retryLoad, retryGeneration, isRetrying } =
+  const { viewStatus, retryLoad, retryGeneration, isRetrying } =
     useRecordingDocuments({ workspaceId, recordingId });
   const { isRedirecting } = useRecordingDocumentsRedirect({
     workspaceId,
-    status,
+    viewStatus,
   });
   const { navigateToWorkspaceHome } = useNavigateToWorkspaceHome();
 
@@ -38,17 +38,17 @@ export default function RecordingDocuments() {
   // 다른 화면으로 보내는 동안에는 그릴 것이 없어요
   if (isRedirecting) return null;
 
-  if (status === "loading") {
+  if (viewStatus === "loading") {
     return <LoadingIndicator label="문서 정리 상태를 확인하고 있어요" />;
   }
 
-  if (status === "organizing") return <DraftingState />;
+  if (viewStatus === "organizing") return <DraftingState />;
 
-  if (status === "noContent") {
+  if (viewStatus === "noContent") {
     return <NothingToOrganizeState onGoHome={handleGoHome} />;
   }
 
-  if (status === "failed") {
+  if (viewStatus === "failed") {
     return (
       <DocumentFailedState
         onRetry={retryGeneration}

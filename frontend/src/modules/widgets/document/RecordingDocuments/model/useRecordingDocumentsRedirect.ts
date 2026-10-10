@@ -2,11 +2,11 @@ import { getRouterPath } from "@routes/PATH_ROUTE";
 import { useEffect } from "react";
 import { useNavigate } from "react-router";
 
-import type { RecordingDocumentsStatus } from "../types/recordingDocuments";
+import type { RecordingDocumentsViewStatus } from "../types/recordingDocuments";
 
 interface UseRecordingDocumentsRedirectParams {
   workspaceId: number;
-  status: RecordingDocumentsStatus;
+  viewStatus: RecordingDocumentsViewStatus;
 }
 
 /**
@@ -20,25 +20,27 @@ interface UseRecordingDocumentsRedirectParams {
  */
 export const useRecordingDocumentsRedirect = ({
   workspaceId,
-  status,
+  viewStatus,
 }: UseRecordingDocumentsRedirectParams) => {
   const navigate = useNavigate();
 
   useEffect(() => {
     const params = { workspaceId: String(workspaceId) };
 
-    if (status === "completed") {
+    if (viewStatus === "completed") {
       navigate(getRouterPath({ routeKey: "WORKSPACE_HOME", params }), {
         replace: true,
       });
     }
 
-    if (status === "recording") {
+    if (viewStatus === "recording") {
       navigate(getRouterPath({ routeKey: "RECORDING", params }), {
         replace: true,
       });
     }
-  }, [navigate, status, workspaceId]);
+  }, [navigate, viewStatus, workspaceId]);
 
-  return { isRedirecting: status === "completed" || status === "recording" };
+  return {
+    isRedirecting: viewStatus === "completed" || viewStatus === "recording",
+  };
 };
