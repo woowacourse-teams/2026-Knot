@@ -74,7 +74,7 @@ class DocumentGenerationSchedulerIntegrationTest {
         long transcript = fixtures.saveTranscript(recording);
         when(classifier.classify(anyString())).thenAnswer(invocation -> {
             assertThat(TransactionSynchronizationManager.isActualTransactionActive()).isFalse();
-            return new DocumentTopicClassificationResult(
+            return DocumentTopicClassificationResult.fromNames(
                     List.of(
                             "A",
                             "B"

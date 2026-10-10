@@ -8,6 +8,7 @@ import com.knot.backend.document.domain.DocumentException;
 import com.knot.backend.document.domain.DocumentGenerationBatch;
 import com.knot.backend.document.domain.DocumentGenerationBatchRepository;
 import com.knot.backend.document.domain.DocumentGenerationJob;
+import com.knot.backend.document.domain.DocumentGenerationJobStatus;
 import com.knot.backend.document.domain.DocumentGenerationJobRepository;
 import com.knot.backend.workspace.domain.WorkspaceErrorCode;
 import com.knot.backend.workspace.domain.WorkspaceException;

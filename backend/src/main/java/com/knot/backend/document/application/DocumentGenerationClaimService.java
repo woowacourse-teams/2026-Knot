@@ -7,6 +7,7 @@ import com.knot.backend.document.domain.DocumentErrorCode;
 import com.knot.backend.document.domain.DocumentException;
 import com.knot.backend.document.domain.DocumentGenerationBatchRepository;
 import com.knot.backend.document.domain.DocumentGenerationFailureCause;
+import com.knot.backend.document.domain.DocumentText;
 import com.knot.backend.document.domain.DocumentGenerationJob;
 import com.knot.backend.document.domain.DocumentGenerationJobRepository;
 import com.knot.backend.document.domain.DocumentGenerationJobStage;
@@ -188,12 +189,7 @@ public class DocumentGenerationClaimService {
     }
 
     private boolean hasInputText(DocumentGenerationInputResult stored) {
-        String content = stored.content();
-        if (content == null) {
-            return false;
-        }
-        return !content.codePoints()
-                .allMatch(c -> Character.isWhitespace(c) || Character.isSpaceChar(c));
+        return !DocumentText.isBlank(stored.content());
     }
 
     private boolean matchesRegisteredInput(
