@@ -1,6 +1,6 @@
 import useMicrophoneUnavailableDialog from "@hooks/domain/recording/useMicrophoneUnavailableDialog";
 import useNavigateToRecording from "@hooks/domain/recording/useNavigateToRecording";
-import useRecording from "@hooks/domain/recording/useRecording";
+import useRecordingState from "@hooks/domain/recording/useRecordingState";
 import useRecordingControl from "@hooks/domain/recording/useRecordingControl";
 import useRecordingElapsedTime from "@hooks/domain/recording/useRecordingElapsedTime";
 import { PATH_ROUTE } from "@routes/PATH_ROUTE";
@@ -27,7 +27,7 @@ export const useDockRecording = () => {
   const { navigateToRecording } = useNavigateToRecording();
   const { openMicrophoneUnavailableDialog } = useMicrophoneUnavailableDialog();
   const { status, isRecordingActive, isMicrophoneLost, clearMicrophoneLost } =
-    useRecording();
+    useRecordingState();
   const { elapsedSeconds } = useRecordingElapsedTime();
   const { startRecording, syncPause, resumeRecording, endRecording } =
     useRecordingControl();

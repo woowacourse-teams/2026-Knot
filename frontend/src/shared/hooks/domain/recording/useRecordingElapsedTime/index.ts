@@ -13,7 +13,7 @@ const TICK_INTERVAL_MS = 1000;
  * 타이머가 늦게 불려도 돌아왔을 때 흐른 시간이 그대로 맞아요.
  *
  * 타이머는 부르는 화면마다 따로 두어, 화면이 사라지면 타이머도 함께 멈춰요.
- * 시간을 보여 주는 화면만 매초 다시 그리도록 `useRecording`과 나눠 두었어요.
+ * 시간을 보여 주는 화면만 매초 다시 그리도록 `useRecordingState`과 나눠 두었어요.
  */
 const useRecordingElapsedTime = () => {
   const status = useRecordingStore((state) => state.status);
