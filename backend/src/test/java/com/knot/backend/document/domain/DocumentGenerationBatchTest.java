@@ -3,6 +3,7 @@ package com.knot.backend.document.domain;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.knot.backend.document.application.dto.result.DocumentTopicClassificationResult;
 import java.time.Instant;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
@@ -56,10 +57,13 @@ class DocumentGenerationBatchTest {
         );
         // when
         batch.registerTopics(
-                List.of(
-                        "검색",
-                        "알림"
-                ),
+                DocumentTopicClassificationResult.fromNames(
+                        List.of(
+                                "검색",
+                                "알림"
+                        )
+                )
+                        .topics(),
                 NOW.plusSeconds(1)
         );
         // then
@@ -70,7 +74,8 @@ class DocumentGenerationBatchTest {
         assertThat(batch.getTopicRegistrationState()).isEqualTo(DocumentTopicRegistrationState.TOPICS_REGISTERED);
         assertThatThrownBy(
                 () -> batch.registerTopics(
-                        List.of("다른 주제"),
+                        DocumentTopicClassificationResult.fromNames(List.of("다른 주제"))
+                                .topics(),
                         NOW.plusSeconds(2)
                 )
         ).isInstanceOf(DocumentException.class);
@@ -88,16 +93,20 @@ class DocumentGenerationBatchTest {
         // when & then
         assertThatThrownBy(
                 () -> batch.registerTopics(
-                        List.of(
-                                "검색",
-                                "검색"
-                        ),
+                        DocumentTopicClassificationResult.fromNames(
+                                List.of(
+                                        "검색",
+                                        "검색"
+                                )
+                        )
+                                .topics(),
                         NOW
                 )
         ).isInstanceOf(DocumentException.class);
         assertThatThrownBy(
                 () -> batch.registerTopics(
-                        List.of("\u00a0"),
+                        DocumentTopicClassificationResult.fromNames(List.of("\u00a0"))
+                                .topics(),
                         NOW
                 )
         ).isInstanceOf(DocumentException.class);
@@ -135,9 +144,76 @@ class DocumentGenerationBatchTest {
         // when & then
         assertThatThrownBy(
                 () -> batch.registerTopics(
-                        List.of("검색"),
+                        DocumentTopicClassificationResult.fromNames(List.of("검색"))
+                                .topics(),
                         NOW.minusSeconds(1)
                 )
         ).isInstanceOf(DocumentException.class);
+    }
+
+    @Test
+    @DisplayName("분류 대기와 등록 결과를 구분하고 정규화된 주제 순서를 검증한다")
+    void isRegisteredWith_success() {
+        // given
+        DocumentGenerationBatch batch = DocumentGenerationBatch.accept(
+                1,
+                2,
+                NOW
+        );
+        List<DocumentTopic> topics = List.of(
+                DocumentTopic.of("　검색"),
+                DocumentTopic.of("알림")
+        );
+        assertThat(batch.isRegisteredWith(topics)).isFalse();
+
+        // when
+        batch.registerTopics(
+                topics,
+                NOW
+        );
+
+        // then
+        assertThat(
+                batch.isRegisteredWith(
+                        List.of(
+                                DocumentTopic.of("검색"),
+                                DocumentTopic.of("알림")
+                        )
+                )
+        ).isTrue();
+        assertThat(
+                batch.isRegisteredWith(
+                        List.of(
+                                DocumentTopic.of("알림"),
+                                DocumentTopic.of("검색")
+                        )
+                )
+        ).isFalse();
+        assertThatThrownBy(() -> batch.validateRegisteredWith(List.of(DocumentTopic.of("다른 주제"))))
+                .hasMessage(DocumentErrorCode.GENERATION_REGISTRATION_CONFLICT.getMessage());
+    }
+
+    @Test
+    @DisplayName("정규화 결과가 같은 중복 주제를 등록하지 않고 상태를 유지한다")
+    void registerTopics_failure_normalizedDuplicates() {
+        // given
+        DocumentGenerationBatch batch = DocumentGenerationBatch.accept(
+                1,
+                2,
+                NOW
+        );
+        List<DocumentTopic> topics = List.of(
+                DocumentTopic.of("　검색"),
+                DocumentTopic.of("검색")
+        );
+
+        // when & then
+        assertThatThrownBy(
+                () -> batch.registerTopics(
+                        topics,
+                        NOW
+                )
+        ).hasMessage(DocumentErrorCode.INVALID_TOPIC_CLASSIFICATION_RESPONSE.getMessage());
+        assertThat(batch.getTopics()).isEmpty();
     }
 }

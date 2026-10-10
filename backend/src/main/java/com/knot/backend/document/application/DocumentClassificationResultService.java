@@ -1,5 +1,6 @@
 package com.knot.backend.document.application;
 
+import com.knot.backend.document.domain.DocumentTopic;
 import com.knot.backend.document.application.dto.result.DocumentGenerationRegistrationResult;
 import com.knot.backend.document.application.dto.result.DocumentTopicClassificationResult;
 import com.knot.backend.document.domain.DocumentErrorCode;
@@ -8,8 +9,6 @@ import com.knot.backend.document.domain.DocumentGenerationBatch;
 import com.knot.backend.document.domain.DocumentGenerationBatchRepository;
 import com.knot.backend.document.domain.DocumentGenerationJob;
 import com.knot.backend.document.domain.DocumentGenerationJobRepository;
-import com.knot.backend.document.domain.DocumentGenerationJobStatus;
-import com.knot.backend.document.domain.DocumentTopicRegistrationState;
 import com.knot.backend.workspace.domain.WorkspaceErrorCode;
 import com.knot.backend.workspace.domain.WorkspaceException;
 import com.knot.backend.workspace.domain.WorkspaceRepository;
@@ -46,11 +45,8 @@ public class DocumentClassificationResultService {
         );
         DocumentGenerationBatch batch = batches.findByIdForUpdate(job.getBatchId())
                 .orElseThrow(() -> new DocumentException(DocumentErrorCode.GENERATION_REGISTRATION_CONFLICT));
-        if (job.getStatus() == DocumentGenerationJobStatus.SUCCEEDED) {
-            validateRepeatedResult(
-                    batch,
-                    classification
-            );
+        if (job.isSucceeded()) {
+            batch.validateRegisteredWith(classification.topics());
             return result(batch);
         }
         job.validateRunningAttempt(expectedAttemptCount);
@@ -62,7 +58,7 @@ public class DocumentClassificationResultService {
         );
         // 생성 Job의 주제 FK가 같은 트랜잭션에 저장한 주제를 참조하도록 먼저 flush한다.
         batches.saveAndFlush(batch);
-        for (String topic : batch.getTopics()) {
+        for (DocumentTopic topic : classification.topics()) {
             jobs.save(
                     DocumentGenerationJob.queueGeneration(
                             batch.getId(),
@@ -88,7 +84,7 @@ public class DocumentClassificationResultService {
                 jobId,
                 expectedAttemptCount
         );
-        if (job.getStatus() == DocumentGenerationJobStatus.FAILED) {
+        if (job.isFailed()) {
             return;
         }
         job.validateRunningAttempt(expectedAttemptCount);
@@ -121,19 +117,6 @@ public class DocumentClassificationResultService {
         )
                 .orElseThrow(() -> new DocumentException(DocumentErrorCode.TRANSCRIPT_NOT_FOUND));
         return job;
-    }
-
-    private void validateRepeatedResult(
-            DocumentGenerationBatch batch,
-            DocumentTopicClassificationResult classification
-    ) {
-        if (batch.getTopicRegistrationState() == DocumentTopicRegistrationState.WAITING_CLASSIFICATION) {
-            throw new DocumentException(DocumentErrorCode.GENERATION_REGISTRATION_CONFLICT);
-        }
-        if (!batch.getTopics()
-                .equals(classification.topics())) {
-            throw new DocumentException(DocumentErrorCode.GENERATION_REGISTRATION_CONFLICT);
-        }
     }
 
     private void validateClassification(DocumentTopicClassificationResult classification) {
