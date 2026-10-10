@@ -33,7 +33,7 @@ export default function RecordingListCard() {
   } = useServerRecording();
 
   // 이 탭의 녹음은 조회를 기다리지 않고 바로 보여 줘요
-  const isLoading = !thisTabStatus && isServerLoading;
+  const isLoading = thisTabStatus === "idle" && isServerLoading;
 
   return (
     <Container aria-labelledby={titleId} aria-busy={isLoading}>
@@ -43,7 +43,7 @@ export default function RecordingListCard() {
 
       {isLoading ? (
         <LoadingFallback />
-      ) : thisTabStatus ? (
+      ) : thisTabStatus !== "idle" ? (
         <CurrentRecordingItem
           recordingStatus={thisTabStatus}
           title={title}
