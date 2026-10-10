@@ -102,6 +102,10 @@ public class RecordingSession {
         this.accumulatedRecordingMillis = 0L;
     }
 
+    public static Instant disconnectionThreshold(Instant now) {
+        return now.minus(CONNECTION_TIMEOUT);
+    }
+
     public static RecordingSession start(
             Long workspaceId,
             Long memberId,

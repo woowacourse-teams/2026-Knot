@@ -1,5 +1,6 @@
 package com.knot.backend.recording.domain;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -18,6 +19,11 @@ public interface RecordingSessionRepository {
     );
 
     List<RecordingSession> findAllActiveByMemberIdForUpdate(long memberId);
+
+    List<Long> findActiveIdsLastSeenAtOrBefore(
+            Instant threshold,
+            int limit
+    );
 
     Optional<RecordingSession> findActiveByWorkspaceIdAndMemberId(
             long workspaceId,
