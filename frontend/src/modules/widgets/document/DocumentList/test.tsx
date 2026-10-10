@@ -199,7 +199,11 @@ describe("DocumentList", () => {
       http.get(DOCUMENTS_REQUEST, ({ request }) => {
         const { searchParams } = new URL(request.url);
         const cursor = searchParams.get("cursor");
-        const page = findDocuments({ cursor, size: PAGE_SIZE });
+        const page = findDocuments({
+          cursor,
+          size: PAGE_SIZE,
+          recordingSessionId: null,
+        });
 
         if (page === undefined) return HttpResponse.json(null, { status: 400 });
 
@@ -350,7 +354,13 @@ describe("DocumentList", () => {
           return new HttpResponse(null, { status: 500 });
         }
 
-        return HttpResponse.json(findDocuments({ cursor, size: PAGE_SIZE }));
+        return HttpResponse.json(
+          findDocuments({
+            cursor,
+            size: PAGE_SIZE,
+            recordingSessionId: null,
+          }),
+        );
       }),
     );
 
@@ -403,23 +413,22 @@ describe("DocumentList", () => {
     ).toBeInTheDocument();
   });
 
-  it("주소의 워크스페이스 id가 정수가 아니면 문서를 요청하지 않는다", async () => {
+  it("주소의 워크스페이스 id가 숫자가 아니어도 확인하지 않고 그대로 요청하고, 서버가 거절하면 목록을 불러오지 못했다고 알린다", async () => {
     let requestCount = 0;
     mockServer.use(
       http.get(DOCUMENTS_REQUEST, () => {
         requestCount += 1;
 
-        return HttpResponse.json(documentsResponse);
+        // 서버는 숫자가 아닌 워크스페이스 id를 잘못된 요청으로 거절해요
+        return new HttpResponse(null, { status: 400 });
       }),
     );
 
     renderDocumentList("abc");
 
-    expect(
-      await screen.findByRole("heading", { level: 2, name: "문서" }),
-    ).toBeInTheDocument();
-    // 요청이 나갔다면 응답이 돌아올 만큼 기다린 뒤에 세요
-    await delay(50);
-    expect(requestCount).toBe(0);
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      LOAD_FAILED_NOTICE,
+    );
+    expect(requestCount).toBe(1);
   });
 });
