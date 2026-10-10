@@ -2,7 +2,6 @@ import { NO_DECISION_SENTENCE } from "@constants/document";
 import styled from "@emotion/styled";
 import DocumentConfirmButton from "@features/document/DocumentConfirmButton";
 import DocumentConfirmCount from "@features/document/DocumentConfirmCount";
-import DocumentCopyButton from "@features/document/DocumentCopyButton";
 import Breadcrumb from "@primitives/ui/Breadcrumb";
 import Chip from "@primitives/ui/Chip";
 import DocumentBody from "@primitives/ui/DocumentBody";
@@ -12,6 +11,7 @@ import { useId } from "react";
 import { useParams } from "react-router";
 
 import { useDocumentViewer } from "./model/useDocumentViewer";
+import DocumentCopyButton from "./ui/DocumentCopyButton";
 import DocumentLoadFailed from "./ui/DocumentLoadFailed";
 import DocumentSkeleton from "./ui/DocumentSkeleton";
 
@@ -22,7 +22,8 @@ import DocumentSkeleton from "./ui/DocumentSkeleton";
  * 같은 판단을 프론트에도 두면 기준이 두 곳에 생기기 때문이에요.
  *
  * 받은 문서 값을 그리기만 하면 되는 것(경로 · 제목 · 날짜 · 녹음 길이 · 본문)은 여기서 직접 그려요.
- * 스스로 조회하거나 동작하는 것(복사 버튼 · 확인 수 · 확인 버튼)은 문서 ID만 받는 features를 놓아요.
+ * 복사 버튼은 이 위젯의 부품(`ui/`)이고, 받은 문서의 제목과 본문을 넘겨줘요.
+ * 확인 수와 확인 버튼은 문서 ID만 받는 features를 놓아요.
  * 결정이 없는 회의 문서는 본문의 결정 없음 문장을 흐리게 그려요(STT-R23).
  */
 export default function DocumentViewer() {
@@ -49,7 +50,10 @@ export default function DocumentViewer() {
     <Container aria-labelledby={titleId}>
       <Breadcrumb parent="문서" current={documentDetail.title} />
       <TopRow>
-        <DocumentCopyButton documentId={documentDetail.id} />
+        <DocumentCopyButton
+          title={documentDetail.title}
+          content={documentDetail.content}
+        />
       </TopRow>
       <TitleBlock>
         <Title id={titleId}>{documentDetail.title}</Title>

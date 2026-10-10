@@ -1,19 +1,15 @@
-import useDocumentQuery from "@api/queries/useDocumentQuery";
 import useClipboard from "@hooks/common/useClipboard";
 import useTimeout from "@hooks/common/useTimeout";
 import Button from "@primitives/ui/Button";
-import { useParams } from "react-router";
 
 /** 복사한 뒤 버튼 문구를 「복사됨」으로 보여주는 시간 */
 const COPIED_DURATION_MS = 3000;
 
 interface DocumentCopyButtonProps {
-  /**
-   * 복사할 문서의 ID.
-   * 같은 녹음의 문서를 넘겨 보는 녹음 직후 확인 화면에서는 지금 보는 문서의 ID가 주소에 없을 수 있어요.
-   * 그 화면에도 놓을 수 있게 주소에서 읽지 않고 받아요. 워크스페이스 ID는 워크스페이스 아래 모든 화면의 주소에 있어 주소에서 읽어요
-   */
-  documentId: number;
+  /** 복사할 문서의 제목. `#` 제목으로 본문 앞에 붙여요 */
+  title: string;
+  /** 복사할 문서의 마크다운 본문 */
+  content: string;
 }
 
 /**
@@ -21,27 +17,20 @@ interface DocumentCopyButtonProps {
  *
  * 본문에는 제목이 없어서 제목을 `#` 제목으로 앞에 붙여 복사해요.
  * 복사하면 3초 동안 「복사됨」으로 바뀌고, 토스트는 띄우지 않아요.
- * 문서 상세는 문서 보기 위젯과 같은 키로 조회해서 요청이 더 나가지 않아요.
- * 문서를 아직 받지 못했으면 아무것도 그리지 않아요.
+ * 문서는 직접 조회하지 않고, 문서 보기가 받은 제목과 본문을 받아요.
  */
 export default function DocumentCopyButton({
-  documentId,
+  title,
+  content,
 }: DocumentCopyButtonProps) {
-  const params = useParams();
-  const { data: documentDetail } = useDocumentQuery({
-    workspaceId: Number(params.workspaceId),
-    documentId,
-  });
   const { copy } = useClipboard();
   const { start: startCopiedTimeout, isTimedOut: isCopied } = useTimeout({
     timeout: COPIED_DURATION_MS,
   });
 
-  if (documentDetail === undefined) return null;
-
   const handleCopy = () => {
     copy({
-      text: `# ${documentDetail.title}\n\n${documentDetail.content}`,
+      text: `# ${title}\n\n${content}`,
       onCopySuccess: startCopiedTimeout,
     });
   };
