@@ -1,4 +1,4 @@
-import useDocumentsQuery from "@api/queries/useDocumentsQuery";
+import useDocumentsByRecordingQuery from "@api/queries/useDocumentsByRecordingQuery";
 import useNavigateToDocument from "@hooks/domain/document/useNavigateToDocument";
 
 interface UseDocumentStepperParams {
@@ -21,7 +21,7 @@ export const useDocumentStepper = ({
   documentId,
   recordingSessionId,
 }: UseDocumentStepperParams) => {
-  const { data: recordingDocumentList } = useDocumentsQuery({
+  const { data: recordingDocumentList } = useDocumentsByRecordingQuery({
     workspaceId,
     recordingSessionId,
   });
