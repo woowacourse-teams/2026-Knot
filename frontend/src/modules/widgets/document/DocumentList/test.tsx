@@ -7,7 +7,14 @@ import { ThemeProvider } from "@emotion/react";
 import { theme } from "@provider/themeProvider";
 import { getRouterPath, PATH_ROUTE } from "@routes/PATH_ROUTE";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { formatDate } from "@utils/formatDate";
 import { formatDurationFromSeconds } from "@utils/formatDurationFromSeconds";
 import { delay, http, HttpResponse } from "msw";
@@ -23,6 +30,8 @@ const DOCUMENTS_REQUEST = "*/api/v1/workspaces/:workspaceId/documents";
 // 한 번에 요청하는 문서 수와 이어 받는 횟수의 한계. getAllDocumentsApi의 값과 같아요
 const REQUEST_SIZE = "100";
 const MAX_REQUEST_COUNT = 20;
+// 이어 받기를 확인할 때 mock이 요청한 size와 관계없이 한 번에 주는 문서 수
+const MOCK_PAGE_SIZE = 3;
 const LOADING_LABEL = "문서 목록을 불러오고 있어요";
 const LOAD_FAILED_NOTICE = "목록을 불러오지 못했어요. 다시 시도해 주세요.";
 
@@ -107,22 +116,24 @@ describe("DocumentList", () => {
 
   it("폴더 이름 옆에 서버가 준 문서 수를 보여 준다", async () => {
     // 받은 문서 수와 다른 값을 줘서, 행을 세지 않고 서버 값을 쓰는지 봐요
-    const EXTRA_COUNT = 10;
-    respondWith({
+    const extraCount = 10;
+    const response = {
       ...documentsResponse,
       topics: documentsResponse.topics.map((topic) => ({
         ...topic,
-        documentCount: topic.documentCount + EXTRA_COUNT,
+        documentCount: topic.documentCount + extraCount,
       })),
-    });
+    };
+    respondWith(response);
 
     renderDocumentList();
 
-    for (const { topic, documentCount } of expected.topics) {
+    for (const { topic, documentCount } of new GetDocumentsResponseDto(response)
+      .topics) {
       const folder = await findFolder(topic);
 
       expect(
-        within(folder).getByText(String(documentCount + EXTRA_COUNT)),
+        within(folder).getByText(String(documentCount)),
       ).toBeInTheDocument();
     }
   });
@@ -190,18 +201,17 @@ describe("DocumentList", () => {
   });
 
   it("문서가 한 번에 다 오지 않으면 다음 페이지가 없을 때까지 이어 받아 모두 보여 준다", async () => {
-    const PAGE_SIZE = 3;
     const requests: { cursor: string | null; size: string | null }[] = [];
     const nextCursors: (string | null)[] = [];
 
-    // 요청한 size와 관계없이 3개씩만 줘서 여러 번 받게 해요
+    // 요청한 size와 관계없이 조금씩만 줘서 여러 번 받게 해요
     mockServer.use(
       http.get(DOCUMENTS_REQUEST, ({ request }) => {
         const { searchParams } = new URL(request.url);
         const cursor = searchParams.get("cursor");
         const page = findDocuments({
           cursor,
-          size: PAGE_SIZE,
+          size: MOCK_PAGE_SIZE,
           recordingSessionId: null,
         });
 
@@ -220,7 +230,9 @@ describe("DocumentList", () => {
       expect(await findRow(title)).toBeInTheDocument();
     }
 
-    expect(requests).toHaveLength(Math.ceil(expected.items.length / PAGE_SIZE));
+    expect(requests).toHaveLength(
+      Math.ceil(expected.items.length / MOCK_PAGE_SIZE),
+    );
     // 첫 요청에는 커서가 없고, 그 뒤로는 앞 응답의 nextCursor를 그대로 보내요
     expect(requests.map(({ cursor }) => cursor)).toEqual([
       null,
@@ -231,6 +243,8 @@ describe("DocumentList", () => {
 
   it("스무 번을 받아도 다음 페이지가 남아 있으면 더 받지 않고, 그때까지 받은 문서를 보여 준다", async () => {
     const [item] = documentsResponse.items;
+    // 폴더 이름의 기대값은 같은 문서를 DTO로 바꾼 값에서 꺼내요
+    const [{ topic }] = expected.items;
     let requestCount = 0;
 
     // 몇 번을 받아도 다음 페이지가 있다고 답해요
@@ -248,7 +262,7 @@ describe("DocumentList", () => {
 
     renderDocumentList();
 
-    const folder = await findFolder(item.topic);
+    const folder = await findFolder(topic);
 
     expect(within(folder).getAllByRole("listitem")).toHaveLength(
       MAX_REQUEST_COUNT,
@@ -336,12 +350,34 @@ describe("DocumentList", () => {
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
+  it("목록을 보는 동안 다시 불러오기가 서버 오류로 실패하면 받은 목록을 계속 보여 준다", async () => {
+    const [{ topic }] = expected.topics;
+    let failedRequestCount = 0;
+    renderDocumentList();
+    await findFolder(topic);
+
+    mockServer.use(
+      http.get(DOCUMENTS_REQUEST, () => {
+        failedRequestCount += 1;
+
+        return new HttpResponse(null, { status: 500 });
+      }),
+    );
+    // 다른 탭에 다녀오면 목록을 다시 받아요
+    act(() => {
+      window.dispatchEvent(new Event("visibilitychange"));
+    });
+    await waitFor(() => expect(failedRequestCount).toBe(1));
+
+    expect(screen.getByRole("region", { name: topic })).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
   it("이어 받는 도중 한 번이라도 실패하면 받은 문서를 보여 주지 않고, 「다시 시도」는 처음부터 다시 받는다", async () => {
-    const PAGE_SIZE = 3;
     const requestedCursors: (string | null)[] = [];
     let hasFailed = false;
 
-    // 3개씩 주다가, 다음 페이지를 처음 요청받았을 때 한 번만 실패해요
+    // 조금씩 주다가, 다음 페이지를 처음 요청받았을 때 한 번만 실패해요
     mockServer.use(
       http.get(DOCUMENTS_REQUEST, ({ request }) => {
         const cursor = new URL(request.url).searchParams.get("cursor");
@@ -357,7 +393,7 @@ describe("DocumentList", () => {
         return HttpResponse.json(
           findDocuments({
             cursor,
-            size: PAGE_SIZE,
+            size: MOCK_PAGE_SIZE,
             recordingSessionId: null,
           }),
         );
@@ -369,7 +405,7 @@ describe("DocumentList", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(
       LOAD_FAILED_NOTICE,
     );
-    // 첫 페이지의 문서 3개는 받았지만 보여 주지 않아요
+    // 첫 페이지의 문서는 받았지만 보여 주지 않아요
     expect(screen.queryByRole("link")).not.toBeInTheDocument();
 
     await clickRetry();
@@ -398,12 +434,12 @@ describe("DocumentList", () => {
     expect(await screen.findByText("로그인 화면")).toBeInTheDocument();
   });
 
-  it("워크스페이스 멤버가 아니면(403) 워크스페이스 선택 화면으로 보낸다", async () => {
+  it.each([
+    ["워크스페이스 멤버가 아니면(403)", 403],
+    ["없는 워크스페이스면(404)", 404],
+  ])("%s 워크스페이스 선택 화면으로 보낸다", async (_, status) => {
     mockServer.use(
-      http.get(
-        DOCUMENTS_REQUEST,
-        () => new HttpResponse(null, { status: 403 }),
-      ),
+      http.get(DOCUMENTS_REQUEST, () => new HttpResponse(null, { status })),
     );
 
     renderDocumentList();

@@ -24,6 +24,37 @@ describe("groupDocumentsByTopic", () => {
     ]);
   });
 
+  it("영문 이름의 폴더는 대소문자를 가리지 않고 이름순으로 놓는다", () => {
+    const folders = groupDocumentsByTopic({
+      topics: [
+        { topic: "QA", documentCount: 0 },
+        { topic: "figma 리뷰", documentCount: 0 },
+      ],
+      documents: [],
+    });
+
+    expect(folders.map(({ topic }) => topic)).toEqual(["figma 리뷰", "QA"]);
+  });
+
+  it("한글 이름의 폴더를 영문 이름의 폴더보다 위에 놓는다", () => {
+    const folders = groupDocumentsByTopic({
+      topics: [
+        { topic: "QA", documentCount: 0 },
+        { topic: "회원 관리", documentCount: 0 },
+        { topic: "figma 리뷰", documentCount: 0 },
+        { topic: "주간 회의", documentCount: 0 },
+      ],
+      documents: [],
+    });
+
+    expect(folders.map(({ topic }) => topic)).toEqual([
+      "주간 회의",
+      "회원 관리",
+      "figma 리뷰",
+      "QA",
+    ]);
+  });
+
   it("폴더 안의 문서는 받은 순서를 그대로 지킨다", () => {
     const folders = groupDocumentsByTopic({
       topics: [
