@@ -9,12 +9,14 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.Instant;
+import java.time.Duration;
 import lombok.Getter;
 
 @Getter
 @Entity
 @Table(name = "recording_audio_uploads")
 public class RecordingAudioUpload {
+    private static final Duration AUDIO_RETENTION = Duration.ofDays(30);
     private static final String ALLOWED_CONTENT_TYPE = "audio/webm";
     private static final long MAX_CONTENT_LENGTH = 500L * 1024 * 1024;
 
@@ -43,6 +45,12 @@ public class RecordingAudioUpload {
 
     @Column(name = "completed_at")
     private Instant completedAt;
+
+    @Column(name = "deleted_at")
+    private Instant deletedAt;
+
+    @Column(name = "last_upload_url_expires_at")
+    private Instant lastUploadUrlExpiresAt;
 
     protected RecordingAudioUpload() {}
 
@@ -106,6 +114,43 @@ public class RecordingAudioUpload {
 
     public boolean isCompleted() {
         return status == RecordingAudioUploadStatus.COMPLETED;
+    }
+
+    public boolean isRetentionExpired(Instant now) {
+        validateRetentionTime(now);
+        if (!isCompleted() || deletedAt != null) {
+            return false;
+        }
+        return !now.isBefore(completedAt.plus(AUDIO_RETENTION));
+    }
+
+    public void recordUploadUrlExpiry(Instant expiresAt) {
+        validateRetentionTime(expiresAt);
+        if (isCompleted()) {
+            throw new RecordingException(RecordingErrorCode.AUDIO_UPLOAD_ALREADY_COMPLETED);
+        }
+        if (lastUploadUrlExpiresAt == null || expiresAt.isAfter(lastUploadUrlExpiresAt)) {
+            lastUploadUrlExpiresAt = expiresAt;
+        }
+    }
+
+    public void recordDeleted(Instant deletedAt) {
+        validateRetentionTime(deletedAt);
+        if (!isCompleted()) {
+            throw new RecordingException(RecordingErrorCode.AUDIO_UPLOAD_NOT_COMPLETED);
+        }
+        if (deletedAt.isBefore(completedAt)) {
+            throw new RecordingException(RecordingErrorCode.INVALID_RECORDING_TIME);
+        }
+        if (this.deletedAt == null) {
+            this.deletedAt = deletedAt;
+        }
+    }
+
+    private void validateRetentionTime(Instant time) {
+        if (time == null || time.isBefore(reservedAt)) {
+            throw new RecordingException(RecordingErrorCode.INVALID_RECORDING_TIME);
+        }
     }
 
     public void complete(

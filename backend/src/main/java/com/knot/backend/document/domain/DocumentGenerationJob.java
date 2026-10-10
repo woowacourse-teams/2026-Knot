@@ -153,6 +153,11 @@ public class DocumentGenerationJob {
         return status == DocumentGenerationJobStatus.QUEUED && nextAttemptAt != null && !now.isBefore(nextAttemptAt);
     }
 
+    public boolean isRetentionExpired(Instant now) {
+        validateFailureTime(now);
+        return status == DocumentGenerationJobStatus.FAILED && expiresAt != null && !now.isBefore(expiresAt);
+    }
+
     public boolean isExpiredAt(Instant now) {
         return status == DocumentGenerationJobStatus.RUNNING && executionDeadlineAt != null
                 && !now.isBefore(executionDeadlineAt);
