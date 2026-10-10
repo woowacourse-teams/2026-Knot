@@ -5,6 +5,11 @@ description: Create and update frontend-facing Markdown API specifications for t
 
 # Knot API Specification
 
+제품 기획 근거는 `backend/docs/notion-context.md`에 따라 관련 API 원문과 필요한 DB 속성만 찾아 읽는다.
+도메인·ERD·기획 원문 및 `docs/product/current-v2-mvp.md`의 현재 결정과 대조한다.
+이 사본은 요구사항 근거이며 아래 실제 Controller/DTO 기반 HTTP 계약 명세를 대신하지 않는다.
+본문·속성 revision과 coverage를 확인하고, 누락·제안·미정은 확정 계약으로 승격하지 않는다.
+
 Knot 백엔드의 실제 HTTP 계약을 프론트엔드가 바로 사용할 수 있는 Markdown API 명세로 정리한다. 모든 엔드포인트는 지정된 Header, Path Parameter, Query Parameter, Request Body, Response, Error Response 형식을 사용한다.
 
 ~~~~markdown

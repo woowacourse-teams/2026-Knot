@@ -5,8 +5,8 @@ import Button from "@primitives/ui/Button";
 import DocumentFailedIllustration from "@/assets/illustrations/documentFailed.svg";
 
 interface DocumentLoadFailedProps {
-  /** `다시 시도`를 눌렀을 때 실행할 동작. 주소가 잘못돼 다시 조회할 것이 없으면 넘기지 않아요 */
-  onRetry?: () => void;
+  /** `다시 시도`를 눌렀을 때 실행할 동작 */
+  onRetry: () => void;
 }
 
 /**

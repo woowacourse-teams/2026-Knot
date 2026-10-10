@@ -1,0 +1,14 @@
+{
+  "type": "object",
+  "properties": {
+    "topics": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    }
+  },
+  "required": ["topics"],
+  "additionalProperties": false
+}

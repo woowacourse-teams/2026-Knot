@@ -20,6 +20,7 @@ import com.knot.backend.recording.domain.RecordingErrorCode;
 import com.knot.backend.recording.domain.RecordingException;
 import com.knot.backend.testsupport.TestApplicationProperties;
 import com.knot.backend.testsupport.TestcontainersConfiguration;
+import java.time.Clock;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.util.UUID;
@@ -36,6 +37,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.TestConstructor;
 import org.springframework.test.context.TestConstructor.AutowireMode;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -45,6 +47,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 @Import(TestcontainersConfiguration.class)
 @TestApplicationProperties
 @SpringBootTest
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 @TestConstructor(autowireMode = AutowireMode.ALL)
 class RecordingAudioUploadCompletionServiceIntegrationTest {
     private static final Instant CREATED_AT = Instant.parse("2026-10-05T00:00:00Z");
@@ -57,6 +60,8 @@ class RecordingAudioUploadCompletionServiceIntegrationTest {
     private final RecordingEndService recordingEndService;
     private final TransactionTemplate transactionTemplate;
     private final JdbcClient jdbcClient;
+    private final Clock clock;
+
     @MockitoBean
     private RecordingAudioStorage audioStorage;
 
@@ -66,7 +71,8 @@ class RecordingAudioUploadCompletionServiceIntegrationTest {
             RecordingStartService recordingStartService,
             RecordingEndService recordingEndService,
             TransactionTemplate transactionTemplate,
-            JdbcClient jdbcClient
+            JdbcClient jdbcClient,
+            Clock clock
     ) {
         this.recordingAudioUploadUrlService = recordingAudioUploadUrlService;
         this.recordingAudioUploadCompletionService = recordingAudioUploadCompletionService;
@@ -74,6 +80,7 @@ class RecordingAudioUploadCompletionServiceIntegrationTest {
         this.recordingEndService = recordingEndService;
         this.transactionTemplate = transactionTemplate;
         this.jdbcClient = jdbcClient;
+        this.clock = clock;
     }
 
     @BeforeEach
@@ -97,7 +104,8 @@ class RecordingAudioUploadCompletionServiceIntegrationTest {
         ).thenReturn(
                 new PresignedAudioUpload(
                         "https://storage.example/upload",
-                        Instant.parse("2026-10-05T01:00:00Z")
+                        clock.instant()
+                                .plusSeconds(3600)
                 )
         );
     }

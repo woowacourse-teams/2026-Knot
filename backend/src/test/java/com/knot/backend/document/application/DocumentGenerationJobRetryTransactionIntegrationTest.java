@@ -44,7 +44,6 @@ import org.springframework.transaction.support.TransactionTemplate;
 @Import(TestcontainersConfiguration.class)
 @TestApplicationProperties
 class DocumentGenerationJobRetryTransactionIntegrationTest {
-
     private static final Instant NOW = DocumentFixtures.CREATED_AT.plusSeconds(120);
 
     @Autowired
@@ -480,6 +479,7 @@ class DocumentGenerationJobRetryTransactionIntegrationTest {
                         .orElseThrow();
                 job.recordFailure(acceptedAt.plusSeconds(1));
                 jobs.flush();
+                fixtures.synchronizeBatch(job.getBatchId());
             });
         }
         when(clock.instant()).thenReturn(NOW.plusSeconds(8));

@@ -25,6 +25,8 @@ public interface WorkspaceMemberRepository {
 
     long countActiveByWorkspaceId(Long workspaceId);
 
+    List<Long> findActiveMemberIdsByWorkspaceId(long workspaceId);
+
     List<WorkspaceMember> saveAll(List<WorkspaceMember> workspaceMembers);
 
     void flush();

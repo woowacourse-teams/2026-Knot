@@ -59,6 +59,14 @@ interface WorkspaceMemberJpaRepository extends JpaRepository<WorkspaceMember, Lo
             """, nativeQuery = true)
     long countActiveByWorkspaceId(Long workspaceId);
 
+    @Query("""
+            SELECT wm.memberId FROM WorkspaceMember wm
+            WHERE wm.workspaceId = :workspaceId AND wm.leftAt IS NULL
+              AND EXISTS (SELECT w.id FROM Workspace w WHERE w.id = wm.workspaceId AND w.deletedAt IS NULL)
+            ORDER BY wm.memberId
+            """)
+    List<Long> findActiveMemberIdsByWorkspaceId(long workspaceId);
+
     @Query(value = """
             SELECT EXISTS (
                 SELECT 1 FROM workspace_members wm

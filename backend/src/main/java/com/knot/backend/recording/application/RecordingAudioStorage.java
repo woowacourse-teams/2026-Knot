@@ -12,4 +12,6 @@ public interface RecordingAudioStorage {
     );
 
     StoredAudioObject findStoredObject(String storageKey);
+
+    void deleteStoredObject(String storageKey);
 }

@@ -29,7 +29,6 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 @DataJpaTest
 @Import({TestcontainersConfiguration.class, DocumentGenerationJobListQueryAdapter.class})
 class DocumentGenerationJobListQueryIntegrationTest {
-
     private static final Instant NOW = DocumentFixtures.CREATED_AT.plusSeconds(8 * 24 * 60 * 60);
 
     @Autowired
@@ -207,7 +206,8 @@ class DocumentGenerationJobListQueryIntegrationTest {
     @DisplayName("JPA로 추가한 작업은 조회에 자동 반영한다")
     void findPage_success_jpaFlush() {
         // given
-        DocumentGenerationJob job = DocumentGenerationJob.queue(
+        DocumentGenerationJob job = DocumentGenerationJob.queueClassification(
+                fixtures.saveGenerationBatch(transcriptId),
                 transcriptId,
                 NOW
         );
@@ -304,7 +304,9 @@ class DocumentGenerationJobListQueryIntegrationTest {
                 transcriptId,
                 "FAILED"
         );
-        jdbc.sql("UPDATE document_generation_jobs SET status = 'RUNNING' WHERE id = :id")
+        jdbc.sql(
+                "UPDATE document_generation_jobs SET status = 'RUNNING', execution_deadline_at = updated_at + INTERVAL '150 seconds', failure_cause = NULL WHERE id = :id"
+        )
                 .param(
                         "id",
                         runningId
@@ -425,7 +427,9 @@ class DocumentGenerationJobListQueryIntegrationTest {
                 transcriptId,
                 "RUNNING"
         );
-        jdbc.sql("UPDATE document_generation_jobs SET updated_at = :time WHERE id = :id")
+        jdbc.sql(
+                "UPDATE document_generation_jobs SET updated_at = :time, execution_deadline_at = CAST(:time AS timestamptz) + INTERVAL '150 seconds' WHERE id = :id"
+        )
                 .param(
                         "time",
                         Timestamp.from(NOW)

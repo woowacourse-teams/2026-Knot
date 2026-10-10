@@ -1,5 +1,6 @@
 package com.knot.backend.document.application;
 
+import com.knot.backend.document.domain.DocumentText;
 import com.knot.backend.document.application.dto.result.DocumentTranscriptResult;
 import com.knot.backend.document.application.dto.result.DocumentTranscriptSnapshot;
 import com.knot.backend.document.domain.DocumentErrorCode;
@@ -66,8 +67,7 @@ public class DocumentTranscriptService {
     }
 
     private void validateStoredTranscript(DocumentTranscriptSnapshot snapshot) {
-        if (snapshot.transcriptText() == null || snapshot.transcriptText()
-                .isBlank()) {
+        if (DocumentText.isBlank(snapshot.transcriptText())) {
             throw new DocumentException(DocumentErrorCode.INVALID_TRANSCRIPT_DATA);
         }
         if (snapshot.segments()

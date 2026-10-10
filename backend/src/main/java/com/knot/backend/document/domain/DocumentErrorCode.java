@@ -8,6 +8,11 @@ import lombok.RequiredArgsConstructor;
 @Getter
 @RequiredArgsConstructor
 public enum DocumentErrorCode implements ErrorCode {
+    INVALID_GENERATION_WORKER_CONFIGURATION(
+            ErrorCategory.INTERNAL_SERVER_ERROR,
+            "INVALID_GENERATION_WORKER_CONFIGURATION",
+            "문서 생성 실행기 설정이 올바르지 않습니다"
+    ),
     INVALID_PARAMETER(
             ErrorCategory.INVALID_INPUT,
             "INVALID_PARAMETER",
@@ -43,10 +48,35 @@ public enum DocumentErrorCode implements ErrorCode {
             "RETRY_NOT_ALLOWED",
             "문서 생성 작업을 재시도할 수 없습니다"
     ),
+    INVALID_TOPIC_CLASSIFICATION_INPUT(
+            ErrorCategory.INTERNAL_SERVER_ERROR,
+            "INVALID_TOPIC_CLASSIFICATION_INPUT",
+            "주제 분류에 사용할 저장 원문이 올바르지 않습니다"
+    ),
+    INVALID_TOPIC_CLASSIFICATION_RESPONSE(
+            ErrorCategory.INTERNAL_SERVER_ERROR,
+            "INVALID_TOPIC_CLASSIFICATION_RESPONSE",
+            "주제 분류 응답이 올바르지 않습니다"
+    ),
+    INVALID_DOCUMENT_GENERATION_INPUT(
+            ErrorCategory.INTERNAL_SERVER_ERROR,
+            "INVALID_DOCUMENT_GENERATION_INPUT",
+            "문서 생성에 사용할 원문 또는 주제가 올바르지 않습니다"
+    ),
+    INVALID_DOCUMENT_GENERATION_RESPONSE(
+            ErrorCategory.INTERNAL_SERVER_ERROR,
+            "INVALID_DOCUMENT_GENERATION_RESPONSE",
+            "문서 생성 응답이 올바르지 않습니다"
+    ),
     INVALID_DOCUMENT_DATA(
             ErrorCategory.INVALID_INPUT,
             "INVALID_DOCUMENT_DATA",
             "문서 저장 정보가 올바르지 않습니다"
+    ),
+    GENERATION_REGISTRATION_CONFLICT(
+            ErrorCategory.CONFLICT,
+            "GENERATION_REGISTRATION_CONFLICT",
+            "문서 생성 등록 상태 또는 실행 시도가 일치하지 않습니다"
     );
 
     private final ErrorCategory category;

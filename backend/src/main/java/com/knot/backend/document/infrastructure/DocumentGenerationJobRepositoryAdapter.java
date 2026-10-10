@@ -3,6 +3,10 @@ package com.knot.backend.document.infrastructure;
 import com.knot.backend.document.domain.DocumentGenerationJob;
 import com.knot.backend.document.domain.DocumentGenerationJobRepository;
 import java.util.Optional;
+import java.util.List;
+import java.time.Instant;
+import com.knot.backend.document.domain.DocumentGenerationCandidate;
+import org.springframework.data.domain.PageRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
@@ -11,6 +15,16 @@ import org.springframework.stereotype.Repository;
 public class DocumentGenerationJobRepositoryAdapter implements DocumentGenerationJobRepository {
 
     private final DocumentGenerationJobJpaRepository repository;
+
+    @Override
+    public DocumentGenerationJob save(DocumentGenerationJob job) {
+        return repository.save(job);
+    }
+
+    @Override
+    public List<DocumentGenerationJob> findAllByBatchId(long batchId) {
+        return repository.findAllByBatchIdOrderById(batchId);
+    }
 
     @Override
     public Optional<DocumentGenerationJob> findByWorkspaceIdAndIdForUpdate(
@@ -26,5 +40,33 @@ public class DocumentGenerationJobRepositoryAdapter implements DocumentGeneratio
     @Override
     public void flush() {
         repository.flush();
+    }
+
+    @Override
+    public List<DocumentGenerationCandidate> findReadyCandidates(
+            Instant now,
+            int limit
+    ) {
+        return repository.findReadyCandidates(
+                now,
+                PageRequest.of(
+                        0,
+                        limit
+                )
+        );
+    }
+
+    @Override
+    public List<DocumentGenerationCandidate> findExpiredCandidates(
+            Instant now,
+            int limit
+    ) {
+        return repository.findExpiredCandidates(
+                now,
+                PageRequest.of(
+                        0,
+                        limit
+                )
+        );
     }
 }

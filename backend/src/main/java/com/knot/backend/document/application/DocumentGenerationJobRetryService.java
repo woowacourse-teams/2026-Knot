@@ -1,11 +1,15 @@
 package com.knot.backend.document.application;
 
+import com.knot.backend.document.domain.DocumentText;
 import com.knot.backend.document.application.dto.result.DocumentGenerationInputResult;
 import com.knot.backend.document.application.dto.result.DocumentGenerationJobRetryResult;
 import com.knot.backend.document.domain.DocumentErrorCode;
 import com.knot.backend.document.domain.DocumentException;
 import com.knot.backend.document.domain.DocumentGenerationJob;
 import com.knot.backend.document.domain.DocumentGenerationJobRepository;
+import com.knot.backend.document.domain.DocumentGenerationBatch;
+import com.knot.backend.document.domain.DocumentGenerationBatchRepository;
+import com.knot.backend.document.domain.DocumentGenerationJobStatus;
 import com.knot.backend.recording.domain.RecordingSession;
 import com.knot.backend.recording.domain.RecordingSessionRepository;
 import com.knot.backend.workspace.domain.WorkspaceErrorCode;
@@ -29,6 +33,7 @@ public class DocumentGenerationJobRetryService {
     private final DocumentGenerationJobRepository jobs;
     private final DocumentGenerationInputQuery inputs;
     private final RecordingSessionRepository recordings;
+    private final DocumentGenerationBatchRepository batches;
     private final Clock clock;
 
     @Transactional(isolation = Isolation.READ_COMMITTED)
@@ -62,7 +67,15 @@ public class DocumentGenerationJobRetryService {
         validateInput(input);
         Instant acceptedAt = clock.instant()
                 .truncatedTo(ChronoUnit.MICROS);
+        DocumentGenerationBatch batch = batches.findByIdForUpdate(job.getBatchId())
+                .orElseThrow(() -> new DocumentException(DocumentErrorCode.GENERATION_REGISTRATION_CONFLICT));
         job.retryByUser(acceptedAt);
+        batch.recordJobTransition(
+                job.getStage(),
+                DocumentGenerationJobStatus.FAILED,
+                job.getStatus(),
+                acceptedAt
+        );
         jobs.flush();
         return new DocumentGenerationJobRetryResult(
                 jobId,
@@ -99,8 +112,7 @@ public class DocumentGenerationJobRetryService {
     }
 
     private void validateInput(DocumentGenerationInputResult input) {
-        if (input.content() == null || input.content()
-                .isBlank()) {
+        if (DocumentText.isBlank(input.content())) {
             throw new DocumentException(DocumentErrorCode.RETRY_NOT_ALLOWED);
         }
     }

@@ -14,6 +14,8 @@ import com.knot.backend.document.application.dto.result.DocumentGenerationJobRet
 import com.knot.backend.document.domain.DocumentErrorCode;
 import com.knot.backend.document.domain.DocumentException;
 import com.knot.backend.document.domain.DocumentGenerationJob;
+import com.knot.backend.document.domain.DocumentGenerationBatchRepository;
+import com.knot.backend.document.domain.DocumentGenerationBatch;
 import com.knot.backend.document.domain.DocumentGenerationJobRepository;
 import com.knot.backend.document.domain.DocumentGenerationJobStatus;
 import com.knot.backend.recording.domain.RecordingErrorCode;
@@ -36,7 +38,6 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
 class DocumentGenerationJobRetryServiceTest {
-
     private static final Instant CREATED_AT = Instant.parse("2026-10-06T00:00:00Z");
     private static final Instant NOW = CREATED_AT.plusSeconds(120);
 
@@ -55,19 +56,31 @@ class DocumentGenerationJobRetryServiceTest {
         jobs = mock(DocumentGenerationJobRepository.class);
         inputs = mock(DocumentGenerationInputQuery.class);
         recordings = mock(RecordingSessionRepository.class);
+        DocumentGenerationBatchRepository batches = mock(DocumentGenerationBatchRepository.class);
+        when(batches.findByIdForUpdate(1L)).thenReturn(
+                Optional.of(
+                        DocumentGenerationBatch.accept(
+                                4,
+                                3,
+                                CREATED_AT
+                        )
+                )
+        );
         service = new DocumentGenerationJobRetryService(
                 workspaces,
                 members,
                 jobs,
                 inputs,
                 recordings,
+                batches,
                 Clock.fixed(
                         NOW,
                         ZoneOffset.UTC
                 )
         );
         when(recordings.findById(4L)).thenReturn(Optional.of(recording(2L)));
-        job = DocumentGenerationJob.queue(
+        job = DocumentGenerationJob.queueClassification(
+                1,
                 3,
                 CREATED_AT
         );

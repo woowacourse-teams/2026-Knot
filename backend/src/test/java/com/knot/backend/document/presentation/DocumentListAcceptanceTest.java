@@ -49,6 +49,7 @@ class DocumentListAcceptanceTest {
     private long workspaceId;
     private long memberId;
     private long recordingId;
+    private long transcriptId;
     private long documentId;
 
     @BeforeEach
@@ -68,6 +69,7 @@ class DocumentListAcceptanceTest {
                 1850999
         );
         long transcript = fixtures.saveTranscript(recordingId);
+        transcriptId = transcript;
         documentId = fixtures.saveDocument(
                 workspaceId,
                 recordingId,
@@ -114,7 +116,7 @@ class DocumentListAcceptanceTest {
     @Test
     @DisplayName("같은 녹음의 페이지를 이어 읽고 폴더 수는 마지막 페이지까지 전체 결과를 유지한다")
     void findDocuments_success_cursorAndFilters() throws Exception {
-        long transcript = fixtures.saveTranscript(recordingId);
+        long transcript = transcriptId;
         long newer = fixtures.saveDocument(
                 workspaceId,
                 recordingId,

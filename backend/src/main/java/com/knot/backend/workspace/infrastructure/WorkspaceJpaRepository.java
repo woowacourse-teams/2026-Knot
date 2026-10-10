@@ -11,6 +11,13 @@ import org.springframework.data.jpa.repository.Query;
 interface WorkspaceJpaRepository extends JpaRepository<Workspace, Long> {
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT w FROM Workspace w WHERE w.id = :workspaceId")
+    Optional<Workspace> findIncludingDeletedWithLockById(Long workspaceId);
+
+    @Query(value = "SELECT set_config('lock_timeout', '3s', true)", nativeQuery = true)
+    String limitExecutionLockWait();
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
     Optional<Workspace> findWithLockByIdAndDeletedAtIsNull(Long workspaceId);
 
     Optional<Workspace> findByIdAndDeletedAtIsNull(Long workspaceId);

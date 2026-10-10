@@ -6,6 +6,12 @@ import lombok.Getter;
 
 @Getter
 public enum RecordingErrorCode implements ErrorCode {
+    AUDIO_DELETION_CONFLICT(
+            ErrorCategory.CONFLICT,
+            "AUDIO_DELETION_CONFLICT",
+            "오디오 삭제 작업을 실행할 수 없습니다"
+    ),
+
     INVALID_RECORDING_DATA(
             ErrorCategory.INVALID_INPUT,
             "INVALID_RECORDING_DATA",

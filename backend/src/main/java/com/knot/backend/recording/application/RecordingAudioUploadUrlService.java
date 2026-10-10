@@ -70,6 +70,7 @@ public class RecordingAudioUploadUrlService {
                 upload.getContentType(),
                 upload.getContentLength()
         );
+        upload.recordUploadUrlExpiry(presigned.expiresAt());
         return new RecordingAudioUploadUrlResult(
                 upload.getId(),
                 presigned.uploadUrl(),

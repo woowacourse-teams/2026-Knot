@@ -212,7 +212,12 @@ class DocumentSchemaIntegrationTest {
     @DisplayName("다른 입력 원문의 Job을 문서에 연결하지 못한다")
     void save_failure_wrongJobSource() {
         // given
-        long otherTranscript = fixtures.saveTranscript(recordingId);
+        long otherRecording = fixtures.saveRecording(
+                workspaceId,
+                memberId,
+                1000
+        );
+        long otherTranscript = fixtures.saveTranscript(otherRecording);
         long otherJob = fixtures.saveJob(
                 otherTranscript,
                 "SUCCEEDED"

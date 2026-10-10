@@ -11,15 +11,45 @@ import org.junit.jupiter.params.provider.EnumSource;
 import org.springframework.test.util.ReflectionTestUtils;
 
 class DocumentGenerationJobTest {
-
     private static final Instant CREATED_AT = Instant.parse("2026-10-06T00:00:00Z");
     private static final Instant FAILED_AT = CREATED_AT.plusSeconds(60);
+
+    @Test
+    @DisplayName("문서 저장은 GENERATION 단계에서만 허용한다")
+    void validateGenerationStage_success() {
+        // given
+        DocumentGenerationJob job = DocumentGenerationJob.queueGeneration(
+                1,
+                1,
+                DocumentTopic.of("검색"),
+                CREATED_AT
+        );
+        // when
+        job.validateGenerationStage();
+        // then
+        assertThat(job.getStage()).isEqualTo(DocumentGenerationJobStage.GENERATION);
+    }
+
+    @Test
+    @DisplayName("분류 Job은 문서 저장 단계로 사용할 수 없다")
+    void validateGenerationStage_failure_classification() {
+        // given
+        DocumentGenerationJob job = DocumentGenerationJob.queueClassification(
+                1,
+                1,
+                CREATED_AT
+        );
+        // when & then
+        assertThatThrownBy(job::validateGenerationStage).isInstanceOf(DocumentException.class)
+                .hasMessage(DocumentErrorCode.GENERATION_REGISTRATION_CONFLICT.getMessage());
+    }
 
     @Test
     @DisplayName("첫 접수는 최초 시도 1회이며 사용자·자동 재시도는 0회다")
     void queue_success_initialAttemptCounts() {
         // when
-        DocumentGenerationJob job = DocumentGenerationJob.queue(
+        DocumentGenerationJob job = DocumentGenerationJob.queueClassification(
+                1,
                 1,
                 CREATED_AT
         );
@@ -195,7 +225,8 @@ class DocumentGenerationJobTest {
     }
 
     private DocumentGenerationJob failedJob() {
-        DocumentGenerationJob job = DocumentGenerationJob.queue(
+        DocumentGenerationJob job = DocumentGenerationJob.queueClassification(
+                1,
                 1,
                 CREATED_AT
         );
@@ -225,7 +256,8 @@ class DocumentGenerationJobTest {
         // given
         Instant createdAt = Instant.parse("2026-10-06T00:00:00Z");
         Instant failedAt = createdAt.plusSeconds(60);
-        DocumentGenerationJob job = DocumentGenerationJob.queue(
+        DocumentGenerationJob job = DocumentGenerationJob.queueClassification(
+                1,
                 1,
                 createdAt
         );
@@ -245,7 +277,8 @@ class DocumentGenerationJobTest {
     void recordFailure_success_renewDeadline() {
         // given
         Instant createdAt = Instant.parse("2026-10-06T00:00:00Z");
-        DocumentGenerationJob job = DocumentGenerationJob.queue(
+        DocumentGenerationJob job = DocumentGenerationJob.queueClassification(
+                1,
                 1,
                 createdAt
         );
@@ -265,7 +298,8 @@ class DocumentGenerationJobTest {
     void recordFailure_failure_invalidTime() {
         // given
         Instant createdAt = Instant.parse("2026-10-06T00:00:00Z");
-        DocumentGenerationJob job = DocumentGenerationJob.queue(
+        DocumentGenerationJob job = DocumentGenerationJob.queueClassification(
+                1,
                 1,
                 createdAt
         );
@@ -285,7 +319,8 @@ class DocumentGenerationJobTest {
         Instant time = Instant.parse("2026-10-06T00:00:00Z");
 
         // when
-        DocumentGenerationJob job = DocumentGenerationJob.queue(
+        DocumentGenerationJob job = DocumentGenerationJob.queueClassification(
+                1,
                 1,
                 time
         );
@@ -300,7 +335,8 @@ class DocumentGenerationJobTest {
     void queue_failure_invalidTranscript() {
         // when & then
         assertThatThrownBy(
-                () -> DocumentGenerationJob.queue(
+                () -> DocumentGenerationJob.queueClassification(
+                        1,
                         0,
                         Instant.now()
                 )
