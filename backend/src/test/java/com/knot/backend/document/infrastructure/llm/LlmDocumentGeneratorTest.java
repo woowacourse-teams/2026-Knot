@@ -1,5 +1,6 @@
 package com.knot.backend.document.infrastructure.llm;
 
+import com.knot.backend.document.domain.DocumentGenerationInput;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -69,8 +70,10 @@ class LlmDocumentGeneratorTest {
 
         // when
         DocumentGenerationResult result = generator.generate(
-                "검색하자",
-                "검색"
+                DocumentGenerationInput.of(
+                        "검색하자",
+                        "검색"
+                )
         );
 
         // then
@@ -108,8 +111,10 @@ class LlmDocumentGeneratorTest {
         // when & then
         assertThatThrownBy(
                 () -> generator.generate(
-                        "검색하자",
-                        "검색"
+                        DocumentGenerationInput.of(
+                                "검색하자",
+                                "검색"
+                        )
                 )
         ).hasMessage(DocumentErrorCode.INVALID_DOCUMENT_GENERATION_RESPONSE.getMessage());
         verify(client).complete(any());
@@ -126,8 +131,10 @@ class LlmDocumentGeneratorTest {
         // when & then
         assertThatThrownBy(
                 () -> generator.generate(
-                        "검색하자",
-                        "검색"
+                        DocumentGenerationInput.of(
+                                "검색하자",
+                                "검색"
+                        )
                 )
         ).hasMessage(DocumentErrorCode.INVALID_DOCUMENT_GENERATION_RESPONSE.getMessage());
     }
@@ -151,8 +158,10 @@ class LlmDocumentGeneratorTest {
         // when & then
         assertThatThrownBy(
                 () -> generator.generate(
-                        "검색하자",
-                        "검색"
+                        DocumentGenerationInput.of(
+                                "검색하자",
+                                "검색"
+                        )
                 )
         ).isSameAs(failure);
         verify(client).complete(any());

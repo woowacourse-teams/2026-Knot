@@ -1,5 +1,6 @@
 package com.knot.backend.document.infrastructure.llm;
 
+import com.knot.backend.document.domain.DocumentGenerationInput;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -26,8 +27,10 @@ class DocumentGenerationPromptTest {
 
         // when
         LlmCompletionRequest request = prompt.createRequest(
-                transcript,
-                "검색 조건"
+                DocumentGenerationInput.of(
+                        transcript,
+                        "검색 조건"
+                )
         );
 
         // then
@@ -73,8 +76,10 @@ class DocumentGenerationPromptTest {
     void createRequest_success_schemaAndOptions() {
         // when
         LlmCompletionRequest request = prompt.createRequest(
-                "검색하자",
-                "검색"
+                DocumentGenerationInput.of(
+                        "검색하자",
+                        "검색"
+                )
         );
 
         // then
@@ -129,18 +134,22 @@ class DocumentGenerationPromptTest {
     @ParameterizedTest
     @NullAndEmptySource
     @ValueSource(strings = {" ", "\t\n", "　\u00a0"})
-    @DisplayName("원문이나 주제가 없으면 잘못된 생성 요청을 만들지 않는다")
+    @DisplayName("원문이나 주제가 없으면 Prompt에 전달할 입력 자체를 생성하지 않는다")
     void createRequest_failure_invalidInput(String input) {
         assertThatThrownBy(
                 () -> prompt.createRequest(
-                        input,
-                        "검색"
+                        DocumentGenerationInput.of(
+                                input,
+                                "검색"
+                        )
                 )
         ).hasMessage(DocumentErrorCode.INVALID_DOCUMENT_GENERATION_INPUT.getMessage());
         assertThatThrownBy(
                 () -> prompt.createRequest(
-                        "검색하자",
-                        input
+                        DocumentGenerationInput.of(
+                                "검색하자",
+                                input
+                        )
                 )
         ).hasMessage(DocumentErrorCode.INVALID_DOCUMENT_GENERATION_INPUT.getMessage());
     }

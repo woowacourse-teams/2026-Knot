@@ -1,7 +1,8 @@
 package com.knot.backend.document.infrastructure.llm;
 
-import com.knot.backend.document.domain.DocumentErrorCode;
-import com.knot.backend.document.domain.DocumentException;
+import com.knot.backend.document.domain.DocumentText;
+import com.knot.backend.document.domain.DocumentGenerationInput;
+import com.knot.backend.document.domain.DocumentTopic;
 import com.knot.backend.global.exception.LlmErrorCode;
 import com.knot.backend.global.exception.LlmException;
 import com.knot.backend.global.infrastructure.llm.LlmCompletionRequest;
@@ -11,7 +12,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
-import java.util.regex.Pattern;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Component;
@@ -22,7 +22,6 @@ import tools.jackson.databind.ObjectMapper;
 @Component
 @ConditionalOnProperty(prefix = "knot.llm", name = "enabled", havingValue = "true")
 public class DocumentGenerationPrompt {
-    private static final Pattern BLANK = Pattern.compile("[\\p{javaWhitespace}\\p{Z}]*");
 
     private final ObjectMapper mapper;
     private final String systemPrompt;
@@ -35,35 +34,17 @@ public class DocumentGenerationPrompt {
         schema = readSchema();
     }
 
-    public LlmCompletionRequest createRequest(
-            String transcriptContent,
-            String topic
-    ) {
-        validateTranscriptContent(transcriptContent);
-        validateTopic(topic);
+    public LlmCompletionRequest createRequest(DocumentGenerationInput input) {
+        DocumentTopic topic = input.getTopic();
         return new LlmCompletionRequest(
                 createMessages(
-                        transcriptContent,
-                        topic
+                        input.getTranscriptContent(),
+                        topic.value()
                 ),
                 "document_generation",
                 schema,
                 createOptions()
         );
-    }
-
-    private void validateTranscriptContent(String transcriptContent) {
-        if (transcriptContent == null || BLANK.matcher(transcriptContent)
-                .matches()) {
-            throw new DocumentException(DocumentErrorCode.INVALID_DOCUMENT_GENERATION_INPUT);
-        }
-    }
-
-    private void validateTopic(String topic) {
-        if (topic == null || BLANK.matcher(topic)
-                .matches()) {
-            throw new DocumentException(DocumentErrorCode.INVALID_DOCUMENT_GENERATION_INPUT);
-        }
     }
 
     private List<LlmMessage> createMessages(
@@ -132,7 +113,7 @@ public class DocumentGenerationPrompt {
                     stream.readAllBytes(),
                     StandardCharsets.UTF_8
             );
-            if (value.isBlank()) {
+            if (DocumentText.isBlank(value)) {
                 throw new LlmException(LlmErrorCode.LLM_INVALID_CONFIGURATION);
             }
             return value;

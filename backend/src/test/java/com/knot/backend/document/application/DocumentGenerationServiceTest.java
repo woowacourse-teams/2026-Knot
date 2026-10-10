@@ -1,5 +1,6 @@
 package com.knot.backend.document.application;
 
+import com.knot.backend.document.domain.DocumentGenerationInput;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -43,8 +44,10 @@ class DocumentGenerationServiceTest {
         );
         when(
                 generator.generate(
-                        transcript,
-                        "검색"
+                        DocumentGenerationInput.of(
+                                transcript,
+                                "검색"
+                        )
                 )
         ).thenReturn(expected);
 
@@ -85,8 +88,10 @@ class DocumentGenerationServiceTest {
         LlmException failure = new LlmException(LlmErrorCode.LLM_TIMEOUT);
         when(
                 generator.generate(
-                        "검색하자",
-                        "검색"
+                        DocumentGenerationInput.of(
+                                "검색하자",
+                                "검색"
+                        )
                 )
         ).thenThrow(failure);
 

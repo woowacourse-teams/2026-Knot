@@ -111,7 +111,7 @@ public class Document {
     }
 
     private void validateRequiredText(String value) {
-        if (value == null || value.isBlank()) {
+        if (DocumentText.isBlank(value)) {
             throw new DocumentException(DocumentErrorCode.INVALID_DOCUMENT_DATA);
         }
     }
