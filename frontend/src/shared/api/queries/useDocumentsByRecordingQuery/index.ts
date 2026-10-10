@@ -7,7 +7,7 @@ interface UseDocumentsByRecordingQueryParams {
   /** 문서가 나온 녹음의 ID */
   recordingSessionId: number;
   /** `false`면 조회하지 않아요. 녹음 정리가 끝나기 전처럼 아직 문서가 없을 때 꺼 둬요. 기본값은 `true` */
-  enabled?: boolean;
+  isEnabled?: boolean;
 }
 
 /**
@@ -22,12 +22,12 @@ interface UseDocumentsByRecordingQueryParams {
 const useDocumentsByRecordingQuery = ({
   workspaceId,
   recordingSessionId,
-  enabled = true,
+  isEnabled = true,
 }: UseDocumentsByRecordingQueryParams) => {
   return useQuery({
     queryKey: documentKeys.list({ workspaceId, recordingSessionId }),
     queryFn: () => getAllDocumentsApi({ workspaceId, recordingSessionId }),
-    enabled,
+    enabled: isEnabled,
   });
 };
 

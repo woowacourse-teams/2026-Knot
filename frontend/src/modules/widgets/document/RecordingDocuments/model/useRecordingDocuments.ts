@@ -86,7 +86,8 @@ export const useRecordingDocuments = ({
     if (isLoadFailed) return "loadFailed" as const;
     if (recording === undefined) return "loading" as const;
 
-    return VIEW_STATUS_BY_RECORDING_STATUS[recording.status];
+    // 타입에 없는 상태를 서버가 보내면 표에서 undefined가 나와요. 보여 줄 화면이 없어 불러오지 못한 것으로 둬요
+    return VIEW_STATUS_BY_RECORDING_STATUS[recording.status] ?? "loadFailed";
   };
 
   const viewStatus = getViewStatus();

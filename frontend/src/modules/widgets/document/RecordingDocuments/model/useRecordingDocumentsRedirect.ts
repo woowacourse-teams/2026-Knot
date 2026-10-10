@@ -20,7 +20,7 @@ interface UseRecordingDocumentsRedirectParams {
  *   그 녹음에서 나온 문서가 없거나 문서 목록을 불러오지 못하면 워크스페이스 홈으로 보내요.
  *   문서 목록 조회에서 로그인이 풀렸으면(401) 로그인 화면으로 보내요.
  *
- * 문서 목록은 정리가 끝난 뒤에만 조회해요. 정리 중에는 아직 문서가 없어, 미리 조회하면 빈 목록을 받아요.
+ * 문서 목록은 정리가 끝난 뒤에만 조회해요(`isEnabled`). 정리 중에는 아직 문서가 없어, 미리 조회하면 빈 목록을 받아요.
  * 뒤로 가기로 이 주소에 돌아와 다시 보내지는 일이 없도록 지금 기록을 바꿔요(`replace`).
  */
 export const useRecordingDocumentsRedirect = ({
@@ -36,7 +36,7 @@ export const useRecordingDocumentsRedirect = ({
   } = useDocumentsByRecordingQuery({
     workspaceId,
     recordingSessionId: recordingId,
-    enabled: viewStatus === "completed",
+    isEnabled: viewStatus === "completed",
   });
   const { isUnauthorized } = useRedirectToLoginOnUnauthorized({
     error: documentsError,

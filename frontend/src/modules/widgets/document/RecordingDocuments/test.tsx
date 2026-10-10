@@ -467,6 +467,20 @@ describe("RecordingDocuments", () => {
     },
   );
 
+  it("서버가 화면이 모르는 녹음 상태를 주면 문서를 불러오지 못했다고 알린다", async () => {
+    mockServer.use(
+      http.get(RECORDING_REQUEST, () =>
+        // 명세에 없는 상태예요. 서버에 상태가 늘었는데 화면이 아직 모르는 경우를 흉내 내요
+        HttpResponse.json({ ...organizingRecording, status: "ARCHIVED" }),
+      ),
+    );
+    renderRecordingDocuments(organizingRecording.recordingId);
+
+    expect(
+      await screen.findByRole("heading", { level: 2, name: LOAD_FAILED_TITLE }),
+    ).toBeInTheDocument();
+  });
+
   it("주소의 녹음 id가 숫자가 아니어도 확인하지 않고 그대로 요청하고, 서버가 거절하면 문서를 불러오지 못했다고 알린다", async () => {
     let requestCount = 0;
     mockServer.use(
@@ -616,6 +630,8 @@ describe("RecordingDocuments", () => {
   ])(
     "다시 시도가 409로 거절되면 녹음 상태를 다시 조회하고, 서버에서 $condition",
     async ({ latestRecording, expectedScreen }) => {
+      // 문서 mock이 있는 녹음(정리가 끝난 mock 녹음과 같은 id)에서 다시 시도가 거절된 상황이에요
+      const { recordingId } = completedRecording;
       let isRetryRejected = false;
       mockServer.use(
         http.post(RETRY_REQUEST, () => {
@@ -624,21 +640,13 @@ describe("RecordingDocuments", () => {
         }),
         // 다른 곳에서 먼저 다시 시도해, 서버의 녹음은 화면이 아는 실패 상태가 아니에요
         http.get(RECORDING_REQUEST, () =>
-          HttpResponse.json(
-            isRetryRejected
-              ? { ...latestRecording, recordingId: failedRecording.recordingId }
-              : failedRecording,
-          ),
-        ),
-        // 다시 만든 문서가 이 녹음에서 나온 문서예요
-        http.get(DOCUMENTS_REQUEST, () =>
           HttpResponse.json({
-            ...documentsResponse,
-            items: completedRecordingDocumentItems,
+            ...(isRetryRejected ? latestRecording : failedRecording),
+            recordingId,
           }),
         ),
       );
-      renderRecordingDocuments(failedRecording.recordingId);
+      renderRecordingDocuments(recordingId);
 
       fireEvent.click(await screen.findByRole("button", { name: "다시 시도" }));
 
