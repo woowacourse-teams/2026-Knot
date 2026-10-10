@@ -8,6 +8,7 @@ import type {
   DocumentConfirmationItem,
   DocumentConfirmationsResponse,
   DocumentDetailResponse,
+  DocumentListItem,
   DocumentMyConfirmationResponse,
   DocumentsResponse,
 } from "@api/mock/types/document";
@@ -54,14 +55,35 @@ interface FindDocumentsParams {
   /** 앞 페이지의 nextCursor. 첫 페이지면 null */
   cursor: string | null;
   size: number;
+  /** 이 녹음에서 나온 문서만 대상으로 해요. 없으면 null */
+  recordingSessionId: number | null;
 }
+
+/** 서버처럼 주제를 이름순으로 놓고, 주제마다 대상 문서를 세요 */
+const countTopics = (items: DocumentListItem[]) =>
+  [...new Set(items.map(({ topic }) => topic))]
+    .sort((a, b) => a.localeCompare(b, "ko"))
+    .map((topic) => ({
+      topic,
+      documentCount: items.filter((item) => item.topic === topic).length,
+    }));
 
 /**
  * 문서 목록의 한 페이지. 확인을 누른 문서는 내 상태와 집계를 바꿔서 돌려줘요.
+ * 녹음 ID를 주면 그 녹음에서 나온 문서만 대상이고, 주제 폴더도 그 문서들만 세요.
  * 커서는 앞 페이지의 마지막 문서 ID예요. 그 ID의 문서가 없으면 undefined예요.
  */
-export const findDocuments = ({ cursor, size }: FindDocumentsParams) => {
-  const { topics, items } = documentsResponse;
+export const findDocuments = ({
+  cursor,
+  size,
+  recordingSessionId,
+}: FindDocumentsParams) => {
+  const isFiltered = recordingSessionId !== null;
+  const items = isFiltered
+    ? documentsResponse.items.filter(
+        (item) => item.recordingSessionId === recordingSessionId,
+      )
+    : documentsResponse.items;
   const cursorIndex = items.findIndex(({ id }) => String(id) === cursor);
 
   if (cursor !== null && cursorIndex === -1) return undefined;
@@ -72,7 +94,7 @@ export const findDocuments = ({ cursor, size }: FindDocumentsParams) => {
   const hasNextPage = end < items.length;
 
   return {
-    topics,
+    topics: isFiltered ? countTopics(items) : documentsResponse.topics,
     items: items
       .slice(start, end)
       .map((item) =>

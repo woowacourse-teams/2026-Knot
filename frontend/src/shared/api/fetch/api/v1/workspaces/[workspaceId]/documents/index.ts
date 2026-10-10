@@ -22,11 +22,13 @@ interface GetDocumentsApiParams {
   cursor?: string;
   /** 한 번에 받을 문서 수(1~100). 없으면 서버 기본값 50을 써요 */
   size?: number;
+  /** 이 녹음에서 나온 문서만 받아요. 없으면 워크스페이스의 문서 전체가 대상이에요 */
+  recordingSessionId?: number;
 }
 
 /**
- * @description 워크스페이스의 문서 목록 한 페이지와 주제 폴더 전체를 조회합니다. 실패는 `400` 잘못된 cursor · size · `401` 미인증 · `403` 워크스페이스 멤버 아님으로 구분해요
- * @param params - 워크스페이스 ID·커서·한 번에 받을 문서 수
+ * @description 워크스페이스의 문서 목록 한 페이지와 주제 폴더 전체를 조회합니다. 녹음 ID를 주면 그 녹음에서 나온 문서만 대상이에요. 실패는 `400` 잘못된 cursor · size · 녹음 ID · `401` 미인증 · `403` 워크스페이스 멤버 아님으로 구분해요
+ * @param params - 워크스페이스 ID·커서·한 번에 받을 문서 수·녹음 ID
  * @returns 주제 폴더 전체·최신순 문서 한 페이지·다음 페이지 커서
  * @example
  * const { topics, items, nextCursor } = await getDocumentsApi({ workspaceId: 1 });
@@ -35,11 +37,12 @@ export const getDocumentsApi = async ({
   workspaceId,
   cursor,
   size,
+  recordingSessionId,
 }: GetDocumentsApiParams) => {
   const response = await httpClient<GetDocumentsResponseRaw>({
     method: "get",
     url: DOCUMENTS_API_PATH(workspaceId),
-    params: { cursor, size },
+    params: { cursor, size, recordingSessionId },
   });
 
   return new GetDocumentsResponseDto(response.data);
@@ -47,19 +50,26 @@ export const getDocumentsApi = async ({
 
 interface GetAllDocumentsApiParams {
   workspaceId: number;
+  /** 이 녹음에서 나온 문서만 받아요. 없으면 워크스페이스의 문서 전체가 대상이에요 */
+  recordingSessionId?: number;
 }
 
 /**
- * @description 워크스페이스의 문서를 다음 페이지가 없을 때까지 이어 받아 하나로 합칩니다. 도중에 한 요청이라도 실패하면 그때까지 받은 문서를 돌려주지 않고 실패해요
- * @param params - 워크스페이스 ID
+ * @description 워크스페이스의 문서를 다음 페이지가 없을 때까지 이어 받아 하나로 합칩니다. 녹음 ID를 주면 그 녹음에서 나온 문서만 대상이에요. 도중에 한 요청이라도 실패하면 그때까지 받은 문서를 돌려주지 않고 실패해요
+ * @param params - 워크스페이스 ID·녹음 ID
  * @returns 주제 폴더 전체·최신순 문서 전체(최대 2,000개)·다음 페이지 커서. 응답 하나가 아니라 여러 응답을 합친 값이에요
  * @example
  * const { topics, items } = await getAllDocumentsApi({ workspaceId: 1 });
  */
 export const getAllDocumentsApi = async ({
   workspaceId,
+  recordingSessionId,
 }: GetAllDocumentsApiParams) => {
-  const firstPage = await getDocumentsApi({ workspaceId, size: MAX_PAGE_SIZE });
+  const firstPage = await getDocumentsApi({
+    workspaceId,
+    size: MAX_PAGE_SIZE,
+    recordingSessionId,
+  });
   const items = [...firstPage.items];
   let nextCursor = firstPage.nextCursor;
 
@@ -72,6 +82,7 @@ export const getAllDocumentsApi = async ({
       workspaceId,
       cursor: nextCursor,
       size: MAX_PAGE_SIZE,
+      recordingSessionId,
     });
 
     items.push(...page.items);

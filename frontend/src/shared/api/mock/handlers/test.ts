@@ -50,7 +50,10 @@ import {
   createChatSessionApi,
   getChatSessionsApi,
 } from "@api/fetch/api/v1/workspaces/[workspaceId]/conversations";
-import { getDocumentsApi } from "@api/fetch/api/v1/workspaces/[workspaceId]/documents";
+import {
+  getAllDocumentsApi,
+  getDocumentsApi,
+} from "@api/fetch/api/v1/workspaces/[workspaceId]/documents";
 import { getDocumentApi } from "@api/fetch/api/v1/workspaces/[workspaceId]/documents/[documentId]";
 import { getDocumentConfirmationsApi } from "@api/fetch/api/v1/workspaces/[workspaceId]/documents/[documentId]/confirmations";
 import { confirmDocumentApi } from "@api/fetch/api/v1/workspaces/[workspaceId]/documents/[documentId]/confirmations/me";
@@ -242,6 +245,54 @@ describe("mock 기본 핸들러와 fetch 요청 함수의 대응", () => {
       it("없는 cursor면 400 INVALID_PARAMETER로 답한다", async () => {
         await expect(
           getDocumentsApi({ workspaceId: WORKSPACE_ID, cursor: "없는 커서" }),
+        ).rejects.toMatchObject({
+          type: HTTP_ERROR_TYPE.badRequest,
+          code: "INVALID_PARAMETER",
+        });
+      });
+
+      it("recordingSessionId를 주면 그 녹음에서 나온 문서만 주고, 주제 폴더도 그 문서들만 센다", async () => {
+        // 기본 응답에서 같은 녹음에서 나온 문서는 상세 mock이 있는 두 문서예요
+        const [{ recordingSessionId }] = documentDetailsResponse;
+        const recordingItems = expected.items.filter(
+          (item) => item.recordingSessionId === recordingSessionId,
+        );
+
+        const page = await getDocumentsApi({
+          workspaceId: WORKSPACE_ID,
+          recordingSessionId,
+        });
+
+        expect(recordingItems).toHaveLength(documentDetailsResponse.length);
+        expect(page.items).toEqual(recordingItems);
+        expect(page.topics).toEqual(
+          // 두 문서의 주제가 서로 달라 주제마다 문서가 하나예요. 순서는 이름순이에요
+          recordingItems
+            .map(({ topic }) => ({ topic, documentCount: 1 }))
+            .sort((a, b) => a.topic.localeCompare(b.topic, "ko")),
+        );
+        expect(page.nextCursor).toBeNull();
+      });
+
+      it("끝까지 받는 getAllDocumentsApi도 recordingSessionId를 주면 그 녹음에서 나온 문서만 받는다", async () => {
+        const [{ recordingSessionId }] = documentDetailsResponse;
+
+        const { items, nextCursor } = await getAllDocumentsApi({
+          workspaceId: WORKSPACE_ID,
+          recordingSessionId,
+        });
+
+        expect(items).toEqual(
+          expected.items.filter(
+            (item) => item.recordingSessionId === recordingSessionId,
+          ),
+        );
+        expect(nextCursor).toBeNull();
+      });
+
+      it("recordingSessionId가 1 이상의 정수가 아니면 400 INVALID_PARAMETER로 답한다", async () => {
+        await expect(
+          getDocumentsApi({ workspaceId: WORKSPACE_ID, recordingSessionId: 0 }),
         ).rejects.toMatchObject({
           type: HTTP_ERROR_TYPE.badRequest,
           code: "INVALID_PARAMETER",

@@ -22,10 +22,23 @@ export const documentsHandlers = [
       return invalidParameterResponse();
     }
 
+    const recordingSessionIdParam = searchParams.get("recordingSessionId");
+    const recordingSessionId =
+      recordingSessionIdParam === null ? null : Number(recordingSessionIdParam);
+
+    // 녹음 ID는 1 이상의 정수여야 해요
+    if (
+      recordingSessionId !== null &&
+      (!Number.isInteger(recordingSessionId) || recordingSessionId < 1)
+    ) {
+      return invalidParameterResponse();
+    }
+
     // 확인을 누른 문서는 내 상태가 바뀐 응답을 받도록 mock 상태를 거쳐 찾아요
     const documents = findDocuments({
       cursor: searchParams.get("cursor"),
       size,
+      recordingSessionId,
     });
 
     // 없는 커서도 명세의 400으로 답해요. 첫 페이지를 다시 주면 이어 받는 쪽이 같은 문서를 계속 받아요
