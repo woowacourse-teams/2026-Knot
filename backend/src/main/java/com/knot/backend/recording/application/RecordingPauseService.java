@@ -13,7 +13,6 @@ import org.springframework.stereotype.Service;
 public class RecordingPauseService {
     private final RecordingPauseTransaction pauseTransaction;
 
-    // 연결 만료로 종료한 결과는 커밋한 뒤 거절해야 종료 기록이 롤백되지 않는다
     public RecordingPauseResult pause(
             long workspaceId,
             long memberId,

@@ -88,7 +88,6 @@ public class RecordingStartService {
         );
     }
 
-    // 다른 Workspace에 남은 본인 녹음도 잠근 뒤 연결이 끊겼다면 회수하고, 살아 있으면 새 시작을 막는다
     private void reclaimDisconnectedOrRejectActive(long memberId) {
         Instant now = now();
         for (RecordingSession active : recordingSessionRepository.findAllActiveByMemberIdForUpdate(memberId)) {
