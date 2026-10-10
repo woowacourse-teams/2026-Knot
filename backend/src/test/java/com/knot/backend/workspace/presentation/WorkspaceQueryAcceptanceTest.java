@@ -63,7 +63,7 @@ class WorkspaceQueryAcceptanceTest {
     }
 
     @Test
-    @DisplayName("워크스페이스 멤버가 단건 조회하면 이름을 반환하고 데이터를 변경하지 않는다")
+    @DisplayName("워크스페이스 멤버가 단건 조회하면 이름과 내 역할, 활성 멤버 수를 반환하고 데이터를 변경하지 않는다")
     void detail_success() throws Exception {
         // given
         long memberId = saveMember();
@@ -94,7 +94,9 @@ class WorkspaceQueryAcceptanceTest {
 
         // then
         result.andExpect(status().isOk())
-                .andExpect(jsonPath("$.name").value("Knot 팀"));
+                .andExpect(jsonPath("$.name").value("Knot 팀"))
+                .andExpect(jsonPath("$.myRole").value("MEMBER"))
+                .andExpect(jsonPath("$.activeMemberCount").value(1));
         assertThat(workspaceSnapshot(workspaceId)).isEqualTo(workspaceSnapshot);
         assertThat(
                 workspaceMemberSnapshot(

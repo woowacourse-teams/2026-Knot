@@ -18,6 +18,7 @@ API 관련 코드는 한곳에서 계층적으로 관리해야 하므로 모두 
 - `queryKey/` — 쿼리 키는 뮤테이션에서도 쓰이므로 별도 폴더로 분리, `user.ts`처럼 도메인별 파일로 관리.
 - `queries/`, `mutations/`, `suspense/`, `prefetch/` — 쿼리·뮤테이션·서스펜스·프리페치 훅을 각각 둠. 작성 규칙은 `.claude/rules/query-hooks.md` 참고.
 - `mock/` — 백엔드 연동 전 msw로 응답을 대신하는 mock API. 작성 규칙은 아래 「API mock」 참고.
+- `sse/` — SSE 응답 스트림을 이벤트로 해석하는 순수 함수(`parseSseEvents` 등). 탐색 같은 도메인과 API 명세의 이벤트 이름을 모르고 SSE 표준 형식만 다룸. 요청 함수(`fetch/`)에서만 씀.
 
 ## API 요청(fetch) 로직
 

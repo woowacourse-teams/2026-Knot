@@ -12,6 +12,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import com.knot.backend.recording.application.dto.command.RecordingControlCommand;
 import com.knot.backend.recording.application.dto.result.RecordingEndResult;
 import com.knot.backend.recording.domain.RecordingErrorCode;
 import com.knot.backend.recording.domain.RecordingException;
@@ -39,10 +40,16 @@ class RecordingEndServiceTest {
     private static final long WORKSPACE_ID = 10L;
     private static final long MEMBER_ID = 1L;
     private static final long RECORDING_ID = 7L;
+    private static final UUID TAB_ID = UUID.fromString("22222222-2222-2222-2222-222222222222");
+    private static final String CONTROL_TOKEN = "A".repeat(43);
+    private static final String OTHER_CONTROL_TOKEN = "B".repeat(43);
+    private static final String HASH = "a".repeat(64);
+    private static final String OTHER_HASH = "b".repeat(64);
 
     private WorkspaceRepository workspaceRepository;
     private WorkspaceMemberRepository workspaceMemberRepository;
     private RecordingSessionRepository recordingSessionRepository;
+    private RecordingControlTokenHasher hasher;
     private RecordingEndService service;
 
     @BeforeEach
@@ -50,12 +57,16 @@ class RecordingEndServiceTest {
         workspaceRepository = mock(WorkspaceRepository.class);
         workspaceMemberRepository = mock(WorkspaceMemberRepository.class);
         recordingSessionRepository = mock(RecordingSessionRepository.class);
+        hasher = mock(RecordingControlTokenHasher.class);
+        when(hasher.hash(CONTROL_TOKEN)).thenReturn(HASH);
+        when(hasher.hash(OTHER_CONTROL_TOKEN)).thenReturn(OTHER_HASH);
         service = new RecordingEndService(
                 new RecordingWorkspaceAccessValidator(
                         workspaceRepository,
                         workspaceMemberRepository
                 ),
                 recordingSessionRepository,
+                hasher,
                 Clock.fixed(
                         NOW,
                         ZoneOffset.UTC
@@ -64,7 +75,7 @@ class RecordingEndServiceTest {
     }
 
     @Test
-    @DisplayName("Workspace를 먼저 잠근 뒤 본인 녹음을 잠그고 서버 시각으로 종료한다")
+    @DisplayName("Workspace를 먼저 잠근 뒤 최초 탭의 녹음을 잠그고 서버 시각으로 종료한다")
     void end_success_ownRecording() {
         // given
         prepareAccess();
@@ -76,7 +87,8 @@ class RecordingEndServiceTest {
         RecordingEndResult result = service.end(
                 WORKSPACE_ID,
                 MEMBER_ID,
-                RECORDING_ID
+                RECORDING_ID,
+                command(TAB_ID)
         );
 
         // then
@@ -102,7 +114,7 @@ class RecordingEndServiceTest {
     }
 
     @Test
-    @DisplayName("이미 종료된 녹음은 처음 확정한 종료 시각을 그대로 반환한다")
+    @DisplayName("최초 탭이 이미 종료된 녹음을 다시 종료하면 처음 확정한 종료 시각을 그대로 반환한다")
     void end_success_alreadyEnded() {
         // given
         prepareAccess();
@@ -116,7 +128,8 @@ class RecordingEndServiceTest {
         RecordingEndResult result = service.end(
                 WORKSPACE_ID,
                 MEMBER_ID,
-                RECORDING_ID
+                RECORDING_ID,
+                command(TAB_ID)
         );
 
         // then
@@ -125,7 +138,7 @@ class RecordingEndServiceTest {
     }
 
     @Test
-    @DisplayName("다른 멤버의 녹음은 시작자가 아니라는 이유로 거절하고 저장하지 않는다")
+    @DisplayName("다른 멤버의 녹음은 제어 증명을 확인하기 전에 거절하고 저장하지 않는다")
     void end_failure_notStarter() {
         // given
         prepareAccess();
@@ -137,7 +150,8 @@ class RecordingEndServiceTest {
                 () -> service.end(
                         WORKSPACE_ID,
                         MEMBER_ID,
-                        RECORDING_ID
+                        RECORDING_ID,
+                        command(TAB_ID)
                 )
         );
 
@@ -146,6 +160,130 @@ class RecordingEndServiceTest {
                 .extracting("errorCode")
                 .isEqualTo(RecordingErrorCode.RECORDING_CONTROL_DENIED);
         assertThat(session.getStatus()).isEqualTo(RecordingStatus.RECORDING);
+        verifyNoInteractions(hasher);
+        verify(
+                recordingSessionRepository,
+                never()
+        ).save(any(RecordingSession.class));
+    }
+
+    @Test
+    @DisplayName("같은 회원이라도 다른 탭이면 종료를 거절하고 저장하지 않는다")
+    void end_failure_otherTab() {
+        // given
+        prepareAccess();
+        RecordingSession session = recordingSession(MEMBER_ID);
+        when(recordingSessionRepository.findByIdForUpdate(RECORDING_ID)).thenReturn(Optional.of(session));
+
+        // when
+        Throwable failure = catchThrowable(
+                () -> service.end(
+                        WORKSPACE_ID,
+                        MEMBER_ID,
+                        RECORDING_ID,
+                        command(UUID.randomUUID())
+                )
+        );
+
+        // then
+        assertThat(failure).isInstanceOf(RecordingException.class)
+                .extracting("errorCode")
+                .isEqualTo(RecordingErrorCode.RECORDING_CONTROL_DENIED);
+        assertThat(session.getStatus()).isEqualTo(RecordingStatus.RECORDING);
+        assertThat(session.getEndedAt()).isNull();
+        verify(
+                recordingSessionRepository,
+                never()
+        ).save(any(RecordingSession.class));
+    }
+
+    @Test
+    @DisplayName("최초 탭 ID라도 제어 증명이 다르면 종료를 거절하고 저장하지 않는다")
+    void end_failure_wrongControlToken() {
+        // given
+        prepareAccess();
+        RecordingSession session = recordingSession(MEMBER_ID);
+        when(recordingSessionRepository.findByIdForUpdate(RECORDING_ID)).thenReturn(Optional.of(session));
+
+        // when
+        Throwable failure = catchThrowable(
+                () -> service.end(
+                        WORKSPACE_ID,
+                        MEMBER_ID,
+                        RECORDING_ID,
+                        new RecordingControlCommand(
+                                TAB_ID,
+                                OTHER_CONTROL_TOKEN
+                        )
+                )
+        );
+
+        // then
+        assertThat(failure).isInstanceOf(RecordingException.class)
+                .extracting("errorCode")
+                .isEqualTo(RecordingErrorCode.RECORDING_CONTROL_DENIED);
+        assertThat(session.getStatus()).isEqualTo(RecordingStatus.RECORDING);
+        verify(
+                recordingSessionRepository,
+                never()
+        ).save(any(RecordingSession.class));
+    }
+
+    @Test
+    @DisplayName("이미 종료된 녹음도 다른 탭의 재요청이면 종료 결과를 돌려주지 않고 거절한다")
+    void end_failure_alreadyEndedFromOtherTab() {
+        // given
+        prepareAccess();
+        RecordingSession session = recordingSession(MEMBER_ID);
+        Instant firstEndedAt = STARTED_AT.plusSeconds(60);
+        session.end(firstEndedAt);
+        when(recordingSessionRepository.findByIdForUpdate(RECORDING_ID)).thenReturn(Optional.of(session));
+
+        // when
+        Throwable failure = catchThrowable(
+                () -> service.end(
+                        WORKSPACE_ID,
+                        MEMBER_ID,
+                        RECORDING_ID,
+                        command(UUID.randomUUID())
+                )
+        );
+
+        // then
+        assertThat(failure).isInstanceOf(RecordingException.class)
+                .extracting("errorCode")
+                .isEqualTo(RecordingErrorCode.RECORDING_CONTROL_DENIED);
+        assertThat(session.getEndedAt()).isEqualTo(firstEndedAt);
+        verify(
+                recordingSessionRepository,
+                never()
+        ).save(any(RecordingSession.class));
+    }
+
+    @Test
+    @DisplayName("최초 탭이 폐기된 녹음을 종료하면 폐기 상태를 유지하고 거절한다")
+    void end_failure_discardedRecording() {
+        // given
+        prepareAccess();
+        RecordingSession session = recordingSession(MEMBER_ID);
+        session.discard(STARTED_AT.plusSeconds(60));
+        when(recordingSessionRepository.findByIdForUpdate(RECORDING_ID)).thenReturn(Optional.of(session));
+
+        // when
+        Throwable failure = catchThrowable(
+                () -> service.end(
+                        WORKSPACE_ID,
+                        MEMBER_ID,
+                        RECORDING_ID,
+                        command(TAB_ID)
+                )
+        );
+
+        // then
+        assertThat(failure).isInstanceOf(RecordingException.class)
+                .extracting("errorCode")
+                .isEqualTo(RecordingErrorCode.RECORDING_ALREADY_DISCARDED);
+        assertThat(session.getStatus()).isEqualTo(RecordingStatus.DISCARDED);
         verify(
                 recordingSessionRepository,
                 never()
@@ -164,7 +302,8 @@ class RecordingEndServiceTest {
                 () -> service.end(
                         WORKSPACE_ID,
                         MEMBER_ID,
-                        RECORDING_ID
+                        RECORDING_ID,
+                        command(TAB_ID)
                 )
         );
 
@@ -191,7 +330,8 @@ class RecordingEndServiceTest {
                 () -> service.end(
                         WORKSPACE_ID,
                         MEMBER_ID,
-                        RECORDING_ID
+                        RECORDING_ID,
+                        command(TAB_ID)
                 )
         );
 
@@ -213,7 +353,8 @@ class RecordingEndServiceTest {
                 () -> service.end(
                         WORKSPACE_ID,
                         MEMBER_ID,
-                        0L
+                        0L,
+                        command(TAB_ID)
                 )
         );
 
@@ -232,6 +373,13 @@ class RecordingEndServiceTest {
                         MEMBER_ID
                 )
         ).thenReturn(true);
+    }
+
+    private RecordingControlCommand command(UUID tabId) {
+        return new RecordingControlCommand(
+                tabId,
+                CONTROL_TOKEN
+        );
     }
 
     private Workspace workspace() {
@@ -253,8 +401,8 @@ class RecordingEndServiceTest {
                 WORKSPACE_ID,
                 memberId,
                 UUID.randomUUID(),
-                UUID.randomUUID(),
-                "a".repeat(64),
+                TAB_ID,
+                HASH,
                 STARTED_AT
         );
     }
