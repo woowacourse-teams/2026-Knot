@@ -15,10 +15,11 @@ API 관련 코드는 한곳에서 계층적으로 관리해야 하므로 모두 
 - `fetch/` — 순수 함수인 fetch를 엔드포인트별 폴더 구조로 관리. restful API 요청 엔드포인트와 `fetch/` 하위 디렉토리 위치가 일치해야 함. 요청·응답 타입은 파일 안에 정의하지 않고 `dto/`에서 가져오며, 응답은 `new XxxResponseDto(response.data)`로 감싸 반환.
   - e.g. `GET /api/v1/users/[id]` → `src/shared/api/fetch/api/v1/users/[id]/index.ts`
   - 폴더 이름의 `fetch`는 네이티브 fetch API가 아니라 **요청 함수**를 뜻함. 실제 요청은 `httpClient/`의 인스턴스로 보냄.
+  - 예외: SSE 응답(`Accept: text/event-stream`)을 받는 요청은 axios가 브라우저에서 응답 본문을 조각 단위로 읽지 못하므로 네이티브 `fetch`를 씀. DTO 하나를 반환하는 대신 `sse/readSseStream`으로 본문을 읽어 이벤트 DTO를 하나씩 내는 async generator로 작성하고, 이름은 다른 요청 함수와 같은 규칙(e.g. `createSearchConversationApi`)을 따름. accepted 전 HTTP 오류는 throw, 이후 실패는 이벤트로 전달.
 - `queryKey/` — 쿼리 키는 뮤테이션에서도 쓰이므로 별도 폴더로 분리, `user.ts`처럼 도메인별 파일로 관리.
 - `queries/`, `mutations/`, `suspense/`, `prefetch/` — 쿼리·뮤테이션·서스펜스·프리페치 훅을 각각 둠. 작성 규칙은 `.claude/rules/query-hooks.md` 참고.
 - `mock/` — 백엔드 연동 전 msw로 응답을 대신하는 mock API. 작성 규칙은 아래 「API mock」 참고.
-- `sse/` — SSE 응답 스트림을 이벤트로 해석하는 순수 함수(`parseSseEvents` 등). 탐색 같은 도메인과 API 명세의 이벤트 이름을 모르고 SSE 표준 형식만 다룸. 요청 함수(`fetch/`)에서만 씀.
+- `sse/` — SSE 표준 형식만 다룸. 문자열을 이벤트로 자르는 순수 함수(`parseSseEvents`)와, 응답 본문 스트림을 끝까지 읽어 이벤트를 하나씩 내는 async generator(`readSseStream`, 받는 쪽이 멈추면 `finally`에서 읽기를 취소)를 둠. 탐색 같은 도메인과 API 명세의 이벤트 이름을 모름. 요청 함수(`fetch/`)에서만 씀.
 
 ## API 요청(fetch) 로직
 
